@@ -1,0 +1,7 @@
+- [x] Update Default Prompt to request full content <!-- id: 1 -->
+- [x] Add `icon` to `ProcessedNote` interface and frontmatter output <!-- id: 2 -->
+- [x] Fix "Cancel" button in `ProcessingScreen` <!-- id: 3 -->
+- [x] Add "Settings" button to UI (navigate to Setup) <!-- id: 4 -->
+- [x] Add Logging to `Linking.openURL` <!-- id: 5 -->
+- [x] Implement Folder Selection/Validation UI <!-- id: 6 -->
+- [ ] Verify Obsidian opening with new logs <!-- id: 7 -->
