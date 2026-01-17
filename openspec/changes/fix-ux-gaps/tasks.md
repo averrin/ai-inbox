@@ -1,8 +1,0 @@
-- [x] Implement Reactive Folder Validation (auto-check) <!-- id: 1 -->
-- [ ] Add "Select Folder" Modal (browse vaults) <!-- id: 2 -->
-- [x] Implement "Full Content" vs "Summary" Toggle <!-- id: 3 -->
-- [x] Update Prompt Logic to respect Toggle <!-- id: 4 -->
-- [x] Fix "Cancel" Action (Enter `BackHandler.exitApp`) <!-- id: 5 -->
-- [x] Ensure Config/Settings Button is visible <!-- id: 6 -->
-- [x] Verify File Existence before Linking <!-- id: 7 -->
-- [x] Fix source property for user taken notes (should be "manual") <!-- id: 8 -->
