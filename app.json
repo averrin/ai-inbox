@@ -46,6 +46,24 @@
                 "data": {
                   "mimeType": "text/plain"
                 }
+              },
+              {
+                "action": "android.intent.action.SEND",
+                "data": {
+                  "mimeType": "image/*"
+                }
+              },
+              {
+                "action": "android.intent.action.SEND",
+                "data": {
+                  "mimeType": "application/pdf"
+                }
+              },
+              {
+                "action": "android.intent.action.SEND",
+                "data": {
+                  "mimeType": "application/*"
+                }
               }
             ]
           }

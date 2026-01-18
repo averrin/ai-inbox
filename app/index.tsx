@@ -22,7 +22,7 @@ export default function Home() {
     return <SetupScreen onClose={() => setShowSettings(false)} canClose={isConfigured} />;
   }
 
-  if (hasShareIntent && (shareIntent.type === 'text' || shareIntent.type === 'weburl' || shareIntent.webUrl || shareIntent.text)) {
+  if (hasShareIntent && (shareIntent.type === 'text' || shareIntent.type === 'weburl' || shareIntent.type === 'media' || shareIntent.webUrl || shareIntent.text || (shareIntent.files && shareIntent.files.length > 0))) {
      return <ProcessingScreen 
         shareIntent={shareIntent} 
         onReset={resetShareIntent} 
