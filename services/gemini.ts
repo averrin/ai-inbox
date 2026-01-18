@@ -56,7 +56,7 @@ export const DEFAULT_PROMPT = `
     
     IMPORTANT:
     - For URLs: Set "body" to empty string and populate "embedData" with the page metadata
-    - For text content: Set "body" to the markdown text and omit "embedData" and "fileData"
+    - For text content (including transcriptions): Set "body" to the full markdown text. If the input contains a transcription, INCLUDE IT IN THE BODY.
     - For files: Set "body" to empty string, omit "embedData", and populate "fileData" with file info
     - Icon format: Use "FasIconName" (e.g., "FasTerminal", "FasBook"). Do NOT include icon name in title or filename.
 
@@ -126,6 +126,9 @@ export async function processContent(apiKey: string, content: string, promptOver
         // Clean markdown code blocks if present
         text = text.replace(/```json/g, '').replace(/```/g, '');
 
+        // Sanitize: Replace NBSP and other weird spaces with normal space
+        text = text.replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ');
+
         const start = text.indexOf('{');
         const end = text.lastIndexOf('}');
         if (start !== -1 && end !== -1) {
@@ -149,6 +152,21 @@ export async function processContent(apiKey: string, content: string, promptOver
                     delete parsed.embedData;
                 }
 
+                // Handle hallucinated 'transcription' field by merging it into body
+                const extraData = parsed as any;
+                if (extraData.transcription) {
+                    if (parsed.body) {
+                        // If body exists, append/prepend transcription if not already there
+                        if (!parsed.body.includes(extraData.transcription)) {
+                            parsed.body = `${extraData.transcription}\n\n${parsed.body}`;
+                        }
+                    } else {
+                        parsed.body = extraData.transcription;
+                    }
+                    // Clean up to avoid confusion
+                    delete extraData.transcription;
+                }
+
                 return parsed;
             } catch (parseError: any) {
                 console.error("[Gemini] JSON parse failed. Error:", parseError.message);
@@ -160,5 +178,29 @@ export async function processContent(apiKey: string, content: string, promptOver
     } catch (e: any) {
         console.error("Gemini Error:", e);
         throw e;
+    }
+}
+
+export async function transcribeAudio(apiKey: string, base64Audio: string, mimeType: string, model: string = "gemini-1.5-flash"): Promise<string | null> {
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const genModel = genAI.getGenerativeModel({ model });
+
+        const result = await genModel.generateContent([
+            "Transcribe this audio file exactly. Return only the transcription text, no preamble or markdown.",
+            {
+                inlineData: {
+                    mimeType: mimeType,
+                    data: base64Audio
+                }
+            }
+        ]);
+
+        const text = result.response.text();
+        console.log(`[Gemini] Transcription result: ${text.substring(0, 50)}...`);
+        return text.trim();
+    } catch (e) {
+        console.error("[Gemini] Transcription failed:", e);
+        return null;
     }
 }
