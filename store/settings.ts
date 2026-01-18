@@ -5,12 +5,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 interface SettingsState {
     apiKey: string | null;
     vaultUri: string | null;
-    customPrompt: string | null;
+    customPromptPath: string | null;
     selectedModel: string;
     contextRootFolder: string;
     setApiKey: (key: string) => void;
     setVaultUri: (uri: string) => void;
-    setCustomPrompt: (prompt: string) => void;
+    setCustomPromptPath: (path: string) => void;
     setSelectedModel: (model: string) => void;
     setContextRootFolder: (folder: string) => void;
 }
@@ -20,12 +20,12 @@ export const useSettingsStore = create<SettingsState>()(
         (set) => ({
             apiKey: null,
             vaultUri: null,
-            customPrompt: null,
+            customPromptPath: null,
             selectedModel: 'gemini-3-flash-preview',
             contextRootFolder: '',
             setApiKey: (key) => set({ apiKey: key }),
             setVaultUri: (uri) => set({ vaultUri: uri }),
-            setCustomPrompt: (prompt) => set({ customPrompt: prompt }),
+            setCustomPromptPath: (path) => set({ customPromptPath: path }),
             setSelectedModel: (model) => set({ selectedModel: model }),
             setContextRootFolder: (folder) => set({ contextRootFolder: folder }),
         }),

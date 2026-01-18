@@ -9,6 +9,18 @@ export interface ProcessedNote {
     summary: string;
     body: string;
     icon?: string;
+    embedData?: {
+        title: string;
+        image?: string;
+        description: string;
+        url: string;
+        favicon?: string;
+    };
+    fileData?: {
+        filename: string;
+        savedAs: string;
+        type: string;
+    };
 }
 
 export const DEFAULT_PROMPT = `
@@ -26,15 +38,31 @@ export const DEFAULT_PROMPT = `
        "folder": "Suggested Folder",
        "frontmatter": { "source": "..." },
        "summary": "One sentence summary",
-       "body": "For URLs: the URL link ONLY. For text content: the full markdown formatted text.",
-       "icon": "Emoji or icon name (Fas%iconName%). Choose from Font Awesome"
+       "body": "For text content: the full markdown formatted text. For URLs: leave empty. For files: leave empty.",
+       "icon": "FasIconName (e.g., FasTerminal, FasBook, FasCode)",
+       "embedData": {
+          "title": "Page title",
+          "image": "https://example.com/image.jpg",
+          "description": "Page description",
+          "url": "https://example.com",
+          "favicon": "https://example.com/favicon.ico"
+       },
+       "fileData": {
+          "filename": "original-filename.pdf",
+          "savedAs": "Files/original-filename.pdf",
+          "type": "document"
+       }
     }
     
-    CRITICAL: If the content is a URL, the "body" field should ONLY contain the URL itself (e.g., "https://example.com/article"). Do NOT include the full page text. The "summary" field should contain a brief 2-3 sentence description of what the page is about.
+    IMPORTANT:
+    - For URLs: Set "body" to empty string and populate "embedData" with the page metadata
+    - For text content: Set "body" to the markdown text and omit "embedData" and "fileData"
+    - For files: Set "body" to empty string, omit "embedData", and populate "fileData" with file info
+    - Icon format: Use "FasIconName" (e.g., "FasTerminal", "FasBook"). Do NOT include icon name in title or filename.
 
     Content:
-    {{content}}
-    `;
+{{content}}
+`;
 
 export async function processContent(apiKey: string, content: string, promptOverride?: string | null, model?: string, vaultStructure?: string, contextRootFolder?: string): Promise<ProcessedNote | null> {
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -104,7 +132,24 @@ export async function processContent(apiKey: string, content: string, promptOver
             const jsonStr = text.substring(start, end + 1);
             console.log("[Gemini] Extracted JSON string:", jsonStr);
             try {
-                return JSON.parse(jsonStr);
+                const parsed = JSON.parse(jsonStr);
+
+                // If embedData exists, convert it to Obsidian embed format
+                if (parsed.embedData) {
+                    const embed = parsed.embedData;
+                    let embedBlock = '```embed\n';
+                    embedBlock += `title: "${embed.title}"\n`;
+                    if (embed.image) embedBlock += `image: "${embed.image}"\n`;
+                    embedBlock += `description: "${embed.description}"\n`;
+                    embedBlock += `url: "${embed.url}"\n`;
+                    if (embed.favicon) embedBlock += `favicon: "${embed.favicon}"\n`;
+                    embedBlock += '```';
+
+                    parsed.body = embedBlock;
+                    delete parsed.embedData;
+                }
+
+                return parsed;
             } catch (parseError: any) {
                 console.error("[Gemini] JSON parse failed. Error:", parseError.message);
                 console.error("[Gemini] Attempted to parse:", jsonStr.substring(0, 500));

@@ -1,5 +1,5 @@
 import { StorageAccessFramework } from 'expo-file-system/legacy';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 export async function requestVaultAccess() {
     try {
@@ -181,5 +181,194 @@ export async function saveToVault(vaultUri: string, filename: string, content: s
     } catch (e) {
         console.error('[saveToVault] Error:', e);
         throw e;
+    }
+}
+
+async function findFile(parentUri: string, filename: string): Promise<string | null> {
+    try {
+        const children = await StorageAccessFramework.readDirectoryAsync(parentUri);
+        const targetName = filename.toLowerCase();
+
+        for (const uri of children) {
+            const decoded = decodeURIComponent(uri);
+
+            // Extract filename from URI
+            const parts = decoded.split('/');
+            const last = parts[parts.length - 1];
+            let name = last.includes(':') ? last.split(':').pop() : last;
+
+            if (name?.toLowerCase() === targetName) {
+                console.log(`[findFile] Found: ${decoded}`);
+                return uri;
+            }
+        }
+
+        console.warn(`[findFile] Not found: ${filename}`);
+        return null;
+    } catch (e) {
+        console.error(`[findFile] Error searching for ${filename}:`, e);
+        return null;
+    }
+}
+
+export async function checkFileExists(parentUri: string, filePath: string): Promise<boolean> {
+    try {
+        // Handle nested paths like "folder/file.md"
+        if (filePath.includes('/')) {
+            const parts = filePath.split('/').filter(p => p.trim());
+            const filename = parts.pop()!;
+            const dirPath = parts.join('/');
+
+            // Navigate to the directory first
+            const dirUri = await checkDirectoryExists(parentUri, dirPath);
+            if (!dirUri) {
+                return false;
+            }
+
+            // Then check for the file
+            const fileUri = await findFile(dirUri, filename);
+            return fileUri !== null;
+        }
+
+        // Single file in root
+        const fileUri = await findFile(parentUri, filePath);
+        return fileUri !== null;
+    } catch (e) {
+        console.error('[checkFileExists] Error:', e);
+        return false;
+    }
+}
+
+export async function readFileContent(parentUri: string, filePath: string): Promise<string> {
+    try {
+        // Handle nested paths like "folder/file.md"
+        if (filePath.includes('/')) {
+            const parts = filePath.split('/').filter(p => p.trim());
+            const filename = parts.pop()!;
+            const dirPath = parts.join('/');
+
+            // Navigate to the directory first
+            const dirUri = await checkDirectoryExists(parentUri, dirPath);
+            if (!dirUri) {
+                throw new Error(`Directory not found: ${dirPath}`);
+            }
+
+            // Then find and read the file
+            const fileUri = await findFile(dirUri, filename);
+            if (!fileUri) {
+                throw new Error(`File not found: ${filename} in ${dirPath}`);
+            }
+
+            return await StorageAccessFramework.readAsStringAsync(fileUri);
+        }
+
+        // Single file in root
+        const fileUri = await findFile(parentUri, filePath);
+        if (!fileUri) {
+            throw new Error(`File not found: ${filePath}`);
+        }
+
+        return await StorageAccessFramework.readAsStringAsync(fileUri);
+    } catch (e) {
+        console.error('[readFileContent] Error:', e);
+        throw e;
+    }
+}
+
+/**
+ * Get file information from a URI
+ */
+export async function getFileInfo(uri: string): Promise<{ name: string; size: number; mimeType: string } | null> {
+    try {
+        const info = await FileSystem.getInfoAsync(uri);
+        if (!info.exists) return null;
+
+        // Extract filename from URI
+        const uriParts = uri.split('/');
+        const name = decodeURIComponent(uriParts[uriParts.length - 1]);
+
+        return {
+            name,
+            size: info.size || 0,
+            mimeType: 'application/octet-stream' // FileSystem doesn't provide mimeType
+        };
+    } catch (e) {
+        console.error('[getFileInfo] Error:', e);
+        return null;
+    }
+}
+
+/**
+ * Copy a file to the vault
+ */
+export async function copyFileToVault(
+    sourceUri: string,
+    vaultUri: string,
+    targetPath: string
+): Promise<string | null> {
+    try {
+        // Handle nested paths
+        const pathParts = targetPath.split('/').filter(p => p.trim());
+        const filename = pathParts.pop();
+
+        if (!filename) {
+            console.error('[copyFileToVault] Invalid target path');
+            return null;
+        }
+
+        // Ensure parent directories exist
+        let currentUri = vaultUri;
+        for (const part of pathParts) {
+            currentUri = await ensureDirectory(currentUri, part);
+        }
+
+        // Read source file as base64
+        const fileContent = await FileSystem.readAsStringAsync(sourceUri, {
+            encoding: 'base64'
+        });
+
+        // Create file in vault
+        const fileUri = await StorageAccessFramework.createFileAsync(
+            currentUri,
+            filename,
+            'application/octet-stream'
+        );
+
+        // Write content
+        await FileSystem.writeAsStringAsync(fileUri, fileContent, {
+            encoding: 'base64'
+        });
+
+        console.log(`[copyFileToVault] Copied file to: ${targetPath}`);
+        return fileUri;
+    } catch (e) {
+        console.error('[copyFileToVault] Error:', e);
+        return null;
+    }
+}
+
+/**
+ * Ensure Files directory exists in context root
+ */
+export async function ensureFilesDirectory(
+    vaultUri: string,
+    contextRoot?: string
+): Promise<string | null> {
+    try {
+        let baseUri = vaultUri;
+
+        // Navigate to context root if specified
+        if (contextRoot && contextRoot.trim()) {
+            const contextUri = await checkDirectoryExists(vaultUri, contextRoot.trim());
+            if (contextUri) {
+                baseUri = contextUri;
+            }
+        }
+
+        // Ensure Files directory exists
+        return await ensureDirectory(baseUri, 'Files');
+    } catch (e) {
+        console.error('[ensureFilesDirectory] Error:', e);
+        return null;
     }
 }
