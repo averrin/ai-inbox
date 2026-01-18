@@ -372,3 +372,51 @@ export async function ensureFilesDirectory(
         return null;
     }
 }
+/**
+ * Delete a file from the vault
+ */
+export async function deleteFile(uri: string): Promise<boolean> {
+    try {
+        await StorageAccessFramework.deleteAsync(uri);
+        console.log(`[deleteFile] Deleted: ${uri}`);
+        return true;
+    } catch (e) {
+        console.error('[deleteFile] Error:', e);
+        return false;
+    }
+}
+
+/**
+ * Delete a file from the vault by relative path
+ */
+export async function deleteFileByPath(vaultUri: string, relativePath: string): Promise<boolean> {
+    try {
+        // Handle nested paths
+        if (relativePath.includes('/')) {
+            const parts = relativePath.split('/').filter(p => p.trim());
+            const filename = parts.pop()!;
+            const dirPath = parts.join('/');
+
+            const dirUri = await checkDirectoryExists(vaultUri, dirPath);
+            if (!dirUri) return false;
+
+            const fileUri = await findFile(dirUri, filename);
+            if (!fileUri) return false;
+
+            await StorageAccessFramework.deleteAsync(fileUri);
+            console.log(`[deleteFileByPath] Deleted: ${relativePath}`);
+            return true;
+        }
+
+        // Single file
+        const fileUri = await findFile(vaultUri, relativePath);
+        if (!fileUri) return false;
+
+        await StorageAccessFramework.deleteAsync(fileUri);
+        console.log(`[deleteFileByPath] Deleted: ${relativePath}`);
+        return true;
+    } catch (e) {
+        console.error('[deleteFileByPath] Error:', e);
+        return false;
+    }
+}

@@ -3,6 +3,9 @@ import { View, Text, ScrollView, Alert, TouchableOpacity, TextInput, Modal, Keyb
 import { ShareIntent } from 'expo-share-intent';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, FadeIn } from 'react-native-reanimated';
 import * as Linking from 'expo-linking';
+import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Ionicons } from '@expo/vector-icons';
 
 import { Layout } from './ui/Layout';
 import { Card } from './ui/Card';
@@ -27,7 +30,7 @@ function PulsingIcon() {
         <View className="items-center justify-center p-10">
             <Animated.View style={style} className="w-24 h-24 bg-indigo-500 rounded-full opacity-30 absolute" />
             <View className="w-16 h-16 bg-indigo-400 rounded-full items-center justify-center shadow-lg shadow-indigo-500/50">
-                 <Text className="text-2xl">🧠</Text>
+                 <Ionicons name="sparkles" size={32} color="white" />
             </View>
         </View>
     );
@@ -78,7 +81,73 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     const [includeSummary, setIncludeSummary] = useState(false); // Task 21: Renamed and inverted
     const [skipAnalyze, setSkipAnalyze] = useState(false); // Skip AI analysis toggle
     const [openInObsidian, setOpenInObsidian] = useState(true); // Toggle for opening Obsidian after save
-    
+    const [recording, setRecording] = useState<Audio.Recording | undefined>();
+
+    const startRecording = async () => {
+        try {
+            const perm = await Audio.requestPermissionsAsync();
+            if (perm.status !== 'granted') {
+                Alert.alert('Permission needed', 'Microphone permission is required to record audio.');
+                return;
+            }
+
+            await Audio.setAudioModeAsync({
+                allowsRecordingIOS: true,
+                playsInSilentModeIOS: true,
+            });
+
+            const { recording } = await Audio.Recording.createAsync(
+                Audio.RecordingOptionsPresets.HIGH_QUALITY
+            );
+            setRecording(recording);
+        } catch (err) {
+            console.error('Failed to start recording', err);
+            Alert.alert('Error', 'Failed to start recording');
+        }
+    };
+
+    const stopRecording = async () => {
+        if (!recording) return;
+        
+        try {
+            await recording.stopAndUnloadAsync();
+            const uri = recording.getURI(); 
+            setRecording(undefined);
+            
+            if (uri) {
+                // Wait a bit for file to be flushed
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                let size = 0;
+                try {
+                    const info = await FileSystem.getInfoAsync(uri);
+                    if (info.exists) {
+                        size = info.size;
+                        console.log('[Recording] File size:', size);
+                    }
+                } catch(e) { console.warn('Could not get file size', e); }
+
+                // Sanitize filename: Recording_YYYY-MM-DD_HH-mm-ss.m4a
+                const dateStr = new Date().toISOString().replace(/[:.]/g, '-').split('T').join('_');
+                const newFile = {
+                    uri,
+                    name: `Recording_${dateStr}.m4a`,
+                    size: size,
+                    mimeType: 'audio/m4a'
+                };
+                
+                setAttachedFiles(prev => [...prev, newFile]);
+            }
+        } catch (err) {
+            console.error('Failed to stop recording', err);
+        }
+    };
+
+    const getAttachmentSubfolder = (mimeType: string) => {
+        if (mimeType.startsWith('image/')) return 'Images';
+        if (mimeType.startsWith('audio/')) return 'Audio';
+        return 'Documents';
+    };    
     const analyze = async (text: string, skipPreview: boolean = false) => {
         setLoading(true);
         try {
@@ -137,18 +206,40 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
             const result = await processContent(apiKey!, contentForAI, customPrompt, selectedModel, vaultStructure, rootFolderForContext);
             if (result) {
                 // Helper to strip emoji/icon prefix from text
-                const stripIconPrefix = (text: string): string => {
-                    // Remove Font Awesome format like "FasIconName " at the start (with or without %)
-                    return text.replace(/^Fas[A-Z][a-zA-Z]*\s+/g, '').replace(/^Fas%[^%]+%\s*/g, '').trim();
-                };
+                let contextRootFolder = undefined;
+                try {
+                     const settingsStore = useSettingsStore.getState();
+                     if (settingsStore.contextRootFolder) {
+                         contextRootFolder = settingsStore.contextRootFolder;
+                     }
+                } catch (e) { console.warn('Could not get context root', e); }
+                
+                // Transcription and Embeddings
+                let transcriptionContext = '';
+                const embeddings: string[] = [];
                 
                 // If files were attached, copy them to vault and update body with embeddings
                 if (attachedFiles.length > 0) {
                     const { copyFileToVault } = await import('../utils/saf');
-                    const embeddings: string[] = [];
+                    const { transcribeAudio } = await import('../services/gemini');
                     
                     for (const file of attachedFiles) {
-                         const targetPath = `Files/${file.name}`;
+                         // Transcribe if audio
+                         if (file.mimeType.startsWith('audio/')) {
+                             try {
+                                 const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
+                                 const transcription = await transcribeAudio(apiKey || '', base64, file.mimeType, selectedModel || undefined);
+                                 if (transcription) {
+                                     const formatted = transcription.split('\n').map(line => `> ${line}`).join('\n');
+                                     transcriptionContext += `\n> [!quote] Transcription: ${file.name}\n${formatted}\n`;
+                                 }
+                             } catch (e) {
+                                 console.warn(`Failed to transcribe ${file.name}`, e);
+                             }
+                         }
+
+                         const subfolder = getAttachmentSubfolder(file.mimeType);
+                         const targetPath = `Files/${subfolder}/${file.name}`;
                          const copiedUri = await copyFileToVault(
                             file.uri,
                             vaultUri!,
@@ -160,14 +251,24 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                         }
                     }
                     
+                    // Prepend transcription to text for AI analysis
+                    if (transcriptionContext) {
+                        contentForAI = `${transcriptionContext}\n\n${contentForAI}`;
+                        // Also append to result body so it appears in the note
+                        result.body = `${transcriptionContext}\n\n${result.body}`;
+                    }
+
                     if (embeddings.length > 0) {
-                        // Append embeddings to the end of the body or insert at top?
-                        // Usually better at the end or where context fit. 
-                        // For now appending with double newline
                         result.body = `${result.body}\n\n${embeddings.join('\n')}`;
                     }
                 }
-
+                
+                // Helper to strip emoji/icon prefix from text
+                const stripIconPrefix = (text: string): string => {
+                    // Remove Font Awesome format like "FasIconName " at the start (with or without %)
+                    return text.replace(/^Fas[A-Z][a-zA-Z]*\s+/g, '').replace(/^Fas%[^%]+%\s*/g, '').trim();
+                };
+                
                 if (skipPreview) {
                     // QUICK SAVE LOGIC
                     const currentDate = new Date().toISOString().split('T')[0];
@@ -288,7 +389,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     }, [shareIntent, apiKey]); // Re-run when intent changes
 
     const handleManualAnalyze = () => {
-        if (inputText.trim()) {
+        if (inputText.trim() || attachedFiles.length > 0) {
             analyze(inputText);
         }
     };
@@ -302,13 +403,32 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
             const currentDate = new Date().toISOString().split('T')[0];
             
             let embeddings = '';
+            let transcriptionText = '';
             
             // Handle file attachments
             if (attachedFiles.length > 0) {
                 const { copyFileToVault } = await import('../utils/saf');
+                const { transcribeAudio } = await import('../services/gemini');
+
                 for (const file of attachedFiles) {
-                    // Copy file to Files folder
-                    const targetPath = `Files/${file.name}`;
+                    // Transcribe if audio
+                     if (file.mimeType.startsWith('audio/')) {
+                         try {
+                             const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
+                             const transcription = await transcribeAudio(apiKey || '', base64, file.mimeType, selectedModel || undefined);
+                             if (transcription) {
+                                 const formatted = transcription.split('\n').map(line => `> ${line}`).join('\n');
+                                 transcriptionText += `\n> [!quote] Transcription\n${formatted}\n`;
+                             }
+                         } catch (e) {
+                             console.warn(`Failed to transcribe ${file.name}`, e);
+                         }
+                     }
+
+                    // Copy file to Files/Subfolder
+                    const subfolder = getAttachmentSubfolder(file.mimeType);
+                    const targetPath = `Files/${subfolder}/${file.name}`;
+                    
                     const copiedUri = await copyFileToVault(
                         file.uri,
                         vaultUri,
@@ -321,15 +441,21 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                 }
             }
             
+            // Prepend transcription to input text
+            let processedText = inputText;
+            if (transcriptionText) {
+                processedText = `${transcriptionText}\n\n${inputText}`.trim();
+            }
+            
             // Handle URL/text (existing logic)
-            const isUrl = inputText.trim().startsWith('http://') || inputText.trim().startsWith('https://');
+            const isUrl = processedText.trim().startsWith('http://') || processedText.trim().startsWith('https://');
             let title = '';
             let filename = '';
             
             if (isUrl) {
                 // Try to fetch page title
                 try {
-                    const url = inputText.trim();
+                    const url = processedText.trim();
                     
                     // Special handling for YouTube URLs
                     if (url.includes('youtube.com') || url.includes('youtu.be')) {
@@ -364,20 +490,20 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
             
             // Fallback to first line or generic name if no title found
             if (!title) {
-                if (inputText.trim()) {
-                    const lines = inputText.trim().split('\n');
+                if (processedText.trim()) {
+                    const lines = processedText.trim().split('\n');
                     title = lines[0].substring(0, 50).trim();
                 } else if (attachedFiles.length > 0) {
-                     title = `Attachments ${new Date().toLocaleString()}`;
+                     title = `Attachments ${new Date().toLocaleString().replace(/[\/:]/g, '-')}`;
                 } else {
-                    title = `Note ${new Date().toLocaleString()}`;
+                    title = `Note ${new Date().toLocaleString().replace(/[\/:]/g, '-')}`;
                 }
             }
             
             filename = `${title.replace(/[^a-zA-Z0-9-_ ]/g, '')}.md`;
             
             // Determine source
-            const source = isUrl ? inputText.trim() : 'manual';
+            const source = isUrl ? processedText.trim() : 'manual';
             
             // Minimal frontmatter
             const frontmatter = `---
@@ -387,7 +513,7 @@ source: ${JSON.stringify(source)}
 
 `;
             
-            const content = frontmatter + inputText + (embeddings ? `\n\n${embeddings}` : '');
+            const content = frontmatter + processedText + (embeddings ? `\n\n${embeddings}` : '');
             
             // Save to context root folder
             const folderPath = contextRootFolder || 'Inbox';
@@ -498,15 +624,15 @@ source: ${JSON.stringify(source)}
                     <Text className="text-2xl font-bold text-white">Take a Note</Text>
                     {onOpenSettings && (
                         <TouchableOpacity onPress={onOpenSettings} className="p-2 bg-slate-800 rounded-full">
-                            <Text className="text-xl">⚙️</Text>
+                            <Ionicons name="settings-sharp" size={24} color="#CBD5E1" />
                         </TouchableOpacity>
                     )}
                 </View>
                 <View className="flex-1 p-4">
-                    {/* Text input with embedded attach and camera buttons */}
-                    <View className="mb-4 relative">
+                    {/* Text input with embedded buttons */}
+                    <View className="mb-4 relative flex-row">
                         <TextInput 
-                            className="bg-slate-800/80 border border-slate-700 rounded-xl p-4 pr-24 text-white text-lg shadow-lg" 
+                            className="flex-1 bg-slate-800/80 border border-slate-700 rounded-xl p-4 pr-14 text-white text-lg shadow-lg" 
                             multiline 
                             placeholder="Paste URL or type your thought..." 
                             placeholderTextColor="#94a3b8"
@@ -516,82 +642,89 @@ source: ${JSON.stringify(source)}
                             autoFocus
                         />
                         
-                        {/* Camera button */}
-                        <TouchableOpacity 
-                            onPress={async () => {
-                                if (loading || saving) return;
-                                
-                                try {
-                                    const ImagePicker = await import('expo-image-picker');
-                                    
-                                    // Request camera permissions
-                                    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-                                    if (status !== 'granted') {
-                                        Alert.alert('Permission Required', 'Camera permission is required to take photos.');
-                                        return;
-                                    }
-                                    
-                                    const result = await ImagePicker.launchCameraAsync({
-                                        mediaTypes: ['images'],
-                                        quality: 0.8,
-                                        allowsEditing: false,
-                                    });
+                        {/* Vertical Button Column */}
+                        <View className="absolute right-2 top-2 bottom-2 justify-start gap-3 w-12 items-center pt-2">
+                             {/* Attach file button */}
+                            <TouchableOpacity 
+                                onPress={async () => {
+                                    if (loading || saving) return;
+                                    try {
+                                        const DocumentPicker = await import('expo-document-picker');
+                                        const result = await DocumentPicker.getDocumentAsync({
+                                            type: '*/*',
+                                            copyToCacheDirectory: true,
+                                            multiple: true 
+                                        });
 
-                                    if (!result.canceled && result.assets && result.assets.length > 0) {
-                                        const photo = result.assets[0];
-                                        const fileName = `photo_${Date.now()}.jpg`;
-                                        setAttachedFiles(prev => [...prev, {
-                                            uri: photo.uri,
-                                            name: fileName,
-                                            size: photo.fileSize || 0,
-                                            mimeType: 'image/jpeg'
-                                        }]);
+                                        if (!result.canceled && result.assets && result.assets.length > 0) {
+                                            const newFiles = result.assets.map(file => ({
+                                                uri: file.uri,
+                                                name: file.name,
+                                                size: file.size || 0,
+                                                mimeType: file.mimeType || 'application/octet-stream'
+                                            }));
+                                            setAttachedFiles(prev => [...prev, ...newFiles]);
+                                        }
+                                    } catch (e) {
+                                        console.error('[File Picker] Error:', e);
+                                        Alert.alert('Error', 'Could not pick file');
                                     }
-                                } catch (e) {
-                                    console.error('[Camera] Error:', e);
-                                    Alert.alert('Error', 'Could not open camera');
-                                }
-                            }}
-                            className="absolute top-2 right-14 bg-slate-700/90 p-2 rounded-lg"
-                            disabled={loading || saving}
-                        >
-                            <Text className="text-lg">📷</Text>
-                        </TouchableOpacity>
-                        
-                        {/* Attach file button */}
-                        <TouchableOpacity 
-                            onPress={async () => {
-                                if (loading || saving) return;
-                                
-                                try {
-                                    const DocumentPicker = await import('expo-document-picker');
-                                    const result = await DocumentPicker.getDocumentAsync({
-                                        type: '*/*',
-                                        copyToCacheDirectory: true,
-                                        multiple: true // Allow multiple selection
-                                    });
+                                }}
+                                className="bg-slate-700/50 p-2 rounded-lg"
+                                disabled={loading || saving}
+                            >
+                                <Ionicons name="attach" size={24} color="white" />
+                            </TouchableOpacity>
 
-                                    if (!result.canceled && result.assets && result.assets.length > 0) {
-                                        const newFiles = result.assets.map(file => ({
-                                            uri: file.uri,
-                                            name: file.name,
-                                            size: file.size || 0,
-                                            mimeType: file.mimeType || 'application/octet-stream'
-                                        }));
-                                        
-                                        setAttachedFiles(prev => [...prev, ...newFiles]);
+                            {/* Camera button */}
+                            <TouchableOpacity 
+                                onPress={async () => {
+                                    if (loading || saving) return;
+                                    try {
+                                        const ImagePicker = await import('expo-image-picker');
+                                        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                                        if (status !== 'granted') {
+                                            Alert.alert('Permission Required', 'Camera permission is required.');
+                                            return;
+                                        }
+                                        const result = await ImagePicker.launchCameraAsync({
+                                            mediaTypes: ['images'],
+                                            quality: 0.8,
+                                            allowsEditing: false,
+                                        });
+
+                                        if (!result.canceled && result.assets && result.assets.length > 0) {
+                                            const photo = result.assets[0];
+                                            const fileName = `photo_${Date.now()}.jpg`;
+                                            setAttachedFiles(prev => [...prev, {
+                                                uri: photo.uri,
+                                                name: fileName,
+                                                size: photo.fileSize || 0,
+                                                mimeType: 'image/jpeg'
+                                            }]);
+                                        }
+                                    } catch (e) {
+                                        console.error('[Camera] Error:', e);
+                                        Alert.alert('Error', 'Could not open camera');
                                     }
-                                } catch (e) {
-                                    console.error('[File Picker] Error:', e);
-                                    Alert.alert('Error', 'Could not pick file');
-                                }
-                            }}
-                            className="absolute top-2 right-2 bg-slate-700/90 p-2 rounded-lg"
-                            disabled={loading || saving}
-                        >
-                            <Text className="text-lg">📎</Text>
-                        </TouchableOpacity>
+                                }}
+                                className="bg-slate-700/50 p-2 rounded-lg"
+                                disabled={loading || saving}
+                            >
+                                <Ionicons name="camera" size={24} color="white" />
+                            </TouchableOpacity>
+
+                            {/* Voice Record Button */}
+                            <TouchableOpacity 
+                                onPress={recording ? stopRecording : startRecording}
+                                className={`p-2 rounded-lg ${recording ? 'bg-red-600/90' : 'bg-slate-700/50'}`}
+                                disabled={loading || saving}
+                            >
+                                <Ionicons name={recording ? "stop" : "mic"} size={24} color="white" />
+                            </TouchableOpacity>
+                        </View>
                     </View>
+
                     
                     {/* File attachment info */}
                     {attachedFiles.length > 0 && (
@@ -600,7 +733,18 @@ source: ${JSON.stringify(source)}
                                 <FileAttachment 
                                     key={`${file.name}-${index}`}
                                     file={file} 
-                                    onRemove={() => setAttachedFiles(prev => prev.filter((_, i) => i !== index))} 
+                                    onRemove={async () => {
+                                        // Remove from state
+                                        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+                                        
+                                        // Delete file from FS if it exists (cleanup)
+                                        try {
+                                            const { deleteFile } = await import('../utils/saf');
+                                            await deleteFile(file.uri);
+                                        } catch (e) {
+                                            console.warn('Failed to delete file', e);
+                                        }
+                                    }} 
                                     showRemove={true}
                                 />
                             ))}
@@ -782,13 +926,45 @@ source: ${JSON.stringify(source)}
                     </Card>
 
                     {/* File attachment info in preview */}
+                    {/* File attachment info in preview */}
                     {attachedFiles.length > 0 && (
                         <View className="mb-2">
                              {attachedFiles.map((file, index) => (
                                 <FileAttachment 
                                     key={`preview-${file.name}-${index}`}
                                     file={file} 
-                                    showRemove={false}
+                                    showRemove={true}
+                                    onRemove={async () => {
+                                        // 1. Remove from local state
+                                        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+                                        
+                                        // 2. Remove from vault
+                                        try {
+                                            const subfolder = getAttachmentSubfolder(file.mimeType);
+                                            const targetPath = `Files/${subfolder}/${file.name}`;
+                                            const { deleteFileByPath } = await import('../utils/saf');
+                                            
+                                            if (vaultUri) {
+                                                await deleteFileByPath(vaultUri, targetPath);
+                                            }
+                                            
+                                            // 3. Remove embedding from content body
+                                            const embedding = `![[${targetPath}]]`;
+                                            // Escape regex characters in embedding string
+                                            const escapedEmbedding = embedding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                            const embeddingRegex = new RegExp(escapedEmbedding + '\\n?', 'g');
+                                            
+                                            // Keep transcription as requested
+                                            
+                                            setBody(prev => {
+                                                let newBody = prev.replace(embeddingRegex, '');
+                                                return newBody.trim();
+                                            });
+                                            
+                                        } catch (e) {
+                                            console.warn('Failed to remove file from vault during preview cleanup', e);
+                                        }
+                                    }}
                                 />
                             ))}
                         </View>
