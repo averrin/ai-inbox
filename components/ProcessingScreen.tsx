@@ -13,6 +13,7 @@ import { processContent, ProcessedNote } from '../services/gemini';
 import { saveToVault, checkDirectoryExists, readVaultStructure } from '../utils/saf';
 import { FolderInput } from './ui/FolderInput';
 import { FileAttachment } from './ui/FileAttachment';
+import { openInObsidian as openNoteInObsidian } from '../utils/obsidian';
 
 
 
@@ -187,26 +188,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                     await saveToVault(vaultUri!, fullFilename, fileContent, result.folder);
                     
                     if (openInObsidian) {
-                        // Open Logic (Duplicated for now/inline)
-                        const path = result.folder ? `${result.folder}/${fullFilename}` : fullFilename;
-                        let absolutePath = '';
-                        try {
-                            const decoded = decodeURIComponent(vaultUri!);
-                            const pathMatch = decoded.match(/(?:tree|document)\/(.+?)$/);
-                            if (pathMatch && pathMatch[1]) {
-                                let vaultPath = pathMatch[1].replace(/primary:/, '/storage/emulated/0/');
-                                absolutePath = `${vaultPath}/${path}`;
-                            }
-                        } catch (e) {
-                            console.warn('[Linking] Could not extract absolute path:', e);
-                        }
-                        
-                        const obsidianUrl = absolutePath
-                            ? `obsidian://open?file=${encodeURIComponent(absolutePath)}`
-                            : `obsidian://open?file=${encodeURIComponent(path)}`;
-                        
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        Linking.openURL(obsidianUrl).catch(err => console.error("Failed to open Obsidian", err));
+                        await openNoteInObsidian(fullFilename, result.folder);
                     } else {
                         Alert.alert('Success', `Saved to ${result.folder}/${fullFilename}`);
                     }
@@ -415,26 +397,7 @@ source: ${JSON.stringify(source)}
             console.log(`[DirectSave] Saved to: ${folderPath}/${filename}`);
 
             if (openInObsidian) {
-                // Reuse linking logic (should extract this to helper function)
-                const path = `${folderPath}/${filename}`;
-                let absolutePath = '';
-                try {
-                    const decoded = decodeURIComponent(vaultUri!);
-                    const pathMatch = decoded.match(/(?:tree|document)\/(.+?)$/);
-                    if (pathMatch && pathMatch[1]) {
-                        let vaultPath = pathMatch[1].replace(/primary:/, '/storage/emulated/0/');
-                        absolutePath = `${vaultPath}/${path}`;
-                    }
-                } catch (e) {
-                    console.warn('[Linking] Could not extract absolute path:', e);
-                }
-                
-                const obsidianUrl = absolutePath
-                    ? `obsidian://open?file=${encodeURIComponent(absolutePath)}`
-                    : `obsidian://open?file=${encodeURIComponent(path)}`;
-                
-                await new Promise(resolve => setTimeout(resolve, 500));
-                Linking.openURL(obsidianUrl).catch(err => console.error("Failed to open Obsidian", err));
+                await openNoteInObsidian(filename, folderPath);
             } else {
                 Alert.alert('Success', `Note saved: ${filename}`);
             }
@@ -500,57 +463,9 @@ source: ${JSON.stringify(source)}
             console.log(`[Save] File saved to: ${savedUri}`);
 
             if (openInObsidian) {
-                // Open in Obsidian using absolute file path
-                const path = folder ? `${folder}/${fullFilename}` : fullFilename;
-                
-                // Convert SAF URI to absolute file path for Obsidian
-                let absolutePath = '';
-                try {
-                    const decoded = decodeURIComponent(vaultUri);
-                    const pathMatch = decoded.match(/(?:tree|document)\/(.+?)$/);
-                    if (pathMatch && pathMatch[1]) {
-                        // Convert "primary:Documents/Vault" to "/storage/emulated/0/Documents/Vault"
-                        let vaultPath = pathMatch[1].replace(/primary:/, '/storage/emulated/0/');
-                        // Append the file path
-                        absolutePath = `${vaultPath}/${path}`;
-                    }
-                } catch (e) {
-                    console.warn('[Linking] Could not extract absolute path:', e);
-                }
-                
-                // Use file:// protocol with absolute path
-                const obsidianUrl = absolutePath
-                    ? `obsidian://open?file=${encodeURIComponent(absolutePath)}`
-                    : `obsidian://open?file=${encodeURIComponent(path)}`;
-                
-                console.log(`[Linking] Opening URL: ${obsidianUrl}`);
-                
-                // Give file system ample time to flush
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Try to open Obsidian with retries (canOpenURL is unreliable on Android)
-                let openSuccess = false;
-                for (let attempt = 1; attempt <= 3; attempt++) {
-                    try {
-                        console.log(`[Linking] Attempt ${attempt} to open Obsidian`);
-                        await Linking.openURL(obsidianUrl);
-                        console.log("[Linking] Successfully opened Obsidian");
-                        openSuccess = true;
-                        break;
-                    } catch (err) {
-                        console.warn(`[Linking] Attempt ${attempt} failed:`, err);
-                        if (attempt < 3) {
-                            // Wait 500ms before retry
-                            await new Promise(resolve => setTimeout(resolve, 500));
-                        }
-                    }
-                }
-                
-                if (!openSuccess) {
-                    console.error("[Linking] Failed to open Obsidian after 3 attempts");
-                }
+                await openNoteInObsidian(fullFilename, folder);
             } else {
-                 Alert.alert('Success', 'Note saved to vault');
+                Alert.alert('Success', 'Note saved to vault');
             }
             
             // Clear state and reset after everything completes

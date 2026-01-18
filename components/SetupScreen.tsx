@@ -9,6 +9,7 @@ import { fetchAvailableModels } from '../services/models';
 import { useState, useEffect } from 'react';
 import { FolderInput } from './ui/FolderInput';
 import { FileInput } from './ui/FileInput';
+import { openInObsidian } from '../utils/obsidian';
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
     const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder } = useSettingsStore();
@@ -202,22 +203,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                 title="📝 Open Prompt File in Obsidian" 
                                 onPress={async () => {
                                     if (!promptPathInput) return;
-                                    
-                                    try {
-                                        // Build relative path from context root
-                                        const relativePath = rootFolderInput 
-                                            ? `${rootFolderInput}/${promptPathInput}` 
-                                            : promptPathInput;
-                                        
-                                        const obsidianUrl = `obsidian://open?path=${encodeURIComponent(relativePath)}`;
-                                        console.log('[SetupScreen] Opening prompt file:', obsidianUrl);
-                                        
-                                        const Linking = await import('expo-linking');
-                                        await Linking.openURL(obsidianUrl);
-                                    } catch (e) {
-                                        console.error('[SetupScreen] Failed to open in Obsidian:', e);
-                                        Alert.alert('Error', 'Could not open file in Obsidian');
-                                    }
+                                    await openInObsidian(promptPathInput, rootFolderInput);
                                 }} 
                                 variant="secondary" 
                             />
