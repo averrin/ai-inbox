@@ -10,6 +10,8 @@ import { FileAttachment } from '../ui/FileAttachment';
 import { TextEditor } from '../ui/TextEditor';
 import { ProcessedNote } from '../../services/gemini';
 
+import { LongPressButton } from '../ui/LongPressButton';
+
 interface PreviewScreenProps {
     data: ProcessedNote;
     title: string;
@@ -28,6 +30,7 @@ interface PreviewScreenProps {
     attachedFiles: { uri: string; name: string; size: number; mimeType: string }[];
     onRemoveAttachment: (index: number) => Promise<void>;
     onSave: () => void;
+    onSaveAndAddNew: () => void;
     onBack: () => void;
     saving: boolean;
     vaultUri: string | null;
@@ -64,6 +67,7 @@ export function PreviewScreen({
     attachedFiles,
     onRemoveAttachment,
     onSave,
+    onSaveAndAddNew,
     onBack,
     saving,
     vaultUri,
@@ -199,9 +203,11 @@ export function PreviewScreen({
                     </View>
 
                     <View className="py-4">
-                        <Button
-                            title="Save to Vault"
+                        <LongPressButton
                             onPress={onSave}
+                            onLongPress={onSaveAndAddNew}
+                            shortPressLabel="Save to Vault"
+                            longPressLabel="Save & Add New"
                             disabled={saving || !vaultUri}
                         />
                         <View className="h-4" />
