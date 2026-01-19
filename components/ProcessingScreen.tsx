@@ -1,48 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Alert, TouchableOpacity, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { Alert } from 'react-native';
 import { ShareIntent } from 'expo-share-intent';
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, FadeIn } from 'react-native-reanimated';
-import * as Linking from 'expo-linking';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Ionicons } from '@expo/vector-icons';
 
-import { Layout } from './ui/Layout';
-import { Card } from './ui/Card';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
 import { useSettingsStore } from '../store/settings';
 import { processContent, ProcessedNote } from '../services/gemini';
 import { saveToVault, checkDirectoryExists, readVaultStructure } from '../utils/saf';
-import { FolderInput } from './ui/FolderInput';
-import { FileAttachment } from './ui/FileAttachment';
 import { openInObsidian as openNoteInObsidian } from '../utils/obsidian';
+import { getMostUsedTags } from '../utils/tagUtils';
+import { processURLsInText } from '../utils/urlMetadata';
 
-
-
-function PulsingIcon() {
-    const scale = useSharedValue(1);
-    useEffect(() => {
-        scale.value = withRepeat(withTiming(1.2, { duration: 1000, easing: Easing.ease }), -1, true);
-    }, []);
-    const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-    return (
-        <View className="items-center justify-center p-10">
-            <Animated.View style={style} className="w-24 h-24 bg-indigo-500 rounded-full opacity-30 absolute" />
-            <View className="w-16 h-16 bg-indigo-400 rounded-full items-center justify-center shadow-lg shadow-indigo-500/50">
-                 <Ionicons name="sparkles" size={32} color="white" />
-            </View>
-        </View>
-    );
-}
+// Screen components
+import { LoadingScreen } from './screens/LoadingScreen';
+import { ErrorScreen } from './screens/ErrorScreen';
+import { SavingScreen } from './screens/SavingScreen';
+import { InputScreen } from './screens/InputScreen';
+import { PreviewScreen } from './screens/PreviewScreen';
 
 export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings }: { shareIntent: ShareIntent, onReset: () => void, onOpenSettings?: () => void }) {
-    const { apiKey, vaultUri, customPromptPath, selectedModel } = useSettingsStore();
+    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder } = useSettingsStore();
+    const analyzingRef = useRef(false);
+    
+    // Main state
     const [loading, setLoading] = useState(true);
-    const [data, setData] = useState<ProcessedNote | null>(null);
     const [saving, setSaving] = useState(false);
-
-    // Editing state
+    const [data, setData] = useState<ProcessedNote | null>(null);
+    const [inputMode, setInputMode] = useState(!shareIntent?.text && !shareIntent?.webUrl);
+    const [inputText, setInputText] = useState((shareIntent?.text || shareIntent?.webUrl) ?? '');
+    
+    // Edit state
     const [title, setTitle] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [newTag, setNewTag] = useState('');
@@ -52,9 +39,26 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     const [body, setBody] = useState('');
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     
-    // File attachment state
+    // Attachment & recording
     const [attachedFiles, setAttachedFiles] = useState<{ uri: string; name: string; size: number; mimeType: string }[]>([]);
+    const [recording, setRecording] = useState<Audio.Recording | undefined>();
+    
+    // Tags
+    const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    
+    // Settings
+    const [skipAnalyze, setSkipAnalyze] = useState(false);
+    const [openInObsidian, setOpenInObsidian] = useState(true);
 
+    // Load suggested tags
+    useEffect(() => {
+        if (vaultUri) {
+            getMostUsedTags(vaultUri, contextRootFolder).then(setSuggestedTags);
+        }
+    }, [vaultUri, contextRootFolder]);
+    
+    // Folder validation
     const checkFolder = async () => {
         if (!vaultUri || !folder) return;
         setFolderStatus('neutral');
@@ -62,27 +66,43 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         setFolderStatus(exists ? 'valid' : 'invalid');
     };
 
-    // Reactive folder validation (Task 1)
     useEffect(() => {
         if (!vaultUri || !folder) {
             setFolderStatus('neutral');
             return;
         }
-        
-        const timer = setTimeout(() => {
-            checkFolder();
-        }, 500); // Debounce 500ms
-
+        const timer = setTimeout(() => checkFolder(), 500);
         return () => clearTimeout(timer);
     }, [folder, vaultUri]);
 
-    const [inputMode, setInputMode] = useState(!shareIntent?.text && !shareIntent?.webUrl);
-    const [inputText, setInputText] = useState((shareIntent?.text || shareIntent?.webUrl) ?? '');
-    const [includeSummary, setIncludeSummary] = useState(false); // Task 21: Renamed and inverted
-    const [skipAnalyze, setSkipAnalyze] = useState(false); // Skip AI analysis toggle
-    const [openInObsidian, setOpenInObsidian] = useState(true); // Toggle for opening Obsidian after save
-    const [recording, setRecording] = useState<Audio.Recording | undefined>();
+    // Helpers
+    const clearState = () => {
+        setInputText('');
+        setData(null);
+        setLoading(true);
+        setInputMode(true);
+        setTitle('');
+        setFilename('');
+        setFolder('');
+        setBody('');
+        setTags([]);
+        setAttachedFiles([]);
+        setSelectedTags([]);
+    };
 
+    const appendTags = (text: string) => {
+        if (selectedTags.length === 0) return text;
+        const tagsString = selectedTags.map(t => `#${t}`).join(' ');
+        return text.trim() ? `${text.trim()}\n\n${tagsString}` : tagsString;
+    };
+
+    const getAttachmentSubfolder = (mimeType: string) => {
+        if (mimeType.startsWith('image/')) return 'Images';
+        if (mimeType.startsWith('audio/')) return 'Audio';
+        return 'Documents';
+    };
+
+    // Recording
     const startRecording = async () => {
         try {
             const perm = await Audio.requestPermissionsAsync();
@@ -90,15 +110,8 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                 Alert.alert('Permission needed', 'Microphone permission is required to record audio.');
                 return;
             }
-
-            await Audio.setAudioModeAsync({
-                allowsRecordingIOS: true,
-                playsInSilentModeIOS: true,
-            });
-
-            const { recording } = await Audio.Recording.createAsync(
-                Audio.RecordingOptionsPresets.HIGH_QUALITY
-            );
+            await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+            const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
             setRecording(recording);
         } catch (err) {
             console.error('Failed to start recording', err);
@@ -108,931 +121,476 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
 
     const stopRecording = async () => {
         if (!recording) return;
+        await recording.stopAndUnloadAsync();
+        const uri = recording.getURI();
+        setRecording(undefined);
         
-        try {
-            await recording.stopAndUnloadAsync();
-            const uri = recording.getURI(); 
-            setRecording(undefined);
-            
-            if (uri) {
-                // Wait a bit for file to be flushed
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                let size = 0;
-                try {
-                    const info = await FileSystem.getInfoAsync(uri);
-                    if (info.exists) {
-                        size = info.size;
-                        console.log('[Recording] File size:', size);
-                    }
-                } catch(e) { console.warn('Could not get file size', e); }
+        if (uri) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            let size = 0;
+            try {
+                const info = await FileSystem.getInfoAsync(uri);
+                if (info.exists) size = info.size;
+            } catch (e) { console.warn('Could not get file size', e); }
 
-                // Sanitize filename: Recording_YYYY-MM-DD_HH-mm-ss.m4a
-                const dateStr = new Date().toISOString().replace(/[:.]/g, '-').split('T').join('_');
-                const newFile = {
-                    uri,
-                    name: `Recording_${dateStr}.m4a`,
-                    size: size,
-                    mimeType: 'audio/m4a'
-                };
-                
-                setAttachedFiles(prev => [...prev, newFile]);
-            }
-        } catch (err) {
-            console.error('Failed to stop recording', err);
+            const dateStr = new Date().toISOString().replace(/[:.]/g, '-').split('T').join('_');
+            setAttachedFiles(prev => [...prev, { uri, name: `Recording_${dateStr}.m4a`, size, mimeType: 'audio/m4a' }]);
         }
     };
 
-    const getAttachmentSubfolder = (mimeType: string) => {
-        if (mimeType.startsWith('image/')) return 'Images';
-        if (mimeType.startsWith('audio/')) return 'Audio';
-        return 'Documents';
-    };    
-    const analyze = async (text: string, skipPreview: boolean = false) => {
-        setLoading(true);
+    // Attach handlers
+    const handleAttach = async () => {
         try {
-            // Prepare content for AI
-            let contentForAI = text;
-            
-            // If files are attached, include file metadata along with input text
-            if (attachedFiles.length > 0) {
-                const filesInfo = attachedFiles.map((f, i) => `File ${i+1}: ${f.name} (${f.mimeType}, ${(f.size / 1024).toFixed(1)} KB)`).join('\n');
-                // Include both file info and input text if present
-                contentForAI = text.trim() ? `${filesInfo}\n\n${text}` : filesInfo;
+            const DocumentPicker = await import('expo-document-picker');
+            const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true, multiple: true });
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                const newFiles = result.assets.map(file => ({ uri: file.uri, name: file.name, size: file.size || 0, mimeType: file.mimeType || 'application/octet-stream' }));
+                setAttachedFiles(prev => [...prev, ...newFiles]);
             }
-            
-            // Read vault structure for context
-            let vaultStructure = '';
-            const { contextRootFolder } = useSettingsStore.getState();
-            let rootFolderForContext = '';
+        } catch (e) {
+            console.error('[File Picker] Error:', e);
+            Alert.alert('Error', 'Could not pick file');
+        }
+    };
+
+    const handleCamera = async () => {
+        try {
+            const ImagePicker = await import('expo-image-picker');
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission Required', 'Camera permission is required.');
+                return;
+            }
+            const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8, allowsEditing: false });
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                const photo = result.assets[0];
+                const fileName = `photo_${Date.now()}.jpg`;
+                setAttachedFiles(prev => [...prev, { uri: photo.uri, name: fileName, size: photo.fileSize || 0, mimeType: 'image/jpeg' }]);
+            }
+        } catch (e) {
+            console.error('[Camera] Error:', e);
+            Alert.alert('Error', 'Could not open camera');
+        }
+    };
+
+    const handleRemoveFile = async (index: number) => {
+        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+        try {
+            const { deleteFile } = await import('../utils/saf');
+            await deleteFile(attachedFiles[index].uri);
+        } catch (e) {
+            console.warn('Failed to delete file', e);
+        }
+    };
+
+    const handleRemoveAttachment = async (index: number) => {
+        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+        const file = attachedFiles[index];
+        try {
+            const subfolder = getAttachmentSubfolder(file.mimeType);
+            const targetPath = `Files/${subfolder}/${file.name}`;
+            const { deleteFileByPath } = await import('../utils/saf');
             
             if (vaultUri) {
-                let targetUri = vaultUri;
-                
-                // If contextRootFolder is set, try to find it first
-                if (contextRootFolder && contextRootFolder.trim()) {
-                    const contextUri = await checkDirectoryExists(vaultUri, contextRootFolder.trim());
-                    if (contextUri) {
-                        targetUri = contextUri;
-                        rootFolderForContext = contextRootFolder.trim();
-                    }
-                }
-                
-                vaultStructure = await readVaultStructure(targetUri, 2);
+                await deleteFileByPath(vaultUri, targetPath);
             }
             
-            // Read custom prompt from file if path is specified
-            let customPrompt: string | null = null;
-            if (vaultUri && customPromptPath && customPromptPath.trim()) {
-                try {
-                    const { readFileContent, checkDirectoryExists } = await import('../utils/saf');
-                    
-                    // Determine base URI - use context root if specified
-                    let baseUri = vaultUri;
-                    if (rootFolderForContext && rootFolderForContext.trim()) {
-                        const contextUri = await checkDirectoryExists(vaultUri, rootFolderForContext.trim());
-                        if (contextUri) {
-                            baseUri = contextUri;
-                        }
-                    }
-                    
-                    customPrompt = await readFileContent(baseUri, customPromptPath.trim());
-                    console.log('[Analyze] Loaded custom prompt from file:', customPromptPath);
-                } catch (e) {
-                    console.warn('[Analyze] Failed to read custom prompt file:', e);
-                }
-            }
-            
-            const result = await processContent(apiKey!, contentForAI, customPrompt, selectedModel, vaultStructure, rootFolderForContext);
-            if (result) {
-                // Helper to strip emoji/icon prefix from text
-                let contextRootFolder = undefined;
-                try {
-                     const settingsStore = useSettingsStore.getState();
-                     if (settingsStore.contextRootFolder) {
-                         contextRootFolder = settingsStore.contextRootFolder;
-                     }
-                } catch (e) { console.warn('Could not get context root', e); }
-                
-                // Transcription and Embeddings
-                let transcriptionContext = '';
-                const embeddings: string[] = [];
-                
-                // If files were attached, copy them to vault and update body with embeddings
-                if (attachedFiles.length > 0) {
-                    const { copyFileToVault } = await import('../utils/saf');
-                    const { transcribeAudio } = await import('../services/gemini');
-                    
-                    for (const file of attachedFiles) {
-                         // Transcribe if audio
-                         if (file.mimeType.startsWith('audio/')) {
-                             try {
-                                 const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
-                                 const transcription = await transcribeAudio(apiKey || '', base64, file.mimeType, selectedModel || undefined);
-                                 if (transcription) {
-                                     const formatted = transcription.split('\n').map(line => `> ${line}`).join('\n');
-                                     transcriptionContext += `\n> [!quote] Transcription: ${file.name}\n${formatted}\n`;
-                                 }
-                             } catch (e) {
-                                 console.warn(`Failed to transcribe ${file.name}`, e);
-                             }
-                         }
-
-                         const subfolder = getAttachmentSubfolder(file.mimeType);
-                         const targetPath = `Files/${subfolder}/${file.name}`;
-                         const copiedUri = await copyFileToVault(
-                            file.uri,
-                            vaultUri!,
-                            rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath
-                        );
-                        
-                        if (copiedUri) {
-                            embeddings.push(`![[${targetPath}]]`);
-                        }
-                    }
-                    
-                    // Prepend transcription to text for AI analysis
-                    if (transcriptionContext) {
-                        contentForAI = `${transcriptionContext}\n\n${contentForAI}`;
-                        // Also append to result body so it appears in the note
-                        result.body = `${transcriptionContext}\n\n${result.body}`;
-                    }
-
-                    if (embeddings.length > 0) {
-                        result.body = `${result.body}\n\n${embeddings.join('\n')}`;
-                    }
-                }
-                
-                // Helper to strip emoji/icon prefix from text
-                const stripIconPrefix = (text: string): string => {
-                    // Remove Font Awesome format like "FasIconName " at the start (with or without %)
-                    return text.replace(/^Fas[A-Z][a-zA-Z]*\s+/g, '').replace(/^Fas%[^%]+%\s*/g, '').trim();
-                };
-                
-                if (skipPreview) {
-                    // QUICK SAVE LOGIC
-                    const currentDate = new Date().toISOString().split('T')[0];
-                    const sourceValue = (!shareIntent?.text && !shareIntent?.webUrl && !text.startsWith('http')) ? 'manual' : result.frontmatter.source || text;
-                    
-                    const frontmatterObj = { 
-                        ...result.frontmatter, 
-                        tags: result.tags, 
-                        source: sourceValue,
-                        date: currentDate,
-                        ...(result.icon ? { icon: result.icon } : {}) 
-                    };
-                    const frontmatterStr = Object.entries(frontmatterObj).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join('\n');
-                    
-                    const fileContent = `---\n${frontmatterStr}\n---\n\n# ${stripIconPrefix(result.title)}\n\n${result.body}`;
-                    const fullFilename = stripIconPrefix(result.filename).endsWith('.md') ? stripIconPrefix(result.filename) : `${stripIconPrefix(result.filename)}.md`;
-                    
-                    await saveToVault(vaultUri!, fullFilename, fileContent, result.folder);
-                    
-                    if (openInObsidian) {
-                        await openNoteInObsidian(fullFilename, result.folder);
-                    } else {
-                        Alert.alert('Success', `Saved to ${result.folder}/${fullFilename}`);
-                    }
-                    
-                    setLoading(false); // Stop loading before reset
-                    clearState();
-                    onReset();
-                    return;
-                }
-                
-                setData(result);
-                setTitle(stripIconPrefix(result.title));
-                setTags(result.tags);
-                setFilename(stripIconPrefix(result.filename));
-                setFolder(result.folder);
-                setBody(result.body);
-                setInputMode(false);
-            }
-            setLoading(false);
-        } catch (e: any) {
-            console.error("[AI Processing Error]:", e);
-            const errorMsg = e?.message || e?.toString() || "Unknown error";
-            Alert.alert("AI Processing Failed", `Error: ${errorMsg}\n\nPlease check your API key and try again.`);
-            setLoading(false);
-        }
-    };
-
-    // Clear all state to reset to "take a note" screen
-    const clearState = () => {
-        setData(null);
-        setTitle('');
-        setTags([]);
-        setFilename('');
-        setFolder('');
-        setBody('');
-        setInputText('');
-        setAttachedFiles([]);
-        setInputMode(true);
-        setLoading(false);
-        setSaving(false);
-        setSkipAnalyze(false);
-    };
-
-    // Handle share intent
-    useEffect(() => {
-        if (!shareIntent) {
-            setLoading(false);
-            return;
-        }
-
-        const handleShare = async () => {
-            try {
-                // Handle file attachments
-                if (shareIntent.files && shareIntent.files.length > 0) {
-                    setAttachedFiles(shareIntent.files.map(file => ({
-                        uri: file.path,
-                        name: file.fileName || 'shared_file',
-                        size: file.size || 0,
-                        mimeType: file.mimeType || 'application/octet-stream'
-                    })));
-                    setInputText(''); // Start with empty text so user can add description
-                    setInputMode(true);
-                    setLoading(false);
-                    return;
-                }
-
-                // Handle text/URL
-                if (shareIntent.text) {
-                    setInputText(shareIntent.text);
-                    setInputMode(true);
-                    setLoading(false);
-                } else {
-                    setLoading(false);
-                }
-            } catch (e) {
-                console.error('[Share Intent] Error:', e);
-                setLoading(false);
-            }
-        };
-
-        handleShare();
-    }, [shareIntent]);
-    useEffect(() => {
-        const content = shareIntent?.text || shareIntent?.webUrl;
-        if (content) {
-            setInputText(content);
-            // Task 23: Set includeSummary default - ON for manual notes, OFF for URLs
-            const isUrl = shareIntent?.webUrl || (shareIntent?.text?.startsWith('http://') || shareIntent?.text?.startsWith('https://'));
-            setIncludeSummary(!isUrl); // ON for notes (not URL), OFF for URLs
-            // If we have content, auto-analyze it (unless it's the "empty" intent passed by index? 
-            // empty intent has valid structure but empty strings. content will be empty string -> falsy)
-            analyze(content);
-        } else {
-            setLoading(false);
-            setInputMode(true); // If no content, force input mode
-        }
-    }, [shareIntent, apiKey]); // Re-run when intent changes
-
-    const handleManualAnalyze = () => {
-        if (inputText.trim() || attachedFiles.length > 0) {
-            analyze(inputText);
-        }
-    };
-
-    const handleDirectSave = async () => {
-        if ((!inputText.trim() && attachedFiles.length === 0) || !vaultUri) return;
-        
-        setSaving(true);
-        try {
-            const { contextRootFolder } = useSettingsStore.getState();
-            const currentDate = new Date().toISOString().split('T')[0];
-            
-            let embeddings = '';
-            let transcriptionText = '';
-            
-            // Handle file attachments
-            if (attachedFiles.length > 0) {
-                const { copyFileToVault } = await import('../utils/saf');
-                const { transcribeAudio } = await import('../services/gemini');
-
-                for (const file of attachedFiles) {
-                    // Transcribe if audio
-                     if (file.mimeType.startsWith('audio/')) {
-                         try {
-                             const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
-                             const transcription = await transcribeAudio(apiKey || '', base64, file.mimeType, selectedModel || undefined);
-                             if (transcription) {
-                                 const formatted = transcription.split('\n').map(line => `> ${line}`).join('\n');
-                                 transcriptionText += `\n> [!quote] Transcription\n${formatted}\n`;
-                             }
-                         } catch (e) {
-                             console.warn(`Failed to transcribe ${file.name}`, e);
-                         }
-                     }
-
-                    // Copy file to Files/Subfolder
-                    const subfolder = getAttachmentSubfolder(file.mimeType);
-                    const targetPath = `Files/${subfolder}/${file.name}`;
-                    
-                    const copiedUri = await copyFileToVault(
-                        file.uri,
-                        vaultUri,
-                        contextRootFolder ? `${contextRootFolder}/${targetPath}` : targetPath
-                    );
-                    
-                    if (copiedUri) {
-                        embeddings += `![[${targetPath}]]\n`;
-                    }
-                }
-            }
-            
-            // Prepend transcription to input text
-            let processedText = inputText;
-            if (transcriptionText) {
-                processedText = `${transcriptionText}\n\n${inputText}`.trim();
-            }
-            
-            // Handle URL/text (existing logic)
-            const isUrl = processedText.trim().startsWith('http://') || processedText.trim().startsWith('https://');
-            let title = '';
-            let filename = '';
-            
-            if (isUrl) {
-                // Try to fetch page title
-                try {
-                    const url = processedText.trim();
-                    
-                    // Special handling for YouTube URLs
-                    if (url.includes('youtube.com') || url.includes('youtu.be')) {
-                        try {
-                            const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
-                            const oembedResponse = await fetch(oembedUrl);
-                             if (oembedResponse.ok) {
-                                const oembedData = await oembedResponse.json();
-                                if (oembedData.title) {
-                                    title = oembedData.title.substring(0, 50);
-                                    console.log('[DirectSave] YouTube title from oembed:', title);
-                                }
-                            }
-                        } catch (e) {
-                            console.warn('[DirectSave] YouTube oembed failed:', e);
-                        }
-                    }
-                    
-                    // Fallback to regular HTML title extraction
-                    if (!title) {
-                        const response = await fetch(url);
-                        const html = await response.text();
-                        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-                        if (titleMatch && titleMatch[1]) {
-                            title = titleMatch[1].trim().substring(0, 50);
-                        }
-                    }
-                } catch (e) {
-                    console.warn('[DirectSave] Could not fetch page title:', e);
-                }
-            }
-            
-            // Fallback to first line or generic name if no title found
-            if (!title) {
-                if (processedText.trim()) {
-                    const lines = processedText.trim().split('\n');
-                    title = lines[0].substring(0, 50).trim();
-                } else if (attachedFiles.length > 0) {
-                     title = `Attachments ${new Date().toLocaleString().replace(/[\/:]/g, '-')}`;
-                } else {
-                    title = `Note ${new Date().toLocaleString().replace(/[\/:]/g, '-')}`;
-                }
-            }
-            
-            filename = `${title.replace(/[^a-zA-Z0-9-_ ]/g, '')}.md`;
-            
-            // Determine source
-            const source = isUrl ? processedText.trim() : 'manual';
-            
-            // Minimal frontmatter
-            const frontmatter = `---
-date: ${currentDate}
-source: ${JSON.stringify(source)}
----
-
-`;
-            
-            const content = frontmatter + processedText + (embeddings ? `\n\n${embeddings}` : '');
-            
-            // Save to context root folder
-            const folderPath = contextRootFolder || 'Inbox';
-            await saveToVault(vaultUri, filename, content, folderPath);
-            
-            
-            console.log(`[DirectSave] Saved to: ${folderPath}/${filename}`);
-
-            if (openInObsidian) {
-                await openNoteInObsidian(filename, folderPath);
-            } else {
-                Alert.alert('Success', `Note saved: ${filename}`);
-            }
-            
-            // Clear and reset
-            clearState();
-            onReset();
+            const embedding = `![[${targetPath}]]`;
+            const escapedEmbedding = embedding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const embeddingRegex = new RegExp(escapedEmbedding + '\\n?', 'g');
+            setBody(prev => prev.replace(embeddingRegex, '').trim());
         } catch (e) {
-            console.error("[DirectSave] Error:", e);
-            Alert.alert("Save Error", "Could not save note.");
-        } finally {
-            setSaving(false);
+            console.warn('Failed to remove file from vault during preview cleanup', e);
         }
     };
 
-    const addTag = () => {
-        const trimmed = newTag.trim();
-        if (trimmed && !tags.includes(trimmed)) {
-            setTags([...tags, trimmed]);
+    // Tag handlers
+    const handleToggleTag = (tag: string) => {
+        if (selectedTags.includes(tag)) {
+            setSelectedTags(prev => prev.filter(t => t !== tag));
+        } else {
+            setSelectedTags(prev => [...prev, tag]);
+        }
+    };
+
+    const handleAddTag = () => setShowTagModal(true);
+    
+    const handleTagModalClose = () => {
+        setShowTagModal(false);
+        setNewTag('');
+    };
+    
+    const handleTagModalConfirm = () => {
+        if (newTag.trim()) {
+            setTags([...tags, newTag.trim()]);
             setNewTag('');
             setShowTagModal(false);
         }
     };
 
-    const removeTag = (index: number) => {
-        setTags(tags.filter((_, i) => i !== index));
+    const removeTag = (index: number) => setTags(prev => prev.filter((_, i) => i !== index));
+
+    // Icon handlers
+    const handleRemoveIcon = () => {
+        if (data) setData({ ...data, icon: undefined });
     };
 
-    const handleSave = async () => {
-        if (!data || !vaultUri) return;
-        setSaving(true);
-        try {
-            // Task 8: Add manual source for manual input mode, but use URL if it's a URL
-            const isManualInput = !shareIntent?.text && !shareIntent?.webUrl;
-            let sourceValue = data.frontmatter.source || '';
-            
-            if (isManualInput) {
-                // Check if manual input is a URL
-                const isUrl = inputText.trim().startsWith('http://') || inputText.trim().startsWith('https://');
-                sourceValue = isUrl ? inputText.trim() : 'manual';
-            }
-            
-            // Add current date
-            const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-            
-            // Reconstruct content with frontmatter
-            const frontmatterObj = { 
-                ...data.frontmatter, 
-                tags, 
-                source: sourceValue,
-                date: currentDate,
-                ...(data.icon ? { icon: data.icon } : {}) 
-            };
-            const frontmatterStr = Object.entries(frontmatterObj).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join('\n');
-            
-            // Save with editable body content
-            const fileContent = `---\n${frontmatterStr}\n---\n\n# ${title}\n\n${body}`;
+    const handleIconChange = (text: string) => {
+        if (data) setData({ ...data, icon: text });
+    };
 
-            const fullFilename = filename.endsWith('.md') ? filename : `${filename}.md`;
-            
-            // Task 7: Save first, then verify
-            const savedUri = await saveToVault(vaultUri, fullFilename, fileContent, folder);
-            console.log(`[Save] File saved to: ${savedUri}`);
-
-            if (openInObsidian) {
-                await openNoteInObsidian(fullFilename, folder);
-            } else {
-                Alert.alert('Success', 'Note saved to vault');
-            }
-            
-            // Clear state and reset after everything completes
-            clearState();
-            onReset();
-        } catch (e) {
-            console.error("[Save] Error:", e);
-            Alert.alert("Save Error", "Could not write to vault.");
-        } finally {
-            setSaving(false);
+    const handleRemoveFrontmatterKey = (key: string) => {
+        if (data?.frontmatter) {
+            const newFrontmatter = { ...data.frontmatter };
+            delete newFrontmatter[key];
+            setData({ ...data, frontmatter: newFrontmatter });
         }
     };
 
-    if (loading) {
-        return (
-            <Layout>
-                <View className="flex-1 justify-center items-center">
-                    <PulsingIcon />
-                    <Text className="text-white text-lg font-medium mt-4 animate-pulse">Analyzing Content...</Text>
-                </View>
-            </Layout>
-        );
-    }
+    // Analyze & Save
+    const analyze = async (text: string, quickSave: boolean = false) => {
+        if (analyzingRef.current) return;
+        analyzingRef.current = true;
+        setLoading(true);
+        
+        try {
+            let contentForAI = text;
+        if (attachedFiles.length > 0) {
+            const filesInfo = attachedFiles.map((f, i) => `File ${i + 1}: ${f.name} (${f.mimeType}, ${(f.size / 1024).toFixed(1)} KB)`).join('\n');
+            contentForAI = text.trim() ? `${filesInfo}\n\n${text}` : filesInfo;
+        }
 
+        let vaultStructure = '';
+        let rootFolderForContext = '';
+        if (vaultUri) {
+            let targetUri = vaultUri;
+            if (contextRootFolder && contextRootFolder.trim()) {
+                const contextUri = await checkDirectoryExists(vaultUri, contextRootFolder.trim());
+                if (contextUri) {
+                    targetUri = contextUri;
+                    rootFolderForContext = contextRootFolder.trim();
+                }
+            }
+            vaultStructure = await readVaultStructure(targetUri, 2);
+        }
+
+        let customPrompt = null;
+        if (customPromptPath && customPromptPath.trim()) {
+            try {
+                const { readFileContent } = await import('../utils/saf');
+                let baseUri = vaultUri;
+                if (rootFolderForContext) {
+                    const contextUri = await checkDirectoryExists(vaultUri!, rootFolderForContext);
+                    if (contextUri) baseUri = contextUri;
+                }
+                customPrompt = await readFileContent(baseUri!, customPromptPath.trim());
+            } catch (e) {
+                console.warn('[Analyze] Failed to read custom prompt file:', e);
+            }
+        }
+
+        // Process URLs in the text
+        const { embeds: urlEmbeds, cleanText, metadata: urlMetadata } = await processURLsInText(text);
+        
+        // Prepare context from URL metadata for AI
+        let urlContext = '';
+        if (urlMetadata && urlMetadata.length > 0) {
+            urlContext = urlMetadata.map(m => `URL: ${m.url}\nTitle: ${m.title}\nDescription: ${m.description || ''}`).join('\n\n');
+        }
+
+        if (urlEmbeds) {
+            console.log('[Analyze] Found URL embeds, prepending to content');
+            
+            // Use metadata context + clean text for AI analysis
+            // This ensures AI has content even if input was just a URL
+            contentForAI = urlContext + (cleanText.trim() ? `\n\nUser Notes:\n${cleanText}` : '');
+            
+            if (attachedFiles.length > 0) {
+                const filesInfo = attachedFiles.map((f, i) => `File ${i + 1}: ${f.name} (${f.mimeType}, ${(f.size / 1024).toFixed(1)} KB)`).join('\n');
+                contentForAI = `${filesInfo}\n\n${contentForAI}`;
+            }
+        }
+
+        const result = await processContent(apiKey!, contentForAI, customPrompt, selectedModel, vaultStructure, rootFolderForContext);
+        
+        if (result) {
+            let transcriptionContext = '';
+            const embeddings: string[] = [];
+            
+            if (attachedFiles.length > 0) {
+                const { copyFileToVault } = await import('../utils/saf');
+                const { transcribeAudio } = await import('../services/gemini');
+                
+                for (const file of attachedFiles) {
+                    if (file.mimeType.startsWith('audio/')) {
+                        try {
+                            const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
+                            const transcription = await transcribeAudio(apiKey || '', base64, file.mimeType, selectedModel || undefined);
+                            if (transcription) {
+                                const formatted = transcription.split('\n').map(line => `> ${line}`).join('\n');
+                                transcriptionContext += `\n> [!quote] Transcription: ${file.name}\n${formatted}\n`;
+                            }
+                        } catch (e) {
+                            console.warn(`Failed to transcribe ${file.name}`, e);
+                        }
+                    }
+
+                    const subfolder = getAttachmentSubfolder(file.mimeType);
+                    const targetPath = `Files/${subfolder}/${file.name}`;
+                    const copiedUri = await copyFileToVault(file.uri, vaultUri!, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
+                    if (copiedUri) embeddings.push(`![[${targetPath}]]`);
+                }
+
+                if (transcriptionContext) {
+                    contentForAI = `${transcriptionContext}\n\n${contentForAI}`;
+                    result.body = `${transcriptionContext}\n\n${result.body}`;
+                }
+                if (embeddings.length > 0) result.body = `${embeddings.join('\n')}\n\n${result.body}`;
+            }
+
+            // Prepend URL embeds to the final body
+            if (urlEmbeds) {
+                result.body = `${urlEmbeds}\n\n${result.body}`;
+            }
+
+            setData(result);
+            setTitle(result.title);
+            setFilename(result.filename);
+            setFolder(result.folder);
+            setBody(result.body);
+            setTags(result.tags || []);
+
+            if (quickSave) {
+                await handleSave(
+                    result.title,
+                    result.filename,
+                    result.folder,
+                    result.body,
+                    result.tags || [],
+                    result
+                );
+            } else {
+                setLoading(false);
+                setInputMode(false);
+            }
+
+        }
+        } catch (error) {
+            console.error('[Analyze] Error:', error);
+            Alert.alert('Error', 'Analysis failed');
+            setLoading(false);
+        } finally {
+            analyzingRef.current = false;
+        }
+    };
+
+    const handleManualAnalyze = () => {
+        if (inputText.trim() || attachedFiles.length > 0) {
+            analyze(appendTags(inputText));
+        }
+    };
+
+    const handleDirectSave = async () => {
+        if (!vaultUri || !apiKey) {
+            Alert.alert('Setup Required', 'Please configure Vault and API Key in settings.');
+            return;
+        }
+
+        setSaving(true);
+        let processedText = appendTags(inputText);
+        let transcriptionText = '';
+        let rootFolderForContext = '';
+        const { contextRootFolder } = useSettingsStore.getState();
+        if (contextRootFolder) rootFolderForContext = contextRootFolder;
+
+        const embeddings: string[] = [];
+        if (attachedFiles.length > 0) {
+            const { copyFileToVault } = await import('../utils/saf');
+            const { transcribeAudio } = await import('../services/gemini');
+            
+            for (const file of attachedFiles) {
+                if (file.mimeType.startsWith('audio/')) {
+                    try {
+                        const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
+                        const transcription = await transcribeAudio(apiKey || '', base64, file.mimeType, selectedModel || undefined);
+                        if (transcription) {
+                            const formatted = transcription.split('\n').map(line => `> ${line}`).join('\n');
+                            transcriptionText += `\n> [!quote] Transcription\n${formatted}\n`;
+                        }
+                    } catch (e) {
+                        console.warn(`Failed to transcribe ${file.name}`, e);
+                    }
+                }
+                
+                const subfolder = getAttachmentSubfolder(file.mimeType);
+                const targetPath = `Files/${subfolder}/${file.name}`;
+                const copiedUri = await copyFileToVault(file.uri, vaultUri, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
+                if (copiedUri) embeddings.push(`![[${targetPath}]]`);
+            }
+
+            if (transcriptionText) processedText = `${transcriptionText}\n\n${inputText}`.trim();
+        }
+
+        // Process URLs
+        // Process URLs
+        const { embeds: urlEmbeds, cleanText } = await processURLsInText(processedText);
+
+        const frontmatter = `---\ntags: [quick_save]\n---\n\n`;
+        let content = frontmatter;
+        
+        if (urlEmbeds) {
+            content += urlEmbeds + '\n\n';
+            if (cleanText.trim()) content += cleanText + '\n\n';
+        } else {
+            content += processedText + '\n\n';
+        }
+
+        if (embeddings.length > 0) content += `${embeddings.join('\n')}`;
+        
+        content = content.trim();
+        const finalFilename = `Quick Note ${new Date().toISOString().split('T')[0]}.md`;
+        const finalFolder = rootFolderForContext || 'Inbox';
+        
+        const filePath = await saveToVault(vaultUri, finalFilename, content, finalFolder);
+        
+        if (filePath && openInObsidian) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await openNoteInObsidian(vaultUri, filePath);
+        }
+
+        setSaving(false);
+        clearState();
+        onReset();
+    };
+
+    const handleSave = async (
+        overrideTitle?: string,
+        overrideFilename?: string,
+        overrideFolder?: string,
+        overrideBody?: string,
+        overrideTags?: string[],
+        overrideData?: ProcessedNote
+    ) => {
+        if (!vaultUri) {
+            Alert.alert('Error', 'Vault not configured');
+            return;
+        }
+
+        const targetData = overrideData || data;
+        const targetFilename = overrideFilename || filename;
+        const targetFolder = overrideFolder || folder;
+        const targetBody = overrideBody || body;
+        const targetTags = overrideTags || tags;
+
+        setSaving(true);
+        const frontmatterEntries: string[] = [];
+        if (targetData?.icon) frontmatterEntries.push(`icon: "${targetData.icon}"`);
+        if (targetTags.length > 0) frontmatterEntries.push(`tags: [${targetTags.join(', ')}]`);
+        if (targetData?.frontmatter) {
+            Object.entries(targetData.frontmatter).forEach(([key, value]) => {
+                frontmatterEntries.push(`${key}: ${JSON.stringify(value)}`);
+            });
+        }
+
+        const frontmatter = frontmatterEntries.length > 0 ? `---\n${frontmatterEntries.join('\n')}\n---\n\n` : '';
+        const content = frontmatter + targetBody;
+        
+        const filePath = await saveToVault(vaultUri, targetFilename, content, targetFolder);
+        
+        if (filePath && openInObsidian) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await openNoteInObsidian(vaultUri, filePath);
+        }
+
+        setSaving(false);
+        clearState();
+        onReset();
+    };
+
+    // Auto-analyze on mount
+    useEffect(() => {
+        if (!inputMode && (shareIntent?.text || shareIntent?.webUrl)) {
+            analyze((shareIntent?.text || shareIntent?.webUrl) ?? '');
+        } else {
+            setLoading(false);
+        }
+    }, []);
+
+    // Render screens
+    if (loading && !inputMode) return <LoadingScreen />;
+    if (saving) return <SavingScreen />;
+    if (!data && !loading && !inputMode) return <ErrorScreen onRetry={() => setInputMode(true)} onClose={() => { clearState(); onReset(); }} />;
+    
     if (inputMode && !loading) {
         return (
-            <Layout>
-                {/* Settings button header */}
-                <View className="flex-row justify-between items-center px-4 pt-2 pb-1">
-                    <Text className="text-2xl font-bold text-white">Take a Note</Text>
-                    {onOpenSettings && (
-                        <TouchableOpacity onPress={onOpenSettings} className="p-2 bg-slate-800 rounded-full">
-                            <Ionicons name="settings-sharp" size={24} color="#CBD5E1" />
-                        </TouchableOpacity>
-                    )}
-                </View>
-                <View className="flex-1 p-4">
-                    {/* Text input with embedded buttons */}
-                    <View className="mb-4 relative flex-row">
-                        <TextInput 
-                            className="flex-1 bg-slate-800/80 border border-slate-700 rounded-xl p-4 pr-14 text-white text-lg shadow-lg" 
-                            multiline 
-                            placeholder="Paste URL or type your thought..." 
-                            placeholderTextColor="#94a3b8"
-                            style={{ textAlignVertical: 'top', minHeight: 200, maxHeight: 400 }}
-                            value={inputText}
-                            onChangeText={setInputText}
-                            autoFocus
-                        />
-                        
-                        {/* Vertical Button Column */}
-                        <View className="absolute right-2 top-2 bottom-2 justify-start gap-3 w-12 items-center pt-2">
-                             {/* Attach file button */}
-                            <TouchableOpacity 
-                                onPress={async () => {
-                                    if (loading || saving) return;
-                                    try {
-                                        const DocumentPicker = await import('expo-document-picker');
-                                        const result = await DocumentPicker.getDocumentAsync({
-                                            type: '*/*',
-                                            copyToCacheDirectory: true,
-                                            multiple: true 
-                                        });
-
-                                        if (!result.canceled && result.assets && result.assets.length > 0) {
-                                            const newFiles = result.assets.map(file => ({
-                                                uri: file.uri,
-                                                name: file.name,
-                                                size: file.size || 0,
-                                                mimeType: file.mimeType || 'application/octet-stream'
-                                            }));
-                                            setAttachedFiles(prev => [...prev, ...newFiles]);
-                                        }
-                                    } catch (e) {
-                                        console.error('[File Picker] Error:', e);
-                                        Alert.alert('Error', 'Could not pick file');
-                                    }
-                                }}
-                                className="bg-slate-700/50 p-2 rounded-lg"
-                                disabled={loading || saving}
-                            >
-                                <Ionicons name="attach" size={24} color="white" />
-                            </TouchableOpacity>
-
-                            {/* Camera button */}
-                            <TouchableOpacity 
-                                onPress={async () => {
-                                    if (loading || saving) return;
-                                    try {
-                                        const ImagePicker = await import('expo-image-picker');
-                                        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-                                        if (status !== 'granted') {
-                                            Alert.alert('Permission Required', 'Camera permission is required.');
-                                            return;
-                                        }
-                                        const result = await ImagePicker.launchCameraAsync({
-                                            mediaTypes: ['images'],
-                                            quality: 0.8,
-                                            allowsEditing: false,
-                                        });
-
-                                        if (!result.canceled && result.assets && result.assets.length > 0) {
-                                            const photo = result.assets[0];
-                                            const fileName = `photo_${Date.now()}.jpg`;
-                                            setAttachedFiles(prev => [...prev, {
-                                                uri: photo.uri,
-                                                name: fileName,
-                                                size: photo.fileSize || 0,
-                                                mimeType: 'image/jpeg'
-                                            }]);
-                                        }
-                                    } catch (e) {
-                                        console.error('[Camera] Error:', e);
-                                        Alert.alert('Error', 'Could not open camera');
-                                    }
-                                }}
-                                className="bg-slate-700/50 p-2 rounded-lg"
-                                disabled={loading || saving}
-                            >
-                                <Ionicons name="camera" size={24} color="white" />
-                            </TouchableOpacity>
-
-                            {/* Voice Record Button */}
-                            <TouchableOpacity 
-                                onPress={recording ? stopRecording : startRecording}
-                                className={`p-2 rounded-lg ${recording ? 'bg-red-600/90' : 'bg-slate-700/50'}`}
-                                disabled={loading || saving}
-                            >
-                                <Ionicons name={recording ? "stop" : "mic"} size={24} color="white" />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    
-                    {/* File attachment info */}
-                    {attachedFiles.length > 0 && (
-                        <View className="mb-4">
-                            {attachedFiles.map((file, index) => (
-                                <FileAttachment 
-                                    key={`${file.name}-${index}`}
-                                    file={file} 
-                                    onRemove={async () => {
-                                        // Remove from state
-                                        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
-                                        
-                                        // Delete file from FS if it exists (cleanup)
-                                        try {
-                                            const { deleteFile } = await import('../utils/saf');
-                                            await deleteFile(file.uri);
-                                        } catch (e) {
-                                            console.warn('Failed to delete file', e);
-                                        }
-                                    }} 
-                                    showRemove={true}
-                                />
-                            ))}
-                        </View>
-                    )}
-                    
-                    {/* Settings Toggles Row - Using Row for compact layout */}
-                    <View className="flex-row items-center justify-between mb-4 px-1 gap-2">
-                        {/* Skip Analyze Toggle */}
-                        <View className="flex-1 flex-row items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                             <Text className="text-indigo-200 text-xs font-semibold mr-2">Skip AI</Text>
-                             <TouchableOpacity 
-                                onPress={() => setSkipAnalyze(!skipAnalyze)}
-                                className={`w-10 h-6 rounded-full p-0.5 ${skipAnalyze ? 'bg-indigo-600' : 'bg-slate-600'}`}
-                            >
-                                <View className={`w-5 h-5 rounded-full bg-white ${skipAnalyze ? 'ml-auto' : ''}`} />
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Open in Obsidian Toggle */}
-                        <View className="flex-1 flex-row items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                             <Text className="text-indigo-200 text-xs font-semibold mr-2">Obsidian</Text>
-                             <TouchableOpacity 
-                                onPress={() => setOpenInObsidian(!openInObsidian)}
-                                className={`w-10 h-6 rounded-full p-0.5 ${openInObsidian ? 'bg-indigo-600' : 'bg-slate-600'}`}
-                            >
-                                <View className={`w-5 h-5 rounded-full bg-white ${openInObsidian ? 'ml-auto' : ''}`} />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                    
-                    {/* Buttons */}
-                    <View className="flex-row gap-3">
-                         <View className="flex-1">
-                            <Button 
-                                title={skipAnalyze ? "Save directly" : "Preview"} 
-                                onPress={skipAnalyze ? handleDirectSave : handleManualAnalyze} 
-                            />
-                         </View>
-                         {!skipAnalyze && (
-                             <View className="flex-1">
-                                <Button 
-                                    title="Quick Save" 
-                                    onPress={() => analyze(inputText, true)}
-                                    // Using primary styling for now as there isn't a secondary variant that stands out differently enough yet
-                                />
-                             </View>
-                         )}
-                    </View>
-                    <View className="h-4" />
-                    <Button 
-                        title="Cancel" 
-                        onPress={() => { clearState(); onReset(); }} 
-                        variant="secondary" 
-                    />
-                </View>
-            </Layout>
+            <InputScreen
+                inputText={inputText}
+                onInputTextChange={setInputText}
+                attachedFiles={attachedFiles}
+                onRemoveFile={handleRemoveFile}
+                suggestedTags={suggestedTags}
+                selectedTags={selectedTags}
+                onToggleTag={handleToggleTag}
+                skipAnalyze={skipAnalyze}
+                onToggleSkipAnalyze={() => setSkipAnalyze(!skipAnalyze)}
+                openInObsidian={openInObsidian}
+                onToggleObsidian={() => setOpenInObsidian(!openInObsidian)}
+                onPreview={handleManualAnalyze}
+                onQuickSave={() => analyze(appendTags(inputText), true)}
+                onDirectSave={handleDirectSave}
+                onCancel={() => { clearState(); onReset(); }}
+                onAttach={handleAttach}
+                onCamera={handleCamera}
+                onRecord={recording ? stopRecording : startRecording}
+                recording={!!recording}
+                disabled={loading ||  saving}
+                onOpenSettings={onOpenSettings}
+            />
         );
     }
 
-    if (!data && !loading) {
-         return (
-             <Layout>
-                 <View className="flex-1 justify-center items-center">
-                     <Text className="text-red-400">Failed to generate content.</Text>
-                     <Button title="Retry" onPress={() => setInputMode(true)} variant="secondary" />
-                     <View className="h-4" />
-                     <Button title="Close" onPress={onReset} variant="secondary" />
-                 </View>
-             </Layout>
-         );
-    }
-
-    // Show loading screen while saving
-    if (saving) {
+    if (data) {
         return (
-            <Layout>
-                <View className="flex-1 justify-center items-center">
-                    <PulsingIcon />
-                    <Text className="text-white text-lg font-medium mt-4 animate-pulse">Saving & Opening...</Text>
-                </View>
-            </Layout>
+            <PreviewScreen
+                data={data}
+                title={title}
+                onTitleChange={setTitle}
+                filename={filename}
+                onFilenameChange={setFilename}
+                folder={folder}
+                onFolderChange={setFolder}
+                folderStatus={folderStatus}
+                onCheckFolder={checkFolder}
+                tags={tags}
+                onRemoveTag={removeTag}
+                onAddTag={handleAddTag}
+                body={body}
+                onBodyChange={setBody}
+                attachedFiles={attachedFiles}
+                onRemoveAttachment={handleRemoveAttachment}
+                onSave={() => handleSave()}
+                onBack={() => {
+                    setData(null);
+                    setInputMode(true);
+                }}
+                saving={saving}
+                vaultUri={vaultUri}
+                onOpenSettings={onOpenSettings}
+                showTagModal={showTagModal}
+                newTag={newTag}
+                onNewTagChange={setNewTag}
+                onTagModalClose={handleTagModalClose}
+                onTagModalConfirm={handleTagModalConfirm}
+                onRemoveIcon={handleRemoveIcon}
+                onIconChange={handleIconChange}
+                onRemoveFrontmatterKey={handleRemoveFrontmatterKey}
+                onAttach={handleAttach}
+                onCamera={handleCamera}
+                onRecord={recording ? stopRecording : startRecording}
+                recording={!!recording}
+            />
         );
     }
 
-    return (
-        <Layout>
-            {/* Task 6: Settings button header */}
-            <View className="flex-row justify-between items-center px-4 pt-2 pb-1">
-                <Text className="text-2xl font-bold text-white">Preview</Text>
-                {onOpenSettings && (
-                    <TouchableOpacity onPress={onOpenSettings} className="p-2 bg-slate-800 rounded-full">
-                        <Text className="text-xl">⚙️</Text>
-                    </TouchableOpacity>
-                )}
-            </View>
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-                <Animated.View entering={FadeIn.duration(500)}>
-                    
-                    <Card>
-                        {data.icon && (
-                            <View className="mb-4">
-                                <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">Icon</Text>
-                                <View className="flex-row items-center gap-2">
-                                    <View className="flex-1">
-                                        <TextInput 
-                                            value={data.icon}
-                                            onChangeText={(text) => setData(data ? {...data, icon: text} : null)}
-                                            placeholder="Icon (emoji or Font Awesome)"
-                                            placeholderTextColor="#94a3b8"
-                                            className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white font-medium"
-                                        />
-                                    </View>
-                                    <TouchableOpacity 
-                                        onPress={() => setData(data ? {...data, icon: undefined} : null)}
-                                        className="bg-slate-700 px-3 py-3 rounded-xl"
-                                    >
-                                        <Text className="text-white font-semibold">✕</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        )}
-                        <Input label="Title" value={title} onChangeText={setTitle} />
-                        <Input label="Filename" value={filename} onChangeText={setFilename} />
-                        <FolderInput 
-                            label="Folder"
-                            value={folder}
-                            onChangeText={setFolder}
-                            vaultUri={vaultUri}
-                            folderStatus={folderStatus}
-                            onCheckFolder={checkFolder}
-                            placeholder="e.g., Inbox/Notes"
-                        />
-                        
-                        <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Tags</Text>
-                            <View className="flex-row flex-wrap gap-2">
-                                {tags.map((tag, index) => (
-                                    <View key={index} className="bg-indigo-600/80 px-3 py-1.5 rounded-full flex-row items-center border border-indigo-500/50">
-                                        <Text className="text-white mr-2 text-sm font-medium">{tag}</Text>
-                                        <TouchableOpacity onPress={() => removeTag(index)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                            <Text className="text-white/70 font-bold ml-1">×</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                ))}
-                                {/* Add tag button */}
-                                <TouchableOpacity 
-                                    onPress={() => setShowTagModal(true)}
-                                    className="bg-slate-700 px-3 py-1.5 rounded-full flex-row items-center border border-slate-600"
-                                >
-                                    <Text className="text-white text-sm font-medium">+ Add Tag</Text>
-                                </TouchableOpacity>
-                            </View>
-                            
-                            {/* Metadata pills inline with tags */}
-                            {data?.frontmatter && Object.keys(data.frontmatter).length > 0 && (
-                                <View className="flex-row flex-wrap gap-2 mt-2">
-                                    {Object.entries(data.frontmatter).map(([key, value]) => (
-                                        <View key={key} className="bg-slate-700/80 px-3 py-1.5 rounded-full flex-row items-center border border-slate-600/50">
-                                            <Text className="text-slate-400 text-xs mr-1">{key}:</Text>
-                                            <Text className="text-slate-200 text-xs mr-2">{typeof value === 'string' ? value : JSON.stringify(value)}</Text>
-                                            <TouchableOpacity 
-                                                onPress={() => {
-                                                    if (data?.frontmatter) {
-                                                        const newFrontmatter = { ...data.frontmatter };
-                                                        delete newFrontmatter[key];
-                                                        setData({ ...data, frontmatter: newFrontmatter });
-                                                    }
-                                                }}
-                                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                            >
-                                                <Text className="text-slate-400 font-bold ml-1">×</Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    ))}
-                                </View>
-                            )}
-                        </View>
-                    </Card>
-
-                    {/* File attachment info in preview */}
-                    {/* File attachment info in preview */}
-                    {attachedFiles.length > 0 && (
-                        <View className="mb-2">
-                             {attachedFiles.map((file, index) => (
-                                <FileAttachment 
-                                    key={`preview-${file.name}-${index}`}
-                                    file={file} 
-                                    showRemove={true}
-                                    onRemove={async () => {
-                                        // 1. Remove from local state
-                                        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
-                                        
-                                        // 2. Remove from vault
-                                        try {
-                                            const subfolder = getAttachmentSubfolder(file.mimeType);
-                                            const targetPath = `Files/${subfolder}/${file.name}`;
-                                            const { deleteFileByPath } = await import('../utils/saf');
-                                            
-                                            if (vaultUri) {
-                                                await deleteFileByPath(vaultUri, targetPath);
-                                            }
-                                            
-                                            // 3. Remove embedding from content body
-                                            const embedding = `![[${targetPath}]]`;
-                                            // Escape regex characters in embedding string
-                                            const escapedEmbedding = embedding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                                            const embeddingRegex = new RegExp(escapedEmbedding + '\\n?', 'g');
-                                            
-                                            // Keep transcription as requested
-                                            
-                                            setBody(prev => {
-                                                let newBody = prev.replace(embeddingRegex, '');
-                                                return newBody.trim();
-                                            });
-                                            
-                                        } catch (e) {
-                                            console.warn('Failed to remove file from vault during preview cleanup', e);
-                                        }
-                                    }}
-                                />
-                            ))}
-                        </View>
-                    )}
-
-                    {/* Body Content - Full width like take-a-note */}
-                    <View className="mb-4">
-                        <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Content</Text>
-                        <TextInput
-                            value={body}
-                            onChangeText={setBody}
-                            multiline
-                            placeholder="Note content..."
-                            placeholderTextColor="#94a3b8"
-                            className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-white"
-                            style={{ textAlignVertical: 'top', minHeight: 200, maxHeight: 400 }}
-                        />
-                    </View>
-
-                    <View className="py-4">
-                    <Button 
-                        title="Save to Vault" 
-                        onPress={handleSave} 
-                        disabled={saving || !vaultUri} 
-                    />
-                    <View className="h-4" />
-                    <Button 
-                        title="Cancel" 
-                        onPress={() => { clearState(); onReset(); }} 
-                        variant="secondary" 
-                    />
-                    </View>
-                    </Animated.View>
-            </ScrollView>
-
-            {/* Tag Input Modal */}
-            <Modal visible={showTagModal} transparent animationType="fade">
-                <View className="flex-1 justify-center items-center bg-black/50">
-                    <View className="bg-slate-900 rounded-3xl p-6 w-[85%] max-w-md">
-                        <View className="flex-row justify-between items-center mb-4">
-                            <Text className="text-white text-xl font-bold">Add Tag</Text>
-                            <TouchableOpacity onPress={() => { setShowTagModal(false); setNewTag(''); }}>
-                                <Text className="text-white text-2xl">✕</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <View className="flex-row gap-2">
-                            <View className="flex-1">
-                                <TextInput 
-                                    value={newTag} 
-                                    onChangeText={setNewTag} 
-                                    placeholder="Enter tag name..." 
-                                    placeholderTextColor="#94a3b8"
-                                    className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-white font-medium"
-                                    onSubmitEditing={addTag}
-                                    returnKeyType="done"
-                                    autoFocus
-                                />
-                            </View>
-                            <TouchableOpacity 
-                                onPress={addTag}
-                                className="px-6 py-4 rounded-xl bg-indigo-600"
-                            >
-                                <Text className="text-white font-semibold">Add</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-        </Layout>
-    );
+    return <LoadingScreen />;
 }

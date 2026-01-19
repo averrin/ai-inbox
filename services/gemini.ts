@@ -9,13 +9,6 @@ export interface ProcessedNote {
     summary: string;
     body: string;
     icon?: string;
-    embedData?: {
-        title: string;
-        image?: string;
-        description: string;
-        url: string;
-        favicon?: string;
-    };
     fileData?: {
         filename: string;
         savedAs: string;
@@ -38,15 +31,8 @@ export const DEFAULT_PROMPT = `
        "folder": "Suggested Folder",
        "frontmatter": { "source": "..." },
        "summary": "One sentence summary",
-       "body": "For text content: the full markdown formatted text. For URLs: leave empty. For files: leave empty.",
+       "body": "For text content: the full markdown formatted text. For files: leave empty.",
        "icon": "FasIconName (e.g., FasTerminal, FasBook, FasCode)",
-       "embedData": {
-          "title": "Page title",
-          "image": "https://example.com/image.jpg",
-          "description": "Page description",
-          "url": "https://example.com",
-          "favicon": "https://example.com/favicon.ico"
-       },
        "fileData": {
           "filename": "original-filename.pdf",
           "savedAs": "Files/original-filename.pdf",
@@ -55,10 +41,16 @@ export const DEFAULT_PROMPT = `
     }
     
     IMPORTANT:
-    - For URLs: Set "body" to empty string and populate "embedData" with the page metadata
     - For text content (including transcriptions): Set "body" to the full markdown text. If the input contains a transcription, INCLUDE IT IN THE BODY.
-    - For files: Set "body" to empty string, omit "embedData", and populate "fileData" with file info
+    - For files: Set "body" to empty string and populate "fileData" with file info
     - Icon format: Use "FasIconName" (e.g., "FasTerminal", "FasBook"). Do NOT include icon name in title or filename.
+    
+    **CRITICAL: The "body" field should ONLY contain the user's actual content. Do NOT include:**
+    - Vault structure information
+    - Custom prompt instructions
+    - System instructions
+    - Metadata about the vault
+    **Only include the actual note content that the user wants to save.**
 
     Content:
 {{content}}
@@ -136,21 +128,6 @@ export async function processContent(apiKey: string, content: string, promptOver
             console.log("[Gemini] Extracted JSON string:", jsonStr);
             try {
                 const parsed = JSON.parse(jsonStr);
-
-                // If embedData exists, convert it to Obsidian embed format
-                if (parsed.embedData) {
-                    const embed = parsed.embedData;
-                    let embedBlock = '```embed\n';
-                    embedBlock += `title: "${embed.title}"\n`;
-                    if (embed.image) embedBlock += `image: "${embed.image}"\n`;
-                    embedBlock += `description: "${embed.description}"\n`;
-                    embedBlock += `url: "${embed.url}"\n`;
-                    if (embed.favicon) embedBlock += `favicon: "${embed.favicon}"\n`;
-                    embedBlock += '```';
-
-                    parsed.body = embedBlock;
-                    delete parsed.embedData;
-                }
 
                 // Handle hallucinated 'transcription' field by merging it into body
                 const extraData = parsed as any;
