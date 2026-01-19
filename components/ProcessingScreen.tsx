@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Modal } from 'react-native';
 import { ShareIntent } from 'expo-share-intent';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -13,6 +13,7 @@ import { processURLsInText } from '../utils/urlMetadata';
 
 // Screen components
 import { LoadingScreen } from './screens/LoadingScreen';
+import SetupScreen from './SetupScreen';
 import { ErrorScreen } from './screens/ErrorScreen';
 import { SavingScreen } from './screens/SavingScreen';
 import { InputScreen } from './screens/InputScreen';
@@ -25,6 +26,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     // Main state
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [internalShowSettings, setInternalShowSettings] = useState(false);
     const [data, setData] = useState<ProcessedNote | null>(null);
     const [inputMode, setInputMode] = useState(!shareIntent?.text && !shareIntent?.webUrl);
     const [inputText, setInputText] = useState((shareIntent?.text || shareIntent?.webUrl) ?? '');
@@ -79,7 +81,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     const clearState = () => {
         setInputText('');
         setData(null);
-        setLoading(true);
+        setLoading(false);
         setInputMode(true);
         setTitle('');
         setFilename('');
@@ -184,21 +186,37 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     };
 
     const handleRemoveAttachment = async (index: number) => {
-        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
         const file = attachedFiles[index];
+        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+        
         try {
             const subfolder = getAttachmentSubfolder(file.mimeType);
             const targetPath = `Files/${subfolder}/${file.name}`;
-            const { deleteFileByPath } = await import('../utils/saf');
             
-            if (vaultUri) {
-                await deleteFileByPath(vaultUri, targetPath);
-            }
-            
+            // Remove from body/content
             const embedding = `![[${targetPath}]]`;
             const escapedEmbedding = embedding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const embeddingRegex = new RegExp(escapedEmbedding + '\\n?', 'g');
             setBody(prev => prev.replace(embeddingRegex, '').trim());
+
+            // Delete from vault ONLY if it's a voice recording created by this app
+            // and we have a vault connection
+            const isVoiceRecording = file.name.startsWith('Recording_') && file.mimeType.startsWith('audio/');
+            
+            if (isVoiceRecording && vaultUri) {
+                const { deleteFileByPath } = await import('../utils/saf');
+                
+                // key logic: reconstruct the path where analyze() saved it
+                // We must match the rootFolderForContext logic
+                let rootFolderForContext = '';
+                if (contextRootFolder && contextRootFolder.trim()) {
+                    const exists = await checkDirectoryExists(vaultUri, contextRootFolder.trim());
+                    if (exists) rootFolderForContext = contextRootFolder.trim();
+                }
+
+                const deletionPath = rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath;
+                await deleteFileByPath(vaultUri, deletionPath);
+            }
         } catch (e) {
             console.warn('Failed to remove file from vault during preview cleanup', e);
         }
@@ -460,7 +478,9 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
 
         setSaving(false);
         clearState();
-        onReset();
+        if (openInObsidian) {
+            onReset();
+        }
     };
 
     const handleSave = async (
@@ -469,7 +489,8 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         overrideFolder?: string,
         overrideBody?: string,
         overrideTags?: string[],
-        overrideData?: ProcessedNote
+        overrideData?: ProcessedNote,
+        forceSkipObsidian?: boolean
     ) => {
         if (!vaultUri) {
             Alert.alert('Error', 'Vault not configured');
@@ -497,14 +518,22 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         
         const filePath = await saveToVault(vaultUri, targetFilename, content, targetFolder);
         
-        if (filePath && openInObsidian) {
+        // Only open in Obsidian if:
+        // 1. File was saved
+        // 2. Open in Obsidian setting is true
+        // 3. We are NOT forcefully skipping it (e.g. Save & Add New)
+        if (filePath && openInObsidian && !forceSkipObsidian) {
             await new Promise(resolve => setTimeout(resolve, 1000));
             await openNoteInObsidian(vaultUri, filePath);
         }
 
         setSaving(false);
         clearState();
-        onReset();
+        
+        // Only reset (exit app/close share) if we are NOT in "Add New" mode
+        if (!forceSkipObsidian && openInObsidian) {
+            onReset();
+        }
     };
 
     // Auto-analyze on mount
@@ -516,6 +545,12 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         }
     }, []);
 
+    const settingsModal = (
+        <Modal visible={internalShowSettings} animationType="slide" onRequestClose={() => setInternalShowSettings(false)}>
+            <SetupScreen onClose={() => setInternalShowSettings(false)} canClose={true} />
+        </Modal>
+    );
+
     // Render screens
     if (loading && !inputMode) return <LoadingScreen />;
     if (saving) return <SavingScreen />;
@@ -523,72 +558,79 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     
     if (inputMode && !loading) {
         return (
-            <InputScreen
-                inputText={inputText}
-                onInputTextChange={setInputText}
-                attachedFiles={attachedFiles}
-                onRemoveFile={handleRemoveFile}
-                suggestedTags={suggestedTags}
-                selectedTags={selectedTags}
-                onToggleTag={handleToggleTag}
-                skipAnalyze={skipAnalyze}
-                onToggleSkipAnalyze={() => setSkipAnalyze(!skipAnalyze)}
-                openInObsidian={openInObsidian}
-                onToggleObsidian={() => setOpenInObsidian(!openInObsidian)}
-                onPreview={handleManualAnalyze}
-                onQuickSave={() => analyze(appendTags(inputText), true)}
-                onDirectSave={handleDirectSave}
-                onCancel={() => { clearState(); onReset(); }}
-                onAttach={handleAttach}
-                onCamera={handleCamera}
-                onRecord={recording ? stopRecording : startRecording}
-                recording={!!recording}
-                disabled={loading ||  saving}
-                onOpenSettings={onOpenSettings}
-            />
+            <>
+                <InputScreen
+                    inputText={inputText}
+                    onInputTextChange={setInputText}
+                    attachedFiles={attachedFiles}
+                    onRemoveFile={handleRemoveFile}
+                    suggestedTags={suggestedTags}
+                    selectedTags={selectedTags}
+                    onToggleTag={handleToggleTag}
+                    skipAnalyze={skipAnalyze}
+                    onToggleSkipAnalyze={() => setSkipAnalyze(!skipAnalyze)}
+                    openInObsidian={openInObsidian}
+                    onToggleObsidian={() => setOpenInObsidian(!openInObsidian)}
+                    onPreview={handleManualAnalyze}
+                    onQuickSave={() => analyze(appendTags(inputText), true)}
+                    onDirectSave={handleDirectSave}
+                    onCancel={() => { clearState(); onReset(); }}
+                    onAttach={handleAttach}
+                    onCamera={handleCamera}
+                    onRecord={recording ? stopRecording : startRecording}
+                    recording={!!recording}
+                    disabled={loading ||  saving}
+                    onOpenSettings={() => setInternalShowSettings(true)}
+                />
+                {settingsModal}
+            </>
         );
     }
 
     if (data) {
         return (
-            <PreviewScreen
-                data={data}
-                title={title}
-                onTitleChange={setTitle}
-                filename={filename}
-                onFilenameChange={setFilename}
-                folder={folder}
-                onFolderChange={setFolder}
-                folderStatus={folderStatus}
-                onCheckFolder={checkFolder}
-                tags={tags}
-                onRemoveTag={removeTag}
-                onAddTag={handleAddTag}
-                body={body}
-                onBodyChange={setBody}
-                attachedFiles={attachedFiles}
-                onRemoveAttachment={handleRemoveAttachment}
-                onSave={() => handleSave()}
-                onBack={() => {
-                    setData(null);
-                    setInputMode(true);
-                }}
-                saving={saving}
-                vaultUri={vaultUri}
-                onOpenSettings={onOpenSettings}
-                showTagModal={showTagModal}
-                newTag={newTag}
-                onNewTagChange={setNewTag}
-                onTagModalClose={handleTagModalClose}
-                onTagModalConfirm={handleTagModalConfirm}
-                onRemoveIcon={handleRemoveIcon}
-                onIconChange={handleIconChange}
-                onRemoveFrontmatterKey={handleRemoveFrontmatterKey}
-                onAttach={handleAttach}
-                onCamera={handleCamera}
-                onRecord={recording ? stopRecording : startRecording}
-                recording={!!recording}
-            />
+            <>
+                <PreviewScreen
+                    data={data}
+                    title={title}
+                    onTitleChange={setTitle}
+                    filename={filename}
+                    onFilenameChange={setFilename}
+                    folder={folder}
+                    onFolderChange={setFolder}
+                    folderStatus={folderStatus}
+                    onCheckFolder={checkFolder}
+                    tags={tags}
+                    onRemoveTag={removeTag}
+                    onAddTag={handleAddTag}
+                    body={body}
+                    onBodyChange={setBody}
+                    attachedFiles={attachedFiles}
+                    onRemoveAttachment={handleRemoveAttachment}
+                    onSave={() => handleSave()}
+                    onSaveAndAddNew={() => handleSave(undefined, undefined, undefined, undefined, undefined, undefined, true)}
+                    onBack={() => {
+                        setData(null);
+                        setInputMode(true);
+                    }}
+                    saving={saving}
+                    vaultUri={vaultUri}
+                    onOpenSettings={() => setInternalShowSettings(true)}
+                    showTagModal={showTagModal}
+                    newTag={newTag}
+                    onNewTagChange={setNewTag}
+                    onTagModalClose={handleTagModalClose}
+                    onTagModalConfirm={handleTagModalConfirm}
+                    onRemoveIcon={handleRemoveIcon}
+                    onIconChange={handleIconChange}
+                    onRemoveFrontmatterKey={handleRemoveFrontmatterKey}
+                    onAttach={handleAttach}
+                    onCamera={handleCamera}
+                    onRecord={recording ? stopRecording : startRecording}
+                    recording={!!recording}
+                />
+                {settingsModal}
+            </>
         );
     }
 

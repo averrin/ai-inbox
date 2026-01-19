@@ -11,21 +11,19 @@ export default function Home() {
     resetOnBackground: true,
   });
   const { apiKey, vaultUri } = useSettingsStore();
-  const [showSettings, setShowSettings] = useState(false);
   const [resetKey, setResetKey] = useState(0); // Key to force re-mount/reset
 
   // Basic hydration check or just reliance on Zustand persist (sync storage usually fast enough for UI)
   const isConfigured = !!apiKey && !!vaultUri;
 
-  if (!isConfigured || showSettings) {
-    return <SetupScreen onClose={() => setShowSettings(false)} canClose={isConfigured} />;
+  if (!isConfigured) {
+    return <SetupScreen canClose={false} />;
   }
 
   if (hasShareIntent && (shareIntent.type === 'text' || shareIntent.type === 'weburl' || shareIntent.type === 'media' || shareIntent.webUrl || shareIntent.text || (shareIntent.files && shareIntent.files.length > 0))) {
      return <ProcessingScreen 
         shareIntent={shareIntent} 
         onReset={resetShareIntent} 
-        onOpenSettings={() => setShowSettings(true)} 
      />;
   }
 
@@ -36,6 +34,5 @@ export default function Home() {
     key={resetKey}
     shareIntent={emptyIntent} 
     onReset={() => BackHandler.exitApp()} 
-    onOpenSettings={() => setShowSettings(true)}
   />;
 }
