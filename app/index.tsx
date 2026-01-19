@@ -3,7 +3,6 @@ import { useShareIntent, ShareIntent } from 'expo-share-intent';
 import { useSettingsStore } from '../store/settings';
 import SetupScreen from '../components/SetupScreen';
 import ProcessingScreen from '../components/ProcessingScreen';
-import HistoryScreen from '../components/HistoryScreen';
 import { useEffect, useState } from 'react';
 
 export default function Home() {
