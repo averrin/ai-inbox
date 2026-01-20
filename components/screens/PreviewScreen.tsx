@@ -11,6 +11,8 @@ import { TextEditor } from '../ui/TextEditor';
 import { ProcessedNote } from '../../services/gemini';
 
 import { LongPressButton } from '../ui/LongPressButton';
+import { LinkAttachment } from '../ui/LinkAttachment';
+import { URLMetadata } from '../../utils/urlMetadata';
 
 interface PreviewScreenProps {
     data: ProcessedNote;
@@ -47,6 +49,8 @@ interface PreviewScreenProps {
     onCamera: () => Promise<void>;
     onRecord: () => void;
     recording: boolean;
+    links?: URLMetadata[];
+    onRemoveLink?: (index: number) => void;
 }
 
 export function PreviewScreen({
@@ -84,6 +88,8 @@ export function PreviewScreen({
     onCamera,
     onRecord,
     recording,
+    links,
+    onRemoveLink,
 }: PreviewScreenProps) {
     return (
         <Layout>
@@ -184,6 +190,39 @@ export function PreviewScreen({
                                     onRemove={() => onRemoveAttachment(index)}
                                 />
                             ))}
+                        </View>
+                    )}
+
+                    {/* Link attachment info in preview */}
+                    {links && links.length > 0 && (
+                        <View className="mb-2">
+                            {links.map((link, index) => (
+                                <LinkAttachment
+                                    key={`preview-link-${link.url}-${index}`}
+                                    link={link}
+                                    showRemove={true}
+                                    onRemove={onRemoveLink ? () => onRemoveLink(index) : undefined}
+                                />
+                            ))}
+                        </View>
+                    )}
+                    
+                    {/* Pending Actions (Google Tasks) */}
+                    {data.actions && data.actions.length > 0 && (
+                         <View className="mb-4">
+                            <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Pending Tasks (Google)</Text>
+                             {data.actions.map((action, index) => (
+                                <View key={`action-${index}`} className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 mb-2">
+                                    <View className="flex-row items-center">
+                                         <Text className="text-green-400 mr-2 text-lg">⦿</Text>
+                                         <View className="flex-1">
+                                             <Text className="text-white font-medium">{action.title}</Text>
+                                             {action.due && <Text className="text-indigo-300 text-xs">Due: {action.due}</Text>}
+                                         </View>
+                                    </View>
+                                    {action.notes && <Text className="text-slate-400 text-xs mt-2 ml-6">{action.notes}</Text>}
+                                </View>
+                             ))}
                         </View>
                     )}
 
