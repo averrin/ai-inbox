@@ -3,9 +3,11 @@ import { View, Text, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, 
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
 import { Button } from '../ui/Button';
+import { LinkAttachment } from '../ui/LinkAttachment';
 import { FileAttachment } from '../ui/FileAttachment';
 import { TextEditor } from '../ui/TextEditor';
 import { LongPressButton } from '../ui/LongPressButton';
+import { URLMetadata } from '../../utils/urlMetadata';
 
 interface InputScreenProps {
     inputText: string;
@@ -29,6 +31,8 @@ interface InputScreenProps {
     recording: boolean;
     disabled: boolean;
     onOpenSettings?: () => void;
+    links?: URLMetadata[];
+    onRemoveLink?: (index: number) => void;
 }
 
 export function InputScreen({
@@ -53,6 +57,8 @@ export function InputScreen({
     recording,
     disabled,
     onOpenSettings,
+    links,
+    onRemoveLink,
 }: InputScreenProps) {
     return (
         <Layout>
@@ -99,6 +105,20 @@ export function InputScreen({
                                     key={`${file.name}-${index}`}
                                     file={file}
                                     onRemove={() => onRemoveFile(index)}
+                                    showRemove={true}
+                                />
+                            ))}
+                        </View>
+                    )}
+
+                    {/* Link attachment info */}
+                    {links && links.length > 0 && (
+                         <View className="mb-4">
+                            {links.map((link, index) => (
+                                <LinkAttachment
+                                    key={`${link.url}-${index}`}
+                                    link={link}
+                                    onRemove={onRemoveLink ? () => onRemoveLink(index) : undefined}
                                     showRemove={true}
                                 />
                             ))}

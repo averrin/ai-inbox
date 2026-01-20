@@ -68,6 +68,14 @@
             ]
           }
         }
+      ],
+      "expo-web-browser",
+      "expo-secure-store",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Allow AI Inbox to access your calendar to provide schedule context."
+        }
       ]
     ]
   }

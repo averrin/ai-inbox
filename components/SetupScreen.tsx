@@ -10,10 +10,14 @@ import { useState, useEffect } from 'react';
 import { FolderInput } from './ui/FolderInput';
 import { FileInput } from './ui/FileInput';
 import { openInObsidian } from '../utils/obsidian';
+import { GoogleSettings } from './GoogleSettings';
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
-    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder } = useSettingsStore();
+    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
+    const [androidIdInput, setAndroidIdInput] = useState(googleAndroidClientId || '');
+    const [iosIdInput, setIosIdInput] = useState(googleIosClientId || '');
+    const [webIdInput, setWebIdInput] = useState(googleWebClientId || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
     const [modelInput, setModelInput] = useState(selectedModel);
     const [rootFolderInput, setRootFolderInput] = useState(contextRootFolder || '');
@@ -113,6 +117,9 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         setCustomPromptPath(promptPathInput);
         setSelectedModel(modelInput);
         setContextRootFolder(rootFolderInput);
+        setGoogleAndroidClientId(androidIdInput);
+        setGoogleIosClientId(iosIdInput);
+        setGoogleWebClientId(webIdInput);
         if (onClose) onClose();
     };
 
@@ -209,6 +216,31 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             />
                         </View>
                     )}
+                    
+                    <View className="mt-4 border-t border-slate-700 pt-4">
+                        <Text className="text-xl font-bold text-white mb-4">Google Tasks Integration (Optional)</Text> 
+                        <Input 
+                            label="Android Client ID" 
+                            value={androidIdInput} 
+                            onChangeText={setAndroidIdInput} 
+                            placeholder="...apps.googleusercontent.com" 
+                        />
+                         <Input 
+                            label="iOS Client ID" 
+                            value={iosIdInput} 
+                            onChangeText={setIosIdInput} 
+                            placeholder="...apps.googleusercontent.com" 
+                        />
+                         <Input 
+                            label="Web Client ID" 
+                            value={webIdInput} 
+                            onChangeText={setWebIdInput} 
+                            placeholder="...apps.googleusercontent.com" 
+                        />
+                        <View className="mt-2">
+                             <GoogleSettings />
+                        </View>
+                    </View>
                 </Card>
 
                 <View className="mt-8">

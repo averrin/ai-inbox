@@ -13,6 +13,12 @@ interface SettingsState {
     setCustomPromptPath: (path: string) => void;
     setSelectedModel: (model: string) => void;
     setContextRootFolder: (folder: string) => void;
+    googleAndroidClientId: string | null;
+    googleIosClientId: string | null;
+    googleWebClientId: string | null;
+    setGoogleAndroidClientId: (id: string) => void;
+    setGoogleIosClientId: (id: string) => void;
+    setGoogleWebClientId: (id: string) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -28,6 +34,12 @@ export const useSettingsStore = create<SettingsState>()(
             setCustomPromptPath: (path) => set({ customPromptPath: path }),
             setSelectedModel: (model) => set({ selectedModel: model }),
             setContextRootFolder: (folder) => set({ contextRootFolder: folder }),
+            googleAndroidClientId: null,
+            googleIosClientId: null,
+            googleWebClientId: null,
+            setGoogleAndroidClientId: (id) => set({ googleAndroidClientId: id }),
+            setGoogleIosClientId: (id) => set({ googleIosClientId: id }),
+            setGoogleWebClientId: (id) => set({ googleWebClientId: id }),
         }),
         {
             name: 'ai-inbox-settings',

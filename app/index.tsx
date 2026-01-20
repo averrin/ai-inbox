@@ -13,6 +13,12 @@ export default function Home() {
   const { apiKey, vaultUri } = useSettingsStore();
   const [resetKey, setResetKey] = useState(0); // Key to force re-mount/reset
 
+  useEffect(() => {
+    // Hydrate Google Auth State
+    const { hydrate } = require('../store/googleStore').useGoogleStore.getState();
+    hydrate();
+  }, []);
+
   // Basic hydration check or just reliance on Zustand persist (sync storage usually fast enough for UI)
   const isConfigured = !!apiKey && !!vaultUri;
 

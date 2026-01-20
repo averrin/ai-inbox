@@ -5,11 +5,14 @@ import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 
 import { useSettingsStore } from '../store/settings';
+import { useGoogleStore } from '../store/googleStore';
 import { processContent, ProcessedNote } from '../services/gemini';
+import { CalendarService } from '../services/calendarService';
+import { TasksService } from '../services/tasksService';
 import { saveToVault, checkDirectoryExists, readVaultStructure } from '../utils/saf';
 import { openInObsidian as openNoteInObsidian } from '../utils/obsidian';
 import { getMostUsedTags } from '../utils/tagUtils';
-import { processURLsInText } from '../utils/urlMetadata';
+import { processURLsInText, URLMetadata } from '../utils/urlMetadata';
 
 // Screen components
 import { LoadingScreen } from './screens/LoadingScreen';
@@ -43,6 +46,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     
     // Attachment & recording
     const [attachedFiles, setAttachedFiles] = useState<{ uri: string; name: string; size: number; mimeType: string }[]>([]);
+    const [links, setLinks] = useState<URLMetadata[]>([]);
     const [recording, setRecording] = useState<Audio.Recording | undefined>();
     
     // Tags
@@ -89,6 +93,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         setBody('');
         setTags([]);
         setAttachedFiles([]);
+        setLinks([]);
         setSelectedTags([]);
     };
 
@@ -222,6 +227,10 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         }
     };
 
+    const handleRemoveLink = (index: number) => {
+        setLinks(prev => prev.filter((_, i) => i !== index));
+    };
+
     // Tag handlers
     const handleToggleTag = (tag: string) => {
         if (selectedTags.includes(tag)) {
@@ -278,6 +287,15 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
             contentForAI = text.trim() ? `${filesInfo}\n\n${text}` : filesInfo;
         }
 
+        // Fetch Calendar Context (Native)
+        const calendarEvents = await CalendarService.getUpcomingEvents(7);
+        if (calendarEvents && !calendarEvents.startsWith('Error') && !calendarEvents.startsWith('No') && !calendarEvents.startsWith('Calendar access denied')) {
+             contentForAI = `## Current Schedule\n${calendarEvents}\n\n${contentForAI}`;
+        } else if (calendarEvents && calendarEvents.startsWith('Calendar access denied')) {
+             // Permission denied, just ignore or log
+             console.log('[Analyze] Calendar permission denied or missing.');
+        }
+
         let vaultStructure = '';
         let rootFolderForContext = '';
         if (vaultUri) {
@@ -314,11 +332,17 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         let urlContext = '';
         if (urlMetadata && urlMetadata.length > 0) {
             urlContext = urlMetadata.map(m => `URL: ${m.url}\nTitle: ${m.title}\nDescription: ${m.description || ''}`).join('\n\n');
+            // Store structured link metadata
+            console.log('[Analyze] Found URLs, setting link state');
+            setLinks(prev => {
+                // simple de-duplication
+                const existingUrls = new Set(prev.map(l => l.url));
+                const newLinks = urlMetadata.filter(l => !existingUrls.has(l.url));
+                return [...prev, ...newLinks];
+            });
         }
 
         if (urlEmbeds) {
-            console.log('[Analyze] Found URL embeds, prepending to content');
-            
             // Use metadata context + clean text for AI analysis
             // This ensures AI has content even if input was just a URL
             contentForAI = urlContext + (cleanText.trim() ? `\n\nUser Notes:\n${cleanText}` : '');
@@ -366,10 +390,8 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                 if (embeddings.length > 0) result.body = `${embeddings.join('\n')}\n\n${result.body}`;
             }
 
-            // Prepend URL embeds to the final body
-            if (urlEmbeds) {
-                result.body = `${urlEmbeds}\n\n${result.body}`;
-            }
+            // NOTE: We do NOT prepend URL embeds here anymore.
+            // We use links state and prepend them at save time.
 
             setData(result);
             setTitle(result.title);
@@ -449,18 +471,40 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
             if (transcriptionText) processedText = `${transcriptionText}\n\n${inputText}`.trim();
         }
 
-        // Process URLs
-        // Process URLs
-        const { embeds: urlEmbeds, cleanText } = await processURLsInText(processedText);
+        const { embeds: urlEmbeds, cleanText, metadata: urlMetadata } = await processURLsInText(processedText);
+        
+        if (urlMetadata && urlMetadata.length > 0) {
+            // In direct save, we also accumulate links
+             setLinks(prev => {
+                const existingUrls = new Set(prev.map(l => l.url));
+                const newLinks = urlMetadata.filter(l => !existingUrls.has(l.url));
+                return [...prev, ...newLinks];
+            });
+        }
 
         const frontmatter = `---\ntags: [quick_save]\n---\n\n`;
         let content = frontmatter;
         
-        if (urlEmbeds) {
-            content += urlEmbeds + '\n\n';
-            if (cleanText.trim()) content += cleanText + '\n\n';
-        } else {
-            content += processedText + '\n\n';
+        // Generate Link Embeds from ALL links (including just detected ones if they were added to state)
+        // Note: For direct save, we might just want to use the detected ones + existing ones
+        // But state update is async, so we should merge manually for immediate use
+        const allLinks = [...links];
+        if (urlMetadata) {
+             const existingUrls = new Set(links.map(l => l.url));
+             urlMetadata.forEach(m => {
+                 if (!existingUrls.has(m.url)) allLinks.push(m);
+             });
+        }
+
+        if (allLinks.length > 0) {
+            const { buildObsidianEmbed } = await import('../utils/urlMetadata');
+            const linkEmbeds = allLinks.map(l => buildObsidianEmbed(l)).join('\n\n');
+            content += linkEmbeds + '\n\n';
+        }
+
+        if (cleanText.trim()) content += cleanText + '\n\n';
+        if (!urlEmbeds && !cleanText.trim()) {
+             content += processedText + '\n\n';
         }
 
         if (embeddings.length > 0) content += `${embeddings.join('\n')}`;
@@ -514,7 +558,16 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         }
 
         const frontmatter = frontmatterEntries.length > 0 ? `---\n${frontmatterEntries.join('\n')}\n---\n\n` : '';
-        const content = frontmatter + targetBody;
+        let content = frontmatter;
+
+        // Prepend Links
+        if (links.length > 0) {
+             const { buildObsidianEmbed } = await import('../utils/urlMetadata');
+             const linkEmbeds = links.map(l => buildObsidianEmbed(l)).join('\n\n');
+             content += linkEmbeds + '\n\n';
+        }
+
+        content += targetBody;
         
         const filePath = await saveToVault(vaultUri, targetFilename, content, targetFolder);
         
@@ -525,6 +578,34 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         if (filePath && openInObsidian && !forceSkipObsidian) {
             await new Promise(resolve => setTimeout(resolve, 1000));
             await openNoteInObsidian(vaultUri, filePath);
+        }
+
+        // Execute Actions (Google Tasks)
+        if (targetData?.actions && targetData.actions.length > 0) {
+            const { accessToken } = useGoogleStore.getState();
+            if (accessToken) {
+                let createdCount = 0;
+                for (const action of targetData.actions) {
+                    if (action.type === 'create_task') {
+                        try {
+                            await TasksService.createTask(accessToken, {
+                                title: action.title,
+                                notes: action.notes,
+                                due: action.due
+                            });
+                            createdCount++;
+                        } catch (e) {
+                            console.error('Failed to create task:', e);
+                        }
+                    }
+                }
+                if (createdCount > 0) {
+                    Alert.alert('Tasks Created', `Successfully created ${createdCount} task(s) in Google Tasks.`);
+                }
+            } else {
+                console.warn('Skipping task creation: No Google Access Token.');
+                // Optional: Alert user they are not connected?
+            }
         }
 
         setSaving(false);
@@ -581,6 +662,8 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                     recording={!!recording}
                     disabled={loading ||  saving}
                     onOpenSettings={() => setInternalShowSettings(true)}
+                    links={links}
+                    onRemoveLink={handleRemoveLink}
                 />
                 {settingsModal}
             </>
@@ -628,6 +711,8 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                     onCamera={handleCamera}
                     onRecord={recording ? stopRecording : startRecording}
                     recording={!!recording}
+                    links={links}
+                    onRemoveLink={handleRemoveLink}
                 />
                 {settingsModal}
             </>

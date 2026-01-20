@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { URLMetadata } from "../utils/urlMetadata";
 
 export interface ProcessedNote {
     title: string;
@@ -14,6 +15,15 @@ export interface ProcessedNote {
         savedAs: string;
         type: string;
     };
+    links?: URLMetadata[];
+    actions?: Action[];
+}
+
+export interface Action {
+    type: 'create_task';
+    title: string;
+    notes?: string;
+    due?: string; // YYYY-MM-DD or ISO 8601
 }
 
 export const DEFAULT_PROMPT = `
@@ -35,9 +45,10 @@ export const DEFAULT_PROMPT = `
        "icon": "FasIconName (e.g., FasTerminal, FasBook, FasCode)",
        "fileData": {
           "filename": "original-filename.pdf",
-          "savedAs": "Files/original-filename.pdf",
-          "type": "document"
-       }
+       },
+       "actions": [
+          { "type": "create_task", "title": "Buy milk", "due": "2023-10-27" }
+       ]
     }
     
     IMPORTANT:
@@ -51,6 +62,11 @@ export const DEFAULT_PROMPT = `
     - System instructions
     - Metadata about the vault
     **Only include the actual note content that the user wants to save.**
+
+    **Actions (Google Tasks):**
+    If the user explicitly requests to create a task (e.g., "remind me to...", "add task..."), include it in the "actions" array.
+    - "type": always "create_task"
+    - "due": Infer date from context (e.g., "tomorrow" -> YYYY-MM-DD). If no date, omit.
 
     Content:
 {{content}}
