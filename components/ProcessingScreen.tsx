@@ -6,7 +6,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import { useSettingsStore } from '../store/settings';
 import { useGoogleStore } from '../store/googleStore';
-import { processContent, ProcessedNote } from '../services/gemini';
+import { processContent, ProcessedNote, transcribeAudio } from '../services/gemini';
 import { CalendarService } from '../services/calendarService';
 import { TasksService } from '../services/tasksService';
 import { saveToVault, checkDirectoryExists, readVaultStructure } from '../utils/saf';
@@ -291,153 +291,171 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         setLoading(true);
         
         try {
-            let contentForAI = text;
-        if (attachedFiles.length > 0) {
-            const filesInfo = attachedFiles.map((f, i) => `File ${i + 1}: ${f.name} (${f.mimeType}, ${(f.size / 1024).toFixed(1)} KB)`).join('\n');
-            contentForAI = text.trim() ? `${filesInfo}\n\n${text}` : filesInfo;
-        }
-
-        // --- Smart Scheduling Context ---
-        setLoadingStatus('Checking Schedule...'); // Update status
-        const now = new Date();
-        const currentTimeString = now.toLocaleString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-        
-        let scheduleContext = `\n\n--- CONTEXT ---\nCurrent Time: ${currentTimeString}\n`;
-        
-        try {
-            const calendarEvents = await CalendarService.getUpcomingEvents(3); // Next 3 days
-            scheduleContext += `\nUpcoming Schedule (Use to find free slots):\n${calendarEvents}\n`;
-            
-
-
-        } catch (e) {
-            console.warn('Failed to fetch calendar for context', e);
-            scheduleContext += `\n(Could not fetch calendar: ${e})\n`;
-        }
-
-        contentForAI += scheduleContext;
-        // --------------------------------
-
-        setLoadingStatus('Analyzing content...'); // Update status
-        let vaultStructure = '';
-        let rootFolderForContext = '';
-        if (vaultUri) {
-            let targetUri = vaultUri;
-            if (contextRootFolder && contextRootFolder.trim()) {
-                const contextUri = await checkDirectoryExists(vaultUri, contextRootFolder.trim());
-                if (contextUri) {
-                    targetUri = contextUri;
-                    rootFolderForContext = contextRootFolder.trim();
-                }
-            }
-            vaultStructure = await readVaultStructure(targetUri, 2);
-        }
-
-        let customPrompt = null;
-        if (customPromptPath && customPromptPath.trim()) {
-            try {
-                const { readFileContent } = await import('../utils/saf');
-                let baseUri = vaultUri;
-                if (rootFolderForContext) {
-                    const contextUri = await checkDirectoryExists(vaultUri!, rootFolderForContext);
-                    if (contextUri) baseUri = contextUri;
-                }
-                customPrompt = await readFileContent(baseUri!, customPromptPath.trim());
-            } catch (e) {
-                console.warn('[Analyze] Failed to read custom prompt file:', e);
-            }
-        }
-
-        // Process URLs in the text
-        const { embeds: urlEmbeds, cleanText, metadata: urlMetadata } = await processURLsInText(text);
-        
-        // Prepare context from URL metadata for AI
-        let urlContext = '';
-        if (urlMetadata && urlMetadata.length > 0) {
-            urlContext = urlMetadata.map(m => `URL: ${m.url}\nTitle: ${m.title}\nDescription: ${m.description || ''}`).join('\n\n');
-            // Store structured link metadata
-            console.log('[Analyze] Found URLs, setting link state');
-            setLinks(prev => {
-                // simple de-duplication
-                const existingUrls = new Set(prev.map(l => l.url));
-                const newLinks = urlMetadata.filter(l => !existingUrls.has(l.url));
-                return [...prev, ...newLinks];
-            });
-        }
-
-        if (urlEmbeds) {
-            // Use metadata context + clean text for AI analysis
-            // This ensures AI has content even if input was just a URL
-            contentForAI = urlContext + (cleanText.trim() ? `\n\nUser Notes:\n${cleanText}` : '');
-            
-            if (attachedFiles.length > 0) {
-                const filesInfo = attachedFiles.map((f, i) => `File ${i + 1}: ${f.name} (${f.mimeType}, ${(f.size / 1024).toFixed(1)} KB)`).join('\n');
-                contentForAI = `${filesInfo}\n\n${contentForAI}`;
-            }
-        }
-
-        const result = await processContent(apiKey!, contentForAI, customPrompt, selectedModel, vaultStructure, rootFolderForContext);
-        
-        if (result) {
+            // --- 1. Audio Transcription (Pre-analysis) ---
             let transcriptionContext = '';
-            const embeddings: string[] = [];
-            
+            let rawTranscriptions = '';
+            const { transcribeAudio } = await import('../services/gemini'); // Moved import here
+
             if (attachedFiles.length > 0) {
-                const { copyFileToVault } = await import('../utils/saf');
-                const { transcribeAudio } = await import('../services/gemini');
-                
-                for (const file of attachedFiles) {
-                    if (file.mimeType.startsWith('audio/')) {
+                const audioFiles = attachedFiles.filter(f => f.mimeType.startsWith('audio/'));
+                if (audioFiles.length > 0) {
+                    setLoadingStatus('Transcribing audio...');
+                    
+                    for (const file of audioFiles) {
                         try {
                             const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
                             const transcription = await transcribeAudio(apiKey || '', base64, file.mimeType, selectedModel || undefined);
+                            
                             if (transcription) {
+                                // For Note Body (Formatted)
                                 const formatted = transcription.split('\n').map(line => `> ${line}`).join('\n');
                                 transcriptionContext += `\n> [!quote] Transcription: ${file.name}\n${formatted}\n`;
+                                
+                                // For AI Prompt (Raw)
+                                rawTranscriptions += `\n\nTranscription of ${file.name}:\n${transcription}\n`;
                             }
                         } catch (e) {
                             console.warn(`Failed to transcribe ${file.name}`, e);
                         }
                     }
-
-                    const subfolder = getAttachmentSubfolder(file.mimeType);
-                    const targetPath = `Files/${subfolder}/${file.name}`;
-                    const copiedUri = await copyFileToVault(file.uri, vaultUri!, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
-                    if (copiedUri) embeddings.push(`![[${targetPath}]]`);
                 }
-
-                if (transcriptionContext) {
-                    contentForAI = `${transcriptionContext}\n\n${contentForAI}`;
-                    result.body = `${transcriptionContext}\n\n${result.body}`;
-                }
-                if (embeddings.length > 0) result.body = `${embeddings.join('\n')}\n\n${result.body}`;
             }
 
-            // NOTE: We do NOT prepend URL embeds here anymore.
-            // We use links state and prepend them at save time.
-
-            setData(result);
-            setTitle(result.title);
-            setFilename(result.filename);
-            setFolder(result.folder);
-            setBody(result.body);
-            setTags(result.tags || []);
-
-            if (quickSave) {
-                await handleSave(
-                    result.title,
-                    result.filename,
-                    result.folder,
-                    result.body,
-                    result.tags || [],
-                    result
-                );
-            } else {
-                setLoading(false);
-                setInputMode(false);
+            let contentForAI = text;
+            if (rawTranscriptions) {
+                contentForAI = text.trim() ? `${text}\n${rawTranscriptions}` : rawTranscriptions.trim();
             }
 
-        }
+            if (attachedFiles.length > 0) {
+                const filesInfo = attachedFiles.map((f, i) => `File ${i + 1}: ${f.name} (${f.mimeType}, ${(f.size / 1024).toFixed(1)} KB)`).join('\n');
+                contentForAI = `${filesInfo}\n\n${contentForAI}`;
+            }
+
+            // --- Smart Scheduling Context ---
+            setLoadingStatus('Checking Schedule...'); // Update status
+            const now = new Date();
+            const currentTimeString = now.toLocaleString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            
+            let scheduleContext = `\n\n--- CONTEXT ---\nCurrent Time: ${currentTimeString}\n`;
+            
+            try {
+                const calendarEvents = await CalendarService.getUpcomingEvents(3); // Next 3 days
+                scheduleContext += `\nUpcoming Schedule (Use to find free slots):\n${calendarEvents}\n`;
+            } catch (e) {
+                console.warn('Failed to fetch calendar for context', e);
+                scheduleContext += `\n(Could not fetch calendar: ${e})\n`;
+            }
+
+            contentForAI += scheduleContext;
+            // --------------------------------
+
+            setLoadingStatus('Analyzing content...'); // Update status
+            let vaultStructure = '';
+            let rootFolderForContext = '';
+            if (vaultUri) {
+                let targetUri = vaultUri;
+                if (contextRootFolder && contextRootFolder.trim()) {
+                    const contextUri = await checkDirectoryExists(vaultUri, contextRootFolder.trim());
+                    if (contextUri) {
+                        targetUri = contextUri;
+                        rootFolderForContext = contextRootFolder.trim();
+                    }
+                }
+                vaultStructure = await readVaultStructure(targetUri, 2);
+            }
+
+            let customPrompt = null;
+            if (customPromptPath && customPromptPath.trim()) {
+                try {
+                    const { readFileContent } = await import('../utils/saf');
+                    let baseUri = vaultUri;
+                    if (rootFolderForContext) {
+                        const contextUri = await checkDirectoryExists(vaultUri!, rootFolderForContext);
+                        if (contextUri) baseUri = contextUri;
+                    }
+                    customPrompt = await readFileContent(baseUri!, customPromptPath.trim());
+                } catch (e) {
+                    console.warn('[Analyze] Failed to read custom prompt file:', e);
+                }
+            }
+
+            // Process URLs in the text
+            const { embeds: urlEmbeds, cleanText, metadata: urlMetadata } = await processURLsInText(text);
+            
+            // Prepare context from URL metadata for AI
+            let urlContext = '';
+            if (urlMetadata && urlMetadata.length > 0) {
+                urlContext = urlMetadata.map(m => `URL: ${m.url}\nTitle: ${m.title}\nDescription: ${m.description || ''}`).join('\n\n');
+                console.log('[Analyze] Found URLs, setting link state');
+                setLinks(prev => {
+                    const existingUrls = new Set(prev.map(l => l.url));
+                    const newLinks = urlMetadata.filter(l => !existingUrls.has(l.url));
+                    return [...prev, ...newLinks];
+                });
+            }
+
+            if (urlEmbeds) {
+                // For URL embeds, we rebuild contentForAI more specifically
+                // But we must preserve the transcription and file info we added earlier!
+                // Let's reconstruct systematically:
+                
+                let baseContent = urlContext;
+                if (cleanText.trim()) baseContent += `\n\nUser Notes:\n${cleanText}`;
+                if (rawTranscriptions) baseContent += rawTranscriptions;
+                
+                if (attachedFiles.length > 0) {
+                     const filesInfo = attachedFiles.map((f, i) => `File ${i + 1}: ${f.name} (${f.mimeType}, ${(f.size / 1024).toFixed(1)} KB)`).join('\n');
+                     contentForAI = `${filesInfo}\n\n${baseContent}`;
+                } else {
+                    contentForAI = baseContent;
+                }
+                 // Re-add schedule context
+                 contentForAI += scheduleContext;
+            }
+
+            const result = await processContent(apiKey!, contentForAI, customPrompt, selectedModel, vaultStructure, rootFolderForContext);
+            
+            if (result) {
+                const embeddings: string[] = [];
+                
+                if (attachedFiles.length > 0) {
+                    const { copyFileToVault } = await import('../utils/saf');
+                    
+                    for (const file of attachedFiles) {
+                         const subfolder = getAttachmentSubfolder(file.mimeType);
+                        const targetPath = `Files/${subfolder}/${file.name}`;
+                        const copiedUri = await copyFileToVault(file.uri, vaultUri!, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
+                        if (copiedUri) embeddings.push(`![[${targetPath}]]`);
+                    }
+
+                    if (transcriptionContext) {
+                        result.body = `${transcriptionContext}\n\n${result.body}`;
+                    }
+                    if (embeddings.length > 0) result.body = `${embeddings.join('\n')}\n\n${result.body}`;
+                }
+
+                setData(result);
+                setTitle(result.title);
+                setFilename(result.filename);
+                setFolder(result.folder);
+                setBody(result.body);
+                setTags(result.tags || []);
+
+                if (quickSave) {
+                    await handleSave(
+                        result.title,
+                        result.filename,
+                        result.folder,
+                        result.body,
+                        result.tags || [],
+                        result
+                    );
+                } else {
+                    setLoading(false);
+                    setInputMode(false);
+                }
+
+            }
         } catch (error) {
             console.error('[Analyze] Error:', error);
             Alert.alert('Error', 'Analysis failed');

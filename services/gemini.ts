@@ -66,7 +66,7 @@ export const DEFAULT_PROMPT = `
     **Only include the actual note content that the user wants to save.**
 
     **Create Calendar Events:**
-    If the user explicitly requests to create a task or event, include it in the "actions" array.
+    If the user explicitly requests to create tasks or events, include them in the "actions" array. You can create MULTIPLE events if the user asks for them.
     - "type": always "create_event"
     - "title": Add a relevant emoji to the start (e.g., "📞 Call Mom", "📝 Write Report").
     - "description": Brief notes about the event.
