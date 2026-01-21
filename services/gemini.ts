@@ -35,6 +35,9 @@ export const DEFAULT_PROMPT = `
     
     IMPORTANT: If the user's content contains explicit instructions or requests (e.g., "save this to...", "tag this as...", "use this folder..."), treat those instructions as HIGHEST PRIORITY and follow them precisely when generating the metadata.
     
+    If the content contains multiple distinct topics (e.g. work and personal tasks) that should be separate notes, return a JSON Array of objects.
+    Otherwise, return a single JSON object.
+
     Structure:
     {
        "title": "Suggested File Name (readable title)",
@@ -82,7 +85,7 @@ export const DEFAULT_PROMPT = `
 {{content}}
 `;
 
-export async function processContent(apiKey: string, content: string, promptOverride?: string | null, model?: string, vaultStructure?: string, contextRootFolder?: string): Promise<ProcessedNote | null> {
+export async function processContent(apiKey: string, content: string, promptOverride?: string | null, model?: string, vaultStructure?: string, contextRootFolder?: string): Promise<ProcessedNote[] | null> {
     const genAI = new GoogleGenerativeAI(apiKey);
     const modelName = model || "gemini-3-flash-preview";
     const genModel = genAI.getGenerativeModel({ model: modelName });
@@ -147,28 +150,50 @@ export async function processContent(apiKey: string, content: string, promptOver
         // Sanitize: Replace NBSP and other weird spaces with normal space
         text = text.replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ');
 
-        const start = text.indexOf('{');
-        const end = text.lastIndexOf('}');
-        if (start !== -1 && end !== -1) {
-            const jsonStr = text.substring(start, end + 1);
+        let jsonStr = '';
+        let start = text.indexOf('[');
+        let end = text.lastIndexOf(']');
+
+        // Check for array first
+        if (start !== -1 && end !== -1 && start < end) {
+             jsonStr = text.substring(start, end + 1);
+        } else {
+            // Fallback to object
+             start = text.indexOf('{');
+             end = text.lastIndexOf('}');
+             if (start !== -1 && end !== -1) {
+                 jsonStr = text.substring(start, end + 1);
+             }
+        }
+
+        if (jsonStr) {
             console.log("[Gemini] Extracted JSON string:", jsonStr);
             try {
-                const parsed = JSON.parse(jsonStr);
+                let parsed = JSON.parse(jsonStr);
 
-                // Handle hallucinated 'transcription' field by merging it into body
-                const extraData = parsed as any;
-                if (extraData.transcription) {
-                    if (parsed.body) {
-                        // If body exists, append/prepend transcription if not already there
-                        if (!parsed.body.includes(extraData.transcription)) {
-                            parsed.body = `${extraData.transcription}\n\n${parsed.body}`;
-                        }
-                    } else {
-                        parsed.body = extraData.transcription;
-                    }
-                    // Clean up to avoid confusion
-                    delete extraData.transcription;
+                // Ensure array
+                if (!Array.isArray(parsed)) {
+                    parsed = [parsed];
                 }
+
+                // Process each note in the array
+                parsed = parsed.map((note: any) => {
+                     // Handle hallucinated 'transcription' field by merging it into body
+                    const extraData = note as any;
+                    if (extraData.transcription) {
+                        if (note.body) {
+                            // If body exists, append/prepend transcription if not already there
+                            if (!note.body.includes(extraData.transcription)) {
+                                note.body = `${extraData.transcription}\n\n${note.body}`;
+                            }
+                        } else {
+                            note.body = extraData.transcription;
+                        }
+                        // Clean up to avoid confusion
+                        delete extraData.transcription;
+                    }
+                    return note;
+                });
 
                 return parsed;
             } catch (parseError: any) {
