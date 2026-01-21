@@ -18,7 +18,7 @@ export class GoogleAuthService {
             androidClientId: googleAndroidClientId || undefined,
             scopes: ['https://www.googleapis.com/auth/tasks'],
             responseType: ResponseType.Code,
-            redirectUri: 'your.app.scheme:/oauthredirect',
+            redirectUri: 'aiinbox://oauthredirect',
             usePKCE: true,
         };
     }
