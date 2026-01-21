@@ -53,6 +53,11 @@ interface PreviewScreenProps {
     links?: URLMetadata[];
     onRemoveLink?: (index: number) => void;
     onRemoveAction?: (index: number) => void;
+
+    // Tab props
+    currentTabIndex?: number;
+    totalTabs?: number;
+    onTabChange?: (index: number) => void;
 }
 
 export function PreviewScreen({
@@ -93,6 +98,9 @@ export function PreviewScreen({
     links,
     onRemoveLink,
     onRemoveAction,
+    currentTabIndex = 0,
+    totalTabs = 1,
+    onTabChange,
 }: PreviewScreenProps) {
     return (
         <Layout>
@@ -110,6 +118,34 @@ export function PreviewScreen({
                     </TouchableOpacity>
                 )}
             </View>
+
+            {/* Tabs */}
+            {totalTabs > 1 && (
+                <View className="px-4 pb-2">
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2">
+                        {Array.from({ length: totalTabs }).map((_, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                onPress={() => onTabChange?.(index)}
+                                className={`px-4 py-2 rounded-full border ${
+                                    currentTabIndex === index
+                                        ? 'bg-indigo-600 border-indigo-500'
+                                        : 'bg-slate-800 border-slate-700'
+                                } mr-2`}
+                            >
+                                <Text
+                                    className={`${
+                                        currentTabIndex === index ? 'text-white font-bold' : 'text-slate-400'
+                                    }`}
+                                >
+                                    Note {index + 1}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            )}
+
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 <Animated.View entering={FadeIn.duration(500)}>
                     <Card>
