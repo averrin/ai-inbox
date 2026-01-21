@@ -20,12 +20,12 @@ function PulsingIcon() {
     );
 }
 
-export function LoadingScreen() {
+export function LoadingScreen({ message }: { message?: string }) {
     return (
         <Layout>
             <View className="flex-1 justify-center items-center">
                 <PulsingIcon />
-                <Text className="text-white text-lg font-medium mt-4 animate-pulse">Analyzing Content...</Text>
+                <Text className="text-white text-lg font-medium mt-4 animate-pulse">{message || "Analyzing Content..."}</Text>
             </View>
         </Layout>
     );

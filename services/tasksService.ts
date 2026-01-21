@@ -17,8 +17,10 @@ export class TasksService {
                 },
                 body: JSON.stringify({
                     title: task.title,
-                    notes: task.notes,
-                    due: task.due,
+                    notes: task.due && task.due.includes('T')
+                        ? `${task.notes || ''}\nScheduled: ${new Date(task.due).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`.trim()
+                        : task.notes,
+                    due: task.due ? new Date(task.due).toISOString() : undefined,
                 }),
             });
 

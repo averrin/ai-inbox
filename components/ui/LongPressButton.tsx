@@ -15,7 +15,8 @@ interface LongPressButtonProps {
     shortPressLabel: string;
     longPressLabel: string;
     longPressDuration?: number; // milliseconds
-    disabled?: boolean;
+    style?: any;
+    children?: React.ReactNode;
 }
 
 export function LongPressButton({
@@ -25,6 +26,8 @@ export function LongPressButton({
     longPressLabel,
     longPressDuration = 800,
     disabled = false,
+    style,
+    children
 }: LongPressButtonProps) {
     const [isPressed, setIsPressed] = useState(false);
     const progress = useSharedValue(0);
@@ -94,7 +97,7 @@ export function LongPressButton({
     };
 
     const displayText = isPressed 
-        ? `Press longer to ${longPressLabel}...`
+        ? `Hold for ${longPressLabel}...`
         : shortPressLabel;
 
     return (
@@ -102,31 +105,33 @@ export function LongPressButton({
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
             disabled={disabled}
-            className={`relative overflow-hidden rounded-2xl ${disabled ? 'opacity-50' : ''}`}
+            className={`relative overflow-hidden ${disabled ? 'opacity-50' : ''}`}
+            style={style}
         >
             {/* Background gradient with progress */}
-            <View className="relative">
-                {/* Base background */}
-                <View className="bg-indigo-600 rounded-2xl">
-                    <View className="px-6 py-4">
+            <View className={`relative ${!children ? 'bg-indigo-600 rounded-2xl' : ''}`}>
+                
+                {/* Content */}
+                {children ? (
+                    <View className="relative z-10 w-full h-full justify-center items-center">
+                        {children}
+                    </View>
+                ) : (
+                    <View className="px-6 py-4 relative z-10">
                         <Text className="text-white text-center text-lg font-semibold">
                             {displayText}
                         </Text>
                     </View>
-                </View>
+                )}
 
                 {/* Progress indicator overlay */}
                 <Animated.View 
-                    style={[animatedStyle]}
-                    className="absolute top-0 left-0 bottom-0 bg-indigo-500 rounded-2xl"
+                    style={[
+                        animatedStyle, 
+                        { position: 'absolute', top: 0, left: 0, bottom: 0, zIndex: 0 },
+                        children ? { backgroundColor: 'rgba(255,255,255,0.3)' } : { backgroundColor: '#6366f1' } // indigo-500
+                    ]} 
                 />
-
-                {/* Text overlay (on top of progress) */}
-                <View className="absolute inset-0 px-6 py-4 pointer-events-none">
-                    <Text className="text-white text-center text-lg font-semibold">
-                        {displayText}
-                    </Text>
-                </View>
             </View>
         </Pressable>
     );

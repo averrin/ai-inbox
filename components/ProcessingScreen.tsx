@@ -28,6 +28,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     
     // Main state
     const [loading, setLoading] = useState(true);
+    const [loadingStatus, setLoadingStatus] = useState<string>('');
     const [saving, setSaving] = useState(false);
     const [internalShowSettings, setInternalShowSettings] = useState(false);
     const [data, setData] = useState<ProcessedNote | null>(null);
@@ -274,6 +275,15 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         }
     };
 
+    const handleRemoveAction = (index: number) => {
+        if (data?.actions) {
+            const newActions = [...data.actions];
+            newActions.splice(index, 1);
+            setData({ ...data, actions: newActions });
+        }
+    };
+
+
     // Analyze & Save
     const analyze = async (text: string, quickSave: boolean = false) => {
         if (analyzingRef.current) return;
@@ -287,15 +297,28 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
             contentForAI = text.trim() ? `${filesInfo}\n\n${text}` : filesInfo;
         }
 
-        // Fetch Calendar Context (Native)
-        const calendarEvents = await CalendarService.getUpcomingEvents(7);
-        if (calendarEvents && !calendarEvents.startsWith('Error') && !calendarEvents.startsWith('No') && !calendarEvents.startsWith('Calendar access denied')) {
-             contentForAI = `## Current Schedule\n${calendarEvents}\n\n${contentForAI}`;
-        } else if (calendarEvents && calendarEvents.startsWith('Calendar access denied')) {
-             // Permission denied, just ignore or log
-             console.log('[Analyze] Calendar permission denied or missing.');
+        // --- Smart Scheduling Context ---
+        setLoadingStatus('Checking Schedule...'); // Update status
+        const now = new Date();
+        const currentTimeString = now.toLocaleString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        
+        let scheduleContext = `\n\n--- CONTEXT ---\nCurrent Time: ${currentTimeString}\n`;
+        
+        try {
+            const calendarEvents = await CalendarService.getUpcomingEvents(3); // Next 3 days
+            scheduleContext += `\nUpcoming Schedule (Use to find free slots):\n${calendarEvents}\n`;
+            
+
+
+        } catch (e) {
+            console.warn('Failed to fetch calendar for context', e);
+            scheduleContext += `\n(Could not fetch calendar: ${e})\n`;
         }
 
+        contentForAI += scheduleContext;
+        // --------------------------------
+
+        setLoadingStatus('Analyzing content...'); // Update status
         let vaultStructure = '';
         let rootFolderForContext = '';
         if (vaultUri) {
@@ -568,6 +591,40 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         }
 
         content += targetBody;
+
+        // Execute Actions (Google Calendar Events) - BEFORE opening Obsidian
+        if (targetData?.actions && targetData.actions.length > 0) {
+            const { accessToken } = useGoogleStore.getState();
+
+            if (accessToken) {
+                const { GoogleCalendarService } = await import('../services/googleCalendarService');
+                let createdCount = 0;
+                for (const action of targetData.actions) {
+                    if (action.type === 'create_event') {
+                        try {
+                            await GoogleCalendarService.createEvent(accessToken, {
+                                title: action.title,
+                                description: action.description,
+                                startTime: action.startTime || new Date().toISOString(),
+                                durationMinutes: action.durationMinutes || 30,
+                                recurrence: action.recurrence
+                            });
+                            createdCount++;
+                        } catch (e) {
+                            console.error('Failed to create event:', e);
+                            Alert.alert('Event Creation Failed', `Error: ${e instanceof Error ? e.message : String(e)}`);
+                        }
+                    }
+                }
+                if (createdCount > 0) {
+                    // Alert.alert('Events Scheduled', `Successfully scheduled ${createdCount} event(s) in Google Calendar.`);
+                    // Silent success or maybe a toast? For now, silent is better than a modal.
+                }
+            } else {
+                console.warn('Skipping event creation: No Google Access Token.');
+                Alert.alert('Scheduling Skipped', 'No Google Access Token found. Please connect in settings.');
+            }
+        }
         
         const filePath = await saveToVault(vaultUri, targetFilename, content, targetFolder);
         
@@ -580,33 +637,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
             await openNoteInObsidian(vaultUri, filePath);
         }
 
-        // Execute Actions (Google Tasks)
-        if (targetData?.actions && targetData.actions.length > 0) {
-            const { accessToken } = useGoogleStore.getState();
-            if (accessToken) {
-                let createdCount = 0;
-                for (const action of targetData.actions) {
-                    if (action.type === 'create_task') {
-                        try {
-                            await TasksService.createTask(accessToken, {
-                                title: action.title,
-                                notes: action.notes,
-                                due: action.due
-                            });
-                            createdCount++;
-                        } catch (e) {
-                            console.error('Failed to create task:', e);
-                        }
-                    }
-                }
-                if (createdCount > 0) {
-                    Alert.alert('Tasks Created', `Successfully created ${createdCount} task(s) in Google Tasks.`);
-                }
-            } else {
-                console.warn('Skipping task creation: No Google Access Token.');
-                // Optional: Alert user they are not connected?
-            }
-        }
+
 
         setSaving(false);
         clearState();
@@ -633,7 +664,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     );
 
     // Render screens
-    if (loading && !inputMode) return <LoadingScreen />;
+    if (loading && !inputMode) return <LoadingScreen message={loadingStatus || "Analyzing..."} />;
     if (saving) return <SavingScreen />;
     if (!data && !loading && !inputMode) return <ErrorScreen onRetry={() => setInputMode(true)} onClose={() => { clearState(); onReset(); }} />;
     
@@ -707,6 +738,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                     onRemoveIcon={handleRemoveIcon}
                     onIconChange={handleIconChange}
                     onRemoveFrontmatterKey={handleRemoveFrontmatterKey}
+                    onRemoveAction={handleRemoveAction}
                     onAttach={handleAttach}
                     onCamera={handleCamera}
                     onRecord={recording ? stopRecording : startRecording}

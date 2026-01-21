@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -51,6 +52,7 @@ interface PreviewScreenProps {
     recording: boolean;
     links?: URLMetadata[];
     onRemoveLink?: (index: number) => void;
+    onRemoveAction?: (index: number) => void;
 }
 
 export function PreviewScreen({
@@ -90,15 +92,21 @@ export function PreviewScreen({
     recording,
     links,
     onRemoveLink,
+    onRemoveAction,
 }: PreviewScreenProps) {
     return (
         <Layout>
             {/* Settings button header */}
-            <View className="flex-row justify-between items-center px-4 pt-2 pb-1">
-                <Text className="text-2xl font-bold text-white">Preview</Text>
+            <View className="flex-row justify-between items-center px-4 pt-2 pb-1 relative">
+                <View className="flex-row items-center gap-3">
+                    <TouchableOpacity onPress={onBack} className="p-2">
+                        <Ionicons name="arrow-back" size={24} color="white" />
+                    </TouchableOpacity>
+                    <Text className="text-2xl font-bold text-white">Preview</Text>
+                </View>
                 {onOpenSettings && (
                     <TouchableOpacity onPress={onOpenSettings} className="p-2 bg-slate-800 rounded-full">
-                        <Text className="text-xl">⚙️</Text>
+                        <Ionicons name="settings-sharp" size={20} color="white" />
                     </TouchableOpacity>
                 )}
             </View>
@@ -122,7 +130,7 @@ export function PreviewScreen({
                                         onPress={onRemoveIcon}
                                         className="bg-slate-700 px-3 py-3 rounded-xl"
                                     >
-                                        <Text className="text-white font-semibold">✕</Text>
+                                        <Ionicons name="close" size={20} color="white" />
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -144,9 +152,9 @@ export function PreviewScreen({
                             <View className="flex-row flex-wrap gap-2">
                                 {tags.map((tag, index) => (
                                     <View key={index} className="bg-indigo-600/80 px-3 py-1.5 rounded-full flex-row items-center border border-indigo-500/50">
-                                        <Text className="text-white mr-2 text-sm font-medium">{tag}</Text>
+                                        <Text className="text-white mr-1 text-sm font-medium">{tag}</Text>
                                         <TouchableOpacity onPress={() => onRemoveTag(index)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                            <Text className="text-white/70 font-bold ml-1">×</Text>
+                                            <Ionicons name="close" size={14} color="rgba(255,255,255,0.7)" />
                                         </TouchableOpacity>
                                     </View>
                                 ))}
@@ -155,7 +163,8 @@ export function PreviewScreen({
                                     onPress={onAddTag}
                                     className="bg-slate-700 px-3 py-1.5 rounded-full flex-row items-center border border-slate-600"
                                 >
-                                    <Text className="text-white text-sm font-medium">+ Add Tag</Text>
+                                    <Ionicons name="add" size={16} color="white" />
+                                    <Text className="text-white text-sm font-medium ml-1">Add Tag</Text>
                                 </TouchableOpacity>
                             </View>
 
@@ -170,7 +179,7 @@ export function PreviewScreen({
                                                 onPress={() => onRemoveFrontmatterKey(key)}
                                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                             >
-                                                <Text className="text-slate-400 font-bold ml-1">×</Text>
+                                                <Ionicons name="close" size={14} color="#94a3b8" />
                                             </TouchableOpacity>
                                         </View>
                                     ))}
@@ -207,20 +216,29 @@ export function PreviewScreen({
                         </View>
                     )}
                     
-                    {/* Pending Actions (Google Tasks) */}
+                    {/* Pending Actions (Google Calendar) */}
                     {data.actions && data.actions.length > 0 && (
                          <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Pending Tasks (Google)</Text>
+                            <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Pending Events (Calendar)</Text>
                              {data.actions.map((action, index) => (
                                 <View key={`action-${index}`} className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 mb-2">
                                     <View className="flex-row items-center">
                                          <Text className="text-green-400 mr-2 text-lg">⦿</Text>
                                          <View className="flex-1">
                                              <Text className="text-white font-medium">{action.title}</Text>
-                                             {action.due && <Text className="text-indigo-300 text-xs">Due: {action.due}</Text>}
+                                             {action.startTime && (
+                                                <Text className="text-indigo-300 text-xs">
+                                                    {new Date(action.startTime).toLocaleString([], {weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'})} 
+                                                    {action.durationMinutes ? ` • ${action.durationMinutes}m` : ''}
+                                                    {action.recurrence && action.recurrence.length > 0 && <Text className="text-indigo-200"> • 🔁 Recurrent</Text>}
+                                                </Text>
+                                             )}
                                          </View>
+                                          <TouchableOpacity onPress={() => onRemoveAction && onRemoveAction(index)} className="p-1">
+                                             <Ionicons name="close" size={20} color="#f87171" />
+                                          </TouchableOpacity>
                                     </View>
-                                    {action.notes && <Text className="text-slate-400 text-xs mt-2 ml-6">{action.notes}</Text>}
+                                    {action.description && <Text className="text-slate-400 text-xs mt-2 ml-6">{action.description}</Text>}
                                 </View>
                              ))}
                         </View>
@@ -241,23 +259,33 @@ export function PreviewScreen({
                         />
                     </View>
 
-                    <View className="py-4">
-                        <LongPressButton
-                            onPress={onSave}
-                            onLongPress={onSaveAndAddNew}
-                            shortPressLabel="Save to Vault"
-                            longPressLabel="Save & Add New"
-                            disabled={saving || !vaultUri}
-                        />
-                        <View className="h-4" />
-                        <Button
-                            title="Back"
-                            onPress={onBack}
-                            variant="secondary"
-                        />
-                    </View>
                 </Animated.View>
             </ScrollView>
+
+            {/* Floating Action Buttons */}
+            <View className="absolute bottom-6 right-6">
+                <LongPressButton
+                    onPress={onSave}
+                    onLongPress={onSaveAndAddNew}
+                    shortPressLabel="Save"
+                    longPressLabel="Save & Add New"
+                    disabled={saving || !vaultUri}
+                    style={{ 
+                        width: 56, 
+                        height: 56, 
+                        borderRadius: 28, 
+                        backgroundColor: '#6366f1', // indigo-500
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 4.65,
+                        elevation: 8,
+                        overflow: 'hidden'
+                    }}
+                >
+                    <Ionicons name="checkmark" size={32} color="white" />
+                </LongPressButton>
+            </View>
 
             {/* Tag Input Modal */}
             <Modal visible={showTagModal} transparent animationType="fade">
@@ -266,7 +294,7 @@ export function PreviewScreen({
                         <View className="flex-row justify-between items-center mb-4">
                             <Text className="text-white text-xl font-bold">Add Tag</Text>
                             <TouchableOpacity onPress={onTagModalClose}>
-                                <Text className="text-white text-2xl">✕</Text>
+                                <Ionicons name="close" size={24} color="white" />
                             </TouchableOpacity>
                         </View>
                         <View className="flex-row gap-2">
