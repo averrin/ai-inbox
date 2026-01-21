@@ -258,12 +258,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                         <View className="mt-4 border-t border-slate-700 pt-4">
                             <Text className="text-xl font-bold text-white mb-4">Google Calendar</Text> 
                             
-                            {/* Google Settings (Connect/Disconnect) */}
-                             <GoogleSettings 
-                                androidClientId={androidIdInput}
-                             />
-
-                             <View className="mt-4">
+                             <View className="mb-4">
                                 <Input 
                                     label="Android Client ID" 
                                     value={androidIdInput} 
@@ -271,6 +266,11 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                     placeholder="...apps.googleusercontent.com" 
                                 />
                              </View>
+
+                            {/* Google Settings (Connect/Disconnect) */}
+                             <GoogleSettings 
+                                androidClientId={androidIdInput}
+                             />
                         </View>
                     </Card>
 
