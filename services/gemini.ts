@@ -20,10 +20,12 @@ export interface ProcessedNote {
 }
 
 export interface Action {
-    type: 'create_task';
+    type: 'create_event';
     title: string;
-    notes?: string;
-    due?: string; // YYYY-MM-DD or ISO 8601
+    description?: string;
+    startTime?: string; // RFC3339
+    durationMinutes?: number; // Estimated duration
+    recurrence?: string[]; // RRULE strings for Google Calendar
 }
 
 export const DEFAULT_PROMPT = `
@@ -47,7 +49,7 @@ export const DEFAULT_PROMPT = `
           "filename": "original-filename.pdf",
        },
        "actions": [
-          { "type": "create_task", "title": "Buy milk", "due": "2023-10-27" }
+          { "type": "create_event", "title": "🤖 Buy milk", "startTime": "2023-10-27T09:00:00", "durationMinutes": 30, "recurrence": ["RRULE:FREQ=WEEKLY;BYDAY=FR"] }
        ]
     }
     
@@ -63,10 +65,18 @@ export const DEFAULT_PROMPT = `
     - Metadata about the vault
     **Only include the actual note content that the user wants to save.**
 
-    **Actions (Google Tasks):**
-    If the user explicitly requests to create a task (e.g., "remind me to...", "add task..."), include it in the "actions" array.
-    - "type": always "create_task"
-    - "due": Infer date from context (e.g., "tomorrow" -> YYYY-MM-DD). If no date, omit.
+    **Create Calendar Events:**
+    If the user explicitly requests to create a task or event, include it in the "actions" array.
+    - "type": always "create_event"
+    - "title": Add a relevant emoji to the start (e.g., "📞 Call Mom", "📝 Write Report").
+    - "description": Brief notes about the event.
+    - "startTime": RFC3339 timestamp (YYYY-MM-DDTHH:mm:ss). 
+        - **Smart Scheduling Rules**:
+            - **Short/Work/Routine/Chores**: Schedule during **Work Hours (09:00 - 17:00)** in free slots. Avoid meetings.
+            - **Long/Personal/Creative**: Schedule for **Evenings (after 18:00)** or **Weekends**.
+            - Use the provided "Current Time" and "Upcoming Schedule" context to find the best non-conflicting slot.
+    - "durationMinutes": Estimate the duration based on the task type (e.g., "Meeting" -> 60, "Quick call" -> 15, "Deep work" -> 120). Default to 30.
+    - "recurrence": OPTIONAL. If the user mentions repetition (e.g., "every Monday", "daily", "weekly"), provide an array with a Google Calendar compatible RRULE string (e.g., ["RRULE:FREQ=WEEKLY;BYDAY=MO"]).
 
     Content:
 {{content}}

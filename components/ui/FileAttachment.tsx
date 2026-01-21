@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Audio } from 'expo-av';
+import { Ionicons } from '@expo/vector-icons';
 
 interface FileAttachmentProps {
     file: {
@@ -81,10 +82,10 @@ export function FileAttachment({ file, onRemove, showRemove = true }: FileAttach
                         />
                     ) : isAudio ? (
                         <TouchableOpacity onPress={handlePlayPause} className="w-full h-full items-center justify-center">
-                            <Text className="text-xl">{isPlaying ? '⏸' : '▶️'}</Text>
+                            <Ionicons name={isPlaying ? "pause" : "play"} size={20} color="white" />
                         </TouchableOpacity>
                     ) : (
-                        <Text className="text-xl">📄</Text>
+                        <Ionicons name="document-text" size={24} color="white" />
                     )}
                 </View>
 
@@ -107,7 +108,7 @@ export function FileAttachment({ file, onRemove, showRemove = true }: FileAttach
                 {/* Remove Button */}
                 {showRemove && onRemove && (
                     <TouchableOpacity onPress={onRemove} className="p-1">
-                        <Text className="text-red-400 font-bold text-lg">×</Text>
+                        <Ionicons name="close" size={20} color="#f87171" />
                     </TouchableOpacity>
                 )}
             </View>
