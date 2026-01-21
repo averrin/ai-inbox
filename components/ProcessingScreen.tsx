@@ -31,7 +31,11 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     const [loadingStatus, setLoadingStatus] = useState<string>('');
     const [saving, setSaving] = useState(false);
     const [internalShowSettings, setInternalShowSettings] = useState(false);
-    const [data, setData] = useState<ProcessedNote | null>(null);
+
+    // Changed to array
+    const [data, setData] = useState<ProcessedNote[] | null>(null);
+    const [activeNoteIndex, setActiveNoteIndex] = useState(0);
+
     const [inputMode, setInputMode] = useState(!shareIntent?.text && !shareIntent?.webUrl);
     const [inputText, setInputText] = useState((shareIntent?.text || shareIntent?.webUrl) ?? '');
     
@@ -86,6 +90,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     const clearState = () => {
         setInputText('');
         setData(null);
+        setActiveNoteIndex(0);
         setLoading(false);
         setInputMode(true);
         setTitle('');
@@ -260,26 +265,38 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
 
     // Icon handlers
     const handleRemoveIcon = () => {
-        if (data) setData({ ...data, icon: undefined });
+        if (data && data[activeNoteIndex]) {
+            const newData = [...data];
+            newData[activeNoteIndex] = { ...newData[activeNoteIndex], icon: undefined };
+            setData(newData);
+        }
     };
 
     const handleIconChange = (text: string) => {
-        if (data) setData({ ...data, icon: text });
+         if (data && data[activeNoteIndex]) {
+            const newData = [...data];
+            newData[activeNoteIndex] = { ...newData[activeNoteIndex], icon: text };
+            setData(newData);
+        }
     };
 
     const handleRemoveFrontmatterKey = (key: string) => {
-        if (data?.frontmatter) {
-            const newFrontmatter = { ...data.frontmatter };
+         if (data && data[activeNoteIndex]?.frontmatter) {
+            const newData = [...data];
+            const newFrontmatter = { ...newData[activeNoteIndex].frontmatter };
             delete newFrontmatter[key];
-            setData({ ...data, frontmatter: newFrontmatter });
+            newData[activeNoteIndex] = { ...newData[activeNoteIndex], frontmatter: newFrontmatter };
+            setData(newData);
         }
     };
 
     const handleRemoveAction = (index: number) => {
-        if (data?.actions) {
-            const newActions = [...data.actions];
+        if (data && data[activeNoteIndex]?.actions) {
+            const newData = [...data];
+            const newActions = [...newData[activeNoteIndex].actions!];
             newActions.splice(index, 1);
-            setData({ ...data, actions: newActions });
+            newData[activeNoteIndex] = { ...newData[activeNoteIndex], actions: newActions };
+            setData(newData);
         }
     };
 
@@ -415,7 +432,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
 
             const result = await processContent(apiKey!, contentForAI, customPrompt, selectedModel, vaultStructure, rootFolderForContext);
             
-            if (result) {
+            if (result && result.length > 0) {
                 const embeddings: string[] = [];
                 
                 if (attachedFiles.length > 0) {
@@ -428,28 +445,48 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                         if (copiedUri) embeddings.push(`![[${targetPath}]]`);
                     }
 
+                    // Apply embeddings/transcription to ALL generated notes
+                    // Or maybe just the first one? Let's apply to all for now as context is same.
+                    // But duplicates are bad. Let's apply to the first note only if logic permits,
+                    // or maybe it's better to let user decide.
+                    // Actually, the AI might have already distributed content.
+                    // But we are appending `embeddings` which are file links.
+                    // Let's append to the first note for safety.
+
                     if (transcriptionContext) {
-                        result.body = `${transcriptionContext}\n\n${result.body}`;
+                        result[0].body = `${transcriptionContext}\n\n${result[0].body}`;
                     }
-                    if (embeddings.length > 0) result.body = `${embeddings.join('\n')}\n\n${result.body}`;
+                    if (embeddings.length > 0) {
+                         result[0].body = `${embeddings.join('\n')}\n\n${result[0].body}`;
+                    }
                 }
 
                 setData(result);
-                setTitle(result.title);
-                setFilename(result.filename);
-                setFolder(result.folder);
-                setBody(result.body);
-                setTags(result.tags || []);
+                setActiveNoteIndex(0);
+
+                // Initialize state with first note
+                setTitle(result[0].title);
+                setFilename(result[0].filename);
+                setFolder(result[0].folder);
+                setBody(result[0].body);
+                setTags(result[0].tags || []);
 
                 if (quickSave) {
-                    await handleSave(
-                        result.title,
-                        result.filename,
-                        result.folder,
-                        result.body,
-                        result.tags || [],
-                        result
-                    );
+                    if (result.length === 1) {
+                         await handleSave(
+                            result[0].title,
+                            result[0].filename,
+                            result[0].folder,
+                            result[0].body,
+                            result[0].tags || [],
+                            result[0]
+                        );
+                    } else {
+                         // If multiple notes, disable quick save and show preview
+                         Alert.alert('Multiple Notes', 'Multiple notes were generated. Please review them individually.');
+                         setLoading(false);
+                         setInputMode(false);
+                    }
                 } else {
                     setLoading(false);
                     setInputMode(false);
@@ -568,6 +605,41 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         }
     };
 
+    // Sync current state back to data array
+    const syncCurrentToData = () => {
+        if (!data) return;
+        const newData = [...data];
+        newData[activeNoteIndex] = {
+            ...newData[activeNoteIndex],
+            title,
+            filename,
+            folder,
+            body,
+            tags,
+        };
+        // Note: icon and actions are updated directly in data
+        setData(newData);
+    };
+
+    const handleTabChange = (index: number) => {
+        if (!data || index < 0 || index >= data.length) return;
+
+        // Save current changes
+        syncCurrentToData();
+
+        // Switch index
+        setActiveNoteIndex(index);
+
+        // Load new data
+        const nextNote = data[index];
+        setTitle(nextNote.title);
+        setFilename(nextNote.filename);
+        setFolder(nextNote.folder);
+        setBody(nextNote.body);
+        setTags(nextNote.tags || []);
+    };
+
+
     const handleSave = async (
         overrideTitle?: string,
         overrideFilename?: string,
@@ -582,7 +654,12 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
             return;
         }
 
-        const targetData = overrideData || data;
+        // Determine what we are saving.
+        // If overrides are provided, we use them (quick save).
+        // Otherwise use current state.
+        const targetData = overrideData || (data ? data[activeNoteIndex] : null);
+        if (!targetData) return;
+
         const targetFilename = overrideFilename || filename;
         const targetFolder = overrideFolder || folder;
         const targetBody = overrideBody || body;
@@ -601,7 +678,8 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         const frontmatter = frontmatterEntries.length > 0 ? `---\n${frontmatterEntries.join('\n')}\n---\n\n` : '';
         let content = frontmatter;
 
-        // Prepend Links
+        // Prepend Links (Only on the first note to avoid duplication if multiple notes?)
+        // Or if we want links on all? Let's assume links are relevant to all if split from same source.
         if (links.length > 0) {
              const { buildObsidianEmbed } = await import('../utils/urlMetadata');
              const linkEmbeds = links.map(l => buildObsidianEmbed(l)).join('\n\n');
@@ -610,7 +688,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
 
         content += targetBody;
 
-        // Execute Actions (Google Calendar Events) - BEFORE opening Obsidian
+        // Execute Actions
         if (targetData?.actions && targetData.actions.length > 0) {
             const { accessToken } = useGoogleStore.getState();
 
@@ -634,10 +712,6 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                         }
                     }
                 }
-                if (createdCount > 0) {
-                    // Alert.alert('Events Scheduled', `Successfully scheduled ${createdCount} event(s) in Google Calendar.`);
-                    // Silent success or maybe a toast? For now, silent is better than a modal.
-                }
             } else {
                 console.warn('Skipping event creation: No Google Access Token.');
                 Alert.alert('Scheduling Skipped', 'No Google Access Token found. Please connect in settings.');
@@ -646,6 +720,31 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         
         const filePath = await saveToVault(vaultUri, targetFilename, content, targetFolder);
         
+        // Handling post-save logic for multiple notes
+        if (data && data.length > 1 && !overrideData) {
+            // Remove current note from data
+            const newData = data.filter((_, i) => i !== activeNoteIndex);
+            setData(newData);
+
+            if (newData.length > 0) {
+                // Switch to next available note (maintain index if possible, else go to last)
+                const nextIndex = activeNoteIndex >= newData.length ? newData.length - 1 : activeNoteIndex;
+                setActiveNoteIndex(nextIndex);
+
+                // Load next note
+                const nextNote = newData[nextIndex];
+                setTitle(nextNote.title);
+                setFilename(nextNote.filename);
+                setFolder(nextNote.folder);
+                setBody(nextNote.body);
+                setTags(nextNote.tags || []);
+
+                setSaving(false);
+                // Do NOT reset yet, user has more notes to review
+                return;
+            }
+        }
+
         // Only open in Obsidian if:
         // 1. File was saved
         // 2. Open in Obsidian setting is true
@@ -655,14 +754,12 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
             await openNoteInObsidian(vaultUri, filePath);
         }
 
-
-
         setSaving(false);
-        clearState();
-        
-        // Only reset (exit app/close share) if we are NOT in "Add New" mode
-        if (!forceSkipObsidian && openInObsidian) {
-            onReset();
+        if (!data || data.length <= 1) { // If it was the last note
+            clearState();
+            if (!forceSkipObsidian && openInObsidian) {
+                onReset();
+            }
         }
     };
 
@@ -719,11 +816,11 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         );
     }
 
-    if (data) {
+    if (data && data[activeNoteIndex]) {
         return (
             <>
                 <PreviewScreen
-                    data={data}
+                    data={data[activeNoteIndex]}
                     title={title}
                     onTitleChange={setTitle}
                     filename={filename}
@@ -763,6 +860,11 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                     recording={!!recording}
                     links={links}
                     onRemoveLink={handleRemoveLink}
+
+                    // Tab props
+                    currentTabIndex={activeNoteIndex}
+                    totalTabs={data.length}
+                    onTabChange={handleTabChange}
                 />
                 {settingsModal}
             </>

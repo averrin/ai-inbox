@@ -15,6 +15,7 @@ interface LongPressButtonProps {
     shortPressLabel: string;
     longPressLabel: string;
     longPressDuration?: number; // milliseconds
+    disabled?: boolean;
     style?: any;
     children?: React.ReactNode;
 }
@@ -42,6 +43,7 @@ export function LongPressButton({
     const SHORT_PRESS_THRESHOLD = 150; // ms before animation/long press logic starts
 
     const handlePressIn = () => {
+        if (disabled) return;
         pressStartTime.current = Date.now();
         longPressTriggered.current = false;
         
@@ -66,6 +68,7 @@ export function LongPressButton({
     };
 
     const handlePressOut = () => {
+        if (disabled) return;
         const pressDuration = Date.now() - pressStartTime.current;
         
         // Clear the timeout - if released before threshold, animation never starts
