@@ -175,7 +175,10 @@ export async function processContent(apiKey: string, content: string, promptOver
         }
 
         if (jsonStr) {
+            // Remove trailing commas which often break JSON.parse
+            jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
             console.log("[Gemini] Extracted JSON string:", jsonStr);
+
             try {
                 let parsed = JSON.parse(jsonStr);
 

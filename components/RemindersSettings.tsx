@@ -8,6 +8,7 @@ import * as Notifications from 'expo-notifications';
 import { scanForReminders, Reminder, updateReminder } from '../services/reminderService';
 import { Layout } from './ui/Layout';
 import { useSettingsStore } from '../store/settings';
+import Toast from 'react-native-toast-message';
 
 export function RemindersSettings() {
     const [permissionStatus, setPermissionStatus] = useState<string>('undetermined');
@@ -55,7 +56,11 @@ export function RemindersSettings() {
         const { status } = await Notifications.requestPermissionsAsync();
         setPermissionStatus(status);
         if (status === 'granted') {
-            Alert.alert("Success", "Notifications enabled!");
+            Toast.show({
+                type: 'success',
+                text1: 'Notifications Enabled',
+                text2: 'You will now receive reminders.',
+            });
         } else {
             Alert.alert("Permission Denied", "Enable notifications in system settings to receive reminders.");
         }
