@@ -79,7 +79,8 @@
         {
           "calendarPermission": "Allow AI Inbox to access your calendar to provide schedule context."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }

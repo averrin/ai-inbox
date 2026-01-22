@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { URLMetadata } from "../utils/urlMetadata";
+import JSON5 from 'json5';
 
 export interface ProcessedNote {
     title: string;
@@ -186,12 +187,11 @@ export async function processContent(apiKey: string, content: string, promptOver
         }
 
         if (jsonStr) {
-            // Remove trailing commas which often break JSON.parse
-            jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
             console.log("[Gemini] Extracted JSON string:", jsonStr);
 
             try {
-                let parsed = JSON.parse(jsonStr);
+                // Use JSON5 for robust parsing (handles trailing commas, etc.)
+                let parsed = JSON5.parse(jsonStr);
 
                 // Ensure array
                 if (!Array.isArray(parsed)) {

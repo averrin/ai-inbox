@@ -21,6 +21,8 @@ interface SettingsState {
     setGoogleWebClientId: (id: string) => void;
     remindersScanFolder: string | null;
     setRemindersScanFolder: (folder: string) => void;
+    backgroundSyncInterval: number;
+    setBackgroundSyncInterval: (interval: number) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -44,6 +46,8 @@ export const useSettingsStore = create<SettingsState>()(
             setGoogleWebClientId: (id) => set({ googleWebClientId: id }),
             remindersScanFolder: null,
             setRemindersScanFolder: (folder) => set({ remindersScanFolder: folder }),
+            backgroundSyncInterval: 15,
+            setBackgroundSyncInterval: (interval) => set({ backgroundSyncInterval: interval }),
         }),
         {
             name: 'ai-inbox-settings',
