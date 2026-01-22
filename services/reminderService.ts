@@ -207,15 +207,8 @@ export async function updateReminder(fileUri: string, newTime: string | null, re
         if (newContent !== content) {
             await StorageAccessFramework.writeAsStringAsync(fileUri, newContent);
 
-            // If deleted, cancel local notification
-            if (!newTime) {
-                const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-                const identifier = `reminder-${fileUri}`;
-                const notification = scheduled.find(n => n.content.data?.fileUri === fileUri); // Our ID logic is custom, check content
-                if (notification) {
-                    await Notifications.cancelScheduledNotificationAsync(notification.identifier);
-                }
-            }
+            // Trigger global sync to update notifications
+            await syncAllReminders();
         }
     } catch (e) {
         console.error('[ReminderService] Failed to update reminder:', e);

@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import { registerReminderTask, scanForReminders, Reminder } from "../services/reminderService";
 import { ReminderModalProvider, useReminderModal } from "../utils/reminderModalContext";
 import { ReminderModal } from "../components/ReminderModal";
-import Toast from 'react-native-toast-message';
+import Toast, { BaseToast, ErrorToast, ToastConfig } from 'react-native-toast-message';
 import { LogBox, View, Text } from 'react-native';
 
 // Suppress deprecation warnings from dependencies
@@ -27,6 +27,57 @@ Notifications.setNotificationHandler({
     priority: Notifications.AndroidNotificationPriority.HIGH,
   }),
 });
+
+const toastConfig: ToastConfig = {
+  success: (props) => (
+    <BaseToast
+      {...props}
+      style={{ borderLeftColor: '#22c55e', backgroundColor: '#1e293b', borderBottomColor: '#334155', borderBottomWidth: 1 }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#f8fafc'
+      }}
+      text2Style={{
+        fontSize: 13,
+        color: '#cbd5e1'
+      }}
+    />
+  ),
+  error: (props) => (
+    <ErrorToast
+      {...props}
+      style={{ borderLeftColor: '#ef4444', backgroundColor: '#1e293b', borderBottomColor: '#334155', borderBottomWidth: 1 }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#f8fafc'
+      }}
+      text2Style={{
+        fontSize: 13,
+        color: '#cbd5e1'
+      }}
+    />
+  ),
+  info: (props) => (
+    <BaseToast
+      {...props}
+      style={{ borderLeftColor: '#3b82f6', backgroundColor: '#1e293b', borderBottomColor: '#334155', borderBottomWidth: 1 }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#f8fafc'
+      }}
+      text2Style={{
+        fontSize: 13,
+        color: '#cbd5e1'
+      }}
+    />
+  )
+};
 
 function AppContent() {
   const { activeReminder, showReminder, closeReminder } = useReminderModal();
@@ -90,7 +141,7 @@ function AppContent() {
             <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>DEBUG</Text>
         </View>
       )}
-      <Toast />
+      <Toast config={toastConfig} />
     </>
   );
 }
