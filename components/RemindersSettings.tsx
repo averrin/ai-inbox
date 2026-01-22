@@ -1,11 +1,12 @@
-import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal, TextInput, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { FolderInput } from './ui/FolderInput';
 import { useState, useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
-import { scanForReminders, Reminder, updateReminder } from '../services/reminderService';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { scanForReminders, Reminder, updateReminder, registerReminderTask } from '../services/reminderService';
 import { Layout } from './ui/Layout';
 import { useSettingsStore } from '../store/settings';
 import Toast from 'react-native-toast-message';
@@ -14,12 +15,14 @@ export function RemindersSettings() {
     const [permissionStatus, setPermissionStatus] = useState<string>('undetermined');
     const [reminders, setReminders] = useState<Reminder[]>([]);
     const [loading, setLoading] = useState(false);
-    const { remindersScanFolder, setRemindersScanFolder, vaultUri } = useSettingsStore();
+    const { remindersScanFolder, setRemindersScanFolder, vaultUri, backgroundSyncInterval, setBackgroundSyncInterval } = useSettingsStore();
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
 
     // Edit state
     const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
-    const [editTime, setEditTime] = useState('');
+    const [editDate, setEditDate] = useState<Date>(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [showTimePicker, setShowTimePicker] = useState(false);
 
     useEffect(() => {
         checkPermissions();
@@ -77,8 +80,7 @@ export function RemindersSettings() {
         if (!editingReminder) return;
         setLoading(true);
         try {
-            // If empty, it's a delete
-            const newTime = editTime.trim() ? editTime.trim() : null;
+            const newTime = editDate.toISOString();
             await updateReminder(editingReminder.fileUri, newTime);
             setEditingReminder(null);
             await loadReminders(); // Reload list
@@ -86,6 +88,33 @@ export function RemindersSettings() {
             Alert.alert("Error", "Failed to update reminder");
         }
         setLoading(false);
+    };
+
+    const handleTestNotification = async () => {
+        await Notifications.scheduleNotificationAsync({
+            content: {
+                title: "🔔 Test Notification",
+                body: "This is how your reminders will look and sound.",
+                sound: true,
+                priority: Notifications.AndroidNotificationPriority.HIGH,
+            },
+            trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 2 },
+        });
+        Toast.show({
+            type: 'success',
+            text1: 'Test Scheduled',
+            text2: 'Notification arriving in 2 seconds...',
+        });
+    };
+
+    const handleSyncIntervalChange = async (minutes: number) => {
+        setBackgroundSyncInterval(minutes);
+        await registerReminderTask(); // Re-register with new interval
+        Toast.show({
+            type: 'success',
+            text1: 'Sync Interval Updated',
+            text2: `Background check set to every ${minutes} minutes.`,
+        });
     };
 
     const handleDeleteReminder = async (reminder: Reminder) => {
@@ -147,6 +176,27 @@ export function RemindersSettings() {
                 />
             </View>
 
+            <View className="mb-6">
+                <Text className="text-indigo-200 mb-2 font-semibold">Sync Frequency</Text>
+                <View className="flex-row flex-wrap gap-2">
+                    {[15, 30, 60, 120].map((interval) => (
+                        <TouchableOpacity
+                            key={interval}
+                            onPress={() => handleSyncIntervalChange(interval)}
+                            className={`px-4 py-2 rounded-xl border ${backgroundSyncInterval === interval ? 'bg-indigo-600 border-indigo-500' : 'bg-slate-800 border-slate-700'}`}
+                        >
+                            <Text className={`font-medium ${backgroundSyncInterval === interval ? 'text-white' : 'text-slate-400'}`}>
+                                {interval < 60 ? `${interval}m` : `${interval / 60}h`}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+
+            <View className="mb-6">
+                 <Button title="🔔 Test Notification" onPress={handleTestNotification} variant="secondary" />
+            </View>
+
             <View className="flex-row items-center justify-between mb-2">
                 <Text className="text-indigo-200 font-semibold">Active Reminders</Text>
                 <TouchableOpacity onPress={loadReminders} disabled={loading}>
@@ -183,7 +233,7 @@ export function RemindersSettings() {
                                 <TouchableOpacity
                                     onPress={() => {
                                         setEditingReminder(reminder);
-                                        setEditTime(reminder.reminderTime);
+                                        setEditDate(new Date(reminder.reminderTime));
                                     }}
                                     className="p-2 bg-slate-700 rounded-lg"
                                 >
@@ -207,16 +257,64 @@ export function RemindersSettings() {
                     <View className="bg-slate-900 w-full max-w-md p-6 rounded-2xl border border-slate-700">
                         <Text className="text-white text-xl font-bold mb-4">Edit Reminder</Text>
 
-                        <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 font-medium">Time (ISO Format)</Text>
-                            <TextInput
-                                value={editTime}
-                                onChangeText={setEditTime}
-                                placeholder="YYYY-MM-DDTHH:mm:ss"
-                                placeholderTextColor="#64748b"
-                                className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700"
-                            />
-                            <Text className="text-slate-500 text-xs mt-2">Example: 2023-10-27T09:00:00</Text>
+                        <View className="mb-6">
+                            <Text className="text-indigo-200 mb-2 font-medium">Time</Text>
+
+                            <TouchableOpacity
+                                onPress={() => setShowDatePicker(true)}
+                                className="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-2"
+                            >
+                                <Text className="text-white text-center font-bold text-lg">
+                                    {editDate.toLocaleDateString()}
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={() => setShowTimePicker(true)}
+                                className="bg-slate-800 p-4 rounded-xl border border-slate-700"
+                            >
+                                <Text className="text-white text-center font-bold text-lg">
+                                    {editDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                </Text>
+                            </TouchableOpacity>
+
+                            {showDatePicker && (
+                                <DateTimePicker
+                                    value={editDate}
+                                    mode="date"
+                                    display="default"
+                                    onChange={(event, selectedDate) => {
+                                        setShowDatePicker(false);
+                                        if (selectedDate) {
+                                            // Preserve time
+                                            const newDate = new Date(selectedDate);
+                                            newDate.setHours(editDate.getHours());
+                                            newDate.setMinutes(editDate.getMinutes());
+                                            setEditDate(newDate);
+                                            // Optional: open time picker immediately after date?
+                                            // setShowTimePicker(true);
+                                        }
+                                    }}
+                                />
+                            )}
+
+                            {showTimePicker && (
+                                <DateTimePicker
+                                    value={editDate}
+                                    mode="time"
+                                    display="default"
+                                    onChange={(event, selectedDate) => {
+                                        setShowTimePicker(false);
+                                        if (selectedDate) {
+                                            // Preserve date
+                                            const newDate = new Date(editDate);
+                                            newDate.setHours(selectedDate.getHours());
+                                            newDate.setMinutes(selectedDate.getMinutes());
+                                            setEditDate(newDate);
+                                        }
+                                    }}
+                                />
+                            )}
                         </View>
 
                         <View className="flex-row gap-3">

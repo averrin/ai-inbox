@@ -3,6 +3,7 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import * as Notifications from 'expo-notifications';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import { useSettingsStore } from '../store/settings';
+import { Platform } from 'react-native';
 
 const REMINDER_TASK_NAME = 'BACKGROUND_REMINDER_CHECK';
 const REMINDER_PROPERTY_KEY = 'reminder_datetime';
@@ -33,12 +34,25 @@ function isValidDate(dateString: string): boolean {
 
 export async function registerReminderTask() {
     try {
+        const { backgroundSyncInterval } = useSettingsStore.getState();
+        const interval = (backgroundSyncInterval || 15) * 60; // Convert minutes to seconds
+
         await BackgroundFetch.registerTaskAsync(REMINDER_TASK_NAME, {
-            minimumInterval: 15 * 60, // 15 minutes
+            minimumInterval: interval,
             stopOnTerminate: false, // Continue even if app is closed
             startOnBoot: true, // Start on device boot
         });
-        console.log('[ReminderService] Task registered');
+        console.log(`[ReminderService] Task registered with interval ${interval}s`);
+
+        // Ensure channel is set up
+        if (Platform.OS === 'android') {
+            await Notifications.setNotificationChannelAsync('default', {
+                name: 'Reminders',
+                importance: Notifications.AndroidImportance.HIGH,
+                vibrationPattern: [0, 250, 250, 250],
+                lightColor: '#FF231F7C',
+            });
+        }
     } catch (err) {
         console.error('[ReminderService] Task registration failed:', err);
     }
