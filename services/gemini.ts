@@ -39,7 +39,7 @@ export const DEFAULT_PROMPT = `
     If the content contains multiple distinct topics (e.g. work and personal tasks) that should be separate notes, return a JSON Array of objects.
     Otherwise, return a single JSON object.
 
-    Structure:
+    structure:
     {
        "title": "Suggested File Name (readable title)",
        "filename": "same as title.md",
@@ -47,7 +47,8 @@ export const DEFAULT_PROMPT = `
        "folder": "Suggested Folder",
        "frontmatter": {
           "source": "...",
-          "reminder_datetime": "2023-10-27T09:00:00"
+          "reminder_datetime": "2023-10-27T09:00:00",
+          "reminder_recurrent": "weekly"
        },
        "summary": "One sentence summary",
        "body": "For text content: the full markdown formatted text. For files: leave empty.",
@@ -73,9 +74,12 @@ export const DEFAULT_PROMPT = `
     **Only include the actual note content that the user wants to save.**
 
     **Set Reminders:**
-    If the user explicitly requests a reminder (e.g., "remind me to...", "alert me on..."), set the "reminder_datetime" property in the "frontmatter" object.
-    - "reminder_datetime": RFC3339 timestamp (YYYY-MM-DDTHH:mm:ss).
-    - If no specific time is mentioned, default to 09:00:00 on the next day or requested day.
+    If the user explicitly requests a reminder (e.g., "remind me to...", "alert me on...", "every Monday"), set the properties in the "frontmatter" object.
+    - "reminder_datetime": RFC3339 timestamp (YYYY-MM-DDTHH:mm:ss). If no specific time is mentioned, default to 09:00:00 on the next day or requested day.
+    - "reminder_recurrent": OPTIONAL. If the user mentions repetition (e.g. "daily", "every week", "every 2 days"), set this to a simple string.
+         - Valid values: "daily", "weekly", "monthly", "yearly".
+         - Or number + unit: "2 days", "3 weeks", "30 minutes".
+         - Do NOT use RRULE format here. Use simple English phrases.
 
     **Create Calendar Events:**
     If the user explicitly requests to create tasks or events (e.g. "add to calendar", "schedule meeting"), include them in the "actions" array. You can create MULTIPLE events if the user asks for them.
@@ -177,13 +181,13 @@ export async function processContent(apiKey: string, content: string, promptOver
         }
 
         if (isArray) {
-             if (firstOpenBracket !== -1 && lastCloseBracket !== -1 && firstOpenBracket < lastCloseBracket) {
-                 jsonStr = text.substring(firstOpenBracket, lastCloseBracket + 1);
-             }
+            if (firstOpenBracket !== -1 && lastCloseBracket !== -1 && firstOpenBracket < lastCloseBracket) {
+                jsonStr = text.substring(firstOpenBracket, lastCloseBracket + 1);
+            }
         } else {
-             if (firstOpenBrace !== -1 && lastCloseBrace !== -1 && firstOpenBrace < lastCloseBrace) {
-                 jsonStr = text.substring(firstOpenBrace, lastCloseBrace + 1);
-             }
+            if (firstOpenBrace !== -1 && lastCloseBrace !== -1 && firstOpenBrace < lastCloseBrace) {
+                jsonStr = text.substring(firstOpenBrace, lastCloseBrace + 1);
+            }
         }
 
         if (jsonStr) {
@@ -200,7 +204,7 @@ export async function processContent(apiKey: string, content: string, promptOver
 
                 // Process each note in the array
                 parsed = parsed.map((note: any) => {
-                     // Handle hallucinated 'transcription' field by merging it into body
+                    // Handle hallucinated 'transcription' field by merging it into body
                     const extraData = note as any;
                     if (extraData.transcription) {
                         if (note.body) {

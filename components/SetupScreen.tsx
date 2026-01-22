@@ -1,4 +1,4 @@
-import { View, Text, Alert, TouchableOpacity, Modal, ScrollView, BackHandler } from 'react-native';
+import { View, Text, Alert, TouchableOpacity, Modal, ScrollView, BackHandler, Animated, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from './ui/Layout';
 import { Button } from './ui/Button';
@@ -7,7 +7,7 @@ import { Card } from './ui/Card';
 import { useSettingsStore } from '../store/settings';
 import { requestVaultAccess } from '../utils/saf';
 import { fetchAvailableModels } from '../services/models';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FolderInput } from './ui/FolderInput';
 import { FileInput } from './ui/FileInput';
 import { openInObsidian } from '../utils/obsidian';
@@ -15,6 +15,8 @@ import { GoogleSettings } from './GoogleSettings';
 import { RemindersSettings } from './RemindersSettings';
 
 type SettingsSection = 'root' | 'general' | 'tools' | 'google-calendar' | 'reminders';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
     const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat } = useSettingsStore();
@@ -30,25 +32,48 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
 
     // Navigation state for settings mode
     const [activeSection, setActiveSection] = useState<SettingsSection>('root');
+    
+    // Animation state
+    const slideAnim = useRef(new Animated.Value(0)).current;
+
+    // Determine current level for animation
+    const getLevel = (section: SettingsSection) => {
+        if (section === 'root') return 0;
+        if (section === 'general' || section === 'tools') return 1;
+        return 2; // reminders, google-calendar
+    };
+
+    // Effect to trigger animation when section changes
+    useEffect(() => {
+        const targetLevel = getLevel(activeSection);
+        Animated.spring(slideAnim, {
+            toValue: targetLevel,
+            useNativeDriver: true,
+            friction: 8,
+            tension: 40
+        }).start();
+    }, [activeSection]);
+
 
     // Handle back button behavior for internal navigation
     useEffect(() => {
         if (!canClose) return;
 
         const backAction = () => {
-            if (activeSection === 'google-calendar' || activeSection === 'reminders') {
-                setActiveSection('tools');
-                return true;
-            }
-            if (activeSection === 'tools' || activeSection === 'general') {
-                setActiveSection('root');
-                return true;
-            }
-            if (activeSection === 'root' && onClose) {
-                onClose();
-                return true;
-            }
-            return false;
+             const currentLevel = getLevel(activeSection);
+             if (currentLevel === 2) {
+                 setActiveSection('tools');
+                 return true;
+             }
+             if (currentLevel === 1) {
+                 setActiveSection('root');
+                 return true;
+             }
+             if (currentLevel === 0 && onClose) {
+                 onClose();
+                 return true;
+             }
+             return false;
         };
 
         const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
@@ -176,42 +201,14 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         setGoogleAndroidClientId,
     ]);
 
-    const renderHeader = () => {
-        if (!canClose) {
-            return (
-                <View className="justify-center mt-10 mb-8">
-                    <Text className="text-3xl font-bold text-white mb-2 text-center">Welcome</Text>
-                    <Text className="text-indigo-200 text-center">Setup your AI Inbox</Text>
-                </View>
-            );
-        }
-
-        let title = "Settings";
-        let onBack = onClose;
-
-        if (activeSection === 'general') {
-            title = "General";
-            onBack = () => setActiveSection('root');
-        } else if (activeSection === 'tools') {
-            title = "Tools";
-            onBack = () => setActiveSection('root');
-        } else if (activeSection === 'google-calendar') {
-            title = "Google Calendar";
-            onBack = () => setActiveSection('tools');
-        } else if (activeSection === 'reminders') {
-            title = "Reminders";
-            onBack = () => setActiveSection('tools');
-        }
-
-        return (
-            <View className="flex-row items-center px-4 pt-4 pb-2">
-                <TouchableOpacity onPress={onBack} className="p-2 mr-2">
-                     <Ionicons name="arrow-back" size={24} color="white" />
-                </TouchableOpacity>
-                <Text className="text-2xl font-bold text-white">{title}</Text>
-            </View>
-        );
-    };
+    const renderHeader = (title: string, onBack: (() => void) | undefined) => (
+        <View className="flex-row items-center px-4 pt-4 pb-2">
+            <TouchableOpacity onPress={onBack} className="p-2 mr-2">
+                 <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+            <Text className="text-2xl font-bold text-white">{title}</Text>
+        </View>
+    );
 
     const renderGeneralSettings = () => (
         <Card>
@@ -402,10 +399,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     );
 
     // If welcome mode, show everything in one list (simplified for initial setup)
-    // Or we can just reuse the General Settings block + Google Calendar block if we want to be consistent?
-    // Let's keep the original "everything in one" for Welcome mode to ensure they don't miss steps.
     const renderWelcomeContent = () => (
         <View>
+              <View className="justify-center mt-10 mb-8">
+                    <Text className="text-3xl font-bold text-white mb-2 text-center">Welcome</Text>
+                    <Text className="text-indigo-200 text-center">Setup your AI Inbox</Text>
+                </View>
             {renderGeneralSettings()}
             <View className="h-4" />
             <View className="px-4">
@@ -418,25 +417,157 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             </View>
         </View>
     );
+    
+    // Animation Interpolations
+    const rootTranslateX = slideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, -SCREEN_WIDTH],
+        extrapolate: 'clamp',
+    });
+    
+    const rootOpacity = slideAnim.interpolate({
+        inputRange: [0, 0.5, 1],
+        outputRange: [1, 0, 0],
+        extrapolate: 'clamp',
+    });
+
+    const level1TranslateX = slideAnim.interpolate({
+        inputRange: [0, 1, 2],
+        outputRange: [SCREEN_WIDTH, 0, -SCREEN_WIDTH],
+        extrapolate: 'clamp',
+    });
+    
+    const level1Opacity = slideAnim.interpolate({
+        inputRange: [0, 0.5, 1, 1.5, 2],
+        outputRange: [0, 0, 1, 0, 0],
+        extrapolate: 'clamp',
+    });
+
+    const level2TranslateX = slideAnim.interpolate({
+        inputRange: [1, 2],
+        outputRange: [SCREEN_WIDTH, 0],
+        extrapolate: 'clamp',
+    });
+    
+     const level2Opacity = slideAnim.interpolate({
+        inputRange: [1, 1.5, 2],
+        outputRange: [0, 0, 1],
+        extrapolate: 'clamp',
+    });
+
+
+    // If canClose is false, we are in initial setup, so no fancy animations needed (or just render standard)
+    if (!canClose) {
+         return (
+            <Layout>
+                 <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                     {renderWelcomeContent()}
+                 </ScrollView>
+                 {/* Modals ... */}
+                  <Modal visible={showModelPicker} transparent animationType="slide">
+                    <View className="flex-1 justify-end bg-black/50">
+                        <View className="bg-slate-900 rounded-t-3xl p-6 max-h-[70%]">
+                            <View className="flex-row justify-between items-center mb-4">
+                                <Text className="text-white text-xl font-bold">Select AI Model</Text>
+                                <TouchableOpacity onPress={() => setShowModelPicker(false)}>
+                                    <Ionicons name="close" size={24} color="white" />
+                                </TouchableOpacity>
+                            </View>
+                            <ScrollView>
+                                {availableModels.map((model) => (
+                                    <TouchableOpacity
+                                        key={model}
+                                        onPress={() => {
+                                            setModelInput(model);
+                                            setShowModelPicker(false);
+                                        }}
+                                        className={`p-4 rounded-xl mb-2 ${modelInput === model ? 'bg-indigo-600' : 'bg-slate-800'}`}
+                                    >
+                                        <Text className="text-white font-medium">{model}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    </View>
+                </Modal>
+            </Layout>
+         );
+    }
 
     return (
         <Layout>
-            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
-                {renderHeader()}
+            <View className="flex-1 relative overflow-hidden">
+                {/* Level 0: Root */}
+                <Animated.View style={{ 
+                    position: 'absolute', 
+                    top: 0, bottom: 0, left: 0, right: 0, 
+                    transform: [{ translateX: rootTranslateX }],
+                    zIndex: 0
+                }}>
+                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                         {renderHeader("Settings", onClose)}
+                         {renderRootMenu()}
+                     </ScrollView>
+                </Animated.View>
 
-                {/* Content Rendering Logic */}
-                {!canClose ? (
-                    renderWelcomeContent()
-                ) : (
-                    <View>
-                        {activeSection === 'root' && renderRootMenu()}
-                        {activeSection === 'general' && <View className="px-0">{renderGeneralSettings()}</View>}
-                        {activeSection === 'tools' && renderToolsMenu()}
-                        {activeSection === 'google-calendar' && <View className="px-0">{renderGoogleCalendarSettings()}</View>}
-                        {activeSection === 'reminders' && <View className="px-0"><RemindersSettings /></View>}
-                    </View>
-                )}
-            </ScrollView>
+                {/* Level 1: General OR Tools */}
+                <Animated.View style={{ 
+                    position: 'absolute', 
+                    top: 0, bottom: 0, left: 0, right: 0, 
+                    transform: [{ translateX: level1TranslateX }],
+                    zIndex: 1
+                }}>
+                    <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                        {activeSection === 'general' && (
+                             <>
+                                {renderHeader("General", () => setActiveSection('root'))}
+                                <View className="px-0">{renderGeneralSettings()}</View>
+                             </>
+                        )}
+                        {/* 
+                           Note: if we are in level 2 (e.g. reminders), activeSection is 'reminders'.
+                           But we need to Render Tools menu here if we are sliding OUT to the left?
+                           Actually, if activeSection is 'reminders', level is 2.
+                           This view (Level 1) is at -SCREEN_WIDTH.
+                           It should contain "Tools" content if we came through Tools.
+                           Logic gap: activeSection determines content.
+                           If activeSection is 'reminders', the logic above relies on activeSection === 'general' to show generic settings.
+                           We need to know the PATH.
+                           Solution: Check if activeSection implies 'tools' parent.
+                        */}
+                        {(activeSection === 'tools' || activeSection === 'google-calendar' || activeSection === 'reminders') && (
+                             <>
+                                {renderHeader("Tools", () => setActiveSection('root'))}
+                                {renderToolsMenu()}
+                             </>
+                        )}
+                    </ScrollView>
+                </Animated.View>
+
+                {/* Level 2: Sub-tools */}
+                <Animated.View style={{ 
+                    position: 'absolute', 
+                    top: 0, bottom: 0, left: 0, right: 0, 
+                    transform: [{ translateX: level2TranslateX }],
+                    zIndex: 2
+                }}>
+                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                         {activeSection === 'google-calendar' && (
+                             <>
+                                {renderHeader("Google Calendar", () => setActiveSection('tools'))}
+                                <View className="px-0">{renderGoogleCalendarSettings()}</View>
+                             </>
+                         )}
+                         {activeSection === 'reminders' && (
+                              <>
+                                {renderHeader("Reminders", () => setActiveSection('tools'))}
+                                <View className="px-0"><RemindersSettings /></View>
+                              </>
+                         )}
+                     </ScrollView>
+                </Animated.View>
+
+            </View>
 
             {/* Model Selection Modal */}
             <Modal visible={showModelPicker} transparent animationType="slide">

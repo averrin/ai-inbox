@@ -31,6 +31,8 @@ interface SettingsState {
     setReminderVibration: (vibrate: boolean) => void;
     timeFormat: '12h' | '24h';
     setTimeFormat: (format: '12h' | '24h') => void;
+    cachedReminders: any[]; // Using any[] to avoid circular dependency with Reminder type
+    setCachedReminders: (reminders: any[]) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -64,6 +66,8 @@ export const useSettingsStore = create<SettingsState>()(
             setReminderVibration: (vibrate) => set({ reminderVibration: vibrate }),
             timeFormat: '24h',
             setTimeFormat: (format) => set({ timeFormat: format }),
+            cachedReminders: [],
+            setCachedReminders: (reminders) => set({ cachedReminders: reminders }),
         }),
         {
             name: 'ai-inbox-settings',

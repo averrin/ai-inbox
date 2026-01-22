@@ -13,7 +13,9 @@ import { ProcessedNote } from '../../services/gemini';
 
 import { LongPressButton } from '../ui/LongPressButton';
 import { LinkAttachment } from '../ui/LinkAttachment';
+import { ReminderItem } from '../ui/ReminderItem';
 import { URLMetadata } from '../../utils/urlMetadata';
+import { useSettingsStore } from '../../store/settings';
 
 interface PreviewScreenProps {
     data: ProcessedNote;
@@ -102,6 +104,8 @@ export function PreviewScreen({
     totalTabs = 1,
     onTabChange,
 }: PreviewScreenProps) {
+    const { timeFormat } = useSettingsStore();
+
     return (
         <Layout>
             {/* Settings button header */}
@@ -256,20 +260,18 @@ export function PreviewScreen({
                     {data?.frontmatter?.reminder_datetime && (
                          <View className="mb-4">
                             <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Reminder</Text>
-                            <View className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 mb-2">
-                                <View className="flex-row items-center">
-                                     <Text className="text-yellow-400 mr-2 text-lg">⏰</Text>
-                                     <View className="flex-1">
-                                         <Text className="text-white font-medium">Notification</Text>
-                                         <Text className="text-indigo-300 text-xs">
-                                            {new Date(data.frontmatter.reminder_datetime).toLocaleString([], {weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'})}
-                                         </Text>
-                                     </View>
-                                      <TouchableOpacity onPress={() => onRemoveFrontmatterKey('reminder_datetime')} className="p-1">
-                                         <Ionicons name="close" size={20} color="#f87171" />
-                                      </TouchableOpacity>
-                                </View>
-                            </View>
+                            <ReminderItem 
+                                reminder={{
+                                    fileUri: '',
+                                    fileName: 'New Reminder',
+                                    reminderTime: data.frontmatter.reminder_datetime,
+                                    recurrenceRule: data.frontmatter.reminder_recurrent,
+                                    content: 'This note will trigger a notification'
+                                }}
+                                timeFormat={timeFormat}
+                                onDelete={() => onRemoveFrontmatterKey('reminder_datetime')}
+                                showActions={true}
+                            />
                         </View>
                     )}
 
