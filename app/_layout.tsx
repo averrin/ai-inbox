@@ -7,7 +7,7 @@ import { registerReminderTask, scanForReminders, Reminder } from "../services/re
 import { ReminderModalProvider, useReminderModal } from "../utils/reminderModalContext";
 import { ReminderModal } from "../components/ReminderModal";
 import Toast from 'react-native-toast-message';
-import { LogBox } from 'react-native';
+import { LogBox, View, Text } from 'react-native';
 
 // Suppress deprecation warnings from dependencies
 LogBox.ignoreLogs([
@@ -85,6 +85,11 @@ function AppContent() {
         reminder={activeReminder} 
         onClose={closeReminder} 
       />
+      {__DEV__ && (
+        <View style={{ position: 'absolute', bottom: 50, right: 10, backgroundColor: 'rgba(220, 38, 38, 0.6)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, zIndex: 999 }} pointerEvents="none">
+            <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>DEBUG</Text>
+        </View>
+      )}
       <Toast />
     </>
   );
