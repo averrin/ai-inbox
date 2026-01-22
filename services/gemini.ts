@@ -44,7 +44,10 @@ export const DEFAULT_PROMPT = `
        "filename": "same as title.md",
        "tags": ["tag1", "tag2"],
        "folder": "Suggested Folder",
-       "frontmatter": { "source": "..." },
+       "frontmatter": {
+          "source": "...",
+          "reminder_datetime": "2023-10-27T09:00:00"
+       },
        "summary": "One sentence summary",
        "body": "For text content: the full markdown formatted text. For files: leave empty.",
        "icon": "FasIconName (e.g., FasTerminal, FasBook, FasCode)",
@@ -68,8 +71,13 @@ export const DEFAULT_PROMPT = `
     - Metadata about the vault
     **Only include the actual note content that the user wants to save.**
 
+    **Set Reminders:**
+    If the user explicitly requests a reminder (e.g., "remind me to...", "alert me on..."), set the "reminder_datetime" property in the "frontmatter" object.
+    - "reminder_datetime": RFC3339 timestamp (YYYY-MM-DDTHH:mm:ss).
+    - If no specific time is mentioned, default to 09:00:00 on the next day or requested day.
+
     **Create Calendar Events:**
-    If the user explicitly requests to create tasks or events, include them in the "actions" array. You can create MULTIPLE events if the user asks for them.
+    If the user explicitly requests to create tasks or events (e.g. "add to calendar", "schedule meeting"), include them in the "actions" array. You can create MULTIPLE events if the user asks for them.
     - "type": always "create_event"
     - "title": Add a relevant emoji to the start (e.g., "📞 Call Mom", "📝 Write Report").
     - "description": Brief notes about the event.
