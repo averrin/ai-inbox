@@ -105,7 +105,6 @@ export async function processContent(apiKey: string, content: string, promptOver
 
     let processedContent = content;
 
-    // Special handling for YouTube URLs - fetch title upfront to help AI
     if (content.trim().startsWith('http://') || content.trim().startsWith('https://')) {
         const url = content.trim();
         if (url.includes('youtube.com') || url.includes('youtu.be')) {
