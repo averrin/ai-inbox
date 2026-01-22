@@ -73,6 +73,7 @@
         }
       ],
       "expo-web-browser",
+      "expo-auth-session",
       "expo-secure-store",
       [
         "expo-calendar",
