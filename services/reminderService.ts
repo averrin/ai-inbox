@@ -61,7 +61,7 @@ export interface Reminder {
 }
 
 export async function scanForReminders(): Promise<Reminder[]> {
-    const { vaultUri } = useSettingsStore.getState();
+    const { vaultUri, remindersScanFolder } = useSettingsStore.getState();
     if (!vaultUri) {
         console.log('[ReminderService] No vault URI set');
         return [];
@@ -70,19 +70,75 @@ export async function scanForReminders(): Promise<Reminder[]> {
     const reminders: Reminder[] = [];
 
     try {
-        // Recursive function to scan directories
-        // Note: For deep vaults this might be slow, but for now we'll do a basic scan
-        // Limitation: SAF permissions might not extend recursively automatically or listing might be shallow
-        // We'll assume a relatively flat structure or just scan known folders if we could.
-        // But `readDirectoryAsync` on SAF URI works.
+        let targetUri = vaultUri;
 
-        await scanDirectory(vaultUri, reminders);
+        // If a scan folder is configured, verify it exists and use it as root
+        if (remindersScanFolder && remindersScanFolder.trim()) {
+            const { checkDirectoryExists } = await import('../utils/saf');
+            const folderUri = await checkDirectoryExists(vaultUri, remindersScanFolder.trim());
+            if (folderUri) {
+                targetUri = folderUri;
+                console.log('[ReminderService] Scanning specific folder:', remindersScanFolder);
+            } else {
+                 console.warn('[ReminderService] Configured scan folder not found:', remindersScanFolder);
+            }
+        }
+
+        await scanDirectory(targetUri, reminders);
 
     } catch (e) {
         console.error('[ReminderService] Scan failed:', e);
     }
 
     return reminders;
+}
+
+// Update a reminder time or delete it (if newTime is null)
+export async function updateReminder(fileUri: string, newTime: string | null) {
+    try {
+        const content = await StorageAccessFramework.readAsStringAsync(fileUri);
+        let newContent = content;
+
+        if (newTime) {
+            // Update or add
+            if (content.match(new RegExp(`${REMINDER_PROPERTY_KEY}:.*`))) {
+                newContent = content.replace(
+                    new RegExp(`${REMINDER_PROPERTY_KEY}:.*`),
+                    `${REMINDER_PROPERTY_KEY}: ${newTime}`
+                );
+            } else {
+                // Insert into frontmatter if exists, else ignore (complex to create new frontmatter safely here)
+                // Assuming frontmatter exists since we scanned it, or we insert after first ---
+                if (content.startsWith('---')) {
+                    const endOfFM = content.indexOf('\n---', 3);
+                    if (endOfFM !== -1) {
+                        newContent = content.slice(0, endOfFM) + `\n${REMINDER_PROPERTY_KEY}: ${newTime}` + content.slice(endOfFM);
+                    }
+                }
+            }
+        } else {
+            // Delete (Remove the line)
+            newContent = content.replace(new RegExp(`^${REMINDER_PROPERTY_KEY}:.*\\n?`, 'm'), '');
+        }
+
+        if (newContent !== content) {
+            await StorageAccessFramework.writeAsStringAsync(fileUri, newContent);
+            console.log(`[ReminderService] Updated reminder in ${fileUri}`);
+
+            // If deleted, cancel local notification
+            if (!newTime) {
+                 const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+                 const identifier = `reminder-${fileUri}`;
+                 const notification = scheduled.find(n => n.content.data?.fileUri === fileUri); // Our ID logic is custom, check content
+                 if (notification) {
+                     await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+                 }
+            }
+        }
+    } catch (e) {
+        console.error('[ReminderService] Failed to update reminder:', e);
+        throw e;
+    }
 }
 
 async function scanDirectory(uri: string, reminders: Reminder[]) {

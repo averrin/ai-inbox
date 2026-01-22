@@ -19,6 +19,8 @@ interface SettingsState {
     setGoogleAndroidClientId: (id: string) => void;
     setGoogleIosClientId: (id: string) => void;
     setGoogleWebClientId: (id: string) => void;
+    remindersScanFolder: string | null;
+    setRemindersScanFolder: (folder: string) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -40,6 +42,8 @@ export const useSettingsStore = create<SettingsState>()(
             setGoogleAndroidClientId: (id) => set({ googleAndroidClientId: id }),
             setGoogleIosClientId: (id) => set({ googleIosClientId: id }),
             setGoogleWebClientId: (id) => set({ googleWebClientId: id }),
+            remindersScanFolder: null,
+            setRemindersScanFolder: (folder) => set({ remindersScanFolder: folder }),
         }),
         {
             name: 'ai-inbox-settings',
