@@ -159,18 +159,29 @@ export async function processContent(apiKey: string, content: string, promptOver
         text = text.replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ');
 
         let jsonStr = '';
-        let start = text.indexOf('[');
-        let end = text.lastIndexOf(']');
+        const firstOpenBrace = text.indexOf('{');
+        const firstOpenBracket = text.indexOf('[');
+        const lastCloseBrace = text.lastIndexOf('}');
+        const lastCloseBracket = text.lastIndexOf(']');
 
-        // Check for array first
-        if (start !== -1 && end !== -1 && start < end) {
-             jsonStr = text.substring(start, end + 1);
+        // Determine if it looks more like an object or an array at the root
+        // If { appears before [, treat as object. If [ appears before {, treat as array.
+        // Handling -1 (not found) is important.
+
+        let isArray = false;
+        if (firstOpenBracket !== -1) {
+            if (firstOpenBrace === -1 || firstOpenBracket < firstOpenBrace) {
+                isArray = true;
+            }
+        }
+
+        if (isArray) {
+             if (firstOpenBracket !== -1 && lastCloseBracket !== -1 && firstOpenBracket < lastCloseBracket) {
+                 jsonStr = text.substring(firstOpenBracket, lastCloseBracket + 1);
+             }
         } else {
-            // Fallback to object
-             start = text.indexOf('{');
-             end = text.lastIndexOf('}');
-             if (start !== -1 && end !== -1) {
-                 jsonStr = text.substring(start, end + 1);
+             if (firstOpenBrace !== -1 && lastCloseBrace !== -1 && firstOpenBrace < lastCloseBrace) {
+                 jsonStr = text.substring(firstOpenBrace, lastCloseBrace + 1);
              }
         }
 
