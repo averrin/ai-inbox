@@ -281,6 +281,11 @@ async function checkFileForReminder(fileUri: string, reminders: Reminder[]) {
 // Exported function to be called from background task OR foreground (e.g. after adding a file)
 export async function syncAllReminders() {
     try {
+        // Ensure settings are hydrated (critical for background tasks)
+        if (!useSettingsStore.persist.hasHydrated()) {
+            await useSettingsStore.persist.rehydrate();
+        }
+
         const reminders = await scanForReminders();
 
         await manageNotifications(reminders);
