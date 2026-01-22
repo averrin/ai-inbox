@@ -29,6 +29,10 @@ interface SettingsState {
     setReminderRingtone: (ringtone: string) => void;
     reminderVibration: boolean;
     setReminderVibration: (vibrate: boolean) => void;
+    resendMissedNotifications: boolean;
+    setResendMissedNotifications: (enabled: boolean) => void;
+    resendInterval: number;
+    setResendInterval: (interval: number) => void;
     timeFormat: '12h' | '24h';
     setTimeFormat: (format: '12h' | '24h') => void;
     cachedReminders: any[]; // Using any[] to avoid circular dependency with Reminder type
@@ -64,6 +68,10 @@ export const useSettingsStore = create<SettingsState>()(
             setReminderRingtone: (ringtone) => set({ reminderRingtone: ringtone }),
             reminderVibration: true,
             setReminderVibration: (vibrate) => set({ reminderVibration: vibrate }),
+            resendMissedNotifications: false,
+            setResendMissedNotifications: (enabled) => set({ resendMissedNotifications: enabled }),
+            resendInterval: 10,
+            setResendInterval: (interval) => set({ resendInterval: interval }),
             timeFormat: '24h',
             setTimeFormat: (format) => set({ timeFormat: format }),
             cachedReminders: [],
