@@ -23,13 +23,12 @@ export async function checkDirectoryExists(parentUri: string, dirName: string): 
         for (const part of parts) {
             const found = await findSubdirectory(currentUri, part);
             if (!found) {
-                console.log(`[checkDirectoryExists] Not found: ${dirName} (stopped at ${part})`);
                 return null;
             }
             currentUri = found;
         }
 
-        console.log(`[checkDirectoryExists] Found nested path: ${dirName}`);
+
         return currentUri;
     }
 
@@ -116,7 +115,6 @@ async function findSubdirectory(parentUri: string, dirName: string): Promise<str
 
             // Check strict suffix match OR manual parse
             if (decoded.toLowerCase().endsWith(`/${targetName}`) || decoded.toLowerCase().endsWith(`:${targetName}`)) {
-                console.log(`[findSubdirectory] Found by suffix: ${decoded}`);
                 return uri;
             }
 
@@ -126,12 +124,11 @@ async function findSubdirectory(parentUri: string, dirName: string): Promise<str
             let folderName = last.includes(':') ? last.split(':').pop() : last;
 
             if (folderName?.toLowerCase() === targetName) {
-                console.log(`[findSubdirectory] Found by manual parse: ${decoded}`);
                 return uri;
             }
         }
 
-        console.warn(`[findSubdirectory] Not found: ${dirName}`);
+
         return null;
     } catch (e) {
         console.error(`[findSubdirectory] Error searching for ${dirName}:`, e);
@@ -142,20 +139,16 @@ async function findSubdirectory(parentUri: string, dirName: string): Promise<str
 export async function ensureDirectory(parentUri: string, dirName: string): Promise<string> {
     const existing = await findSubdirectory(parentUri, dirName);
     if (existing) {
-        console.log(`[ensureDirectory] Directory exists: ${dirName}`);
         return existing;
     }
 
-    console.log(`[ensureDirectory] Creating directory: ${dirName}`);
     try {
         const newUri = await StorageAccessFramework.makeDirectoryAsync(parentUri, dirName);
-        console.log(`[ensureDirectory] Created: ${newUri}`);
         return newUri;
     } catch (e: any) {
         // Race condition: check if it exists now
         const recheck = await findSubdirectory(parentUri, dirName);
         if (recheck) {
-            console.log(`[ensureDirectory] Directory created by another process: ${dirName}`);
             return recheck;
         }
         console.error(`[ensureDirectory] Failed to create ${dirName}:`, e);
@@ -176,7 +169,6 @@ export async function saveToVault(vaultUri: string, filename: string, content: s
 
         const fileUri = await StorageAccessFramework.createFileAsync(targetUri, filename, 'text/markdown');
         await StorageAccessFramework.writeAsStringAsync(fileUri, content);
-        console.log(`[saveToVault] Successfully saved: ${fileUri}`);
         return fileUri;
     } catch (e) {
         console.error('[saveToVault] Error:', e);
@@ -198,7 +190,6 @@ async function findFile(parentUri: string, filename: string): Promise<string | n
             let name = last.includes(':') ? last.split(':').pop() : last;
 
             if (name?.toLowerCase() === targetName) {
-                console.log(`[findFile] Found: ${decoded}`);
                 return uri;
             }
         }
@@ -339,7 +330,6 @@ export async function copyFileToVault(
             encoding: 'base64'
         });
 
-        console.log(`[copyFileToVault] Copied file to: ${targetPath}`);
         return fileUri;
     } catch (e) {
         console.error('[copyFileToVault] Error:', e);
@@ -378,7 +368,6 @@ export async function ensureFilesDirectory(
 export async function deleteFile(uri: string): Promise<boolean> {
     try {
         await StorageAccessFramework.deleteAsync(uri);
-        console.log(`[deleteFile] Deleted: ${uri}`);
         return true;
     } catch (e) {
         console.error('[deleteFile] Error:', e);
@@ -404,7 +393,6 @@ export async function deleteFileByPath(vaultUri: string, relativePath: string): 
             if (!fileUri) return false;
 
             await StorageAccessFramework.deleteAsync(fileUri);
-            console.log(`[deleteFileByPath] Deleted: ${relativePath}`);
             return true;
         }
 
@@ -413,7 +401,6 @@ export async function deleteFileByPath(vaultUri: string, relativePath: string): 
         if (!fileUri) return false;
 
         await StorageAccessFramework.deleteAsync(fileUri);
-        console.log(`[deleteFileByPath] Deleted: ${relativePath}`);
         return true;
     } catch (e) {
         console.error('[deleteFileByPath] Error:', e);
