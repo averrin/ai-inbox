@@ -12,8 +12,9 @@ import { FolderInput } from './ui/FolderInput';
 import { FileInput } from './ui/FileInput';
 import { openInObsidian } from '../utils/obsidian';
 import { GoogleSettings } from './GoogleSettings';
+import { RemindersSettings } from './RemindersSettings';
 
-type SettingsSection = 'root' | 'general' | 'connections' | 'google-calendar';
+type SettingsSection = 'root' | 'general' | 'connections' | 'google-calendar' | 'reminders';
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
     const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId } = useSettingsStore();
@@ -35,7 +36,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         if (!canClose) return;
 
         const backAction = () => {
-            if (activeSection === 'google-calendar') {
+            if (activeSection === 'google-calendar' || activeSection === 'reminders') {
                 setActiveSection('connections');
                 return true;
             }
@@ -196,6 +197,9 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             onBack = () => setActiveSection('root');
         } else if (activeSection === 'google-calendar') {
             title = "Google Calendar";
+            onBack = () => setActiveSection('connections');
+        } else if (activeSection === 'reminders') {
+            title = "Reminders";
             onBack = () => setActiveSection('connections');
         }
 
@@ -364,6 +368,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 () => setActiveSection('google-calendar'),
                 "Schedule events from notes"
             )}
+            {renderMenuButton(
+                "Reminders",
+                "alarm-outline",
+                () => setActiveSection('reminders'),
+                "Local notifications from notes"
+            )}
         </View>
     );
 
@@ -399,6 +409,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                         {activeSection === 'general' && <View className="px-0">{renderGeneralSettings()}</View>}
                         {activeSection === 'connections' && renderConnectionsMenu()}
                         {activeSection === 'google-calendar' && <View className="px-0">{renderGoogleCalendarSettings()}</View>}
+                        {activeSection === 'reminders' && <View className="px-0"><RemindersSettings /></View>}
                     </View>
                 )}
             </ScrollView>
