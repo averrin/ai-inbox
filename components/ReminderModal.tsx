@@ -271,108 +271,122 @@ export function ReminderModal({ reminder, onClose }: ReminderModalProps) {
                     </ScrollView>
 
                     {/* Actions */}
+                    {/* Actions */}
                     <View className="p-4 border-t border-slate-700">
-                        {/* Upper Row: Open + Postpone */}
-                        <View className="flex-row gap-3 mb-3">
-                             <TouchableOpacity
-                                onPress={() => {
-                                    if (reminder) {
-                                        // Encode filename for Obsidian URL scheme
-                                        const encodedName = encodeURIComponent(reminder.fileName.replace('.md', ''));
-                                        Linking.openURL(`obsidian://open?file=${encodedName}`);
-                                        onClose();
-                                    }
-                                }}
-                                className="flex-1 bg-slate-800 p-4 rounded-xl items-center flex-row justify-center"
-                            >
-                                <Ionicons name="document-text-outline" size={20} color="white" style={{ marginRight: 8 }} />
-                                <Text className="text-white font-semibold" style={{ color: 'white' }}>Open Note</Text>
-                            </TouchableOpacity>
-                            
-                            <TouchableOpacity
-                                onPress={() => setShowPostponeMenu(!showPostponeMenu)}
-                                className="flex-1 bg-slate-800 p-4 rounded-xl items-center flex-row justify-center"
-                            >
-                                <Ionicons name="time-outline" size={20} color="white" style={{ marginRight: 8 }} />
-                                <Text className="text-white font-semibold" style={{ color: 'white' }}>Postpone</Text>
-                            </TouchableOpacity>
-                        </View>
+                        
+                        {!showPostponeMenu ? (
+                            /* Default View */
+                            <View className="gap-3">
+                                <View className="flex-row gap-3">
+                                     <TouchableOpacity
+                                        onPress={() => setShowPostponeMenu(true)}
+                                        className="flex-1 bg-slate-800 p-4 rounded-xl items-center flex-row justify-center border border-slate-700"
+                                    >
+                                        <Ionicons name="time-outline" size={20} color="#fbbf24" style={{ marginRight: 8 }} />
+                                        <Text className="text-white font-semibold">Postpone</Text>
+                                    </TouchableOpacity>
 
-                        {/* Lower Row: Big Done Button */}
-                        <View className="flex-row">
-                            <LongPressButton
-                                onPress={handleDone}
-                                onLongPress={async () => {
-                                    if (reminder) {
-                                        try {
-                                             const { StorageAccessFramework } = require('expo-file-system/legacy');
-                                             await StorageAccessFramework.deleteAsync(reminder.fileUri);
-                                             Toast.show({ type: 'success', text1: 'Note Deleted' });
-                                             onClose();
-                                        } catch (e) {
-                                            Toast.show({ type: 'error', text1: 'Failed to delete note' });
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            if (reminder) {
+                                                const encodedName = encodeURIComponent(reminder.fileName.replace('.md', ''));
+                                                Linking.openURL(`obsidian://open?file=${encodedName}`);
+                                                onClose();
+                                            }
+                                        }}
+                                        className="flex-1 bg-slate-800 p-4 rounded-xl items-center flex-row justify-center border border-slate-700"
+                                    >
+                                        <Ionicons name="document-text-outline" size={20} color="#94a3b8" style={{ marginRight: 8 }} />
+                                        <Text className="text-white font-semibold">Open Note</Text>
+                                    </TouchableOpacity>
+                                </View>
+
+                                <LongPressButton
+                                    onPress={handleDone}
+                                    onLongPress={async () => {
+                                        if (reminder) {
+                                            try {
+                                                 const { StorageAccessFramework } = require('expo-file-system/legacy');
+                                                 await StorageAccessFramework.deleteAsync(reminder.fileUri);
+                                                 Toast.show({ type: 'success', text1: 'Note Deleted' });
+                                                 onClose();
+                                            } catch (e) {
+                                                Toast.show({ type: 'error', text1: 'Failed to delete note' });
+                                            }
                                         }
-                                    }
-                                }}
-                                shortPressLabel="Done"
-                                longPressLabel="Delete Note"
-                                style={{ flex: 1 }}
-                            />
-                        </View>
-
-                        {/* Postpone Menu */}
-                        {showPostponeMenu && (
-                            <View className="bg-slate-800/50 rounded-xl p-3 border border-slate-700">
-                                <View className="flex-row flex-wrap gap-2 mb-3">
+                                    }}
+                                    shortPressLabel="Done"
+                                    longPressLabel="Delete Note"
+                                    style={{ width: '100%' }}
+                                />
+                            </View>
+                        ) : (
+                            /* Postpone View */
+                            <View>
+                                <View className="flex-row justify-between items-center mb-4 border-b border-slate-800 pb-2">
+                                    <Text className="text-white font-bold text-lg">Snooze for...</Text>
+                                    <TouchableOpacity onPress={() => setShowPostponeMenu(false)}>
+                                        <Text className="text-indigo-400 font-medium">Cancel</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                
+                                <View className="flex-row flex-wrap gap-2 mb-4">
                                     {POSTPONE_PRESETS.map((preset) => (
                                         <TouchableOpacity
                                             key={preset.minutes}
                                             onPress={() => handlePostpone(preset.minutes)}
-                                            className="bg-slate-700 px-4 py-2 rounded-lg"
+                                            className="bg-slate-700 flex-grow px-4 py-3 rounded-xl items-center border border-slate-600"
+                                            style={{ minWidth: '30%' }}
                                         >
                                             <Text className="text-white font-medium">{preset.label}</Text>
                                         </TouchableOpacity>
                                     ))}
                                 </View>
+
                                 <TouchableOpacity
                                     onPress={() => {
                                         setCustomDate(new Date());
                                         setShowCustomPicker(true);
                                     }}
-                                    className="bg-indigo-700 p-3 rounded-lg items-center"
+                                    className="bg-indigo-600/20 border border-indigo-500/50 p-4 rounded-xl items-center flex-row justify-center"
                                 >
-                                    <Text className="text-white font-semibold">Custom Date & Time</Text>
+                                    <Ionicons name="calendar-outline" size={20} color="#818cf8" style={{ marginRight: 8 }} />
+                                    <Text className="text-indigo-200 font-semibold">Pick Date & Time</Text>
                                 </TouchableOpacity>
                             </View>
                         )}
-
-                        {/* Custom Date/Time Picker */}
+                        
+                        {/* Custom Date/Time Picker Overlay (hidden by logic if !showCustomPicker) */}
                         {showCustomPicker && (
-                            <View className="bg-slate-800/50 rounded-xl p-3 border border-slate-700 mt-3">
-                                <Text className="text-indigo-200 font-semibold mb-2">Set Custom Time</Text>
+                            <View className="bg-slate-800 absolute bottom-0 left-0 right-0 p-4 rounded-t-2xl border-t border-slate-700 shadow-2xl z-50">
+                                <Text className="text-indigo-200 font-semibold mb-4 text-center">Set Custom Time</Text>
                                 
-                                <TouchableOpacity
-                                    onPress={() => setShowDatePicker(true)}
-                                    className="bg-slate-700 p-3 rounded-lg mb-2"
-                                >
-                                    <Text className="text-white text-center font-bold">
-                                        {customDate.toLocaleDateString()}
-                                    </Text>
-                                </TouchableOpacity>
+                                <View className="flex-row gap-3 mb-4">
+                                    <TouchableOpacity
+                                        onPress={() => setShowDatePicker(true)}
+                                        className="flex-1 bg-slate-700 p-3 rounded-xl items-center"
+                                    >
+                                        <Text className="text-slate-400 text-xs mb-1">Date</Text>
+                                        <Text className="text-white text-lg font-bold">
+                                            {customDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric'})}
+                                        </Text>
+                                    </TouchableOpacity>
 
-                                <TouchableOpacity
-                                    onPress={() => setShowTimePicker(true)}
-                                    className="bg-slate-700 p-3 rounded-lg mb-3"
-                                >
-                                    <Text className="text-white text-center font-bold">
-                                        {customDate.toLocaleTimeString([], {
-                                            hour12: timeFormat === '12h',
-                                            hour: '2-digit', 
-                                            minute:'2-digit'
-                                        })}
-                                    </Text>
-                                </TouchableOpacity>
-
+                                    <TouchableOpacity
+                                        onPress={() => setShowTimePicker(true)}
+                                        className="flex-1 bg-slate-700 p-3 rounded-xl items-center"
+                                    >
+                                        <Text className="text-slate-400 text-xs mb-1">Time</Text>
+                                        <Text className="text-white text-lg font-bold">
+                                            {customDate.toLocaleTimeString([], {
+                                                hour12: timeFormat === '12h',
+                                                hour: '2-digit', 
+                                                minute:'2-digit'
+                                            })}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                                
                                 {showDatePicker && (
                                     <DateTimePicker
                                         value={customDate}
@@ -408,18 +422,18 @@ export function ReminderModal({ reminder, onClose }: ReminderModalProps) {
                                     />
                                 )}
 
-                                <View className="flex-row gap-2">
+                                <View className="flex-row gap-3">
                                     <TouchableOpacity
                                         onPress={() => setShowCustomPicker(false)}
-                                        className="flex-1 bg-slate-700 p-3 rounded-lg items-center"
+                                        className="flex-1 bg-slate-700 p-4 rounded-xl items-center"
                                     >
                                         <Text className="text-white font-semibold">Cancel</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         onPress={handleCustomPostpone}
-                                        className="flex-1 bg-indigo-600 p-3 rounded-lg items-center"
+                                        className="flex-1 bg-indigo-600 p-4 rounded-xl items-center"
                                     >
-                                        <Text className="text-white font-semibold">Set</Text>
+                                        <Text className="text-white font-semibold">Set Reminder</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
