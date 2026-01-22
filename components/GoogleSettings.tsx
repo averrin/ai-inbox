@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import * as Google from 'expo-auth-session/providers/google';
-import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { useSettingsStore } from '../store/settings';
 import { useGoogleStore } from '../store/googleStore';
@@ -28,9 +27,6 @@ export function GoogleSettings({ androidClientId }: GoogleSettingsProps) {
             'https://www.googleapis.com/auth/userinfo.email',
             'https://www.googleapis.com/auth/userinfo.profile'
         ],
-        redirectUri: makeRedirectUri({
-            scheme: 'aiinbox',
-        }),
     });
 
     useEffect(() => {
