@@ -4,6 +4,7 @@ import { ShareIntentProvider } from "expo-share-intent";
 import * as Notifications from 'expo-notifications';
 import { useEffect } from "react";
 import { registerReminderTask } from "../services/reminderService";
+import Toast from 'react-native-toast-message';
 
 // Configure notifications handler
 Notifications.setNotificationHandler({
@@ -27,6 +28,7 @@ export default function Layout() {
   return (
     <ShareIntentProvider>
       <Slot />
+      <Toast />
     </ShareIntentProvider>
   );
 }

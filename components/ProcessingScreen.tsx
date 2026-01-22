@@ -31,6 +31,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     const [loadingStatus, setLoadingStatus] = useState<string>('');
     const [saving, setSaving] = useState(false);
     const [internalShowSettings, setInternalShowSettings] = useState(false);
+    const [lastError, setLastError] = useState<string | undefined>(undefined);
 
     // Changed to array
     const [data, setData] = useState<ProcessedNote[] | null>(null);
@@ -493,9 +494,19 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                 }
 
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('[Analyze] Error:', error);
-            Alert.alert('Error', 'Analysis failed');
+            // Construct a useful error message
+            let errMsg = 'Analysis failed';
+            if (error instanceof Error) {
+                errMsg = `${error.name}: ${error.message}\n${error.stack || ''}`;
+            } else if (typeof error === 'object') {
+                errMsg = JSON.stringify(error, null, 2);
+            } else {
+                errMsg = String(error);
+            }
+            setLastError(errMsg);
+            // Don't use Alert here, let the ErrorScreen show details
             setLoading(false);
         } finally {
             analyzingRef.current = false;
@@ -781,7 +792,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     // Render screens
     if (loading && !inputMode) return <LoadingScreen message={loadingStatus || "Analyzing..."} />;
     if (saving) return <SavingScreen />;
-    if (!data && !loading && !inputMode) return <ErrorScreen onRetry={() => setInputMode(true)} onClose={() => { clearState(); onReset(); }} />;
+    if (!data && !loading && !inputMode) return <ErrorScreen onRetry={() => setInputMode(true)} onClose={() => { clearState(); onReset(); }} errorMessage={lastError} />;
     
     if (inputMode && !loading) {
         return (
