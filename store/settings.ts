@@ -23,6 +23,14 @@ interface SettingsState {
     setRemindersScanFolder: (folder: string) => void;
     backgroundSyncInterval: number;
     setBackgroundSyncInterval: (interval: number) => void;
+    reminderBypassDnd: boolean;
+    setReminderBypassDnd: (bypass: boolean) => void;
+    reminderRingtone: string | null;
+    setReminderRingtone: (ringtone: string) => void;
+    reminderVibration: boolean;
+    setReminderVibration: (vibrate: boolean) => void;
+    timeFormat: '12h' | '24h';
+    setTimeFormat: (format: '12h' | '24h') => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -48,6 +56,14 @@ export const useSettingsStore = create<SettingsState>()(
             setRemindersScanFolder: (folder) => set({ remindersScanFolder: folder }),
             backgroundSyncInterval: 15,
             setBackgroundSyncInterval: (interval) => set({ backgroundSyncInterval: interval }),
+            reminderBypassDnd: true,
+            setReminderBypassDnd: (bypass) => set({ reminderBypassDnd: bypass }),
+            reminderRingtone: null,
+            setReminderRingtone: (ringtone) => set({ reminderRingtone: ringtone }),
+            reminderVibration: true,
+            setReminderVibration: (vibrate) => set({ reminderVibration: vibrate }),
+            timeFormat: '24h',
+            setTimeFormat: (format) => set({ timeFormat: format }),
         }),
         {
             name: 'ai-inbox-settings',

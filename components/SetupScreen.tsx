@@ -14,10 +14,10 @@ import { openInObsidian } from '../utils/obsidian';
 import { GoogleSettings } from './GoogleSettings';
 import { RemindersSettings } from './RemindersSettings';
 
-type SettingsSection = 'root' | 'general' | 'connections' | 'google-calendar' | 'reminders';
+type SettingsSection = 'root' | 'general' | 'tools' | 'google-calendar' | 'reminders';
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
-    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId } = useSettingsStore();
+    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
     const [androidIdInput, setAndroidIdInput] = useState(googleAndroidClientId || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
@@ -37,10 +37,10 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
 
         const backAction = () => {
             if (activeSection === 'google-calendar' || activeSection === 'reminders') {
-                setActiveSection('connections');
+                setActiveSection('tools');
                 return true;
             }
-            if (activeSection === 'connections' || activeSection === 'general') {
+            if (activeSection === 'tools' || activeSection === 'general') {
                 setActiveSection('root');
                 return true;
             }
@@ -192,15 +192,15 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         if (activeSection === 'general') {
             title = "General";
             onBack = () => setActiveSection('root');
-        } else if (activeSection === 'connections') {
-            title = "Connections";
+        } else if (activeSection === 'tools') {
+            title = "Tools";
             onBack = () => setActiveSection('root');
         } else if (activeSection === 'google-calendar') {
             title = "Google Calendar";
-            onBack = () => setActiveSection('connections');
+            onBack = () => setActiveSection('tools');
         } else if (activeSection === 'reminders') {
             title = "Reminders";
-            onBack = () => setActiveSection('connections');
+            onBack = () => setActiveSection('tools');
         }
 
         return (
@@ -301,6 +301,30 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     />
                 </View>
             )}
+            
+            <View className="mt-2 mb-2 pt-4 border-t border-slate-700">
+                <Text className="text-indigo-200 mb-2 font-semibold">Preferences</Text>
+                <TouchableOpacity 
+                    onPress={() => setTimeFormat(timeFormat === '24h' ? '12h' : '24h')} 
+                    className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
+                >
+                    <View className="flex-row items-center flex-1">
+                        <Ionicons name="time-outline" size={20} color="#818cf8" />
+                        <View className="ml-3 flex-1">
+                            <Text className="text-white font-medium">Time Format</Text>
+                            <Text className="text-slate-400 text-xs text-uppercase">{timeFormat} Format</Text>
+                        </View>
+                    </View>
+                    <View className="bg-slate-700 rounded-lg flex-row p-1">
+                        <View className={`px-2 py-1 rounded-md ${timeFormat === '12h' ? 'bg-indigo-600' : ''}`}>
+                            <Text className="text-white text-xs font-bold">12H</Text>
+                        </View>
+                        <View className={`px-2 py-1 rounded-md ${timeFormat === '24h' ? 'bg-indigo-600' : ''}`}>
+                            <Text className="text-white text-xs font-bold">24H</Text>
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </View>
         </Card>
     );
 
@@ -352,15 +376,15 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "API Keys, Vault, Model"
             )}
             {renderMenuButton(
-                "Connections",
+                "Tools",
                 "link-outline",
-                () => setActiveSection('connections'),
+                () => setActiveSection('tools'),
                 "Google Calendar, External Apps"
             )}
         </View>
     );
 
-    const renderConnectionsMenu = () => (
+    const renderToolsMenu = () => (
         <View className="px-4 mt-2">
             {renderMenuButton(
                 "Google Calendar",
@@ -407,7 +431,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     <View>
                         {activeSection === 'root' && renderRootMenu()}
                         {activeSection === 'general' && <View className="px-0">{renderGeneralSettings()}</View>}
-                        {activeSection === 'connections' && renderConnectionsMenu()}
+                        {activeSection === 'tools' && renderToolsMenu()}
                         {activeSection === 'google-calendar' && <View className="px-0">{renderGoogleCalendarSettings()}</View>}
                         {activeSection === 'reminders' && <View className="px-0"><RemindersSettings /></View>}
                     </View>

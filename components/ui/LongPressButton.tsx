@@ -112,7 +112,7 @@ export function LongPressButton({
             style={style}
         >
             {/* Background gradient with progress */}
-            <View className={`relative ${!children ? 'bg-indigo-600 rounded-2xl' : ''}`}>
+            <View className={`relative overflow-hidden ${!children ? 'bg-indigo-600 rounded-xl' : ''}`}>
                 
                 {/* Content */}
                 {children ? (

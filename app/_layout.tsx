@@ -2,9 +2,19 @@ import "../global.css";
 import { Slot } from "expo-router";
 import { ShareIntentProvider } from "expo-share-intent";
 import * as Notifications from 'expo-notifications';
-import { useEffect } from "react";
-import { registerReminderTask } from "../services/reminderService";
+import { useEffect, useRef } from "react";
+import { registerReminderTask, scanForReminders, Reminder } from "../services/reminderService";
+import { ReminderModalProvider, useReminderModal } from "../utils/reminderModalContext";
+import { ReminderModal } from "../components/ReminderModal";
 import Toast from 'react-native-toast-message';
+import { LogBox } from 'react-native';
+
+// Suppress deprecation warnings from dependencies
+LogBox.ignoreLogs([
+  'SafeAreaView has been deprecated',
+  'expo-av: Expo AV has been deprecated',
+  'expo-background-fetch: This library is deprecated',
+]);
 
 // Configure notifications handler
 Notifications.setNotificationHandler({
@@ -18,17 +28,74 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export default function Layout() {
+function AppContent() {
+  const { activeReminder, showReminder, closeReminder } = useReminderModal();
+  const notificationListener = useRef<Notifications.Subscription>();
+  const responseListener = useRef<Notifications.Subscription>();
 
   useEffect(() => {
     // Register background task on app launch
     registerReminderTask();
+
+    // Listen for notifications when app is in foreground
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      // When a reminder notification is received while app is open, show modal instead
+      const { fileUri, reminder } = notification.request.content.data || {};
+      
+      if (reminder) {
+         // Instant show if we have the data
+         showReminder(reminder as Reminder);
+      } else if (fileUri) {
+        // Fallback to scan if legacy notification
+        scanForReminders().then(reminders => {
+          const found = reminders.find(r => r.fileUri === fileUri);
+          if (found) {
+            showReminder(found);
+          }
+        });
+      }
+    });
+
+    // Listen for notification taps (when app opened from notification)
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      const { fileUri, reminder } = response.notification.request.content.data || {};
+      
+      if (reminder) {
+          showReminder(reminder as Reminder);
+      } else if (fileUri) {
+        scanForReminders().then(reminders => {
+          const found = reminders.find(r => r.fileUri === fileUri);
+          if (found) {
+            showReminder(found);
+          }
+        });
+      }
+    });
+
+    return () => {
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
+    };
   }, []);
 
   return (
-    <ShareIntentProvider>
+    <>
       <Slot />
+      <ReminderModal 
+        reminder={activeReminder} 
+        onClose={closeReminder} 
+      />
       <Toast />
-    </ShareIntentProvider>
+    </>
+  );
+}
+
+export default function Layout() {
+  return (
+    <ReminderModalProvider>
+      <ShareIntentProvider>
+        <AppContent />
+      </ShareIntentProvider>
+    </ReminderModalProvider>
   );
 }
