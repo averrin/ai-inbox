@@ -30,6 +30,10 @@ export function RemindersSettings() {
         setReminderBypassDnd,
         reminderVibration,
         setReminderVibration,
+        resendMissedNotifications,
+        setResendMissedNotifications,
+        resendInterval,
+        setResendInterval,
         timeFormat,
         setTimeFormat,
         cachedReminders,
@@ -302,6 +306,43 @@ Ensure the app is in background to test the notification, or foreground to test 
             <View className={`w-5 h-5 rounded-full bg-white ${reminderVibration ? 'ml-auto' : ''}`} />
         </View>
     </TouchableOpacity>
+
+    <View className="mb-3">
+        <TouchableOpacity
+            onPress={() => setResendMissedNotifications(!resendMissedNotifications)}
+            className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between mb-2"
+        >
+            <View className="flex-row items-center flex-1">
+                <Ionicons name="repeat-outline" size={20} color="#818cf8" />
+                <View className="ml-3 flex-1">
+                    <Text className="text-white font-medium">Resend Missed</Text>
+                    <Text className="text-slate-400 text-xs">Repeat notification if not reacted to</Text>
+                </View>
+            </View>
+            <View className={`w-12 h-7 rounded-full p-1 ${resendMissedNotifications ? 'bg-indigo-600' : 'bg-slate-700'}`}>
+                <View className={`w-5 h-5 rounded-full bg-white ${resendMissedNotifications ? 'ml-auto' : ''}`} />
+            </View>
+        </TouchableOpacity>
+
+        {resendMissedNotifications && (
+            <View className="bg-slate-800/30 p-3 rounded-xl border border-slate-700/50 ml-4">
+                 <Text className="text-slate-400 text-xs mb-2 uppercase font-bold tracking-wider">Resend Interval</Text>
+                 <View className="flex-row flex-wrap gap-2">
+                    {[5, 10, 15, 30, 60].map((interval) => (
+                        <TouchableOpacity
+                            key={interval}
+                            onPress={() => setResendInterval(interval)}
+                            className={`px-3 py-1.5 rounded-lg border ${resendInterval === interval ? 'bg-indigo-600 border-indigo-500' : 'bg-slate-700 border-slate-600'}`}
+                        >
+                            <Text className={`text-xs font-bold ${resendInterval === interval ? 'text-white' : 'text-slate-300'}`}>
+                                {interval}m
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+        )}
+    </View>
 
 </View>
 

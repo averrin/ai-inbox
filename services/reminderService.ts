@@ -281,6 +281,11 @@ async function checkFileForReminder(fileUri: string, reminders: Reminder[]) {
 // Exported function to be called from background task OR foreground (e.g. after adding a file)
 export async function syncAllReminders() {
     try {
+        // Ensure settings are hydrated (critical for background tasks)
+        if (!useSettingsStore.persist.hasHydrated()) {
+            await useSettingsStore.persist.rehydrate();
+        }
+
         const reminders = await scanForReminders();
 
         await manageNotifications(reminders);
@@ -297,8 +302,38 @@ TaskManager.defineTask(REMINDER_TASK_NAME, async () => {
 });
 
 async function manageNotifications(activeReminders: Reminder[]) {
+    const { resendMissedNotifications, resendInterval } = useSettingsStore.getState();
+
     // 1. Get all currently scheduled notifications
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+
+    // 1.5. Check for missed/ignored notifications and resend if enabled
+    if (resendMissedNotifications) {
+        const presented = await Notifications.getPresentedNotificationsAsync();
+        const now = Date.now();
+        const intervalMs = (resendInterval || 10) * 60 * 1000;
+
+        for (const notification of presented) {
+             const fileUri = notification.request.content.data?.fileUri;
+             if (!fileUri) continue;
+
+             const triggerTime = notification.date; // timestamp when it was shown
+             if (now - triggerTime > intervalMs) {
+                 // It's stale and ignored. Resend!
+                 console.log(`[DEBUG_REMINDER] Resending missed notification for ${notification.request.content.title}`);
+
+                 // Cancel the old one to clear it from tray
+                 await Notifications.dismissNotificationAsync(notification.request.identifier);
+
+                 // Schedule a new one immediately
+                 // We need the reminder object. We can try to get it from data, or find it in activeReminders.
+                 const reminderData = notification.request.content.data?.reminder as Reminder;
+                 if (reminderData) {
+                     await scheduleNotification(reminderData, true);
+                 }
+             }
+        }
+    }
 
     // 2. Identify stale notifications (those that don't match any active reminder or have changed time)
     for (const notification of scheduled) {
