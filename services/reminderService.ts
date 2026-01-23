@@ -337,6 +337,22 @@ async function manageNotifications(activeReminders: Reminder[]) {
                 // The user likely missed it or it was already handled.
                 // If we want to catch up, we need state tracking which we lack.
                 // If we want to catch up, we need state tracking which we lack.
+                if (reminder.recurrenceRule) {
+                    // It's overdue and repeating. Advance it!
+                    const nextDate = calculateNextRecurrence(remDate, reminder.recurrenceRule);
+                    if (nextDate && nextDate > now) {
+                        console.log(`[ReminderService] Auto-advancing overdue recurring reminder: ${reminder.fileName} to ${nextDate.toISOString()}`);
+
+                        // Update the file content
+                        await updateReminder(reminder.fileUri, nextDate.toISOString(), reminder.recurrenceRule);
+
+                        // We continue here because updateReminder triggers a full sync flow
+                        // to avoid race conditions or double scheduling
+                        continue;
+                    }
+                }
+
+                // If not recurring or invalid recurrence, skip (stale)
                 continue;
             }
         }

@@ -14,6 +14,10 @@ interface TextEditorProps {
     recording: boolean;
     disabled?: boolean;
     autoFocus?: boolean;
+    onFocus?: () => void;
+    onBlur?: () => void;
+    containerStyle?: any;
+    inputStyle?: any;
 }
 
 export function TextEditor({
@@ -26,6 +30,10 @@ export function TextEditor({
     recording,
     disabled = false,
     autoFocus = false,
+    onFocus,
+    onBlur,
+    containerStyle: customContainerStyle,
+    inputStyle: customInputStyle,
 }: TextEditorProps) {
     const [highlightingEnabled, setHighlightingEnabled] = React.useState(true);
     
@@ -121,10 +129,11 @@ export function TextEditor({
     const inputStyle = {
         textAlignVertical: 'top' as const,
         minHeight: 200,
-        maxHeight: 400,
+        maxHeight: customInputStyle?.maxHeight || 400,
         fontSize: 16,
         lineHeight: 24,
         color: '#ffffff',
+        ...customInputStyle
     };
 
     // Preprocess value to convert ```embed blocks to styled blockquotes
@@ -137,8 +146,8 @@ export function TextEditor({
     };
 
     return (
-        <View className="mb-4 relative">
-            <View className="bg-slate-800/80 border border-slate-700 rounded-xl overflow-hidden shadow-lg relative">
+        <View className="mb-4 relative" style={customContainerStyle}>
+            <View className="bg-slate-800/80 border border-slate-700 rounded-xl overflow-hidden shadow-lg relative flex-1">
                 {highlightingEnabled ? (
                     <MarkdownTextInput
                         className="flex-1 p-4 pr-14"
@@ -153,6 +162,8 @@ export function TextEditor({
                         autoCapitalize="sentences"
                         markdownStyle={markdownStyle}
                         parser={parseExpensiMark}
+                        onFocus={onFocus}
+                        onBlur={onBlur}
                     />
                 ) : (
                     <TextInput
@@ -166,6 +177,8 @@ export function TextEditor({
                         autoFocus={autoFocus}
                         editable={!disabled}
                         autoCapitalize="sentences"
+                        onFocus={onFocus}
+                        onBlur={onBlur}
                     />
                 )}
 

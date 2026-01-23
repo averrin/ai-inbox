@@ -1,11 +1,10 @@
-import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal, TextInput, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { FolderInput } from './ui/FolderInput';
 import { useState, useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { scanForReminders, Reminder, updateReminder, registerReminderTask, syncAllReminders } from '../services/reminderService';
 import { Layout } from './ui/Layout';
 import { useSettingsStore } from '../store/settings';
@@ -13,6 +12,7 @@ import Toast from 'react-native-toast-message';
 import { useReminderModal } from '../utils/reminderModalContext';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import { ReminderItem } from './ui/ReminderItem';
+import { ReminderEditModal } from './ReminderEditModal';
 
 export function RemindersSettings() {
     const { showReminder } = useReminderModal();
@@ -409,128 +409,50 @@ Ensure the app is in background to test the notification, or foreground to test 
                 </View>
             </View>
 
+
+
             {/* Edit Modal */}
-            <Modal visible={!!editingReminder} transparent animationType="fade">
-                <View className="flex-1 justify-center items-center bg-black/50 px-4">
-                    <View className="bg-slate-900 w-full max-w-md p-6 rounded-2xl border border-slate-700">
-                        <Text className="text-white text-xl font-bold mb-4">Edit Reminder</Text>
-
-                        <View className="mb-6">
-                            <Text className="text-indigo-200 mb-2 font-medium">Time</Text>
-
-                            <TouchableOpacity
-                                onPress={() => setShowDatePicker(true)}
-                                className="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-2"
-                            >
-                                <Text className="text-white text-center font-bold text-lg">
-                                    {editDate.toLocaleDateString()}
-                                </Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                onPress={() => setShowTimePicker(true)}
-                                className="bg-slate-800 p-4 rounded-xl border border-slate-700"
-                            >
-                                <Text className="text-white text-center font-bold text-lg">
-                                    {editDate.toLocaleTimeString([], {
-                                        hour12: timeFormat === '12h',
-                                        hour: '2-digit', 
-                                        minute:'2-digit'
-                                    })}
-                                </Text>
-                            </TouchableOpacity>
-
-                            {showDatePicker && (
-                                <DateTimePicker
-                                    value={editDate}
-                                    mode="date"
-                                    display="default"
-                                    onChange={(event, selectedDate) => {
-                                        setShowDatePicker(false);
-                                        if (selectedDate) {
-                                            // Preserve time
-                                            const newDate = new Date(selectedDate);
-                                            newDate.setHours(editDate.getHours());
-                                            newDate.setMinutes(editDate.getMinutes());
-                                            setEditDate(newDate);
-                                            // Optional: open time picker immediately after date?
-                                            // setShowTimePicker(true);
-                                        }
-                                    }}
-                                />
-                            )}
-
-                            {showTimePicker && (
-                                <DateTimePicker
-                                    value={editDate}
-                                    mode="time"
-                                    display="default"
-                                    is24Hour={timeFormat === '24h'}
-                                    onChange={(event, selectedDate) => {
-                                        setShowTimePicker(false);
-                                        if (selectedDate) {
-                                            // Preserve date
-                                            const newDate = new Date(editDate);
-                                            newDate.setHours(selectedDate.getHours());
-                                            newDate.setMinutes(selectedDate.getMinutes());
-                                            setEditDate(newDate);
-                                        }
-                                    }}
-                                />
-                            )}
-                        </View>
-                        
-                        {/* Quick Reset Options */}
-                        <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 font-medium">Reset (Postpone)</Text>
-                            <View className="flex-row flex-wrap gap-2">
-                                {[{ label: '+5m', min: 5 }, { label: '+15m', min: 15 }, { label: '+1h', min: 60 }, { label: '+1d', min: 1440 }].map((opt) => (
-                                    <TouchableOpacity
-                                        key={opt.min}
-                                        onPress={() => {
-                                            const newDate = new Date(Date.now() + opt.min * 60 * 1000);
-                                            setEditDate(newDate);
-                                        }}
-                                        className="bg-slate-700 px-3 py-2 rounded-lg"
-                                    >
-                                        <Text className="text-white text-xs">{opt.label}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        </View>
-
-                        {/* Recurrence Rule */}
-                        <View className="mb-6">
-                            <Text className="text-indigo-200 mb-2 font-medium">Recurrence (Optional)</Text>
-                            <TextInput
-                                className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700"
-                                placeholder="e.g. daily, weekly, 3 days"
-                                placeholderTextColor="#64748b"
-                                value={editRecurrence}
-                                onChangeText={setEditRecurrence}
-                            />
-                            <Text className="text-slate-500 text-xs mt-1">
-                                Supported: daily, weekly, monthly, yearly, "2 days", "30 minutes"
-                            </Text>
-                        </View>
-
-                        <View className="flex-row gap-3">
-                            <TouchableOpacity
-                                onPress={() => setEditingReminder(null)}
-                                className="flex-1 bg-slate-800 p-4 rounded-xl items-center"
-                            >
-                                <Text className="text-white font-semibold">Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={handleUpdateReminder}
-                                className="flex-1 bg-indigo-600 p-4 rounded-xl items-center"
-                            >
-                                <Text className="text-white font-semibold">Save</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
+            <ReminderEditModal
+                visible={!!editingReminder}
+                initialDate={editDate}
+                initialRecurrence={editRecurrence}
+                onSave={async (date, recurrence) => {
+                    setEditDate(date);
+                    setEditRecurrence(recurrence);
+                    // Use the state values set above? No, state updates are async.
+                    // We should pass the new values directly to handleUpdateReminder or update state first.
+                    // Better yet, update handleUpdateReminder to take args or update state and trigger effect? 
+                    // Let's look at handleUpdateReminder: it uses editingReminder, editDate, editRecurrence.
+                    
+                    // Correct approach: Update state, then call logic. 
+                    // But handleUpdateReminder is async. 
+                    
+                    // Actually, let's just modify handleUpdateReminder to accepting args or modify how it uses state.
+                    // Or, simpler:
+                    setEditDate(date);
+                    setEditRecurrence(recurrence);
+                    
+                    // Wait for state update? No.
+                    // Let's implement a specific save wrapper here.
+                    
+                    if (!editingReminder) return;
+                    setLoading(true);
+                    try {
+                        const newTime = date.toISOString();
+                        await updateReminder(editingReminder.fileUri, newTime, recurrence);
+                        setEditingReminder(null);
+                        await loadReminders(); 
+                        await syncAllReminders(); 
+                        Toast.show({ type: 'success', text1: 'Reminder Updated' });
+                    } catch (e) {
+                        console.error(e);
+                        Alert.alert("Error", "Failed to update reminder");
+                    }
+                    setLoading(false);
+                }}
+                onCancel={() => setEditingReminder(null)}
+                timeFormat={timeFormat}
+            />
         </Card>
     );
 }
