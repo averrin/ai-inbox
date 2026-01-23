@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
@@ -14,6 +14,8 @@ import { ProcessedNote } from '../../services/gemini';
 import { LongPressButton } from '../ui/LongPressButton';
 import { LinkAttachment } from '../ui/LinkAttachment';
 import { ReminderItem } from '../ui/ReminderItem';
+import { EventInfo } from '../ui/EventInfo';
+import { ReminderEditModal } from '../ReminderEditModal';
 import { URLMetadata } from '../../utils/urlMetadata';
 import { useSettingsStore } from '../../store/settings';
 
@@ -55,6 +57,7 @@ interface PreviewScreenProps {
     links?: URLMetadata[];
     onRemoveLink?: (index: number) => void;
     onRemoveAction?: (index: number) => void;
+    onUpdateFrontmatter?: (updates: Record<string, any>) => void;
 
     // Tab props
     currentTabIndex?: number;
@@ -93,6 +96,7 @@ export function PreviewScreen({
     onRemoveIcon,
     onIconChange,
     onRemoveFrontmatterKey,
+    onUpdateFrontmatter,
     onAttach,
     onCamera,
     onRecord,
@@ -106,10 +110,56 @@ export function PreviewScreen({
 }: PreviewScreenProps) {
     const { timeFormat } = useSettingsStore();
 
+
+    // State for reminder editing
+    const [isEditingReminder, setIsEditingReminder] = React.useState(false);
+    const [editDate, setEditDate] = React.useState<Date>(new Date());
+    const [editRecurrence, setEditRecurrence] = React.useState<string>('');
+
+    
+    // Focus Mode
+    const [isFocused, setIsFocused] = React.useState(false);
+
+    // Auto-update filename from title
+    React.useEffect(() => {
+        if (!title) return;
+        const sanitized = title.replace(/[^a-zA-Z0-9-_]/g, '-');
+        onFilenameChange(`${sanitized}.md`);
+    }, [title]);
+
+    const handleEditReminder = () => {
+        if (data?.frontmatter?.reminder_datetime) {
+            setEditDate(new Date(data.frontmatter.reminder_datetime));
+            setEditRecurrence(data.frontmatter.reminder_recurrent || '');
+            setIsEditingReminder(true);
+        }
+    };
+
+    const handleSaveReminder = (date: Date, recurrence: string) => {
+        if (onUpdateFrontmatter) {
+            const updates: Record<string, any> = {
+                reminder_datetime: date.toISOString()
+            };
+            if (recurrence) {
+                updates.reminder_recurrent = recurrence;
+            } else {
+                updates.reminder_recurrent = recurrence; 
+            }
+            onUpdateFrontmatter(updates);
+        }
+        setIsEditingReminder(false);
+    };
+
     return (
         <Layout>
-            {/* Settings button header */}
-            <View className="flex-row justify-between items-center px-4 pt-2 pb-1 relative">
+            <KeyboardAvoidingView 
+                behavior={Platform.OS === "ios" ? "padding" : "height"} 
+                style={{ flex: 1 }}
+                keyboardVerticalOffset={0}
+            >
+            {/* Settings button header - Hidden in focus mode */}
+            {!isFocused && ( 
+                <View className="flex-row justify-between items-center px-4 pt-2 pb-1 relative">
                 <View className="flex-row items-center gap-3">
                     <TouchableOpacity onPress={onBack} className="p-2">
                         <Ionicons name="arrow-back" size={24} color="white" />
@@ -122,9 +172,10 @@ export function PreviewScreen({
                     </TouchableOpacity>
                 )}
             </View>
+            )}
 
-            {/* Tabs */}
-            {totalTabs > 1 && (
+            {/* Tabs - Hidden in focus mode */}
+            {totalTabs > 1 && !isFocused && (
                 <View className="px-4 pb-2">
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2">
                         {Array.from({ length: totalTabs }).map((_, index) => (
@@ -151,7 +202,8 @@ export function PreviewScreen({
             )}
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-                <Animated.View entering={FadeIn.duration(500)}>
+                <Animated.View entering={FadeIn.duration(500)} style={{ flex: 1 }}>
+                    {!isFocused && ( 
                     <Card>
                         {data.icon && (
                             <View className="mb-4">
@@ -176,7 +228,8 @@ export function PreviewScreen({
                             </View>
                         )}
                         <Input label="Title" value={title} onChangeText={onTitleChange} />
-                        <Input label="Filename" value={filename} onChangeText={onFilenameChange} />
+                        {/* Filename is auto-generated, hidden input */}
+                        
                         <FolderInput
                             label="Folder"
                             value={folder}
@@ -227,85 +280,81 @@ export function PreviewScreen({
                             )}
                         </View>
                     </Card>
-
-                    {/* File attachment info in preview */}
-                    {attachedFiles.length > 0 && (
-                        <View className="mb-2">
-                            {attachedFiles.map((file, index) => (
-                                <FileAttachment
-                                    key={`preview-${file.name}-${index}`}
-                                    file={file}
-                                    showRemove={true}
-                                    onRemove={() => onRemoveAttachment(index)}
-                                />
-                            ))}
-                        </View>
                     )}
 
-                    {/* Link attachment info in preview */}
-                    {links && links.length > 0 && (
-                        <View className="mb-2">
-                            {links.map((link, index) => (
-                                <LinkAttachment
-                                    key={`preview-link-${link.url}-${index}`}
-                                    link={link}
-                                    showRemove={true}
-                                    onRemove={onRemoveLink ? () => onRemoveLink(index) : undefined}
-                                />
-                            ))}
-                        </View>
-                    )}
-                    
-                    {/* Pending Reminders */}
-                    {data?.frontmatter?.reminder_datetime && (
-                         <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Reminder</Text>
-                            <ReminderItem 
-                                reminder={{
-                                    fileUri: '',
-                                    fileName: 'New Reminder',
-                                    reminderTime: data.frontmatter.reminder_datetime,
-                                    recurrenceRule: data.frontmatter.reminder_recurrent,
-                                    content: 'This note will trigger a notification'
-                                }}
-                                timeFormat={timeFormat}
-                                onDelete={() => onRemoveFrontmatterKey('reminder_datetime')}
-                                showActions={true}
-                            />
-                        </View>
-                    )}
-
-                    {/* Pending Actions (Google Calendar) */}
-                    {data.actions && data.actions.length > 0 && (
-                         <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Pending Events (Calendar)</Text>
-                             {data.actions.map((action, index) => (
-                                <View key={`action-${index}`} className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 mb-2">
-                                    <View className="flex-row items-center">
-                                         <Text className="text-green-400 mr-2 text-lg">⦿</Text>
-                                         <View className="flex-1">
-                                             <Text className="text-white font-medium">{action.title}</Text>
-                                             {action.startTime && (
-                                                <Text className="text-indigo-300 text-xs">
-                                                    {new Date(action.startTime).toLocaleString([], {weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'})} 
-                                                    {action.durationMinutes ? ` • ${action.durationMinutes}m` : ''}
-                                                    {action.recurrence && action.recurrence.length > 0 && <Text className="text-indigo-200"> • 🔁 Recurrent</Text>}
-                                                </Text>
-                                             )}
-                                         </View>
-                                          <TouchableOpacity onPress={() => onRemoveAction && onRemoveAction(index)} className="p-1">
-                                             <Ionicons name="close" size={20} color="#f87171" />
-                                          </TouchableOpacity>
-                                    </View>
-                                    {action.description && <Text className="text-slate-400 text-xs mt-2 ml-6">{action.description}</Text>}
+                    {/* File/Link attachments - hidden in focus mode */}
+                    {!isFocused && (
+                        <>
+                            {/* File attachment info in preview */}
+                            {attachedFiles.length > 0 && (
+                                <View className="mb-2">
+                                    {attachedFiles.map((file, index) => (
+                                        <FileAttachment
+                                            key={`preview-${file.name}-${index}`}
+                                            file={file}
+                                            showRemove={true}
+                                            onRemove={() => onRemoveAttachment(index)}
+                                        />
+                                    ))}
                                 </View>
-                             ))}
-                        </View>
+                            )}
+
+                            {/* Link attachment info in preview */}
+                            {links && links.length > 0 && (
+                                <View className="mb-2">
+                                    {links.map((link, index) => (
+                                        <LinkAttachment
+                                            key={`preview-link-${link.url}-${index}`}
+                                            link={link}
+                                            showRemove={true}
+                                            onRemove={onRemoveLink ? () => onRemoveLink(index) : undefined}
+                                        />
+                                    ))}
+                                </View>
+                            )}
+                    
+                            {/* Pending Reminders */}
+                            {data?.frontmatter?.reminder_datetime && (
+                                <View className="mb-4">
+                                    <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Reminder</Text>
+                                    <ReminderItem 
+                                        reminder={{
+                                            fileUri: '',
+                                            fileName: 'New Reminder',
+                                            reminderTime: data.frontmatter.reminder_datetime,
+                                            recurrenceRule: data.frontmatter.reminder_recurrent,
+
+                                            content: 'This note will trigger a notification'
+                                        }}
+                                        timeFormat={timeFormat}
+                                        title={title || 'New Reminder'}
+                                        onEdit={handleEditReminder}
+                                        onDelete={() => onRemoveFrontmatterKey('reminder_datetime')}
+                                        showActions={true}
+                                    />
+                                </View>
+                            )}
+
+                            {/* Pending Actions (Google Calendar) */}
+                            {data.actions && data.actions.length > 0 && (
+                                <View className="mb-4">
+                                    <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Pending Events (Calendar)</Text>
+                                    {data.actions.map((action, index) => (
+                                        <EventInfo 
+                                            key={`action-${index}`}
+                                            action={action}
+                                            onRemove={() => onRemoveAction && onRemoveAction(index)}
+                                            showRemove={!!onRemoveAction}
+                                        />
+                                    ))}
+                                </View>
+                            )}
+                        </>
                     )}
 
                     {/* Body Content */}
-                    <View className="mb-4">
-                        <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Content</Text>
+                    <View className={`mb-4 ${isFocused ? 'flex-1 mt-4' : ''}`}>
+                        {!isFocused && <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Content</Text>}
                         <TextEditor
                             value={body}
                             onChangeText={onBodyChange}
@@ -315,15 +364,39 @@ export function PreviewScreen({
                             onRecord={onRecord}
                             recording={recording}
                             disabled={saving}
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={() => { /* Wait for user to explicitly exit focus mode via back button */ }}
+                            containerStyle={isFocused ? { flex: 1, marginBottom: 0 } : undefined}
+                            inputStyle={isFocused ? { maxHeight: undefined, height: '100%' } : undefined}
                         />
                     </View>
 
                 </Animated.View>
             </ScrollView>
 
-            {/* Floating Action Buttons */}
-            <View className="absolute bottom-6 right-6">
-                <LongPressButton
+
+            {/* Floating Action Buttons - absolute within the shrinking KAV */}
+            <View 
+                className="absolute bottom-4 w-full flex-row justify-between px-6 px-[24px]"
+                pointerEvents="box-none"
+            >
+                {isFocused ? (
+                    <TouchableOpacity
+                        onPress={() => {
+                            setIsFocused(false);
+                            Keyboard.dismiss();
+                        }}
+                        className="w-14 h-14 rounded-full bg-slate-700 items-center justify-center shadow-lg"
+                        style={{ elevation: 8 }}
+                    >
+                        <Ionicons name="arrow-back" size={28} color="white" />
+                    </TouchableOpacity>
+                ) : (
+                    <View /> /* Spacer if no back button to keep save on right? No, standard layout relies on positioning. */
+                )}
+
+                {/* Save button - always visible or at least in focus mode too */}
+                 <LongPressButton
                     onPress={onSave}
                     onLongPress={onSaveAndAddNew}
                     shortPressLabel="Save"
@@ -339,12 +412,14 @@ export function PreviewScreen({
                         shadowOpacity: 0.3,
                         shadowRadius: 4.65,
                         elevation: 8,
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        marginLeft: 'auto' // Push to right
                     }}
                 >
                     <Ionicons name="checkmark" size={32} color="white" />
                 </LongPressButton>
             </View>
+            </KeyboardAvoidingView>
 
             {/* Tag Input Modal */}
             <Modal visible={showTagModal} transparent animationType="fade">
@@ -379,6 +454,15 @@ export function PreviewScreen({
                     </View>
                 </View>
             </Modal>
+
+            <ReminderEditModal
+                visible={isEditingReminder}
+                initialDate={editDate}
+                initialRecurrence={editRecurrence}
+                onSave={handleSaveReminder}
+                onCancel={() => setIsEditingReminder(false)}
+                timeFormat={timeFormat}
+            />
         </Layout>
     );
 }
