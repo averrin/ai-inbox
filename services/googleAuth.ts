@@ -14,7 +14,9 @@ export class GoogleAuthService {
         const { googleAndroidClientId, googleIosClientId, googleWebClientId } = useSettingsStore.getState();
         return {
             clientId: googleWebClientId || '',
+            // @ts-ignore
             iosClientId: googleIosClientId || undefined,
+            // @ts-ignore
             androidClientId: googleAndroidClientId || undefined,
             scopes: ['https://www.googleapis.com/auth/tasks'],
             responseType: ResponseType.Code,

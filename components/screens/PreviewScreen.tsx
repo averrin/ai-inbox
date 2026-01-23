@@ -13,7 +13,9 @@ import { ProcessedNote } from '../../services/gemini';
 
 import { LongPressButton } from '../ui/LongPressButton';
 import { LinkAttachment } from '../ui/LinkAttachment';
+import { ReminderItem } from '../ui/ReminderItem';
 import { URLMetadata } from '../../utils/urlMetadata';
+import { useSettingsStore } from '../../store/settings';
 
 interface PreviewScreenProps {
     data: ProcessedNote;
@@ -53,6 +55,11 @@ interface PreviewScreenProps {
     links?: URLMetadata[];
     onRemoveLink?: (index: number) => void;
     onRemoveAction?: (index: number) => void;
+
+    // Tab props
+    currentTabIndex?: number;
+    totalTabs?: number;
+    onTabChange?: (index: number) => void;
 }
 
 export function PreviewScreen({
@@ -93,7 +100,12 @@ export function PreviewScreen({
     links,
     onRemoveLink,
     onRemoveAction,
+    currentTabIndex = 0,
+    totalTabs = 1,
+    onTabChange,
 }: PreviewScreenProps) {
+    const { timeFormat } = useSettingsStore();
+
     return (
         <Layout>
             {/* Settings button header */}
@@ -110,6 +122,34 @@ export function PreviewScreen({
                     </TouchableOpacity>
                 )}
             </View>
+
+            {/* Tabs */}
+            {totalTabs > 1 && (
+                <View className="px-4 pb-2">
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2">
+                        {Array.from({ length: totalTabs }).map((_, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                onPress={() => onTabChange?.(index)}
+                                className={`px-4 py-2 rounded-full border ${
+                                    currentTabIndex === index
+                                        ? 'bg-indigo-600 border-indigo-500'
+                                        : 'bg-slate-800 border-slate-700'
+                                } mr-2`}
+                            >
+                                <Text
+                                    className={`${
+                                        currentTabIndex === index ? 'text-white font-bold' : 'text-slate-400'
+                                    }`}
+                                >
+                                    Note {index + 1}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            )}
+
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 <Animated.View entering={FadeIn.duration(500)}>
                     <Card>
@@ -216,6 +256,25 @@ export function PreviewScreen({
                         </View>
                     )}
                     
+                    {/* Pending Reminders */}
+                    {data?.frontmatter?.reminder_datetime && (
+                         <View className="mb-4">
+                            <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Reminder</Text>
+                            <ReminderItem 
+                                reminder={{
+                                    fileUri: '',
+                                    fileName: 'New Reminder',
+                                    reminderTime: data.frontmatter.reminder_datetime,
+                                    recurrenceRule: data.frontmatter.reminder_recurrent,
+                                    content: 'This note will trigger a notification'
+                                }}
+                                timeFormat={timeFormat}
+                                onDelete={() => onRemoveFrontmatterKey('reminder_datetime')}
+                                showActions={true}
+                            />
+                        </View>
+                    )}
+
                     {/* Pending Actions (Google Calendar) */}
                     {data.actions && data.actions.length > 0 && (
                          <View className="mb-4">

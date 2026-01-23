@@ -24,8 +24,6 @@ export function extractURLs(text: string): string[] {
  */
 export async function fetchURLMetadata(url: string): Promise<URLMetadata> {
     try {
-        console.log('[URLMetadata] Fetching:', url);
-
         // Special handling for YouTube
         if (url.includes('youtube.com') || url.includes('youtu.be')) {
             try {
@@ -100,7 +98,6 @@ export async function fetchURLMetadata(url: string): Promise<URLMetadata> {
             metadata.favicon = `${urlObj.protocol}//${urlObj.host}/favicon.ico`;
         }
 
-        console.log('[URLMetadata] Extracted:', metadata);
         return metadata;
 
     } catch (e) {
@@ -151,7 +148,7 @@ export async function processURLsInText(text: string): Promise<{ embeds: string;
         return { embeds: '', cleanText: text };
     }
 
-    console.log('[URLMetadata] Found URLs:', urls);
+
 
     // Fetch metadata for all URLs
     const metadataPromises = urls.map(url => fetchURLMetadata(url));

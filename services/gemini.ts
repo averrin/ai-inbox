@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { URLMetadata } from "../utils/urlMetadata";
+import JSON5 from 'json5';
 
 export interface ProcessedNote {
     title: string;
@@ -35,13 +36,20 @@ export const DEFAULT_PROMPT = `
     
     IMPORTANT: If the user's content contains explicit instructions or requests (e.g., "save this to...", "tag this as...", "use this folder..."), treat those instructions as HIGHEST PRIORITY and follow them precisely when generating the metadata.
     
-    Structure:
+    If the content contains multiple distinct topics (e.g. work and personal tasks) that should be separate notes, return a JSON Array of objects.
+    Otherwise, return a single JSON object.
+
+    structure:
     {
        "title": "Suggested File Name (readable title)",
        "filename": "same as title.md",
        "tags": ["tag1", "tag2"],
        "folder": "Suggested Folder",
-       "frontmatter": { "source": "..." },
+       "frontmatter": {
+          "source": "...",
+          "reminder_datetime": "2023-10-27T09:00:00",
+          "reminder_recurrent": "weekly"
+       },
        "summary": "One sentence summary",
        "body": "For text content: the full markdown formatted text. For files: leave empty.",
        "icon": "FasIconName (e.g., FasTerminal, FasBook, FasCode)",
@@ -65,8 +73,16 @@ export const DEFAULT_PROMPT = `
     - Metadata about the vault
     **Only include the actual note content that the user wants to save.**
 
+    **Set Reminders:**
+    If the user explicitly requests a reminder (e.g., "remind me to...", "alert me on...", "every Monday"), set the properties in the "frontmatter" object.
+    - "reminder_datetime": RFC3339 timestamp (YYYY-MM-DDTHH:mm:ss). If no specific time is mentioned, default to 09:00:00 on the next day or requested day.
+    - "reminder_recurrent": OPTIONAL. If the user mentions repetition (e.g. "daily", "every week", "every 2 days"), set this to a simple string.
+         - Valid values: "daily", "weekly", "monthly", "yearly".
+         - Or number + unit: "2 days", "3 weeks", "30 minutes".
+         - Do NOT use RRULE format here. Use simple English phrases.
+
     **Create Calendar Events:**
-    If the user explicitly requests to create tasks or events, include them in the "actions" array. You can create MULTIPLE events if the user asks for them.
+    If the user explicitly requests to create tasks or events (e.g. "add to calendar", "schedule meeting"), include them in the "actions" array. You can create MULTIPLE events if the user asks for them.
     - "type": always "create_event"
     - "title": Add a relevant emoji to the start (e.g., "📞 Call Mom", "📝 Write Report").
     - "description": Brief notes about the event.
@@ -82,14 +98,13 @@ export const DEFAULT_PROMPT = `
 {{content}}
 `;
 
-export async function processContent(apiKey: string, content: string, promptOverride?: string | null, model?: string, vaultStructure?: string, contextRootFolder?: string): Promise<ProcessedNote | null> {
+export async function processContent(apiKey: string, content: string, promptOverride?: string | null, model?: string, vaultStructure?: string, contextRootFolder?: string): Promise<ProcessedNote[] | null> {
     const genAI = new GoogleGenerativeAI(apiKey);
     const modelName = model || "gemini-3-flash-preview";
     const genModel = genAI.getGenerativeModel({ model: modelName });
 
     let processedContent = content;
 
-    // Special handling for YouTube URLs - fetch title upfront to help AI
     if (content.trim().startsWith('http://') || content.trim().startsWith('https://')) {
         const url = content.trim();
         if (url.includes('youtube.com') || url.includes('youtu.be')) {
@@ -147,28 +162,63 @@ export async function processContent(apiKey: string, content: string, promptOver
         // Sanitize: Replace NBSP and other weird spaces with normal space
         text = text.replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ');
 
-        const start = text.indexOf('{');
-        const end = text.lastIndexOf('}');
-        if (start !== -1 && end !== -1) {
-            const jsonStr = text.substring(start, end + 1);
-            console.log("[Gemini] Extracted JSON string:", jsonStr);
-            try {
-                const parsed = JSON.parse(jsonStr);
+        let jsonStr = '';
+        const firstOpenBrace = text.indexOf('{');
+        const firstOpenBracket = text.indexOf('[');
+        const lastCloseBrace = text.lastIndexOf('}');
+        const lastCloseBracket = text.lastIndexOf(']');
 
-                // Handle hallucinated 'transcription' field by merging it into body
-                const extraData = parsed as any;
-                if (extraData.transcription) {
-                    if (parsed.body) {
-                        // If body exists, append/prepend transcription if not already there
-                        if (!parsed.body.includes(extraData.transcription)) {
-                            parsed.body = `${extraData.transcription}\n\n${parsed.body}`;
-                        }
-                    } else {
-                        parsed.body = extraData.transcription;
-                    }
-                    // Clean up to avoid confusion
-                    delete extraData.transcription;
+        // Determine if it looks more like an object or an array at the root
+        // If { appears before [, treat as object. If [ appears before {, treat as array.
+        // Handling -1 (not found) is important.
+
+        let isArray = false;
+        if (firstOpenBracket !== -1) {
+            if (firstOpenBrace === -1 || firstOpenBracket < firstOpenBrace) {
+                isArray = true;
+            }
+        }
+
+        if (isArray) {
+            if (firstOpenBracket !== -1 && lastCloseBracket !== -1 && firstOpenBracket < lastCloseBracket) {
+                jsonStr = text.substring(firstOpenBracket, lastCloseBracket + 1);
+            }
+        } else {
+            if (firstOpenBrace !== -1 && lastCloseBrace !== -1 && firstOpenBrace < lastCloseBrace) {
+                jsonStr = text.substring(firstOpenBrace, lastCloseBrace + 1);
+            }
+        }
+
+        if (jsonStr) {
+            console.log("[Gemini] Extracted JSON string:", jsonStr);
+
+            try {
+                // Use JSON5 for robust parsing (handles trailing commas, etc.)
+                let parsed = JSON5.parse(jsonStr);
+
+                // Ensure array
+                if (!Array.isArray(parsed)) {
+                    parsed = [parsed];
                 }
+
+                // Process each note in the array
+                parsed = parsed.map((note: any) => {
+                    // Handle hallucinated 'transcription' field by merging it into body
+                    const extraData = note as any;
+                    if (extraData.transcription) {
+                        if (note.body) {
+                            // If body exists, append/prepend transcription if not already there
+                            if (!note.body.includes(extraData.transcription)) {
+                                note.body = `${extraData.transcription}\n\n${note.body}`;
+                            }
+                        } else {
+                            note.body = extraData.transcription;
+                        }
+                        // Clean up to avoid confusion
+                        delete extraData.transcription;
+                    }
+                    return note;
+                });
 
                 return parsed;
             } catch (parseError: any) {
