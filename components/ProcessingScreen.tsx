@@ -13,6 +13,7 @@ import { saveToVault, checkDirectoryExists, readVaultStructure } from '../utils/
 import { openInObsidian as openNoteInObsidian } from '../utils/obsidian';
 import { getMostUsedTags } from '../utils/tagUtils';
 import { processURLsInText, URLMetadata } from '../utils/urlMetadata';
+import { useVaultStore } from '../services/vaultService';
 
 // Screen components
 import { LoadingScreen } from './screens/LoadingScreen';
@@ -291,6 +292,18 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         }
     };
 
+    const handleUpdateFrontmatter = (updates: Record<string, any>) => {
+         if (data && data[activeNoteIndex]) {
+            const newData = [...data];
+            const newFrontmatter = { ...(newData[activeNoteIndex].frontmatter || {}) };
+            Object.entries(updates).forEach(([key, value]) => {
+                newFrontmatter[key] = value;
+            });
+            newData[activeNoteIndex] = { ...newData[activeNoteIndex], frontmatter: newFrontmatter };
+            setData(newData);
+        }
+    };
+
     const handleRemoveAction = (index: number) => {
         if (data && data[activeNoteIndex]?.actions) {
             const newData = [...data];
@@ -307,9 +320,13 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         if (analyzingRef.current) return;
         analyzingRef.current = true;
         setLoading(true);
-        
+
+        const startTime = Date.now();
+        console.log('[Profile] Analysis started');
+
         try {
             // --- 1. Audio Transcription (Pre-analysis) ---
+            const transcriptionStart = Date.now();
             let transcriptionContext = '';
             let rawTranscriptions = '';
             const { transcribeAudio } = await import('../services/gemini'); // Moved import here
@@ -338,6 +355,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                     }
                 }
             }
+            console.log(`[Profile] Transcription took ${Date.now() - transcriptionStart}ms`);
 
             let contentForAI = text;
             if (rawTranscriptions) {
@@ -349,39 +367,70 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                 contentForAI = `${filesInfo}\n\n${contentForAI}`;
             }
 
-            // --- Smart Scheduling Context ---
-            setLoadingStatus('Checking Schedule...'); // Update status
-            const now = new Date();
-            const currentTimeString = now.toLocaleString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-            
-            let scheduleContext = `\n\n--- CONTEXT ---\nCurrent Time: ${currentTimeString}\n`;
-            
-            try {
-                const calendarEvents = await CalendarService.getUpcomingEvents(3); // Next 3 days
-                scheduleContext += `\nUpcoming Schedule (Use to find free slots):\n${calendarEvents}\n`;
-            } catch (e) {
-                console.warn('Failed to fetch calendar for context', e);
-                scheduleContext += `\n(Could not fetch calendar: ${e})\n`;
-            }
+            // Process URLs in the text (Moved up to determine meaningful text)
+            const urlStart = Date.now();
+            const { embeds: urlEmbeds, cleanText, metadata: urlMetadata } = await processURLsInText(text);
+            console.log(`[Profile] URL processing took ${Date.now() - urlStart}ms`);
 
-            contentForAI += scheduleContext;
+            // --- Smart Scheduling Context ---
+            const scheduleStart = Date.now();
+            const hasVoiceRecording = attachedFiles.some(f => f.mimeType.startsWith('audio/')); // We assume audio implies voice intent usually
+            const hasMeaningfulText = cleanText && cleanText.replace(/#[\w-]+/g, '').trim().length > 0; // Text that isn't just tags or empty
+
+            if (hasVoiceRecording || hasMeaningfulText) {
+                setLoadingStatus('Checking Schedule...'); // Update status
+                const now = new Date();
+                const currentTimeString = now.toLocaleString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                
+                let scheduleContext = `\n\n--- CONTEXT ---\nCurrent Time: ${currentTimeString}\n`;
+                
+                try {
+                    const calendarEvents = await CalendarService.getUpcomingEvents(3); // Next 3 days
+                    scheduleContext += `\nUpcoming Schedule (Use to find free slots):\n${calendarEvents}\n`;
+                } catch (e) {
+                    console.warn('Failed to fetch calendar for context', e);
+                    scheduleContext += `\n(Could not fetch calendar: ${e})\n`;
+                }
+
+                contentForAI += scheduleContext;
+                console.log('[Analyze] Schedule context added.');
+            } else {
+                 // Even if we skip schedule, current time is useful for file naming (e.g. "Meeting 2023-10...")
+                 const now = new Date();
+                 const currentTimeString = now.toLocaleString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                 contentForAI += `\n\n--- CONTEXT ---\nCurrent Time: ${currentTimeString}\n`;
+                 console.log('[Analyze] Schedule context skipped (no voice or meaningful text).');
+            }
+            console.log(`[Profile] Schedule context took ${Date.now() - scheduleStart}ms`);
             // --------------------------------
 
             setLoadingStatus('Analyzing content...'); // Update status
+            const contextStart = Date.now();
             let vaultStructure = '';
             let rootFolderForContext = '';
             if (vaultUri) {
-                let targetUri = vaultUri;
+                // Resolve context root just so we have the string for the AI prompt
                 if (contextRootFolder && contextRootFolder.trim()) {
-                    const contextUri = await checkDirectoryExists(vaultUri, contextRootFolder.trim());
-                    if (contextUri) {
-                        targetUri = contextUri;
-                        rootFolderForContext = contextRootFolder.trim();
-                    }
+                   // Verify it exists (optional, but good for robustness) - actually the store does this too.
+                   // To avoid double check, we might just assume it's valid if set, 
+                   // OR we check it once here. The store check is for generating structure.
+                   // The prompt logic needs the STRING.
+                   // Let's rely on the setting being valid-ish. 
+                   // But wait, safely getting the targetUri was useful.
+                   // Let's re-add the verification significantly faster or just trust the store?
+                   // The store returns a Promise<string>. 
+                   
+                   // Let's just set the variable, we can verify existence via the store call implicitly (store logs error if fails).
+                   // But processContent needs to know if we are RELATIVE to usage.
+                   // If store returns structure, it succeeded.
+                   rootFolderForContext = contextRootFolder.trim();
                 }
-                vaultStructure = await readVaultStructure(targetUri, 2);
-            }
 
+                vaultStructure = await useVaultStore.getState().getStructure(vaultUri, rootFolderForContext);
+            }
+            console.log(`[Profile] Vault structure reading took ${Date.now() - contextStart}ms`);
+
+            const promptStart = Date.now();
             let customPrompt = null;
             if (customPromptPath && customPromptPath.trim()) {
                 try {
@@ -396,9 +445,9 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                     console.warn('[Analyze] Failed to read custom prompt file:', e);
                 }
             }
+            console.log(`[Profile] Custom prompt reading took ${Date.now() - promptStart}ms`);
 
-            // Process URLs in the text
-            const { embeds: urlEmbeds, cleanText, metadata: urlMetadata } = await processURLsInText(text);
+            // Process URLs in the text - Already done above
             
             // Prepare context from URL metadata for AI
             let urlContext = '';
@@ -427,16 +476,29 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                 } else {
                     contentForAI = baseContent;
                 }
-                 // Re-add schedule context
-                 contentForAI += scheduleContext;
+                 // Re-add schedule context if valid
+                 // Note: we can't easily reuse the exact string from above because scope, but we can check if contentForAI has it
+                 // Actually, contentForAI above has it appended.
+                 // But here we overwrite contentForAI with baseContent.
+                 // So we need to append it again if it was generated.
+                 
+                 // Simpler: Just append what we added to contentForAI previously to the new baseContent
+                 // Extract context part
+                const contextPart = contentForAI.match(/\n\n--- CONTEXT ---[\s\S]*$/);
+                if (contextPart) {
+                    contentForAI += contextPart[0];
+                }
             }
 
+            const modelStart = Date.now();
             const result = await processContent(apiKey!, contentForAI, customPrompt, selectedModel, vaultStructure, rootFolderForContext);
+            console.log(`[Profile] Model analysis took ${Date.now() - modelStart}ms`);
             
             if (result && result.length > 0) {
                 const embeddings: string[] = [];
                 
                 if (attachedFiles.length > 0) {
+                    const startCopy = Date.now();
                     const { copyFileToVault } = await import('../utils/saf');
                     
                     for (const file of attachedFiles) {
@@ -445,6 +507,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                         const copiedUri = await copyFileToVault(file.uri, vaultUri!, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
                         if (copiedUri) embeddings.push(`![[${targetPath}]]`);
                     }
+                    console.log(`[Profile] File copying took ${Date.now() - startCopy}ms`);
 
                     // Apply embeddings/transcription to ALL generated notes
                     // Or maybe just the first one? Let's apply to all for now as context is same.
@@ -461,6 +524,8 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                          result[0].body = `${embeddings.join('\n')}\n\n${result[0].body}`;
                     }
                 }
+
+                console.log(`[Profile] Total analysis time: ${Date.now() - startTime}ms`);
 
                 setData(result);
                 setActiveNoteIndex(0);
@@ -864,6 +929,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                     onRemoveIcon={handleRemoveIcon}
                     onIconChange={handleIconChange}
                     onRemoveFrontmatterKey={handleRemoveFrontmatterKey}
+                    onUpdateFrontmatter={handleUpdateFrontmatter}
                     onRemoveAction={handleRemoveAction}
                     onAttach={handleAttach}
                     onCamera={handleCamera}

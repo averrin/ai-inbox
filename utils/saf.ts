@@ -36,9 +36,14 @@ export async function checkDirectoryExists(parentUri: string, dirName: string): 
     return findSubdirectory(parentUri, dirName);
 }
 
-export async function readVaultStructure(vaultUri: string, maxDepth: number = 2): Promise<string> {
+export async function readVaultStructure(
+    vaultUri: string,
+    maxDepth: number = 2,
+    metadataCache?: Record<string, { mtime: number, display: string }>
+): Promise<{ structure: string, updatedCache: Record<string, { mtime: number, display: string }> }> {
     try {
         const structure: string[] = [];
+        const updatedCache = { ...metadataCache };
 
         async function readDir(uri: string, depth: number, prefix: string = ''): Promise<void> {
             if (depth > maxDepth) return;
@@ -62,28 +67,56 @@ export async function readVaultStructure(vaultUri: string, maxDepth: number = 2)
                     } catch {
                         // It's a file - check if it's a markdown file
                         if (name.endsWith('.md')) {
-                            try {
-                                const content = await StorageAccessFramework.readAsStringAsync(childUri);
-                                // Parse frontmatter to extract metadata
-                                const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
-                                let metadata = '';
-                                if (frontmatterMatch) {
-                                    const fm = frontmatterMatch[1];
-                                    const iconMatch = fm.match(/icon:\s*["']?([^"'\n]+)["']?/);
-                                    const tagsMatch = fm.match(/tags:\s*\[([^\]]+)\]/);
+                            const cacheKey = decoded;
+                            let useCached = false;
 
-                                    if (iconMatch) metadata += iconMatch[1] + ' ';
-                                    metadata += name.replace('.md', '');
-                                    if (tagsMatch) {
-                                        const tags = tagsMatch[1].split(',').map(t => t.trim().replace(/['"]/g, ''));
-                                        metadata += ` [${tags.join(', ')}]`;
+                            try {
+                                const info = await FileSystem.getInfoAsync(childUri);
+                                if (info.exists && metadataCache && metadataCache[cacheKey]) {
+                                    if (Math.abs(info.modificationTime - metadataCache[cacheKey].mtime) < 1000) {
+                                        // Cache hit!
+                                        structure.push(`${prefix}${metadataCache[cacheKey].display}`);
+                                        updatedCache[cacheKey] = metadataCache[cacheKey]; // Keep in new cache
+                                        useCached = true;
                                     }
-                                } else {
-                                    metadata = name.replace('.md', '');
                                 }
-                                structure.push(`${prefix}📄 ${metadata}`);
+
+                                if (!useCached) {
+                                    // Cache miss or stale - Read content
+                                    const content = await StorageAccessFramework.readAsStringAsync(childUri);
+                                    // Parse frontmatter to extract metadata
+                                    const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+                                    let metadata = '';
+                                    if (frontmatterMatch) {
+                                        const fm = frontmatterMatch[1];
+                                        const iconMatch = fm.match(/icon:\s*["']?([^"'\n]+)["']?/);
+                                        const tagsMatch = fm.match(/tags:\s*\[([^\]]+)\]/);
+
+                                        if (iconMatch) metadata += iconMatch[1] + ' ';
+                                        metadata += name.replace('.md', '');
+                                        if (tagsMatch) {
+                                            const tags = tagsMatch[1].split(',').map(t => t.trim().replace(/['"]/g, ''));
+                                            metadata += ` [${tags.join(', ')}]`;
+                                        }
+                                    } else {
+                                        metadata = name.replace('.md', '');
+                                    }
+
+                                    const displayString = `📄 ${metadata}`;
+                                    structure.push(`${prefix}${displayString}`);
+
+                                    // Update cache
+                                    if (info.exists) {
+                                        updatedCache[cacheKey] = {
+                                            mtime: info.modificationTime,
+                                            display: displayString
+                                        };
+                                    }
+                                }
+
                             } catch (e) {
-                                // If can't read file, just show name
+                                // If can't read file or info, just show name
+                                // console.warn(`Error reading file ${name}`, e);
                                 structure.push(`${prefix}📄 ${name.replace('.md', '')}`);
                             }
                         }
@@ -97,10 +130,10 @@ export async function readVaultStructure(vaultUri: string, maxDepth: number = 2)
         structure.push('📁 Vault/');
         await readDir(vaultUri, 0, '  ');
 
-        return structure.join('\n');
+        return { structure: structure.join('\n'), updatedCache };
     } catch (e) {
         console.error("Error reading vault structure:", e);
-        return "Could not read vault structure";
+        return { structure: "Could not read vault structure", updatedCache: metadataCache || {} };
     }
 }
 
