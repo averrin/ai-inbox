@@ -71,12 +71,23 @@ export function GoogleSettings({ androidClientId }: GoogleSettingsProps) {
                          <Text className="text-slate-400 text-sm mb-4">
                             AI can schedule events in your primary calendar.
                         </Text>
-                        <TouchableOpacity 
-                            onPress={clearAuth}
-                            className="bg-red-500/20 border border-red-500/50 py-3 rounded-lg items-center"
-                        >
-                            <Text className="text-red-300 font-semibold">Disconnect</Text>
-                        </TouchableOpacity>
+                        <View className="flex-row gap-3">
+                            <TouchableOpacity 
+                                onPress={clearAuth}
+                                className="flex-1 bg-red-500/20 border border-red-500/50 py-3 rounded-lg items-center"
+                            >
+                                <Text className="text-red-300 font-semibold">Disconnect</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                onPress={async () => {
+                                    clearAuth();
+                                    promptAsync();
+                                }}
+                                className="flex-1 bg-indigo-600/20 border border-indigo-500/50 py-3 rounded-lg items-center"
+                            >
+                                <Text className="text-indigo-300 font-semibold">Reconnect</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 ) : (
                      <View>
