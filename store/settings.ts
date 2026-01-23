@@ -19,6 +19,20 @@ interface SettingsState {
     setGoogleAndroidClientId: (id: string) => void;
     setGoogleIosClientId: (id: string) => void;
     setGoogleWebClientId: (id: string) => void;
+    remindersScanFolder: string | null;
+    setRemindersScanFolder: (folder: string) => void;
+    backgroundSyncInterval: number;
+    setBackgroundSyncInterval: (interval: number) => void;
+    reminderBypassDnd: boolean;
+    setReminderBypassDnd: (bypass: boolean) => void;
+    reminderRingtone: string | null;
+    setReminderRingtone: (ringtone: string) => void;
+    reminderVibration: boolean;
+    setReminderVibration: (vibrate: boolean) => void;
+    timeFormat: '12h' | '24h';
+    setTimeFormat: (format: '12h' | '24h') => void;
+    cachedReminders: any[]; // Using any[] to avoid circular dependency with Reminder type
+    setCachedReminders: (reminders: any[]) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -40,6 +54,20 @@ export const useSettingsStore = create<SettingsState>()(
             setGoogleAndroidClientId: (id) => set({ googleAndroidClientId: id }),
             setGoogleIosClientId: (id) => set({ googleIosClientId: id }),
             setGoogleWebClientId: (id) => set({ googleWebClientId: id }),
+            remindersScanFolder: null,
+            setRemindersScanFolder: (folder) => set({ remindersScanFolder: folder }),
+            backgroundSyncInterval: 15,
+            setBackgroundSyncInterval: (interval) => set({ backgroundSyncInterval: interval }),
+            reminderBypassDnd: true,
+            setReminderBypassDnd: (bypass) => set({ reminderBypassDnd: bypass }),
+            reminderRingtone: null,
+            setReminderRingtone: (ringtone) => set({ reminderRingtone: ringtone }),
+            reminderVibration: true,
+            setReminderVibration: (vibrate) => set({ reminderVibration: vibrate }),
+            timeFormat: '24h',
+            setTimeFormat: (format) => set({ timeFormat: format }),
+            cachedReminders: [],
+            setCachedReminders: (reminders) => set({ cachedReminders: reminders }),
         }),
         {
             name: 'ai-inbox-settings',

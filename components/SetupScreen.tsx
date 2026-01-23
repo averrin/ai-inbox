@@ -1,4 +1,4 @@
-import { View, Text, Alert, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, Alert, TouchableOpacity, Modal, ScrollView, BackHandler, Animated, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from './ui/Layout';
 import { Button } from './ui/Button';
@@ -7,14 +7,19 @@ import { Card } from './ui/Card';
 import { useSettingsStore } from '../store/settings';
 import { requestVaultAccess } from '../utils/saf';
 import { fetchAvailableModels } from '../services/models';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FolderInput } from './ui/FolderInput';
 import { FileInput } from './ui/FileInput';
 import { openInObsidian } from '../utils/obsidian';
 import { GoogleSettings } from './GoogleSettings';
+import { RemindersSettings } from './RemindersSettings';
+
+type SettingsSection = 'root' | 'general' | 'tools' | 'google-calendar' | 'reminders';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
-    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId } = useSettingsStore();
+    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
     const [androidIdInput, setAndroidIdInput] = useState(googleAndroidClientId || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
@@ -22,9 +27,58 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const [rootFolderInput, setRootFolderInput] = useState(contextRootFolder || '');
     const [availableModels, setAvailableModels] = useState<string[]>(['gemini-2.0-flash-exp']);
     const [showModelPicker, setShowModelPicker] = useState(false);
-    const [loading, setLoading] = useState(false);
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [promptFileStatus, setPromptFileStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
+
+    // Navigation state for settings mode
+    const [activeSection, setActiveSection] = useState<SettingsSection>('root');
+    
+    // Animation state
+    const slideAnim = useRef(new Animated.Value(0)).current;
+
+    // Determine current level for animation
+    const getLevel = (section: SettingsSection) => {
+        if (section === 'root') return 0;
+        if (section === 'general' || section === 'tools') return 1;
+        return 2; // reminders, google-calendar
+    };
+
+    // Effect to trigger animation when section changes
+    useEffect(() => {
+        const targetLevel = getLevel(activeSection);
+        Animated.spring(slideAnim, {
+            toValue: targetLevel,
+            useNativeDriver: true,
+            friction: 8,
+            tension: 40
+        }).start();
+    }, [activeSection]);
+
+
+    // Handle back button behavior for internal navigation
+    useEffect(() => {
+        if (!canClose) return;
+
+        const backAction = () => {
+             const currentLevel = getLevel(activeSection);
+             if (currentLevel === 2) {
+                 setActiveSection('tools');
+                 return true;
+             }
+             if (currentLevel === 1) {
+                 setActiveSection('root');
+                 return true;
+             }
+             if (currentLevel === 0 && onClose) {
+                 onClose();
+                 return true;
+             }
+             return false;
+        };
+
+        const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+        return () => backHandler.remove();
+    }, [activeSection, canClose, onClose]);
 
     // Fetch models when API key changes
     useEffect(() => {
@@ -147,140 +201,373 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         setGoogleAndroidClientId,
     ]);
 
-    return (
-        <Layout>
-            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
-                {canClose ? (
-                     <View className="flex-row items-center px-4 pt-4 pb-2">
-                        <TouchableOpacity onPress={onClose} className="p-2 mr-2">
-                             <Ionicons name="arrow-back" size={24} color="white" />
-                        </TouchableOpacity>
-                        <Text className="text-2xl font-bold text-white">Settings</Text>
+    const renderHeader = (title: string, onBack: (() => void) | undefined) => (
+        <View className="flex-row items-center px-4 pt-4 pb-2">
+            <TouchableOpacity onPress={onBack} className="p-2 mr-2">
+                 <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+            <Text className="text-2xl font-bold text-white">{title}</Text>
+        </View>
+    );
+
+    const renderGeneralSettings = () => (
+        <Card>
+            <Input
+                label="Gemini API Key"
+                value={keyInput}
+                onChangeText={setKeyInput}
+                placeholder="AIza..."
+            />
+
+            <View className="mb-4">
+                <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">AI Model</Text>
+                <TouchableOpacity
+                    onPress={() => setShowModelPicker(true)}
+                    className="bg-slate-800/50 border border-slate-700 rounded-xl p-4"
+                >
+                    <Text className="text-white font-medium">{modelInput}</Text>
+                </TouchableOpacity>
+            </View>
+
+            <View className="mb-4">
+                <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">Obsidian Vault</Text>
+                <View className="flex-row gap-2">
+                    <View className="flex-1">
+                        {vaultUri ? (
+                            <Text className="text-green-400 bg-green-900/20 p-4 rounded-xl overflow-hidden border border-slate-700" numberOfLines={1}>
+                                {(() => {
+                                    // Extract human-readable path from SAF URI
+                                    const decoded = decodeURIComponent(vaultUri);
+                                    // Extract the path after "tree/" or "document/"
+                                    const pathMatch = decoded.match(/(?:tree|document)\/(.+?)$/);
+                                    if (pathMatch && pathMatch[1]) {
+                                        // Decode the encoded path and extract the readable part
+                                        const encodedPath = pathMatch[1];
+                                        // Handle formats like "primary:Documents/Vault"
+                                        const readablePath = encodedPath.replace(/primary:/, 'Internal Storage/');
+                                        return readablePath;
+                                    }
+                                    return decoded;
+                                })()}
+                            </Text>
+                        ) : (
+                            <Text className="text-slate-500 italic p-4 bg-slate-800/50 border border-slate-700 rounded-xl">No vault selected</Text>
+                        )}
                     </View>
-                ) : (
-                    <View className="justify-center min-h-screen">
-                        <Text className="text-3xl font-bold text-white mb-2 text-center mt-10">Welcome</Text>
-                        <Text className="text-indigo-200 text-center mb-8">Setup your AI Inbox</Text>
-                    </View>
-                )}
+                    <TouchableOpacity
+                        onPress={handlePickVault}
+                        className="px-4 py-4 rounded-xl bg-indigo-600"
+                    >
+                        <Text className="text-white font-semibold">{vaultUri ? "Change" : "Select"}</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
 
-                <View className={canClose ? "px-0" : ""}>
+            <FolderInput
+                label="Context Root Folder (Optional)"
+                value={rootFolderInput}
+                onChangeText={setRootFolderInput}
+                vaultUri={vaultUri}
+                folderStatus={folderStatus}
+                onCheckFolder={checkFolder}
+                placeholder="e.g., Inbox (leave empty for vault root)"
+            />
 
+            <FileInput
+                label="Custom Prompt File (Optional)"
+                value={promptPathInput}
+                onChangeText={setPromptPathInput}
+                vaultUri={vaultUri}
+                contextRootFolder={rootFolderInput}
+                fileStatus={promptFileStatus}
+                onCheckFile={checkPromptFile}
+                placeholder="e.g., ai-prompt.md"
+                fileExtension=".md"
+            />
 
-                    <Card>
-                        <Input 
-                            label="Gemini API Key" 
-                            value={keyInput} 
-                            onChangeText={setKeyInput} 
-                            placeholder="AIza..." 
-                        />
-
-                        <View className="mb-4">
-                            <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">AI Model</Text>
-                            <TouchableOpacity 
-                                onPress={() => setShowModelPicker(true)}
-                                className="bg-slate-800/50 border border-slate-700 rounded-xl p-4"
-                            >
-                                <Text className="text-white font-medium">{modelInput}</Text>
-                            </TouchableOpacity>
+            {/* Open in Obsidian button */}
+            {promptPathInput && promptFileStatus === 'valid' && (
+                <View className="mt-2 mb-4">
+                    <Button
+                        title="📝 Open Prompt File in Obsidian"
+                        onPress={async () => {
+                            if (!promptPathInput) return;
+                            await openInObsidian(promptPathInput, rootFolderInput);
+                        }}
+                        variant="secondary"
+                    />
+                </View>
+            )}
+            
+            <View className="mt-2 mb-2 pt-4 border-t border-slate-700">
+                <Text className="text-indigo-200 mb-2 font-semibold">Preferences</Text>
+                <TouchableOpacity 
+                    onPress={() => setTimeFormat(timeFormat === '24h' ? '12h' : '24h')} 
+                    className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
+                >
+                    <View className="flex-row items-center flex-1">
+                        <Ionicons name="time-outline" size={20} color="#818cf8" />
+                        <View className="ml-3 flex-1">
+                            <Text className="text-white font-medium">Time Format</Text>
+                            <Text className="text-slate-400 text-xs text-uppercase">{timeFormat} Format</Text>
                         </View>
-                        
-                        <View className="mb-4">
-                            <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">Obsidian Vault</Text>
-                            <View className="flex-row gap-2">
-                                <View className="flex-1">
-                                    {vaultUri ? (
-                                        <Text className="text-green-400 bg-green-900/20 p-4 rounded-xl overflow-hidden border border-slate-700" numberOfLines={1}>
-                                            {(() => {
-                                                // Extract human-readable path from SAF URI
-                                                const decoded = decodeURIComponent(vaultUri);
-                                                // Extract the path after "tree/" or "document/"
-                                                const pathMatch = decoded.match(/(?:tree|document)\/(.+?)$/);
-                                                if (pathMatch && pathMatch[1]) {
-                                                    // Decode the encoded path and extract the readable part
-                                                    const encodedPath = pathMatch[1];
-                                                    // Handle formats like "primary:Documents/Vault"
-                                                    const readablePath = encodedPath.replace(/primary:/, 'Internal Storage/');
-                                                    return readablePath;
-                                                }
-                                                return decoded;
-                                            })()}
-                                        </Text>
-                                    ) : (
-                                        <Text className="text-slate-500 italic p-4 bg-slate-800/50 border border-slate-700 rounded-xl">No vault selected</Text>
-                                    )}
-                                </View>
-                                <TouchableOpacity
-                                    onPress={handlePickVault}
-                                    className="px-4 py-4 rounded-xl bg-indigo-600"
-                                >
-                                    <Text className="text-white font-semibold">{vaultUri ? "Change" : "Select"}</Text>
+                    </View>
+                    <View className="bg-slate-700 rounded-lg flex-row p-1">
+                        <View className={`px-2 py-1 rounded-md ${timeFormat === '12h' ? 'bg-indigo-600' : ''}`}>
+                            <Text className="text-white text-xs font-bold">12H</Text>
+                        </View>
+                        <View className={`px-2 py-1 rounded-md ${timeFormat === '24h' ? 'bg-indigo-600' : ''}`}>
+                            <Text className="text-white text-xs font-bold">24H</Text>
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </View>
+        </Card>
+    );
+
+    const renderGoogleCalendarSettings = () => (
+        <Card>
+            <View className="mb-4">
+                <Text className="text-indigo-200 mb-2 font-semibold">Configuration</Text>
+                <Input
+                    label="Android Client ID"
+                    value={androidIdInput}
+                    onChangeText={setAndroidIdInput}
+                    placeholder="...apps.googleusercontent.com"
+                />
+            </View>
+
+            <View className="border-t border-slate-700 pt-4">
+                <Text className="text-indigo-200 mb-2 font-semibold">Account Status</Text>
+                <GoogleSettings
+                    androidClientId={androidIdInput}
+                />
+            </View>
+        </Card>
+    );
+
+    const renderMenuButton = (title: string, icon: keyof typeof Ionicons.glyphMap, onPress: () => void, subtitle?: string) => (
+        <TouchableOpacity
+            onPress={onPress}
+            className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-3 flex-row items-center justify-between"
+        >
+            <View className="flex-row items-center flex-1">
+                <View className="w-10 h-10 rounded-full bg-slate-700 items-center justify-center mr-3">
+                    <Ionicons name={icon} size={20} color="#818cf8" />
+                </View>
+                <View>
+                    <Text className="text-white font-semibold text-lg">{title}</Text>
+                    {subtitle && <Text className="text-slate-400 text-sm">{subtitle}</Text>}
+                </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#64748b" />
+        </TouchableOpacity>
+    );
+
+    const renderRootMenu = () => (
+        <View className="px-4 mt-2">
+            {renderMenuButton(
+                "General",
+                "settings-outline",
+                () => setActiveSection('general'),
+                "API Keys, Vault, Model"
+            )}
+            {renderMenuButton(
+                "Tools",
+                "link-outline",
+                () => setActiveSection('tools'),
+                "Google Calendar, External Apps"
+            )}
+        </View>
+    );
+
+    const renderToolsMenu = () => (
+        <View className="px-4 mt-2">
+            {renderMenuButton(
+                "Google Calendar",
+                "calendar-outline",
+                () => setActiveSection('google-calendar'),
+                "Schedule events from notes"
+            )}
+            {renderMenuButton(
+                "Reminders",
+                "alarm-outline",
+                () => setActiveSection('reminders'),
+                "Local notifications from notes"
+            )}
+        </View>
+    );
+
+    // If welcome mode, show everything in one list (simplified for initial setup)
+    const renderWelcomeContent = () => (
+        <View>
+              <View className="justify-center mt-10 mb-8">
+                    <Text className="text-3xl font-bold text-white mb-2 text-center">Welcome</Text>
+                    <Text className="text-indigo-200 text-center">Setup your AI Inbox</Text>
+                </View>
+            {renderGeneralSettings()}
+            <View className="h-4" />
+            <View className="px-4">
+                 <Text className="text-xl font-bold text-white mb-2">Integrations</Text>
+            </View>
+            {renderGoogleCalendarSettings()}
+
+            <View className="mt-8 mb-8 px-4">
+                <Button title="Save & Continue" onPress={handleSave} disabled={!keyInput || !vaultUri} />
+            </View>
+        </View>
+    );
+    
+    // Animation Interpolations
+    const rootTranslateX = slideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, -SCREEN_WIDTH],
+        extrapolate: 'clamp',
+    });
+    
+    const rootOpacity = slideAnim.interpolate({
+        inputRange: [0, 0.5, 1],
+        outputRange: [1, 0, 0],
+        extrapolate: 'clamp',
+    });
+
+    const level1TranslateX = slideAnim.interpolate({
+        inputRange: [0, 1, 2],
+        outputRange: [SCREEN_WIDTH, 0, -SCREEN_WIDTH],
+        extrapolate: 'clamp',
+    });
+    
+    const level1Opacity = slideAnim.interpolate({
+        inputRange: [0, 0.5, 1, 1.5, 2],
+        outputRange: [0, 0, 1, 0, 0],
+        extrapolate: 'clamp',
+    });
+
+    const level2TranslateX = slideAnim.interpolate({
+        inputRange: [1, 2],
+        outputRange: [SCREEN_WIDTH, 0],
+        extrapolate: 'clamp',
+    });
+    
+     const level2Opacity = slideAnim.interpolate({
+        inputRange: [1, 1.5, 2],
+        outputRange: [0, 0, 1],
+        extrapolate: 'clamp',
+    });
+
+
+    // If canClose is false, we are in initial setup, so no fancy animations needed (or just render standard)
+    if (!canClose) {
+         return (
+            <Layout>
+                 <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                     {renderWelcomeContent()}
+                 </ScrollView>
+                 {/* Modals ... */}
+                  <Modal visible={showModelPicker} transparent animationType="slide">
+                    <View className="flex-1 justify-end bg-black/50">
+                        <View className="bg-slate-900 rounded-t-3xl p-6 max-h-[70%]">
+                            <View className="flex-row justify-between items-center mb-4">
+                                <Text className="text-white text-xl font-bold">Select AI Model</Text>
+                                <TouchableOpacity onPress={() => setShowModelPicker(false)}>
+                                    <Ionicons name="close" size={24} color="white" />
                                 </TouchableOpacity>
                             </View>
+                            <ScrollView>
+                                {availableModels.map((model) => (
+                                    <TouchableOpacity
+                                        key={model}
+                                        onPress={() => {
+                                            setModelInput(model);
+                                            setShowModelPicker(false);
+                                        }}
+                                        className={`p-4 rounded-xl mb-2 ${modelInput === model ? 'bg-indigo-600' : 'bg-slate-800'}`}
+                                    >
+                                        <Text className="text-white font-medium">{model}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
                         </View>
+                    </View>
+                </Modal>
+            </Layout>
+         );
+    }
 
-                        <FolderInput
-                            label="Context Root Folder (Optional)"
-                            value={rootFolderInput}
-                            onChangeText={setRootFolderInput}
-                            vaultUri={vaultUri}
-                            folderStatus={folderStatus}
-                            onCheckFolder={checkFolder}
-                            placeholder="e.g., Inbox (leave empty for vault root)"
-                        />
-                        
-                        <FileInput
-                            label="Custom Prompt File (Optional)"
-                            value={promptPathInput}
-                            onChangeText={setPromptPathInput}
-                            vaultUri={vaultUri}
-                            contextRootFolder={rootFolderInput}
-                            fileStatus={promptFileStatus}
-                            onCheckFile={checkPromptFile}
-                            placeholder="e.g., ai-prompt.md"
-                            fileExtension=".md"
-                        />
-                        
-                        {/* Open in Obsidian button */}
-                        {promptPathInput && promptFileStatus === 'valid' && (
-                            <View className="mt-2 mb-4">
-                                <Button 
-                                    title="📝 Open Prompt File in Obsidian" 
-                                    onPress={async () => {
-                                        if (!promptPathInput) return;
-                                        await openInObsidian(promptPathInput, rootFolderInput);
-                                    }} 
-                                    variant="secondary" 
-                                />
-                            </View>
+    return (
+        <Layout>
+            <View className="flex-1 relative overflow-hidden">
+                {/* Level 0: Root */}
+                <Animated.View style={{ 
+                    position: 'absolute', 
+                    top: 0, bottom: 0, left: 0, right: 0, 
+                    transform: [{ translateX: rootTranslateX }],
+                    zIndex: 0
+                }}>
+                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                         {renderHeader("Settings", onClose)}
+                         {renderRootMenu()}
+                     </ScrollView>
+                </Animated.View>
+
+                {/* Level 1: General OR Tools */}
+                <Animated.View style={{ 
+                    position: 'absolute', 
+                    top: 0, bottom: 0, left: 0, right: 0, 
+                    transform: [{ translateX: level1TranslateX }],
+                    zIndex: 1
+                }}>
+                    <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                        {activeSection === 'general' && (
+                             <>
+                                {renderHeader("General", () => setActiveSection('root'))}
+                                <View className="px-0">{renderGeneralSettings()}</View>
+                             </>
                         )}
-                        
-                        <View className="mt-4 border-t border-slate-700 pt-4">
-                            <Text className="text-xl font-bold text-white mb-4">Google Calendar</Text> 
-                            
-                             <View className="mb-4">
-                                <Input 
-                                    label="Android Client ID" 
-                                    value={androidIdInput} 
-                                    onChangeText={setAndroidIdInput} 
-                                    placeholder="...apps.googleusercontent.com" 
-                                />
-                             </View>
+                        {/* 
+                           Note: if we are in level 2 (e.g. reminders), activeSection is 'reminders'.
+                           But we need to Render Tools menu here if we are sliding OUT to the left?
+                           Actually, if activeSection is 'reminders', level is 2.
+                           This view (Level 1) is at -SCREEN_WIDTH.
+                           It should contain "Tools" content if we came through Tools.
+                           Logic gap: activeSection determines content.
+                           If activeSection is 'reminders', the logic above relies on activeSection === 'general' to show generic settings.
+                           We need to know the PATH.
+                           Solution: Check if activeSection implies 'tools' parent.
+                        */}
+                        {(activeSection === 'tools' || activeSection === 'google-calendar' || activeSection === 'reminders') && (
+                             <>
+                                {renderHeader("Tools", () => setActiveSection('root'))}
+                                {renderToolsMenu()}
+                             </>
+                        )}
+                    </ScrollView>
+                </Animated.View>
 
-                            {/* Google Settings (Connect/Disconnect) */}
-                             <GoogleSettings 
-                                androidClientId={androidIdInput}
-                             />
-                        </View>
-                    </Card>
+                {/* Level 2: Sub-tools */}
+                <Animated.View style={{ 
+                    position: 'absolute', 
+                    top: 0, bottom: 0, left: 0, right: 0, 
+                    transform: [{ translateX: level2TranslateX }],
+                    zIndex: 2
+                }}>
+                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                         {activeSection === 'google-calendar' && (
+                             <>
+                                {renderHeader("Google Calendar", () => setActiveSection('tools'))}
+                                <View className="px-0">{renderGoogleCalendarSettings()}</View>
+                             </>
+                         )}
+                         {activeSection === 'reminders' && (
+                              <>
+                                {renderHeader("Reminders", () => setActiveSection('tools'))}
+                                <View className="px-0"><RemindersSettings /></View>
+                              </>
+                         )}
+                     </ScrollView>
+                </Animated.View>
 
-                    {!canClose && (
-                        <View className="mt-8 mb-8">
-                            <Button title="Save & Continue" onPress={handleSave} disabled={!keyInput || !vaultUri} />
-                        </View>
-                    )}
-                </View>
-            </ScrollView>
+            </View>
 
             {/* Model Selection Modal */}
             <Modal visible={showModelPicker} transparent animationType="slide">
