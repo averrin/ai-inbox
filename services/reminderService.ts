@@ -210,8 +210,16 @@ export async function updateReminder(fileUri: string, newTime: string | null, re
             // Trigger global sync to update notifications
             await syncAllReminders();
         }
-    } catch (e) {
-        console.error('[ReminderService] Failed to update reminder:', e);
+    } catch (e: any) {
+        console.warn('[ReminderService] Failed to update reminder file:', e);
+
+        // If file not found/readable, we should still trigger a sync
+        // This allows the notification for a deleted file to be cleaned up
+        if (e.message?.includes('not readable') || e.message?.includes('does not exist')) {
+            console.log('[ReminderService] File missing, triggering cleanup sync...');
+            await syncAllReminders();
+            return; // Treated as success (cleanup)
+        }
         throw e;
     }
 }
@@ -314,24 +322,48 @@ async function manageNotifications(activeReminders: Reminder[]) {
         const intervalMs = (resendInterval || 10) * 60 * 1000;
 
         for (const notification of presented) {
-             const fileUri = notification.request.content.data?.fileUri;
-             if (!fileUri) continue;
+            const fileUri = notification.request.content.data?.fileUri as string;
+            if (!fileUri) continue;
 
-             const triggerTime = notification.date; // timestamp when it was shown
-             if (now - triggerTime > intervalMs) {
-                 // It's stale and ignored. Resend!
-                 console.log(`[DEBUG_REMINDER] Resending missed notification for ${notification.request.content.title}`);
+            const triggerTime = notification.date; // timestamp when it was shown
+            if (now - triggerTime > intervalMs) {
+                // It's stale and ignored. Resend!
+                console.log(`[DEBUG_REMINDER] Resending missed notification for ${notification.request.content.title}`);
 
-                 // Cancel the old one to clear it from tray
-                 await Notifications.dismissNotificationAsync(notification.request.identifier);
+                // Cancel the old one to clear it from tray
+                await Notifications.dismissNotificationAsync(notification.request.identifier);
 
-                 // Schedule a new one immediately
-                 // We need the reminder object. We can try to get it from data, or find it in activeReminders.
-                 const reminderData = notification.request.content.data?.reminder as Reminder;
-                 if (reminderData) {
-                     await scheduleNotification(reminderData, true);
-                 }
-             }
+                // Schedule a new one immediately
+                // Try to get reminder from payload, but fallback to active list (payload might be truncated or stale)
+                // Also using active list ensures we don't resend deleted reminders
+                let reminderData = activeReminders.find(r => r.fileUri === fileUri);
+
+                if (!reminderData) {
+                    // Fallback: Try to read the file directly. 
+                    // This handles cases where the full scan failed or is incomplete, but the file still exists.
+                    try {
+                        const recovered: Reminder[] = [];
+                        await checkFileForReminder(fileUri, recovered);
+                        if (recovered.length > 0) {
+                            reminderData = recovered[0];
+                            console.log(`[DEBUG_REMINDER] Recovered reminder data via direct read for ${fileUri}`);
+                        }
+                    } catch (e) {
+                        console.warn(`[DEBUG_REMINDER] Direct read recovery failed for ${fileUri}`, e);
+                    }
+                }
+
+                if (!reminderData) {
+                    // Final Fallback: Payload
+                    reminderData = notification.request.content.data?.reminder as Reminder;
+                }
+
+                if (reminderData) {
+                    await scheduleNotification(reminderData, true);
+                } else {
+                    console.log(`[DEBUG_REMINDER] skipped resend for ${fileUri} - not found in active reminders`);
+                }
+            }
         }
     }
 

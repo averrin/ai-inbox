@@ -59,8 +59,7 @@ export function LongPressButton({
                 duration: remainingDuration,
                 easing: Easing.linear,
             }, (finished) => {
-                if (finished && !longPressTriggered.current) {
-                    longPressTriggered.current = true;
+                if (finished) {
                     runOnJS(handleLongPressComplete)();
                 }
             });
@@ -69,7 +68,6 @@ export function LongPressButton({
 
     const handlePressOut = () => {
         if (disabled) return;
-        const pressDuration = Date.now() - pressStartTime.current;
         
         // Clear the timeout - if released before threshold, animation never starts
         if (animationTimeout.current) {
@@ -78,23 +76,23 @@ export function LongPressButton({
         }
 
         if (isPressed) {
-            // Animation WAS showing
+            // Animation WAS showing, stop it
             cancelAnimation(progress);
             progress.value = withTiming(0, { duration: 150 });
             setIsPressed(false);
-            
-            // If released here (after threshold but before completion), DO NOTHING (Reset)
-            // This is the "medium press cancels" logic
-        } else {
-            // Animation NOT showing (Brief press)
-            if (pressDuration < SHORT_PRESS_THRESHOLD) {
-                onPress();
-            }
+        }
+
+        // If long press didn't trigger yet, treat as short press
+        if (!longPressTriggered.current) {
+            onPress();
         }
     };
 
     const handleLongPressComplete = () => {
-        onLongPress();
+        if (!longPressTriggered.current) {
+            longPressTriggered.current = true;
+            onLongPress();
+        }
         setIsPressed(false);
         progress.value = withTiming(0, { duration: 150 });
     };

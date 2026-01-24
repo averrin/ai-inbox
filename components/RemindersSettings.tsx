@@ -193,21 +193,42 @@ Ensure the app is in background to test the notification, or foreground to test 
 
     const handleDeleteReminder = async (reminder: Reminder) => {
         Alert.alert(
-            "Disable Reminder",
-            "Are you sure you want to remove this reminder?",
+            "Remove Reminder",
+            "Do you want to remove just the reminder property or delete the entire note?",
             [
                 { text: "Cancel", style: "cancel" },
                 {
-                    text: "Remove",
-                    style: "destructive",
+                    text: "Remove Reminder Only",
                     onPress: async () => {
                         setLoading(true);
                         try {
                             await updateReminder(reminder.fileUri, null);
                             await loadReminders();
                             await syncAllReminders(); // Clean up notification
+                            Toast.show({ type: 'success', text1: 'Reminder Removed' });
                         } catch (e) {
                             Alert.alert("Error", "Failed to remove reminder");
+                        }
+                        setLoading(false);
+                    }
+                },
+                {
+                    text: "Delete Note",
+                    style: "destructive",
+                    onPress: async () => {
+                        setLoading(true);
+                        try {
+                            const { deleteFile } = await import('../utils/saf');
+                            const success = await deleteFile(reminder.fileUri);
+                            if (success) {
+                                await loadReminders();
+                                await syncAllReminders();
+                                Toast.show({ type: 'success', text1: 'Note Deleted' });
+                            } else {
+                                throw new Error("Delete failed");
+                            }
+                        } catch (e) {
+                            Alert.alert("Error", "Failed to delete note");
                         }
                         setLoading(false);
                     }

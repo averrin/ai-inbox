@@ -5,9 +5,11 @@ import { Layout } from '../ui/Layout';
 import { Button } from '../ui/Button';
 import { LinkAttachment } from '../ui/LinkAttachment';
 import { FileAttachment } from '../ui/FileAttachment';
-import { TextEditor } from '../ui/TextEditor';
+import { RichTextEditor } from '../RichTextEditor'; // Updated import
 import { LongPressButton } from '../ui/LongPressButton';
 import { URLMetadata } from '../../utils/urlMetadata';
+import { useSettingsStore } from '../../store/settings';
+import { SimpleTextEditor } from '../SimpleTextEditor';
 
 interface InputScreenProps {
     inputText: string;
@@ -60,6 +62,7 @@ export function InputScreen({
     links,
     onRemoveLink,
 }: InputScreenProps) {
+    const { editorType } = useSettingsStore();
     return (
         <Layout>
             <KeyboardAvoidingView 
@@ -85,17 +88,31 @@ export function InputScreen({
                     keyboardShouldPersistTaps="handled"
                 >
                     {/* Text Editor */}
-                    <TextEditor
-                        value={inputText}
-                        onChangeText={onInputTextChange}
-                        placeholder="Paste URL or type your thought..."
-                        onAttach={onAttach}
-                        onCamera={onCamera}
-                        onRecord={onRecord}
-                        recording={recording}
-                        disabled={disabled}
-                        autoFocus
-                    />
+                    {editorType === 'simple' ? (
+                        <SimpleTextEditor
+                            value={inputText}
+                            onChangeText={onInputTextChange}
+                            placeholder="Paste URL or type your thought..."
+                            onAttach={onAttach}
+                            onCamera={onCamera}
+                            onRecord={onRecord}
+                            recording={recording}
+                            disabled={disabled}
+                            autoFocus
+                        />
+                    ) : (
+                        <RichTextEditor
+                            value={inputText}
+                            onChangeText={onInputTextChange}
+                            placeholder="Paste URL or type your thought..."
+                            onAttach={onAttach}
+                            onCamera={onCamera}
+                            onRecord={onRecord}
+                            recording={recording}
+                            disabled={disabled}
+                            autoFocus
+                        />
+                    )}
 
                     {/* File attachment info */}
                     {attachedFiles.length > 0 && (

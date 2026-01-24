@@ -127,9 +127,32 @@ export async function getMostUsedTags(vaultUri: string, contextFolder: string | 
             .slice(0, 5);
 
         return sortedTags;
-
     } catch (e) {
         console.error('[TagScanner] Error:', e);
         return [];
     }
+}
+
+// Extract tags from VaultService metadata cache
+export function getTagsFromCache(metadataCache: Record<string, { display: string }>): string[] {
+    const allTags = new Map<string, number>();
+
+    Object.values(metadataCache).forEach(file => {
+        // match [tag1, tag2]
+        const match = file.display.match(/\[(.*?)\]/);
+        if (match) {
+            // Split and clean
+            const tags = match[1].split(',').map(t => t.trim());
+            tags.forEach(t => {
+                if (t) {
+                    allTags.set(t, (allTags.get(t) || 0) + 1);
+                }
+            });
+        }
+    });
+
+    // Return unique tags sorted by frequency desc
+    return Array.from(allTags.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(entry => entry[0]);
 }

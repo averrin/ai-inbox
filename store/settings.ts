@@ -37,6 +37,8 @@ interface SettingsState {
     setTimeFormat: (format: '12h' | '24h') => void;
     cachedReminders: any[]; // Using any[] to avoid circular dependency with Reminder type
     setCachedReminders: (reminders: any[]) => void;
+    editorType: 'rich' | 'simple';
+    setEditorType: (type: 'rich' | 'simple') => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -76,6 +78,8 @@ export const useSettingsStore = create<SettingsState>()(
             setTimeFormat: (format) => set({ timeFormat: format }),
             cachedReminders: [],
             setCachedReminders: (reminders) => set({ cachedReminders: reminders }),
+            editorType: 'rich',
+            setEditorType: (type) => set({ editorType: type }),
         }),
         {
             name: 'ai-inbox-settings',
