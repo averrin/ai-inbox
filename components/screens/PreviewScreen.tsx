@@ -8,7 +8,8 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { FolderInput } from '../ui/FolderInput';
 import { FileAttachment } from '../ui/FileAttachment';
-import { TextEditor } from '../ui/TextEditor';
+import { RichTextEditor } from '../RichTextEditor';
+import { SimpleTextEditor } from '../SimpleTextEditor';
 import { ProcessedNote } from '../../services/gemini';
 
 import { LongPressButton } from '../ui/LongPressButton';
@@ -18,6 +19,8 @@ import { EventInfo } from '../ui/EventInfo';
 import { ReminderEditModal } from '../ReminderEditModal';
 import { URLMetadata } from '../../utils/urlMetadata';
 import { useSettingsStore } from '../../store/settings';
+import { useVaultStore } from '../../services/vaultService';
+import { getTagsFromCache } from '../../utils/tagUtils';
 
 interface PreviewScreenProps {
     data: ProcessedNote;
@@ -108,7 +111,7 @@ export function PreviewScreen({
     totalTabs = 1,
     onTabChange,
 }: PreviewScreenProps) {
-    const { timeFormat } = useSettingsStore();
+    const { timeFormat, editorType } = useSettingsStore();
 
 
     // State for reminder editing
@@ -355,20 +358,37 @@ export function PreviewScreen({
                     {/* Body Content */}
                     <View className={`mb-4 ${isFocused ? 'flex-1 mt-4' : ''}`}>
                         {!isFocused && <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Content</Text>}
-                        <TextEditor
-                            value={body}
-                            onChangeText={onBodyChange}
-                            placeholder="Note content..."
-                            onAttach={onAttach}
-                            onCamera={onCamera}
-                            onRecord={onRecord}
-                            recording={recording}
-                            disabled={saving}
-                            onFocus={() => setIsFocused(true)}
-                            onBlur={() => { /* Wait for user to explicitly exit focus mode via back button */ }}
-                            containerStyle={isFocused ? { flex: 1, marginBottom: 0 } : undefined}
-                            inputStyle={isFocused ? { maxHeight: undefined, height: '100%' } : undefined}
-                        />
+                        {editorType === 'simple' ? (
+                            <SimpleTextEditor
+                                value={body}
+                                onChangeText={onBodyChange}
+                                placeholder="Note content..."
+                                onAttach={onAttach}
+                                onCamera={onCamera}
+                                onRecord={onRecord}
+                                recording={recording}
+                                disabled={saving}
+                                onFocus={() => setIsFocused(true)}
+                                onBlur={() => { /* Wait for user to explicitly exit focus mode via back button */ }}
+                                containerStyle={isFocused ? { flex: 1, marginBottom: 0 } : undefined}
+                                inputStyle={isFocused ? { maxHeight: undefined, height: '100%' } : undefined}
+                            />
+                        ) : (
+                            <RichTextEditor
+                                value={body}
+                                onChangeText={onBodyChange}
+                                placeholder="Note content..."
+                                onAttach={onAttach}
+                                onCamera={onCamera}
+                                onRecord={onRecord}
+                                recording={recording}
+                                disabled={saving}
+                                onFocus={() => setIsFocused(true)}
+                                onBlur={() => { /* Wait for user to explicitly exit focus mode via back button */ }}
+                                containerStyle={isFocused ? { flex: 1, marginBottom: 0 } : undefined}
+                                inputStyle={isFocused ? { maxHeight: undefined, height: '100%' } : undefined}
+                            />
+                        )}
                     </View>
 
                 </Animated.View>
@@ -431,7 +451,7 @@ export function PreviewScreen({
                                 <Ionicons name="close" size={24} color="white" />
                             </TouchableOpacity>
                         </View>
-                        <View className="flex-row gap-2">
+                        <View className="flex-row gap-2 mb-2">
                             <View className="flex-1">
                                 <TextInput
                                     value={newTag}
@@ -451,6 +471,37 @@ export function PreviewScreen({
                                 <Text className="text-white font-semibold">Add</Text>
                             </TouchableOpacity>
                         </View>
+
+                        {/* Tag Suggestions */}
+                        {(() => {
+                            // Get tags from cache
+                            const vaultCache = useVaultStore((state) => state.metadataCache);
+                            const allTags = React.useMemo(() => getTagsFromCache(vaultCache), [vaultCache]);
+                            const suggestions = allTags
+                                .filter(t => !tags.includes(t) && t.toLowerCase().includes(newTag.toLowerCase()))
+                                .slice(0, 10); // Limit to 10
+                            
+                            if (suggestions.length === 0) return null;
+
+                            return (
+                                <View className="mt-2 max-h-40">
+                                    <Text className="text-slate-400 text-xs font-bold mb-2 uppercase">Suggestions</Text>
+                                    <ScrollView style={{ maxHeight: 150 }} keyboardShouldPersistTaps="handled">
+                                        <View className="flex-row flex-wrap gap-2">
+                                            {suggestions.map(tag => (
+                                                <TouchableOpacity 
+                                                    key={tag}
+                                                    onPress={() => onNewTagChange(tag)}
+                                                    className="bg-slate-800 border border-slate-700 px-3 py-2 rounded-lg"
+                                                >
+                                                    <Text className="text-slate-300 text-sm">#{tag}</Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </ScrollView>
+                                </View>
+                            );
+                        })()}
                     </View>
                 </View>
             </Modal>

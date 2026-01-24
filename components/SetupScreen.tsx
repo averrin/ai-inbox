@@ -19,7 +19,7 @@ type SettingsSection = 'root' | 'general' | 'tools' | 'google-calendar' | 'remin
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
-    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat } = useSettingsStore();
+    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
     const [androidIdInput, setAndroidIdInput] = useState(googleAndroidClientId || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
@@ -321,6 +321,27 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                         </View>
                     </View>
                 </TouchableOpacity>
+
+                <TouchableOpacity 
+                    onPress={() => setEditorType(editorType === 'rich' ? 'simple' : 'rich')} 
+                    className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between mt-2"
+                >
+                    <View className="flex-row items-center flex-1">
+                        <Ionicons name="text-outline" size={20} color="#818cf8" />
+                        <View className="ml-3 flex-1">
+                            <Text className="text-white font-medium">Text Editor</Text>
+                            <Text className="text-slate-400 text-xs">Use classic editor if experiencing issues</Text>
+                        </View>
+                    </View>
+                    <View className="bg-slate-700 rounded-lg flex-row p-1">
+                        <View className={`px-2 py-1 rounded-md ${editorType === 'rich' ? 'bg-indigo-600' : ''}`}>
+                            <Text className="text-white text-xs font-bold">Rich</Text>
+                        </View>
+                        <View className={`px-2 py-1 rounded-md ${editorType === 'simple' ? 'bg-indigo-600' : ''}`}>
+                            <Text className="text-white text-xs font-bold">Simple</Text>
+                        </View>
+                    </View>
+                </TouchableOpacity>
             </View>
         </Card>
     );
@@ -460,7 +481,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     if (!canClose) {
          return (
             <Layout>
-                 <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                 <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
                      {renderWelcomeContent()}
                  </ScrollView>
                  {/* Modals ... */}
@@ -504,7 +525,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     transform: [{ translateX: rootTranslateX }],
                     zIndex: 0
                 }}>
-                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
                          {renderHeader("Settings", onClose)}
                          {renderRootMenu()}
                      </ScrollView>
@@ -517,7 +538,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     transform: [{ translateX: level1TranslateX }],
                     zIndex: 1
                 }}>
-                    <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                    <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
                         {activeSection === 'general' && (
                              <>
                                 {renderHeader("General", () => setActiveSection('root'))}
@@ -551,7 +572,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     transform: [{ translateX: level2TranslateX }],
                     zIndex: 2
                 }}>
-                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
                          {activeSection === 'google-calendar' && (
                              <>
                                 {renderHeader("Google Calendar", () => setActiveSection('tools'))}
