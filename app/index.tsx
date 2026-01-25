@@ -28,6 +28,7 @@ export default function Home() {
 
   if (hasShareIntent && (shareIntent.type === 'text' || shareIntent.type === 'weburl' || shareIntent.type === 'media' || shareIntent.webUrl || shareIntent.text || (shareIntent.files && shareIntent.files.length > 0))) {
      return <ProcessingScreen 
+        key="share-intent"
         shareIntent={shareIntent} 
         onReset={resetShareIntent} 
      />;
@@ -37,7 +38,7 @@ export default function Home() {
   const emptyIntent: ShareIntent = { type: 'text', text: '', webUrl: '', files: null };
   
   return <ProcessingScreen 
-    key={resetKey}
+    key={`empty-intent-${resetKey}`}
     shareIntent={emptyIntent} 
     onReset={() => BackHandler.exitApp()} 
   />;

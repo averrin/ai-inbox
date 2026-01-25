@@ -81,8 +81,25 @@ const toastConfig: ToastConfig = {
 
 function AppContent() {
   const { activeReminder, showReminder, closeReminder } = useReminderModal();
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
+  const notificationListener = useRef<Notifications.Subscription | undefined>(undefined);
+  const responseListener = useRef<Notifications.Subscription | undefined>(undefined);
+  const lastNotificationResponse = Notifications.useLastNotificationResponse();
+
+  useEffect(() => {
+    if (lastNotificationResponse) {
+      const { fileUri, reminder } = lastNotificationResponse.notification.request.content.data || {};
+      if (reminder) {
+        showReminder(reminder as Reminder);
+      } else if (fileUri) {
+        scanForReminders().then(reminders => {
+          const found = reminders.find(r => r.fileUri === fileUri);
+          if (found) {
+            showReminder(found);
+          }
+        });
+      }
+    }
+  }, [lastNotificationResponse]);
 
   useEffect(() => {
     // Register background task on app launch
@@ -107,7 +124,7 @@ function AppContent() {
       }
     });
 
-    // Listen for notification taps (when app opened from notification)
+    // Listen for notification taps (when app is already open)
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       const { fileUri, reminder } = response.notification.request.content.data || {};
       
