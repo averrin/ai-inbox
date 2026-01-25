@@ -29,8 +29,7 @@ export function GoogleSettings({ androidClientId }: GoogleSettingsProps) {
             'https://www.googleapis.com/auth/userinfo.profile'
         ],
         redirectUri: makeRedirectUri({
-            scheme: 'aiinbox',
-            path: 'oauth2redirect'
+            scheme: 'aiinbox'
         }),
     });
 
