@@ -21,8 +21,7 @@ export class GoogleAuthService {
             scopes: ['https://www.googleapis.com/auth/tasks'],
             responseType: ResponseType.Code,
             redirectUri: makeRedirectUri({
-                scheme: 'aiinbox',
-                path: 'oauth2redirect'
+                scheme: 'aiinbox'
             }),
             usePKCE: true,
         };
