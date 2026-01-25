@@ -851,7 +851,13 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     useEffect(() => {
         const hasContent = !!(shareIntent?.text || shareIntent?.webUrl || (shareIntent?.files && shareIntent.files.length > 0));
 
-        if (hasContent && !inputMode) {
+        // If content is present, and we are either not in input mode OR we are in input mode but haven't typed anything yet
+        // (handling race condition where intent arrives slightly after mount)
+        const isCleanInput = inputMode && !inputText && attachedFiles.length === 0;
+
+        if (hasContent && (!inputMode || isCleanInput)) {
+             if (isCleanInput) setInputMode(false);
+
              // If files came in via prop update (not mount), we need to sync state
              if (shareIntent?.files && shareIntent.files.length > 0) {
                  const currentUris = new Set(attachedFiles.map(f => f.uri));
