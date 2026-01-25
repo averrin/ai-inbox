@@ -30,7 +30,7 @@ export function GoogleSettings({ androidClientId }: GoogleSettingsProps) {
         ],
         redirectUri: makeRedirectUri({
             scheme: 'aiinbox',
-            path: ''
+            path: 'oauth2redirect'
         }),
     });
 

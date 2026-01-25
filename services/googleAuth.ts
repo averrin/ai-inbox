@@ -1,4 +1,4 @@
-import { refreshAsync, TokenResponse, AuthRequestConfig, ResponseType } from 'expo-auth-session';
+import { refreshAsync, TokenResponse, AuthRequestConfig, ResponseType, makeRedirectUri } from 'expo-auth-session';
 import { useGoogleStore } from '../store/googleStore';
 import { useSettingsStore } from '../store/settings';
 
@@ -20,7 +20,10 @@ export class GoogleAuthService {
             androidClientId: googleAndroidClientId || undefined,
             scopes: ['https://www.googleapis.com/auth/tasks'],
             responseType: ResponseType.Code,
-            redirectUri: 'aiinbox://oauth2redirect',
+            redirectUri: makeRedirectUri({
+                scheme: 'aiinbox',
+                path: 'oauth2redirect'
+            }),
             usePKCE: true,
         };
     }
