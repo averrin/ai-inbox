@@ -38,7 +38,8 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     const [data, setData] = useState<ProcessedNote[] | null>(null);
     const [activeNoteIndex, setActiveNoteIndex] = useState(0);
 
-    const [inputMode, setInputMode] = useState(!shareIntent?.text && !shareIntent?.webUrl);
+    const hasShareContent = !!(shareIntent?.text || shareIntent?.webUrl || (shareIntent?.files && shareIntent.files.length > 0));
+    const [inputMode, setInputMode] = useState(!hasShareContent);
     const [inputText, setInputText] = useState((shareIntent?.text || shareIntent?.webUrl) ?? '');
     
     // Edit state
@@ -52,7 +53,14 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     
     // Attachment & recording
-    const [attachedFiles, setAttachedFiles] = useState<{ uri: string; name: string; size: number; mimeType: string }[]>([]);
+    const [attachedFiles, setAttachedFiles] = useState<{ uri: string; name: string; size: number; mimeType: string }[]>(
+        shareIntent?.files?.map((f: any) => ({
+             uri: f.uri || f.path,
+             name: f.fileName || f.name || 'file',
+             size: f.fileSize || f.size || 0,
+             mimeType: f.mimeType || 'application/octet-stream'
+        })) || []
+    );
     const [links, setLinks] = useState<URLMetadata[]>([]);
     const [recording, setRecording] = useState<Audio.Recording | undefined>();
     
@@ -839,14 +847,33 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         }
     };
 
-    // Auto-analyze on mount
+    // Auto-analyze on mount or intent change
     useEffect(() => {
-        if (!inputMode && (shareIntent?.text || shareIntent?.webUrl)) {
+        const hasContent = !!(shareIntent?.text || shareIntent?.webUrl || (shareIntent?.files && shareIntent.files.length > 0));
+
+        if (hasContent && !inputMode) {
+             // If files came in via prop update (not mount), we need to sync state
+             if (shareIntent?.files && shareIntent.files.length > 0) {
+                 const currentUris = new Set(attachedFiles.map(f => f.uri));
+                 const newFiles = shareIntent.files
+                    .filter((f: any) => !currentUris.has(f.uri || f.path))
+                    .map((f: any) => ({
+                        uri: f.uri || f.path,
+                        name: f.fileName || f.name || 'file',
+                        size: f.fileSize || f.size || 0,
+                        mimeType: f.mimeType || 'application/octet-stream'
+                    }));
+
+                 if (newFiles.length > 0) {
+                     setAttachedFiles(prev => [...prev, ...newFiles]);
+                 }
+             }
+
             analyze((shareIntent?.text || shareIntent?.webUrl) ?? '');
         } else {
             setLoading(false);
         }
-    }, []);
+    }, [shareIntent]);
 
     const settingsModal = (
         <Modal visible={internalShowSettings} animationType="slide" onRequestClose={() => setInternalShowSettings(false)}>
