@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 export default function Home() {
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent({
     debug: true,
-    resetOnBackground: true,
+    resetOnBackground: false,
   });
   const { apiKey, vaultUri } = useSettingsStore();
   const [resetKey, setResetKey] = useState(0); // Key to force re-mount/reset
@@ -26,20 +26,21 @@ export default function Home() {
     return <SetupScreen canClose={false} />;
   }
 
-  if (hasShareIntent && (shareIntent.type === 'text' || shareIntent.type === 'weburl' || shareIntent.type === 'media' || shareIntent.webUrl || shareIntent.text || (shareIntent.files && shareIntent.files.length > 0))) {
-     return <ProcessingScreen 
-        key="share-intent"
-        shareIntent={shareIntent} 
-        onReset={resetShareIntent} 
-     />;
-  }
+  // Unify intent handling to allow ProcessingScreen to react to prop updates
+  // (Fixes race condition where share intent arrives after mount)
+  const effectiveIntent = (hasShareIntent && (shareIntent.type === 'text' || shareIntent.type === 'weburl' || shareIntent.type === 'media' || shareIntent.webUrl || shareIntent.text || (shareIntent.files && shareIntent.files.length > 0)))
+      ? shareIntent
+      : { type: 'text', text: '', webUrl: '', files: null } as ShareIntent;
 
-  // Direct open: Show "Take Note" UI
-  const emptyIntent: ShareIntent = { type: 'text', text: '', webUrl: '', files: null };
-  
   return <ProcessingScreen 
-    key={`empty-intent-${resetKey}`}
-    shareIntent={emptyIntent} 
-    onReset={() => BackHandler.exitApp()} 
+    key={`processing-${resetKey}`}
+    shareIntent={effectiveIntent}
+    onReset={() => {
+        if (hasShareIntent) {
+            resetShareIntent();
+        } else {
+            BackHandler.exitApp();
+        }
+    }}
   />;
 }
