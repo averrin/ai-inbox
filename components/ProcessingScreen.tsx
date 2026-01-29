@@ -6,7 +6,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import { useSettingsStore } from '../store/settings';
 import { useGoogleStore } from '../store/googleStore';
-import { processContent, ProcessedNote, transcribeAudio } from '../services/gemini';
+import { processContent, ProcessedNote, transcribeAudio, Action } from '../services/gemini';
 import { CalendarService } from '../services/calendarService';
 import { TasksService } from '../services/tasksService';
 import { saveToVault, checkDirectoryExists, readVaultStructure } from '../utils/saf';
@@ -22,6 +22,7 @@ import { ErrorScreen } from './screens/ErrorScreen';
 import { SavingScreen } from './screens/SavingScreen';
 import { InputScreen } from './screens/InputScreen';
 import { PreviewScreen } from './screens/PreviewScreen';
+import { ReminderEditModal } from './ReminderEditModal';
 
 export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings }: { shareIntent: ShareIntent, onReset: () => void, onOpenSettings?: () => void }) {
     const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder } = useSettingsStore();
@@ -63,6 +64,10 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     );
     const [links, setLinks] = useState<URLMetadata[]>([]);
     const [recording, setRecording] = useState<Audio.Recording | undefined>();
+    
+    // Reminder state
+    const [reminderData, setReminderData] = useState<{ date: Date; recurrence: string } | null>(null);
+    const [showReminderModal, setShowReminderModal] = useState(false);
     
     // Tags
     const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
@@ -110,7 +115,9 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         setTags([]);
         setAttachedFiles([]);
         setLinks([]);
+        setLinks([]);
         setSelectedTags([]);
+        setReminderData(null);
     };
 
     const appendTags = (text: string) => {
@@ -245,6 +252,31 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
 
     const handleRemoveLink = (index: number) => {
         setLinks(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // Reminder handlers
+    const handleReminderClick = () => {
+        setShowReminderModal(true);
+    };
+
+    const handleReminderSave = (date: Date, recurrence: string) => {
+        setReminderData({ date, recurrence });
+        setShowReminderModal(false);
+    };
+
+    const handleUpdateAction = (index: number, updatedAction: Action) => {
+        setData(prevData => {
+            if (!prevData) return null;
+            const newData = [...prevData];
+            if (newData[activeNoteIndex]) {
+                 if (!newData[activeNoteIndex].actions) {
+                     newData[activeNoteIndex].actions = [];
+                 }
+                 // Update the specific action
+                 newData[activeNoteIndex].actions![index] = updatedAction;
+            }
+            return newData;
+        });
     };
 
     // Tag handlers
@@ -503,6 +535,21 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
             console.log(`[Profile] Model analysis took ${Date.now() - modelStart}ms`);
             
             if (result && result.length > 0) {
+                // ... (existing code)
+
+                // Inject Reminder if set
+                if (reminderData) {
+                    // Apply to all generated notes or just the first? 
+                    // Let's apply to all as they likely share context.
+                    result.forEach(note => {
+                         if (!note.frontmatter) note.frontmatter = {};
+                         note.frontmatter.reminder_datetime = reminderData.date.toISOString();
+                         if (reminderData.recurrence) {
+                             note.frontmatter.reminder_recurrent = reminderData.recurrence;
+                         }
+                    });
+                }
+                
                 const embeddings: string[] = [];
                 
                 if (attachedFiles.length > 0) {
@@ -644,7 +691,17 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
             });
         }
 
-        const frontmatter = `---\ntags: [quick_save]\n---\n\n`;
+        // Direct Save Modifications
+        const frontmatterEntries: string[] = ['tags: [quick_save]'];
+        
+        if (reminderData) {
+            frontmatterEntries.push(`reminder_datetime: "${reminderData.date.toISOString()}"`);
+            if (reminderData.recurrence) {
+                frontmatterEntries.push(`reminder_recurrent: "${reminderData.recurrence}"`);
+            }
+        }
+        
+        const frontmatter = `---\n${frontmatterEntries.join('\n')}\n---\n\n`;
         let content = frontmatter;
         
         // Generate Link Embeds from ALL links (including just detected ones if they were added to state)
@@ -919,8 +976,20 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                     onOpenSettings={() => setInternalShowSettings(true)}
                     links={links}
                     onRemoveLink={handleRemoveLink}
+                    onReminder={handleReminderClick}
+                    reminderData={reminderData}
+                    onRemoveReminder={() => setReminderData(null)}
                 />
                 {settingsModal}
+                
+                <ReminderEditModal
+                    visible={showReminderModal}
+                    initialDate={reminderData?.date || new Date()}
+                    initialRecurrence={reminderData?.recurrence || ''}
+                    onSave={handleReminderSave}
+                    onCancel={() => setShowReminderModal(false)}
+                    timeFormat={useSettingsStore.getState().timeFormat}
+                />
             </>
         );
     }
@@ -964,6 +1033,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                     onRemoveFrontmatterKey={handleRemoveFrontmatterKey}
                     onUpdateFrontmatter={handleUpdateFrontmatter}
                     onRemoveAction={handleRemoveAction}
+                    onUpdateAction={handleUpdateAction}
                     onAttach={handleAttach}
                     onCamera={handleCamera}
                     onRecord={recording ? stopRecording : startRecording}

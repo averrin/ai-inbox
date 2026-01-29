@@ -105,6 +105,7 @@ interface RichTextEditorProps {
     
     // Toolbar actions
     onAttach?: () => Promise<void>;
+    onReminder?: () => void;
     onCamera?: () => Promise<void>;
     onRecord?: () => void;
     recording?: boolean;
@@ -122,6 +123,7 @@ export function RichTextEditor({
     containerStyle,
     inputStyle,
     onAttach,
+    onReminder,
     onCamera,
     onRecord,
     recording,
@@ -292,6 +294,11 @@ export function RichTextEditor({
                             <Ionicons name="attach" size={24} color="white" />
                         </TouchableOpacity>
                     )}
+                    {onReminder && (
+                         <TouchableOpacity onPress={onReminder} style={styles.toolbarButton}>
+                            <Ionicons name="alarm-outline" size={24} color="white" />
+                        </TouchableOpacity>
+                    )}
                     {onCamera && (
                         <TouchableOpacity onPress={onCamera} style={styles.toolbarButton}>
                             <Ionicons name="camera" size={24} color="white" />
@@ -335,7 +342,7 @@ const styles = StyleSheet.create({
         width: 48,
         paddingTop: 8,
         alignItems: 'center',
-        gap: 12,
+        gap: 10,
         borderLeftWidth: 1,
         borderLeftColor: '#334155', // slate-700
         backgroundColor: 'rgba(30, 41, 59, 0.5)', 
