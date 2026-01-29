@@ -13,6 +13,7 @@ interface SimpleTextEditorProps {
     
     // Toolbar actions
     onAttach?: () => Promise<void>;
+    onReminder?: () => void;
     onCamera?: () => Promise<void>;
     onRecord?: () => void;
     recording?: boolean;
@@ -30,6 +31,7 @@ export function SimpleTextEditor({
     containerStyle,
     inputStyle,
     onAttach,
+    onReminder,
     onCamera,
     onRecord,
     recording,
@@ -58,6 +60,11 @@ export function SimpleTextEditor({
                     {onAttach && (
                         <TouchableOpacity onPress={onAttach} style={styles.toolbarButton}>
                             <Ionicons name="attach" size={24} color="white" />
+                        </TouchableOpacity>
+                    )}
+                    {onReminder && (
+                        <TouchableOpacity onPress={onReminder} style={styles.toolbarButton}>
+                            <Ionicons name="alarm-outline" size={24} color="white" />
                         </TouchableOpacity>
                     )}
                     {onCamera && (
@@ -102,9 +109,10 @@ const styles = StyleSheet.create({
     },
     toolbar: {
         width: 48,
-        paddingTop: 8,
+        paddingTop: 6,
+        paddingBottom: 6,
         alignItems: 'center',
-        gap: 12,
+        gap: 8,
         borderLeftWidth: 1,
         borderLeftColor: '#334155', // slate-700
         backgroundColor: 'rgba(30, 41, 59, 0.5)', 

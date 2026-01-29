@@ -14,20 +14,22 @@ interface EventInfoProps {
     };
     onRemove?: () => void;
     showRemove?: boolean;
+    onEdit?: () => void;
+    timeFormat: '12h' | '24h';
 }
 
-export function EventInfo({ action, onRemove, showRemove = true }: EventInfoProps) {
+export function EventInfo({ action, onRemove, showRemove = true, onEdit, timeFormat }: EventInfoProps) {
     const leftIcon = (
         <Text className="text-green-400 text-lg text-center">⦿</Text>
     );
 
     const formattedTime = action.startTime 
-        ? new Date(action.startTime).toLocaleString([], {
-            weekday: 'short', 
-            month: 'short', 
-            day: 'numeric', 
+        ? new Date(action.startTime).toLocaleString(undefined, {
+            hour12: timeFormat === '12h',
             hour: '2-digit', 
-            minute: '2-digit'
+            minute: '2-digit',
+            day: 'numeric',
+            month: 'short'
           })
         : '';
         
@@ -41,8 +43,8 @@ export function EventInfo({ action, onRemove, showRemove = true }: EventInfoProp
     const subtitle = (
         <View>
              {action.startTime && (
-                <Text className="text-indigo-300 text-xs">
-                    {formattedTime} {durationText} {recurrenceText}
+                <Text className="text-green-400 text-xs font-medium">
+                    {formattedTime} <Text className="text-indigo-300 font-normal">{durationText} {recurrenceText}</Text>
                 </Text>
              )}
              {action.description && (
@@ -53,9 +55,16 @@ export function EventInfo({ action, onRemove, showRemove = true }: EventInfoProp
         </View>
     );
 
-    const actions = showRemove && onRemove ? (
-        <ActionButton onPress={onRemove} icon="trash-outline" variant="danger" />
-    ) : null;
+    const actions = (
+        <View className="flex-row gap-1">
+             {onEdit && (
+                <ActionButton onPress={onEdit} icon="pencil-outline" variant="neutral" />
+            )}
+            {showRemove && onRemove && (
+                <ActionButton onPress={onRemove} icon="trash-outline" variant="danger" />
+            )}
+        </View>
+    );
 
     return (
         <BaseListItem

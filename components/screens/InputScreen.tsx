@@ -10,6 +10,7 @@ import { LongPressButton } from '../ui/LongPressButton';
 import { URLMetadata } from '../../utils/urlMetadata';
 import { useSettingsStore } from '../../store/settings';
 import { SimpleTextEditor } from '../SimpleTextEditor';
+import { ReminderItem } from '../ui/ReminderItem';
 
 interface InputScreenProps {
     inputText: string;
@@ -28,6 +29,7 @@ interface InputScreenProps {
     onDirectSave: () => void;
     onCancel: () => void;
     onAttach: () => Promise<void>;
+    onReminder?: () => void;
     onCamera: () => Promise<void>;
     onRecord: () => void;
     recording: boolean;
@@ -35,6 +37,8 @@ interface InputScreenProps {
     onOpenSettings?: () => void;
     links?: URLMetadata[];
     onRemoveLink?: (index: number) => void;
+    reminderData?: { date: Date; recurrence: string } | null;
+    onRemoveReminder?: () => void;
 }
 
 export function InputScreen({
@@ -54,6 +58,7 @@ export function InputScreen({
     onDirectSave,
     onCancel,
     onAttach,
+    onReminder,
     onCamera,
     onRecord,
     recording,
@@ -61,8 +66,10 @@ export function InputScreen({
     onOpenSettings,
     links,
     onRemoveLink,
+    reminderData,
+    onRemoveReminder,
 }: InputScreenProps) {
-    const { editorType } = useSettingsStore();
+    const { editorType, timeFormat } = useSettingsStore();
     return (
         <Layout>
             <KeyboardAvoidingView 
@@ -94,6 +101,7 @@ export function InputScreen({
                             onChangeText={onInputTextChange}
                             placeholder="Paste URL or type your thought..."
                             onAttach={onAttach}
+                            onReminder={onReminder}
                             onCamera={onCamera}
                             onRecord={onRecord}
                             recording={recording}
@@ -106,6 +114,7 @@ export function InputScreen({
                             onChangeText={onInputTextChange}
                             placeholder="Paste URL or type your thought..."
                             onAttach={onAttach}
+                            onReminder={onReminder}
                             onCamera={onCamera}
                             onRecord={onRecord}
                             recording={recording}
@@ -139,6 +148,25 @@ export function InputScreen({
                                     showRemove={true}
                                 />
                             ))}
+                        </View>
+                    )}
+
+                    {/* Reminder Info */}
+                    {reminderData && (
+                        <View className="mb-4">
+                            <ReminderItem 
+                                reminder={{
+                                    fileUri: '',
+                                    fileName: 'Reminder',
+                                    reminderTime: reminderData.date.toISOString(),
+                                    recurrenceRule: reminderData.recurrence,
+                                    content: 'Reminder set'
+                                }}
+                                timeFormat={timeFormat}
+                                title="Reminder"
+                                onDelete={onRemoveReminder}
+                                showActions={true}
+                            />
                         </View>
                     )}
 

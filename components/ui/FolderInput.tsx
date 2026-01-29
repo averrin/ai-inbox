@@ -10,6 +10,7 @@ interface FolderInputProps {
     folderStatus?: 'valid' | 'invalid' | 'neutral';
     onCheckFolder?: () => void;
     placeholder?: string;
+    compact?: boolean;
 }
 
 export function FolderInput({ 
@@ -19,7 +20,8 @@ export function FolderInput({
     vaultUri, 
     folderStatus = 'neutral', 
     onCheckFolder,
-    placeholder 
+    placeholder,
+    compact = false
 }: FolderInputProps) {
     const [isSelecting, setIsSelecting] = useState(false);
 
@@ -66,8 +68,8 @@ export function FolderInput({
     };
 
     return (
-        <View className="mb-4">
-            <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">{label}</Text>
+        <View className={compact ? "mb-1" : "mb-4"}>
+             {!compact && <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">{label}</Text>}
             <View className="flex-row gap-2">
                 <View className="flex-1 relative">
                     <TextInput 
@@ -75,7 +77,7 @@ export function FolderInput({
                         onChangeText={onChangeText} 
                         placeholder={placeholder || 'Enter folder path...'}
                         placeholderTextColor="#94a3b8"
-                        className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 pr-12 text-white font-medium"
+                        className={`bg-slate-800/50 border border-slate-700 rounded-xl ${compact ? 'p-3 text-sm' : 'p-4'} pr-12 text-white font-medium`}
                     />
                     {onCheckFolder && (
                         <TouchableOpacity 
@@ -91,7 +93,7 @@ export function FolderInput({
                 <TouchableOpacity
                     onPress={handleBrowse}
                     disabled={!vaultUri || isSelecting}
-                    className={`px-4 py-4 rounded-xl ${!vaultUri || isSelecting ? 'bg-slate-700' : 'bg-indigo-600'}`}
+                    className={`px-4 ${compact ? 'py-3' : 'py-4'} rounded-xl ${!vaultUri || isSelecting ? 'bg-slate-700' : 'bg-indigo-600'}`}
                 >
                     <Text className="text-white font-semibold">Browse</Text>
                 </TouchableOpacity>

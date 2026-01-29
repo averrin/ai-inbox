@@ -17,6 +17,9 @@ import { LinkAttachment } from '../ui/LinkAttachment';
 import { ReminderItem } from '../ui/ReminderItem';
 import { EventInfo } from '../ui/EventInfo';
 import { ReminderEditModal } from '../ReminderEditModal';
+import { EventEditModal } from '../EventEditModal';
+import { TimeSyncPanel } from '../ui/TimeSyncPanel';
+import { Action } from '../../services/gemini';
 import { URLMetadata } from '../../utils/urlMetadata';
 import { useSettingsStore } from '../../store/settings';
 import { useVaultStore } from '../../services/vaultService';
@@ -60,6 +63,7 @@ interface PreviewScreenProps {
     links?: URLMetadata[];
     onRemoveLink?: (index: number) => void;
     onRemoveAction?: (index: number) => void;
+    onUpdateAction?: (index: number, action: Action) => void;
     onUpdateFrontmatter?: (updates: Record<string, any>) => void;
 
     // Tab props
@@ -107,6 +111,7 @@ export function PreviewScreen({
     links,
     onRemoveLink,
     onRemoveAction,
+    onUpdateAction,
     currentTabIndex = 0,
     totalTabs = 1,
     onTabChange,
@@ -123,6 +128,42 @@ export function PreviewScreen({
     // Focus Mode
     const [isFocused, setIsFocused] = React.useState(false);
 
+    // Properties Expansion State
+    const [isPropertiesExpanded, setIsPropertiesExpanded] = React.useState(true);
+
+    // Time Sync State
+    const [isTimeSynced, setIsTimeSynced] = React.useState(false);
+
+    const handleCopyReminderToEvents = () => {
+        if (!data?.frontmatter?.reminder_datetime || !data?.actions || !onUpdateAction) return;
+        
+        data.actions.forEach((action, index) => {
+            const updatedAction = { ...action, startTime: data.frontmatter.reminder_datetime };
+            onUpdateAction(index, updatedAction);
+        });
+    };
+
+    const handleCopyEventsToReminder = () => {
+        if (!data?.actions || data.actions.length === 0 || !onUpdateFrontmatter) return;
+        
+        // Use first event's time
+        const firstEventTime = data.actions[0].startTime;
+        if (firstEventTime) {
+           onUpdateFrontmatter({ reminder_datetime: firstEventTime });
+        }
+    };
+
+    const handleToggleSync = (value: boolean) => {
+        setIsTimeSynced(value);
+        if (value) {
+            // Logic: when enabling, copy Reminder -> Events as default "sync" direction? 
+            // Or just leave them as is until next edit? 
+            // Prompt says: "if enabled: set last set time and date to both items"
+            // We don't track "last set". Let's assume Reminder is master if enabling.
+            handleCopyReminderToEvents();
+        }
+    };
+
     // Auto-update filename from title
     React.useEffect(() => {
         if (!title) return;
@@ -138,10 +179,17 @@ export function PreviewScreen({
         }
     };
 
+    const handleCreateReminder = () => {
+        setEditDate(new Date());
+        setEditRecurrence('');
+        setIsEditingReminder(true);
+    };
+
     const handleSaveReminder = (date: Date, recurrence: string) => {
+        const isoDate = date.toISOString();
         if (onUpdateFrontmatter) {
             const updates: Record<string, any> = {
-                reminder_datetime: date.toISOString()
+                reminder_datetime: isoDate
             };
             if (recurrence) {
                 updates.reminder_recurrent = recurrence;
@@ -150,7 +198,49 @@ export function PreviewScreen({
             }
             onUpdateFrontmatter(updates);
         }
+
+        // Sync to events if enabled
+        if (isTimeSynced && data?.actions && onUpdateAction) {
+             data.actions.forEach((action, index) => {
+                const updatedAction = { ...action, startTime: isoDate };
+                onUpdateAction(index, updatedAction);
+             });
+        }
         setIsEditingReminder(false);
+    };
+
+    // Event Editing State
+    const [editingEventIndex, setEditingEventIndex] = React.useState<number | null>(null);
+    const [showEventModal, setShowEventModal] = React.useState(false);
+
+    const handleEditEvent = (index: number) => {
+        setEditingEventIndex(index);
+        setShowEventModal(true);
+    };
+
+    const handleSaveEvent = (updatedAction: Action) => {
+        if (editingEventIndex !== null && onUpdateAction) {
+            onUpdateAction(editingEventIndex, updatedAction);
+            
+            // Sync to reminder (and other events??) if enabled
+            // "Updated Action" is the new source of truth
+            if (isTimeSynced && updatedAction.startTime && onUpdateFrontmatter) {
+                 onUpdateFrontmatter({ reminder_datetime: updatedAction.startTime });
+                 
+                 // Also sync other events? 
+                 // If we have multiple events, "Time Sync" implies they all move together if synced?
+                 // Let's keep it simple: Reminder <-> All Events
+                 if (data?.actions) {
+                     data.actions.forEach((otherAction, otherIndex) => {
+                         if (otherIndex !== editingEventIndex) {
+                             onUpdateAction(otherIndex, { ...otherAction, startTime: updatedAction.startTime });
+                         }
+                     });
+                 }
+            }
+        }
+        setShowEventModal(false);
+        setEditingEventIndex(null);
     };
 
     return (
@@ -207,32 +297,50 @@ export function PreviewScreen({
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 <Animated.View entering={FadeIn.duration(500)} style={{ flex: 1 }}>
                     {!isFocused && ( 
-                    <Card>
-                        {data.icon && (
-                            <View className="mb-4">
-                                <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">Icon</Text>
-                                <View className="flex-row items-center gap-2">
-                                    <View className="flex-1">
+                    <Card padding="p-3">
+                        {/* Header Row: Icon (if exists), Title */}
+                        <View className="flex-row items-center gap-2 mb-2">
+                             {/* Icon Input: 1/3 width */}
+                             <View className="flex-[1] relative">
+                                {data.icon ? (
+                                    <View>
                                         <TextInput
                                             value={data.icon}
                                             onChangeText={onIconChange}
-                                            placeholder="Icon (emoji or Font Awesome)"
+                                            placeholder="Mood"
                                             placeholderTextColor="#94a3b8"
-                                            className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white font-medium"
+                                            className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white font-medium text-center]" 
                                         />
+                                        <TouchableOpacity
+                                            onPress={onRemoveIcon}
+                                            className="absolute -top-1 -right-1 bg-slate-700 rounded-full p-1 border border-slate-600 shadow-sm z-10"
+                                        >
+                                            <Ionicons name="close" size={10} color="white" />
+                                        </TouchableOpacity>
                                     </View>
-                                    <TouchableOpacity
-                                        onPress={onRemoveIcon}
-                                        className="bg-slate-700 px-3 py-3 rounded-xl"
+                                ) : (
+                                    <TouchableOpacity 
+                                        onPress={() => onIconChange('📝')} 
+                                        className="bg-slate-800/50 border border-slate-700 rounded-xl p-3  justify-center items-center"
                                     >
-                                        <Ionicons name="close" size={20} color="white" />
+                                        <Ionicons name="happy-outline" size={20} color="#94a3b8" />
                                     </TouchableOpacity>
-                                </View>
+                                )}
+                             </View>
+
+                            {/* Title Input: 2/3 width */}
+                            <View className="flex-[2]">
+                                 <TextInput
+                                    value={title}
+                                    onChangeText={onTitleChange}
+                                    className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white font-medium text-base]" 
+                                    placeholder="Note Title"
+                                    placeholderTextColor="#94a3b8"
+                                />
                             </View>
-                        )}
-                        <Input label="Title" value={title} onChangeText={onTitleChange} />
-                        {/* Filename is auto-generated, hidden input */}
-                        
+                        </View>
+
+                        {/* Folder Input - Always Visible */}
                         <FolderInput
                             label="Folder"
                             value={folder}
@@ -241,44 +349,56 @@ export function PreviewScreen({
                             folderStatus={folderStatus}
                             onCheckFolder={onCheckFolder}
                             placeholder="e.g., Inbox/Notes"
+                            compact={true}
                         />
 
-                        <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Tags</Text>
-                            <View className="flex-row flex-wrap gap-2">
-                                {tags.map((tag, index) => (
-                                    <View key={index} className="bg-indigo-600/80 px-3 py-1.5 rounded-full flex-row items-center border border-indigo-500/50">
-                                        <Text className="text-white mr-1 text-sm font-medium">{tag}</Text>
-                                        <TouchableOpacity onPress={() => onRemoveTag(index)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                            <Ionicons name="close" size={14} color="rgba(255,255,255,0.7)" />
-                                        </TouchableOpacity>
-                                    </View>
-                                ))}
-                                {/* Add tag button */}
-                                <TouchableOpacity
-                                    onPress={onAddTag}
-                                    className="bg-slate-700 px-3 py-1.5 rounded-full flex-row items-center border border-slate-600"
-                                >
-                                    <Ionicons name="add" size={16} color="white" />
-                                    <Text className="text-white text-sm font-medium ml-1">Add Tag</Text>
-                                </TouchableOpacity>
-                            </View>
+                        {/* Tags - Always Visible */}
+                        <View className="flex-row flex-wrap gap-2 mt-2 mb-1">
+                            {tags.map((tag, index) => (
+                                <View key={index} className="bg-indigo-600/80 px-2.5 py-1 rounded-md flex-row items-center border border-indigo-500/50">
+                                    <Text className="text-white mr-1 text-xs font-medium">{tag}</Text>
+                                    <TouchableOpacity onPress={() => onRemoveTag(index)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                        <Ionicons name="close" size={10} color="rgba(255,255,255,0.7)" />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                            {/* Add tag button */}
+                            <TouchableOpacity
+                                onPress={onAddTag}
+                                className="bg-slate-700 px-2.5 py-1 rounded-md flex-row items-center border border-slate-600"
+                            >
+                                <Ionicons name="add" size={12} color="white" />
+                                <Text className="text-white text-xs font-medium ml-1">Tag</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                            {/* Metadata pills inline with tags */}
-                            {data?.frontmatter && Object.keys(data.frontmatter).length > 0 && (
-                                <View className="flex-row flex-wrap gap-2 mt-2">
-                                    {Object.entries(data.frontmatter).map(([key, value]) => (
-                                        <View key={key} className="bg-slate-700/80 px-3 py-1.5 rounded-full flex-row items-center border border-slate-600/50">
+                        {/* Collapsible Metadata (Frontmatter) */}
+                        <View className="mt-2 text-wrap">
+                             <TouchableOpacity 
+                                onPress={() => setIsPropertiesExpanded(!isPropertiesExpanded)}
+                                className="flex-row items-center gap-1 mb-1"
+                            >
+                                <Text className="text-indigo-200 text-xs font-semibold">Properties</Text>
+                                <Ionicons name={isPropertiesExpanded ? "chevron-up" : "chevron-down"} size={12} color="#818cf8" />
+                            </TouchableOpacity>
+
+                            {isPropertiesExpanded && (
+                                <View className="flex-row flex-wrap gap-2">
+                                    {data?.frontmatter && Object.entries(data.frontmatter).map(([key, value]) => (
+                                        <View key={key} className="bg-slate-700/80 px-2.5 py-1 rounded-md flex-row items-center border border-slate-600/50">
                                             <Text className="text-slate-400 text-xs mr-1">{key}:</Text>
                                             <Text className="text-slate-200 text-xs mr-2">{typeof value === 'string' ? value : JSON.stringify(value)}</Text>
                                             <TouchableOpacity
                                                 onPress={() => onRemoveFrontmatterKey(key)}
                                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                             >
-                                                <Ionicons name="close" size={14} color="#94a3b8" />
+                                                <Ionicons name="close" size={10} color="#94a3b8" />
                                             </TouchableOpacity>
                                         </View>
                                     ))}
+                                    {(!data?.frontmatter || Object.keys(data.frontmatter).length === 0) && (
+                                        <Text className="text-slate-500 text-xs italic">No additional properties</Text>
+                                    )}
                                 </View>
                             )}
                         </View>
@@ -318,7 +438,7 @@ export function PreviewScreen({
                     
                             {/* Pending Reminders */}
                             {data?.frontmatter?.reminder_datetime && (
-                                <View className="mb-4">
+                                <View className="mb-2">
                                     <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Reminder</Text>
                                     <ReminderItem 
                                         reminder={{
@@ -340,16 +460,31 @@ export function PreviewScreen({
 
                             {/* Pending Actions (Google Calendar) */}
                             {data.actions && data.actions.length > 0 && (
-                                <View className="mb-4">
-                                    <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Pending Events (Calendar)</Text>
+                                <View className="mb-2">
+                                    {/* Conditionally Render Header or Sync Panel */}
+                                    {data?.frontmatter?.reminder_datetime ? (
+                                        <TimeSyncPanel 
+                                            isSynced={isTimeSynced}
+                                            onToggleSync={handleToggleSync}
+                                            onCopyReminderToEvents={handleCopyReminderToEvents}
+                                            onCopyEventsToReminder={handleCopyEventsToReminder}
+                                        />
+                                    ) : (
+                                        <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Pending Events (Calendar)</Text>
+                                    )}
+                                    
+                                    <View className="flex-col gap-2">
                                     {data.actions.map((action, index) => (
                                         <EventInfo 
                                             key={`action-${index}`}
                                             action={action}
                                             onRemove={() => onRemoveAction && onRemoveAction(index)}
                                             showRemove={!!onRemoveAction}
+                                            onEdit={() => handleEditEvent(index)}
+                                            timeFormat={timeFormat}
                                         />
                                     ))}
+                                    </View>
                                 </View>
                             )}
                         </>
@@ -364,6 +499,7 @@ export function PreviewScreen({
                                 onChangeText={onBodyChange}
                                 placeholder="Note content..."
                                 onAttach={onAttach}
+                                onReminder={handleCreateReminder}
                                 onCamera={onCamera}
                                 onRecord={onRecord}
                                 recording={recording}
@@ -379,6 +515,7 @@ export function PreviewScreen({
                                 onChangeText={onBodyChange}
                                 placeholder="Note content..."
                                 onAttach={onAttach}
+                                onReminder={handleCreateReminder}
                                 onCamera={onCamera}
                                 onRecord={onRecord}
                                 recording={recording}
@@ -512,6 +649,17 @@ export function PreviewScreen({
                 initialRecurrence={editRecurrence}
                 onSave={handleSaveReminder}
                 onCancel={() => setIsEditingReminder(false)}
+                timeFormat={timeFormat}
+            />
+
+            <EventEditModal
+                visible={showEventModal}
+                initialEvent={(editingEventIndex !== null && data?.actions) ? data.actions[editingEventIndex] : null}
+                onSave={handleSaveEvent}
+                onCancel={() => {
+                    setShowEventModal(false);
+                    setEditingEventIndex(null);
+                }}
                 timeFormat={timeFormat}
             />
         </Layout>
