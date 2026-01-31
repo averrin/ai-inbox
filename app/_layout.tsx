@@ -1,6 +1,8 @@
 import "../global.css";
 import { Slot } from "expo-router";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ShareIntentProvider } from "expo-share-intent";
+import { StatusBar } from "expo-status-bar";
 import * as Notifications from 'expo-notifications';
 import { useEffect, useRef } from "react";
 import { registerReminderTask, scanForReminders, Reminder } from "../services/reminderService";
@@ -108,10 +110,10 @@ function AppContent() {
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
       // When a reminder notification is received while app is open, show modal instead
       const { fileUri, reminder } = notification.request.content.data || {};
-      
+
       if (reminder) {
-         // Instant show if we have the data
-         showReminder(reminder as Reminder);
+        // Instant show if we have the data
+        showReminder(reminder as Reminder);
       } else if (fileUri) {
         // Fallback to scan if legacy notification
         scanForReminders().then(reminders => {
@@ -126,9 +128,9 @@ function AppContent() {
     // Listen for notification taps (when app is already open)
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       const { fileUri, reminder } = response.notification.request.content.data || {};
-      
+
       if (reminder) {
-          showReminder(reminder as Reminder);
+        showReminder(reminder as Reminder);
       } else if (fileUri) {
         scanForReminders().then(reminders => {
           const found = reminders.find(r => r.fileUri === fileUri);
@@ -141,34 +143,34 @@ function AppContent() {
 
     // Check for Native Alarm Launch
     if (Platform.OS === 'android') {
-        import('../services/alarmModule').then(async ({ getLaunchAlarmDetails, dismissNativeNotification }) => {
-            const details = await getLaunchAlarmDetails();
-            if (details) {
-                console.log("[App] Launched via Native Alarm:", details.title);
-                // Dismiss the persistent notification
-                await dismissNativeNotification(details.id);
-                
-                // Try to find the real file first for full functionality
-                const reminders = await scanForReminders();
-                const found = reminders.find(r => Math.floor(new Date(r.reminderTime).getTime() / 1000) === details.id);
-                
-                if (found) {
-                     showReminder(found);
-                } else {
-                    // Fallback: Construct a transient reminder object from the intent extras
-                    // so the modal can show SOMETHING immediately even if file read fails.
-                    console.log("[App] File scan failed/miss, using intent details for modal");
-                    
-                    showReminder({
-                        fileUri: '', // No file access
-                        fileName: details.title || 'Alarm',
-                        reminderTime: new Date(details.id * 1000).toISOString(),
-                        content: details.message || '',
-                        alarm: true
-                    } as Reminder);
-                }
-            }
-        });
+      import('../services/alarmModule').then(async ({ getLaunchAlarmDetails, dismissNativeNotification }) => {
+        const details = await getLaunchAlarmDetails();
+        if (details) {
+          console.log("[App] Launched via Native Alarm:", details.title);
+          // Dismiss the persistent notification
+          await dismissNativeNotification(details.id);
+
+          // Try to find the real file first for full functionality
+          const reminders = await scanForReminders();
+          const found = reminders.find(r => Math.floor(new Date(r.reminderTime).getTime() / 1000) === details.id);
+
+          if (found) {
+            showReminder(found);
+          } else {
+            // Fallback: Construct a transient reminder object from the intent extras
+            // so the modal can show SOMETHING immediately even if file read fails.
+            console.log("[App] File scan failed/miss, using intent details for modal");
+
+            showReminder({
+              fileUri: '', // No file access
+              fileName: details.title || 'Alarm',
+              reminderTime: new Date(details.id * 1000).toISOString(),
+              content: details.message || '',
+              alarm: true
+            } as Reminder);
+          }
+        }
+      });
     }
 
     return () => {
@@ -179,14 +181,15 @@ function AppContent() {
 
   return (
     <>
+      <StatusBar style="light" backgroundColor="transparent" translucent />
       <Slot />
-      <ReminderModal 
-        reminder={activeReminder} 
-        onClose={closeReminder} 
+      <ReminderModal
+        reminder={activeReminder}
+        onClose={closeReminder}
       />
       {__DEV__ && (
         <View style={{ position: 'absolute', bottom: 50, right: 10, backgroundColor: 'rgba(220, 38, 38, 0.6)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, zIndex: 999 }} pointerEvents="none">
-            <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>DEBUG</Text>
+          <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>DEBUG</Text>
         </View>
       )}
       <Toast config={toastConfig} />
@@ -197,9 +200,11 @@ function AppContent() {
 export default function Layout() {
   return (
     <ReminderModalProvider>
-      <ShareIntentProvider options={{ debug: true, resetOnBackground: false }}>
-        <AppContent />
-      </ShareIntentProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ShareIntentProvider options={{ debug: false, resetOnBackground: false }}>
+          <AppContent />
+        </ShareIntentProvider>
+      </GestureHandlerRootView>
     </ReminderModalProvider>
   );
 }

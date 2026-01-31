@@ -200,9 +200,16 @@ export async function saveToVault(vaultUri: string, filename: string, content: s
             }
         }
 
-        const fileUri = await StorageAccessFramework.createFileAsync(targetUri, filename, 'text/markdown');
-        await StorageAccessFramework.writeAsStringAsync(fileUri, content);
-        return fileUri;
+        const existingFileUri = await findFile(targetUri, filename);
+
+        if (existingFileUri) {
+            await StorageAccessFramework.writeAsStringAsync(existingFileUri, content);
+            return existingFileUri;
+        } else {
+            const fileUri = await StorageAccessFramework.createFileAsync(targetUri, filename, 'text/markdown');
+            await StorageAccessFramework.writeAsStringAsync(fileUri, content);
+            return fileUri;
+        }
     } catch (e) {
         console.error('[saveToVault] Error:', e);
         throw e;
@@ -227,7 +234,7 @@ async function findFile(parentUri: string, filename: string): Promise<string | n
             }
         }
 
-        console.warn(`[findFile] Not found: ${filename}`);
+        // console.warn(`[findFile] Not found: ${filename}`);
         return null;
     } catch (e) {
         console.error(`[findFile] Error searching for ${filename}:`, e);

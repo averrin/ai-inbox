@@ -13,7 +13,7 @@ import { useOptimisticReminders } from '../../hooks/useOptimisticReminders';
 export default function RemindersListScreen() {
   const { showReminder } = useReminderModal();
   const [loading, setLoading] = useState(false);
-  
+
   // Edit Modal State
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -22,13 +22,13 @@ export default function RemindersListScreen() {
   const [editAlarm, setEditAlarm] = useState(false);
   const [editPersistent, setEditPersistent] = useState<number | undefined>(undefined);
 
-  const { 
+  const {
     vaultUri,
     remindersScanFolder,
     setCachedReminders,
     timeFormat,
   } = useSettingsStore();
-  
+
   const { reminders, addReminder, editReminder, deleteReminder, isSyncing } = useOptimisticReminders();
 
   // Create Modal State
@@ -46,8 +46,8 @@ export default function RemindersListScreen() {
   };
 
   const handleCreateReminder = ({ title, date, recurrence, alarm, persistent }: { title?: string, date: Date, recurrence: string, alarm: boolean, persistent?: number }) => {
-      addReminder(title || 'New Reminder', date, recurrence, alarm, persistent);
-      setIsCreateModalVisible(false);
+    addReminder(title || 'New Reminder', date, recurrence, alarm, persistent);
+    setIsCreateModalVisible(false);
   };
 
   const handleDeleteReminder = async (reminder: Reminder) => {
@@ -59,14 +59,14 @@ export default function RemindersListScreen() {
         {
           text: "Remove Reminder Only",
           onPress: async () => {
-             await deleteReminder(reminder, false);
+            await deleteReminder(reminder, false);
           }
         },
         {
           text: "Delete Note",
           style: "destructive",
           onPress: async () => {
-             await deleteReminder(reminder, true);
+            await deleteReminder(reminder, true);
           }
         }
       ]
@@ -81,19 +81,19 @@ export default function RemindersListScreen() {
     setEditPersistent(reminder.persistent);
     setIsEditModalVisible(true);
   };
-  
+
   const handleSaveEdit = ({ date, recurrence, alarm, persistent }: { date: Date, recurrence: string, alarm: boolean, persistent?: number }) => {
-      if (!editingReminder) return;
-      
-      editReminder(editingReminder, date, recurrence, alarm, persistent);
-      
-      setIsEditModalVisible(false);
-      setEditingReminder(null);
+    if (!editingReminder) return;
+
+    editReminder(editingReminder, date, recurrence, alarm, persistent);
+
+    setIsEditModalVisible(false);
+    setEditingReminder(null);
   };
 
   const now = new Date();
-  const overdue = reminders.filter(r => new Date(r.reminderTime) <= now).sort((a,b) => new Date(a.reminderTime).getTime() - new Date(b.reminderTime).getTime());
-  const upcoming = reminders.filter(r => new Date(r.reminderTime) > now).sort((a,b) => new Date(a.reminderTime).getTime() - new Date(b.reminderTime).getTime());
+  const overdue = reminders.filter(r => new Date(r.reminderTime) <= now).sort((a, b) => new Date(a.reminderTime).getTime() - new Date(b.reminderTime).getTime());
+  const upcoming = reminders.filter(r => new Date(r.reminderTime) > now).sort((a, b) => new Date(a.reminderTime).getTime() - new Date(b.reminderTime).getTime());
 
   const getRelativeTime = (date: Date) => {
     const diffMs = date.getTime() - now.getTime();
@@ -141,11 +141,11 @@ export default function RemindersListScreen() {
             {upcoming.length > 0 && (
               <View>
                 <Text className="text-emerald-400 font-bold mb-3 text-sm uppercase tracking-wider">Upcoming</Text>
-                <View className="gap-3">
+                <View className="gap-0">
                   {upcoming.map((reminder) => (
-                    <ReminderItem 
-                      key={reminder.fileUri} 
-                      reminder={reminder} 
+                    <ReminderItem
+                      key={reminder.fileUri}
+                      reminder={reminder}
                       relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
                       onEdit={() => handleEditReminder(reminder)}
                       onDelete={() => handleDeleteReminder(reminder)}
@@ -160,11 +160,11 @@ export default function RemindersListScreen() {
             {overdue.length > 0 && (
               <View>
                 <Text className="text-red-400 font-bold mb-3 text-sm uppercase tracking-wider">Overdue</Text>
-                <View className="gap-3">
+                <View className="gap-0">
                   {overdue.map((reminder) => (
-                    <ReminderItem 
-                      key={reminder.fileUri} 
-                      reminder={reminder} 
+                    <ReminderItem
+                      key={reminder.fileUri}
+                      reminder={reminder}
                       relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
                       onEdit={() => handleEditReminder(reminder)}
                       onDelete={() => handleDeleteReminder(reminder)}
@@ -180,7 +180,7 @@ export default function RemindersListScreen() {
       </ScrollView>
 
       {/* Floating Action Button */}
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={() => setIsCreateModalVisible(true)}
         className="absolute bottom-6 right-6 bg-indigo-600 rounded-full w-16 h-16 items-center justify-center shadow-lg"
         style={{
@@ -202,12 +202,12 @@ export default function RemindersListScreen() {
         initialPersistent={editPersistent}
         onSave={handleSaveEdit}
         onCancel={() => {
-            setIsEditModalVisible(false);
-            setEditingReminder(null);
+          setIsEditModalVisible(false);
+          setEditingReminder(null);
         }}
         timeFormat={timeFormat}
       />
-      
+
       {/* Creation Modal (using Unified Edit Modal) */}
       <ReminderEditModal
         visible={isCreateModalVisible}
