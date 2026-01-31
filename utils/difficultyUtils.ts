@@ -14,6 +14,15 @@ export const calculateEventDifficulty = (
     ranges: TimeRangeDefinition[],
     flags?: { isEnglish?: boolean; movable?: boolean }
 ): DifficultyResult => {
+    if (baseDifficulty === 0) {
+        return {
+            base: 0,
+            bonus: 0,
+            total: 0,
+            reasons: []
+        };
+    }
+
     const reasons: string[] = [];
     let bonus = 0;
 
