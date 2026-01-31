@@ -203,9 +203,11 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
 
     const renderHeader = (title: string, onBack: (() => void) | undefined) => (
         <View className="flex-row items-center px-4 pt-4 pb-2">
-            <TouchableOpacity onPress={onBack} className="p-2 mr-2">
-                 <Ionicons name="arrow-back" size={24} color="white" />
-            </TouchableOpacity>
+            {onBack && (
+                <TouchableOpacity onPress={onBack} className="p-2 mr-2">
+                    <Ionicons name="arrow-back" size={24} color="white" />
+                </TouchableOpacity>
+            )}
             <Text className="text-2xl font-bold text-white">{title}</Text>
         </View>
     );
@@ -481,7 +483,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     if (!canClose) {
          return (
             <Layout>
-                 <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+                 <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="always">
                      {renderWelcomeContent()}
                  </ScrollView>
                  {/* Modals ... */}
@@ -519,43 +521,38 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         <Layout>
             <View className="flex-1 relative overflow-hidden">
                 {/* Level 0: Root */}
-                <Animated.View style={{ 
-                    position: 'absolute', 
-                    top: 0, bottom: 0, left: 0, right: 0, 
-                    transform: [{ translateX: rootTranslateX }],
-                    zIndex: 0
-                }}>
-                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+                <Animated.View 
+                    style={{ 
+                        position: 'absolute', 
+                        top: 0, bottom: 0, left: 0, right: 0, 
+                        transform: [{ translateX: rootTranslateX }],
+                        zIndex: 0
+                    }}
+                    pointerEvents={activeSection === 'root' ? 'auto' : 'none'}
+                >
+                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="always">
                          {renderHeader("Settings", onClose)}
                          {renderRootMenu()}
                      </ScrollView>
                 </Animated.View>
 
                 {/* Level 1: General OR Tools */}
-                <Animated.View style={{ 
-                    position: 'absolute', 
-                    top: 0, bottom: 0, left: 0, right: 0, 
-                    transform: [{ translateX: level1TranslateX }],
-                    zIndex: 1
-                }}>
-                    <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+                <Animated.View 
+                    style={{ 
+                        position: 'absolute', 
+                        top: 0, bottom: 0, left: 0, right: 0, 
+                        transform: [{ translateX: level1TranslateX }],
+                        zIndex: 1
+                    }}
+                    pointerEvents={(activeSection === 'general' || activeSection === 'tools') ? 'auto' : 'none'}
+                >
+                    <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="always">
                         {activeSection === 'general' && (
                              <>
                                 {renderHeader("General", () => setActiveSection('root'))}
                                 <View className="px-0">{renderGeneralSettings()}</View>
                              </>
                         )}
-                        {/* 
-                           Note: if we are in level 2 (e.g. reminders), activeSection is 'reminders'.
-                           But we need to Render Tools menu here if we are sliding OUT to the left?
-                           Actually, if activeSection is 'reminders', level is 2.
-                           This view (Level 1) is at -SCREEN_WIDTH.
-                           It should contain "Tools" content if we came through Tools.
-                           Logic gap: activeSection determines content.
-                           If activeSection is 'reminders', the logic above relies on activeSection === 'general' to show generic settings.
-                           We need to know the PATH.
-                           Solution: Check if activeSection implies 'tools' parent.
-                        */}
                         {(activeSection === 'tools' || activeSection === 'google-calendar' || activeSection === 'reminders') && (
                              <>
                                 {renderHeader("Tools", () => setActiveSection('root'))}
@@ -566,13 +563,16 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 </Animated.View>
 
                 {/* Level 2: Sub-tools */}
-                <Animated.View style={{ 
-                    position: 'absolute', 
-                    top: 0, bottom: 0, left: 0, right: 0, 
-                    transform: [{ translateX: level2TranslateX }],
-                    zIndex: 2
-                }}>
-                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+                <Animated.View 
+                    style={{ 
+                        position: 'absolute', 
+                        top: 0, bottom: 0, left: 0, right: 0, 
+                        transform: [{ translateX: level2TranslateX }],
+                        zIndex: 2
+                    }}
+                    pointerEvents={(activeSection === 'google-calendar' || activeSection === 'reminders') ? 'auto' : 'none'}
+                >
+                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="always">
                          {activeSection === 'google-calendar' && (
                              <>
                                 {renderHeader("Google Calendar", () => setActiveSection('tools'))}

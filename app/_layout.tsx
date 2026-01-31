@@ -7,7 +7,7 @@ import { registerReminderTask, scanForReminders, Reminder } from "../services/re
 import { ReminderModalProvider, useReminderModal } from "../utils/reminderModalContext";
 import { ReminderModal } from "../components/ReminderModal";
 import Toast, { BaseToast, ErrorToast, ToastConfig } from 'react-native-toast-message';
-import { LogBox, View, Text } from 'react-native';
+import { LogBox, View, Text, Platform } from 'react-native';
 
 // Suppress deprecation warnings from dependencies
 LogBox.ignoreLogs([
@@ -19,7 +19,6 @@ LogBox.ignoreLogs([
 // Configure notifications handler
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
     shouldShowBanner: true,
@@ -140,6 +139,38 @@ function AppContent() {
       }
     });
 
+    // Check for Native Alarm Launch
+    if (Platform.OS === 'android') {
+        import('../services/alarmModule').then(async ({ getLaunchAlarmDetails, dismissNativeNotification }) => {
+            const details = await getLaunchAlarmDetails();
+            if (details) {
+                console.log("[App] Launched via Native Alarm:", details.title);
+                // Dismiss the persistent notification
+                await dismissNativeNotification(details.id);
+                
+                // Try to find the real file first for full functionality
+                const reminders = await scanForReminders();
+                const found = reminders.find(r => Math.floor(new Date(r.reminderTime).getTime() / 1000) === details.id);
+                
+                if (found) {
+                     showReminder(found);
+                } else {
+                    // Fallback: Construct a transient reminder object from the intent extras
+                    // so the modal can show SOMETHING immediately even if file read fails.
+                    console.log("[App] File scan failed/miss, using intent details for modal");
+                    
+                    showReminder({
+                        fileUri: '', // No file access
+                        fileName: details.title || 'Alarm',
+                        reminderTime: new Date(details.id * 1000).toISOString(),
+                        content: details.message || '',
+                        alarm: true
+                    } as Reminder);
+                }
+            }
+        });
+    }
+
     return () => {
       notificationListener.current?.remove();
       responseListener.current?.remove();
@@ -166,7 +197,7 @@ function AppContent() {
 export default function Layout() {
   return (
     <ReminderModalProvider>
-      <ShareIntentProvider>
+      <ShareIntentProvider options={{ debug: true, resetOnBackground: false }}>
         <AppContent />
       </ShareIntentProvider>
     </ReminderModalProvider>

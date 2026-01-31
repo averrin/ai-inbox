@@ -23,6 +23,8 @@ export function RemindersSettings() {
     const { 
         remindersScanFolder, 
         setRemindersScanFolder, 
+        defaultReminderFolder,
+        setDefaultReminderFolder,
         vaultUri, 
         backgroundSyncInterval, 
         setBackgroundSyncInterval,
@@ -30,17 +32,11 @@ export function RemindersSettings() {
         setReminderBypassDnd,
         reminderVibration,
         setReminderVibration,
-        resendMissedNotifications,
-        setResendMissedNotifications,
-        resendInterval,
-        setResendInterval,
         timeFormat,
         setTimeFormat,
-        cachedReminders,
-        setCachedReminders,
     } = useSettingsStore();
-    const reminders = cachedReminders || []; // alias for compatibility, ensure array
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
+    const [defaultFolderStatus, setDefaultFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
 
     // Edit state
     // Edit state
@@ -66,15 +62,26 @@ export function RemindersSettings() {
         setFolderStatus(exists ? 'valid' : 'invalid');
     };
 
-    // Reactive folder validation
-    useEffect(() => {
-        if (!vaultUri || !remindersScanFolder) {
-            setFolderStatus('neutral');
+    const checkDefaultFolder = async () => {
+        if (!vaultUri || !defaultReminderFolder) {
+            setDefaultFolderStatus('neutral');
             return;
         }
+        const { checkDirectoryExists } = await import('../utils/saf');
+        const exists = await checkDirectoryExists(vaultUri, defaultReminderFolder);
+        setDefaultFolderStatus(exists ? 'valid' : 'invalid');
+    };
+
+    // Reactive folder validation
+    useEffect(() => {
         const timer = setTimeout(() => { checkFolder(); }, 500);
         return () => clearTimeout(timer);
     }, [remindersScanFolder, vaultUri]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => { checkDefaultFolder(); }, 500);
+        return () => clearTimeout(timer);
+    }, [defaultReminderFolder, vaultUri]);
 
     const checkPermissions = async () => {
         const settings = await Notifications.getPermissionsAsync();
@@ -96,28 +103,13 @@ export function RemindersSettings() {
     };
 
     const loadReminders = async () => {
+        // Just scan to ensure files exist, though UI doesn't show them here anymore
         setLoading(true);
-        const found = await scanForReminders();
-        setCachedReminders(found);
+        await scanForReminders();
         setLoading(false);
     };
 
-    const handleUpdateReminder = async () => {
-        if (!editingReminder) return;
-        setLoading(true);
-        try {
-            const newTime = editDate.toISOString();
-            await updateReminder(editingReminder.fileUri, newTime, editRecurrence);
-            setEditingReminder(null);
-            await loadReminders(); // Reload list
-            await syncAllReminders(); // Reschedule notifications
-            Toast.show({ type: 'success', text1: 'Reminder Updated' });
-        } catch (e) {
-            console.error(e);
-            Alert.alert("Error", "Failed to update reminder");
-        }
-        setLoading(false);
-    };
+
 
     const handleAddTestReminder = async () => {
         if (!vaultUri) {
@@ -191,51 +183,7 @@ Ensure the app is in background to test the notification, or foreground to test 
         });
     };
 
-    const handleDeleteReminder = async (reminder: Reminder) => {
-        Alert.alert(
-            "Remove Reminder",
-            "Do you want to remove just the reminder property or delete the entire note?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Remove Reminder Only",
-                    onPress: async () => {
-                        setLoading(true);
-                        try {
-                            await updateReminder(reminder.fileUri, null);
-                            await loadReminders();
-                            await syncAllReminders(); // Clean up notification
-                            Toast.show({ type: 'success', text1: 'Reminder Removed' });
-                        } catch (e) {
-                            Alert.alert("Error", "Failed to remove reminder");
-                        }
-                        setLoading(false);
-                    }
-                },
-                {
-                    text: "Delete Note",
-                    style: "destructive",
-                    onPress: async () => {
-                        setLoading(true);
-                        try {
-                            const { deleteFile } = await import('../utils/saf');
-                            const success = await deleteFile(reminder.fileUri);
-                            if (success) {
-                                await loadReminders();
-                                await syncAllReminders();
-                                Toast.show({ type: 'success', text1: 'Note Deleted' });
-                            } else {
-                                throw new Error("Delete failed");
-                            }
-                        } catch (e) {
-                            Alert.alert("Error", "Failed to delete note");
-                        }
-                        setLoading(false);
-                    }
-                }
-            ]
-        );
-    };
+
 
     return (
         <Card>
@@ -271,6 +219,22 @@ Ensure the app is in background to test the notification, or foreground to test 
                     placeholder="Limit scan to specific folder..."
                 />
             </View>
+
+            <View className="mb-6">
+                <FolderInput
+                    label="New Reminders Folder"
+                    value={defaultReminderFolder || ''}
+                    onChangeText={setDefaultReminderFolder}
+                    vaultUri={vaultUri}
+                    folderStatus={defaultFolderStatus}
+                    onCheckFolder={checkDefaultFolder}
+                    placeholder="Where to save new reminders..."
+                />
+                <Text className="text-slate-500 text-xs mt-1 ml-1">
+                    If empty, reminders are saved in the scan folder or vault root.
+                </Text>
+            </View>
+
 
             <View className="mb-6">
                 <Text className="text-indigo-200 mb-2 font-semibold">Sync Frequency</Text>
@@ -328,193 +292,11 @@ Ensure the app is in background to test the notification, or foreground to test 
         </View>
     </TouchableOpacity>
 
-    <View className="mb-3">
-        <TouchableOpacity
-            onPress={() => setResendMissedNotifications(!resendMissedNotifications)}
-            className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between mb-2"
-        >
-            <View className="flex-row items-center flex-1">
-                <Ionicons name="repeat-outline" size={20} color="#818cf8" />
-                <View className="ml-3 flex-1">
-                    <Text className="text-white font-medium">Resend Missed</Text>
-                    <Text className="text-slate-400 text-xs">Repeat notification if not reacted to</Text>
-                </View>
-            </View>
-            <View className={`w-12 h-7 rounded-full p-1 ${resendMissedNotifications ? 'bg-indigo-600' : 'bg-slate-700'}`}>
-                <View className={`w-5 h-5 rounded-full bg-white ${resendMissedNotifications ? 'ml-auto' : ''}`} />
-            </View>
-        </TouchableOpacity>
-
-        {resendMissedNotifications && (
-            <View className="bg-slate-800/30 p-3 rounded-xl border border-slate-700/50 ml-4">
-                 <Text className="text-slate-400 text-xs mb-2 uppercase font-bold tracking-wider">Resend Interval</Text>
-                 <View className="flex-row flex-wrap gap-2">
-                    {[5, 10, 15, 30, 60].map((interval) => (
-                        <TouchableOpacity
-                            key={interval}
-                            onPress={() => setResendInterval(interval)}
-                            className={`px-3 py-1.5 rounded-lg border ${resendInterval === interval ? 'bg-indigo-600 border-indigo-500' : 'bg-slate-700 border-slate-600'}`}
-                        >
-                            <Text className={`text-xs font-bold ${resendInterval === interval ? 'text-white' : 'text-slate-300'}`}>
-                                {interval}m
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            </View>
-        )}
     </View>
 
-</View>
-
-            <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-indigo-200 font-semibold">Active Reminders</Text>
-                <TouchableOpacity onPress={loadReminders} disabled={loading}>
-                     {loading ? (
-                         <ActivityIndicator size="small" color="#818cf8" />
-                     ) : (
-                         <Ionicons name="refresh" size={20} color="#818cf8" />
-                     )}
-                </TouchableOpacity>
-            </View>
-
-            {reminders.length === 0 ? (
-                <View className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 items-center">
-                    <Text className="text-slate-400 italic text-center">No reminders found in vault.</Text>
-                    <Text className="text-slate-500 text-xs text-center mt-2">
-                        Add 'reminder_datetime: YYYY-MM-DDTHH:mm:ss' to your note's frontmatter.
-                    </Text>
-                </View>
-            ) : (
-                <View className="gap-4">
-                    {/* Overdue Section */}
-                    {(() => {
-                        const now = new Date();
-                        const overdue = reminders.filter(r => new Date(r.reminderTime) <= now).sort((a,b) => new Date(a.reminderTime).getTime() - new Date(b.reminderTime).getTime());
-                        const upcoming = reminders.filter(r => new Date(r.reminderTime) > now).sort((a,b) => new Date(a.reminderTime).getTime() - new Date(b.reminderTime).getTime());
-
-                        const getRelativeTime = (date: Date) => {
-                            const diffMs = date.getTime() - now.getTime();
-                            const diffSec = Math.round(diffMs / 1000);
-                            const diffMin = Math.round(diffSec / 60);
-                            const diffHr = Math.round(diffMin / 60);
-                            const diffDay = Math.round(diffHr / 24);
 
 
-                            
-                            if (Math.abs(diffSec) < 60) return 'just now';
-                            if (Math.abs(diffMin) < 60) return diffMin > 0 ? `in ${diffMin} min` : `${Math.abs(diffMin)} min ago`;
-                            if (Math.abs(diffHr) < 24) return diffHr > 0 ? `in ${diffHr} hr` : `${Math.abs(diffHr)} hr ago`;
-                            return diffDay > 0 ? `in ${diffDay} days` : `${Math.abs(diffDay)} days ago`;
-                        };
-
-                        return (
-                            <>
-                                {upcoming.length > 0 && (
-                                    <View>
-                                        <Text className="text-emerald-400 font-bold mb-2 text-xs uppercase tracking-wider">Upcoming</Text>
-                                        <View className="gap-2">
-                                            {upcoming.map((reminder, index) => (
-                                                <ReminderItem 
-                                                    key={reminder.fileUri} 
-                                                    reminder={reminder} 
-                                                    relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
-                                                    onEdit={() => { 
-                                                        setEditingReminder(reminder); 
-                                                        setEditDate(new Date(reminder.reminderTime));
-                                                        setEditRecurrence(reminder.recurrenceRule || '');
-                                                    }}
-                                                    onDelete={() => handleDeleteReminder(reminder)}
-                                                    onShow={() => showReminder(reminder)}
-                                                    timeFormat={timeFormat}
-                                                />
-                                            ))}
-                                        </View>
-                                    </View>
-                                )}
-
-                                {overdue.length > 0 && (
-                                    <View>
-                                        <Text className="text-red-400 font-bold mb-2 text-xs uppercase tracking-wider">Overdue</Text>
-                                        <View className="gap-2">
-                                            {overdue.map((reminder, index) => (
-                                                <ReminderItem 
-                                                    key={reminder.fileUri} 
-                                                    reminder={reminder} 
-                                                    relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
-                                                    onEdit={() => { 
-                                                        setEditingReminder(reminder); 
-                                                        setEditDate(new Date(reminder.reminderTime));
-                                                        setEditRecurrence(reminder.recurrenceRule || '');
-                                                    }}
-                                                    onDelete={() => handleDeleteReminder(reminder)}
-                                                    onShow={() => showReminder(reminder)}
-                                                    timeFormat={timeFormat}
-                                                />
-                                            ))}
-                                        </View>
-                                    </View>
-                                )}
-                            </>
-                        );
-                    })()}
-                </View>
-            )}
-
-            {/* Test Buttons */}
-            <View className="mt-8 mb-6 flex-row gap-3">
-                <View className="flex-1">
-                    <Button title="⏱️ Add Test (30s)" onPress={handleAddTestReminder} variant="secondary" />
-                </View>
-                <View className="flex-1">
-                    <Button title="📱 Test Modal" onPress={handleTestModal} variant="secondary" />
-                </View>
-            </View>
-
-
-
-            {/* Edit Modal */}
-            <ReminderEditModal
-                visible={!!editingReminder}
-                initialDate={editDate}
-                initialRecurrence={editRecurrence}
-                onSave={async (date, recurrence) => {
-                    setEditDate(date);
-                    setEditRecurrence(recurrence);
-                    // Use the state values set above? No, state updates are async.
-                    // We should pass the new values directly to handleUpdateReminder or update state first.
-                    // Better yet, update handleUpdateReminder to take args or update state and trigger effect? 
-                    // Let's look at handleUpdateReminder: it uses editingReminder, editDate, editRecurrence.
-                    
-                    // Correct approach: Update state, then call logic. 
-                    // But handleUpdateReminder is async. 
-                    
-                    // Actually, let's just modify handleUpdateReminder to accepting args or modify how it uses state.
-                    // Or, simpler:
-                    setEditDate(date);
-                    setEditRecurrence(recurrence);
-                    
-                    // Wait for state update? No.
-                    // Let's implement a specific save wrapper here.
-                    
-                    if (!editingReminder) return;
-                    setLoading(true);
-                    try {
-                        const newTime = date.toISOString();
-                        await updateReminder(editingReminder.fileUri, newTime, recurrence);
-                        setEditingReminder(null);
-                        await loadReminders(); 
-                        await syncAllReminders(); 
-                        Toast.show({ type: 'success', text1: 'Reminder Updated' });
-                    } catch (e) {
-                        console.error(e);
-                        Alert.alert("Error", "Failed to update reminder");
-                    }
-                    setLoading(false);
-                }}
-                onCancel={() => setEditingReminder(null)}
-                timeFormat={timeFormat}
-            />
+    {/* Reminder Edit and Active List Removed */}
         </Card>
     );
 }

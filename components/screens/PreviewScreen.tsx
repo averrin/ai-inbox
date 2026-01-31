@@ -123,6 +123,8 @@ export function PreviewScreen({
     const [isEditingReminder, setIsEditingReminder] = React.useState(false);
     const [editDate, setEditDate] = React.useState<Date>(new Date());
     const [editRecurrence, setEditRecurrence] = React.useState<string>('');
+    const [editAlarm, setEditAlarm] = React.useState<boolean>(false);
+    const [editPersistent, setEditPersistent] = React.useState<number | undefined>(undefined);
 
     
     // Focus Mode
@@ -175,6 +177,9 @@ export function PreviewScreen({
         if (data?.frontmatter?.reminder_datetime) {
             setEditDate(new Date(data.frontmatter.reminder_datetime));
             setEditRecurrence(data.frontmatter.reminder_recurrent || '');
+            setEditAlarm(data.frontmatter.reminder_alarm === 'true');
+            const p = data.frontmatter.reminder_persistent;
+            setEditPersistent(p ? parseInt(p, 10) : undefined);
             setIsEditingReminder(true);
         }
     };
@@ -182,20 +187,26 @@ export function PreviewScreen({
     const handleCreateReminder = () => {
         setEditDate(new Date());
         setEditRecurrence('');
+        setEditAlarm(false);
+        setEditPersistent(undefined);
         setIsEditingReminder(true);
     };
 
-    const handleSaveReminder = (date: Date, recurrence: string) => {
+    const handleSaveReminder = (date: Date, recurrence: string, alarm: boolean, persistent?: number) => {
         const isoDate = date.toISOString();
         if (onUpdateFrontmatter) {
             const updates: Record<string, any> = {
                 reminder_datetime: isoDate
             };
-            if (recurrence) {
-                updates.reminder_recurrent = recurrence;
-            } else {
-                updates.reminder_recurrent = recurrence; 
-            }
+            
+            if (recurrence) updates.reminder_recurrent = recurrence;
+            else updates.reminder_recurrent = recurrence; // Clear? Logic seems to clear if empty string passed? Or maybe just set to undefined?
+            
+            updates.reminder_alarm = alarm ? 'true' : undefined; // Remove if false? Or set 'false'? Standardize on 'true' or undefined.
+            if (!alarm) updates.reminder_alarm = undefined; // Ensure clear if false
+
+            updates.reminder_persistent = persistent !== undefined ? persistent.toString() : undefined;
+
             onUpdateFrontmatter(updates);
         }
 
@@ -259,11 +270,6 @@ export function PreviewScreen({
                     </TouchableOpacity>
                     <Text className="text-2xl font-bold text-white">Preview</Text>
                 </View>
-                {onOpenSettings && (
-                    <TouchableOpacity onPress={onOpenSettings} className="p-2 bg-slate-800 rounded-full">
-                        <Ionicons name="settings-sharp" size={20} color="white" />
-                    </TouchableOpacity>
-                )}
             </View>
             )}
 
@@ -647,6 +653,8 @@ export function PreviewScreen({
                 visible={isEditingReminder}
                 initialDate={editDate}
                 initialRecurrence={editRecurrence}
+                initialAlarm={editAlarm}
+                initialPersistent={editPersistent}
                 onSave={handleSaveReminder}
                 onCancel={() => setIsEditingReminder(false)}
                 timeFormat={timeFormat}

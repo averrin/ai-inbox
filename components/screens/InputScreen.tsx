@@ -80,11 +80,6 @@ export function InputScreen({
                 {/* Settings button header */}
                 <View className="flex-row justify-between items-center px-4 pt-2 pb-1">
                     <Text className="text-2xl font-bold text-white">Take a Note</Text>
-                    {onOpenSettings && (
-                        <TouchableOpacity onPress={onOpenSettings} className="p-2 bg-slate-800 rounded-full">
-                            <Ionicons name="settings-sharp" size={24} color="#CBD5E1" />
-                        </TouchableOpacity>
-                    )}
                 </View>
 
                 {/* Main Content ScrollView */}
