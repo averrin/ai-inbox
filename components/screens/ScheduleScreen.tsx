@@ -25,7 +25,7 @@ export default function ScheduleScreen() {
     const [date, setDate] = useState(new Date());
     const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
     const [viewMode, setViewMode] = useState<'day' | '3days' | 'week'>('day');
-    const [selectedEventTitle, setSelectedEventTitle] = useState<string | null>(null);
+    const [selectedEvent, setSelectedEvent] = useState<{ title: string, start: Date, end: Date } | null>(null);
     const [refreshing, setRefreshing] = useState(false);
 
 
@@ -260,10 +260,11 @@ export default function ScheduleScreen() {
                             }}
                             eventCellStyle={eventCellStyle}
                             onPressEvent={(evt) => {
-                                if (evt.type === 'marker') {
-                                    showReminder(evt.originalEvent);
+                                const event = evt as any;
+                                if (event.type === 'marker') {
+                                    showReminder(event.originalEvent);
                                 } else {
-                                    setSelectedEventTitle(evt.title);
+                                    setSelectedEvent({ title: event.title, start: event.start, end: event.end });
                                 }
                             }}
                             calendarCellStyle={{ borderColor: '#334155', backgroundColor: '#0f172a' }}
@@ -286,9 +287,9 @@ export default function ScheduleScreen() {
 
                 {/* Context Menu Modal */}
                 <EventContextModal
-                    visible={!!selectedEventTitle}
-                    onClose={() => setSelectedEventTitle(null)}
-                    eventTitle={selectedEventTitle}
+                    visible={!!selectedEvent}
+                    onClose={() => setSelectedEvent(null)}
+                    event={selectedEvent}
                 />
             </SafeAreaView>
         </View>
