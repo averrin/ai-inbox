@@ -20,13 +20,13 @@ export function RemindersSettings() {
 
 
     const [loading, setLoading] = useState(false);
-    const { 
-        remindersScanFolder, 
-        setRemindersScanFolder, 
+    const {
+        remindersScanFolder,
+        setRemindersScanFolder,
         defaultReminderFolder,
         setDefaultReminderFolder,
-        vaultUri, 
-        backgroundSyncInterval, 
+        vaultUri,
+        backgroundSyncInterval,
         setBackgroundSyncInterval,
         reminderBypassDnd,
         setReminderBypassDnd,
@@ -116,12 +116,12 @@ export function RemindersSettings() {
             Alert.alert("Error", "Vault URI not set. Go to Setup -> General to pick a vault.");
             return;
         }
-        
+
         try {
             const now = new Date();
             const reminderTime = new Date(now.getTime() + 30 * 1000); // 30 seconds from now
             const timeStr = reminderTime.toISOString();
-            
+
             const fileName = `Test Reminder ${now.getTime()}.md`;
             const fileContent = `---
 reminder_datetime: ${timeStr}
@@ -135,11 +135,11 @@ Ensure the app is in background to test the notification, or foreground to test 
             // Determine target folder
             let targetUri = vaultUri;
             if (remindersScanFolder && remindersScanFolder.trim()) {
-                 const { checkDirectoryExists } = await import('../utils/saf');
-                 const folderUri = await checkDirectoryExists(vaultUri, remindersScanFolder.trim());
-                 if (folderUri) {
-                     targetUri = folderUri;
-                 }
+                const { checkDirectoryExists } = await import('../utils/saf');
+                const folderUri = await checkDirectoryExists(vaultUri, remindersScanFolder.trim());
+                if (folderUri) {
+                    targetUri = folderUri;
+                }
             }
 
             // Create file in the correct scanned location
@@ -151,10 +151,10 @@ Ensure the app is in background to test the notification, or foreground to test 
                 text1: 'Test Reminder Created',
                 text2: 'Wait 30s for it to trigger!',
             });
-            
+
             // Reload list to see it
             loadReminders();
-            
+
             // Force immediate sync to schedule notification
             await syncAllReminders();
         } catch (e) {
@@ -208,7 +208,7 @@ Ensure the app is in background to test the notification, or foreground to test 
                 </View>
             </View>
 
-            <View className="mb-6">
+            <View className="mb-0">
                 <FolderInput
                     label="Scan Folder (Optional)"
                     value={remindersScanFolder || ''}
@@ -220,7 +220,7 @@ Ensure the app is in background to test the notification, or foreground to test 
                 />
             </View>
 
-            <View className="mb-6">
+            <View className="mb-4">
                 <FolderInput
                     label="New Reminders Folder"
                     value={defaultReminderFolder || ''}
@@ -230,7 +230,7 @@ Ensure the app is in background to test the notification, or foreground to test 
                     onCheckFolder={checkDefaultFolder}
                     placeholder="Where to save new reminders..."
                 />
-                <Text className="text-slate-500 text-xs mt-1 ml-1">
+                <Text className="text-slate-500 text-xs mt-0 ml-1">
                     If empty, reminders are saved in the scan folder or vault root.
                 </Text>
             </View>
@@ -254,49 +254,49 @@ Ensure the app is in background to test the notification, or foreground to test 
             </View>
 
 
-            <View className="mb-6">
-    <Text className="text-indigo-200 mb-3 font-semibold">Customization</Text>
-    
-    <TouchableOpacity 
-        onPress={() => { 
-            setReminderBypassDnd(!reminderBypassDnd); 
-            registerReminderTask(); 
-        }} 
-        className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 mb-3 flex-row items-center justify-between"
-    >
-        <View className="flex-row items-center flex-1">
-            <Ionicons name="moon-outline" size={20} color="#818cf8" />
-            <View className="ml-3 flex-1">
-                <Text className="text-white font-medium">Bypass DND</Text>
-                <Text className="text-slate-400 text-xs">Sound when DND is on</Text>
+            <View className="mb-0">
+                <Text className="text-indigo-200 mb-3 font-semibold">Customization</Text>
+
+                <TouchableOpacity
+                    onPress={() => {
+                        setReminderBypassDnd(!reminderBypassDnd);
+                        registerReminderTask();
+                    }}
+                    className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 mb-3 flex-row items-center justify-between"
+                >
+                    <View className="flex-row items-center flex-1">
+                        <Ionicons name="moon-outline" size={20} color="#818cf8" />
+                        <View className="ml-3 flex-1">
+                            <Text className="text-white font-medium">Bypass DND</Text>
+                            <Text className="text-slate-400 text-xs">Sound when DND is on</Text>
+                        </View>
+                    </View>
+                    <View className={`w-12 h-7 rounded-full p-1 ${reminderBypassDnd ? 'bg-indigo-600' : 'bg-slate-700'}`}>
+                        <View className={`w-5 h-5 rounded-full bg-white ${reminderBypassDnd ? 'ml-auto' : ''}`} />
+                    </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    onPress={() => setReminderVibration(!reminderVibration)}
+                    className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between mb-3"
+                >
+                    <View className="flex-row items-center flex-1">
+                        <Ionicons name="phone-portrait-outline" size={20} color="#818cf8" />
+                        <View className="ml-3 flex-1">
+                            <Text className="text-white font-medium">Vibration</Text>
+                            <Text className="text-slate-400 text-xs">Vibrate on reminder</Text>
+                        </View>
+                    </View>
+                    <View className={`w-12 h-7 rounded-full p-1 ${reminderVibration ? 'bg-indigo-600' : 'bg-slate-700'}`}>
+                        <View className={`w-5 h-5 rounded-full bg-white ${reminderVibration ? 'ml-auto' : ''}`} />
+                    </View>
+                </TouchableOpacity>
+
             </View>
-        </View>
-        <View className={`w-12 h-7 rounded-full p-1 ${reminderBypassDnd ? 'bg-indigo-600' : 'bg-slate-700'}`}>
-            <View className={`w-5 h-5 rounded-full bg-white ${reminderBypassDnd ? 'ml-auto' : ''}`} />
-        </View>
-    </TouchableOpacity>
-    
-    <TouchableOpacity 
-        onPress={() => setReminderVibration(!reminderVibration)} 
-        className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between mb-3"
-    >
-        <View className="flex-row items-center flex-1">
-            <Ionicons name="phone-portrait-outline" size={20} color="#818cf8" />
-            <View className="ml-3 flex-1">
-                <Text className="text-white font-medium">Vibration</Text>
-                <Text className="text-slate-400 text-xs">Vibrate on reminder</Text>
-            </View>
-        </View>
-        <View className={`w-12 h-7 rounded-full p-1 ${reminderVibration ? 'bg-indigo-600' : 'bg-slate-700'}`}>
-            <View className={`w-5 h-5 rounded-full bg-white ${reminderVibration ? 'ml-auto' : ''}`} />
-        </View>
-    </TouchableOpacity>
-
-    </View>
 
 
 
-    {/* Reminder Edit and Active List Removed */}
+            {/* Reminder Edit and Active List Removed */}
         </Card>
     );
 }

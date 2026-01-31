@@ -13,8 +13,11 @@ import { FileInput } from './ui/FileInput';
 import { openInObsidian } from '../utils/obsidian';
 import { GoogleSettings } from './GoogleSettings';
 import { RemindersSettings } from './RemindersSettings';
+import { CalendarsSettings } from './CalendarsSettings';
+import { EventTypesSettings } from './EventTypesSettings';
+import { TimeRangesSettings } from './TimeRangesSettings';
 
-type SettingsSection = 'root' | 'general' | 'tools' | 'google-calendar' | 'reminders';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'google-calendar' | 'reminders';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -32,15 +35,14 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
 
     // Navigation state for settings mode
     const [activeSection, setActiveSection] = useState<SettingsSection>('root');
-    
+
     // Animation state
     const slideAnim = useRef(new Animated.Value(0)).current;
 
     // Determine current level for animation
     const getLevel = (section: SettingsSection) => {
         if (section === 'root') return 0;
-        if (section === 'general' || section === 'tools') return 1;
-        return 2; // reminders, google-calendar
+        return 1;
     };
 
     // Effect to trigger animation when section changes
@@ -60,20 +62,16 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         if (!canClose) return;
 
         const backAction = () => {
-             const currentLevel = getLevel(activeSection);
-             if (currentLevel === 2) {
-                 setActiveSection('tools');
-                 return true;
-             }
-             if (currentLevel === 1) {
-                 setActiveSection('root');
-                 return true;
-             }
-             if (currentLevel === 0 && onClose) {
-                 onClose();
-                 return true;
-             }
-             return false;
+            const currentLevel = getLevel(activeSection);
+            if (currentLevel === 1) {
+                setActiveSection('root');
+                return true;
+            }
+            if (currentLevel === 0 && onClose) {
+                onClose();
+                return true;
+            }
+            return false;
         };
 
         const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
@@ -104,7 +102,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             setFolderStatus('neutral');
             return;
         }
-        
+
         const timer = setTimeout(() => {
             checkFolder();
         }, 500); // Debounce 500ms
@@ -118,9 +116,9 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             setPromptFileStatus('neutral');
             return;
         }
-        
+
         const { checkDirectoryExists, checkFileExists } = await import('../utils/saf');
-        
+
         // Determine base URI to check from
         let baseUri = vaultUri;
         if (rootFolderInput && rootFolderInput.trim()) {
@@ -129,7 +127,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 baseUri = contextUri;
             }
         }
-        
+
         const exists = await checkFileExists(baseUri, promptPathInput);
         setPromptFileStatus(exists ? 'valid' : 'invalid');
     };
@@ -140,7 +138,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             setPromptFileStatus('neutral');
             return;
         }
-        
+
         const timer = setTimeout(() => {
             checkPromptFile();
         }, 500); // Debounce 500ms
@@ -163,8 +161,8 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             return;
         }
         if (!vaultUri) {
-             Alert.alert("Missing Vault", "Please select a vault folder.");
-             return;
+            Alert.alert("Missing Vault", "Please select a vault folder.");
+            return;
         }
         setApiKey(keyInput);
         setCustomPromptPath(promptPathInput);
@@ -188,12 +186,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
 
         return () => clearTimeout(timer);
     }, [
-        canClose, 
-        keyInput, 
-        promptPathInput, 
-        modelInput, 
-        rootFolderInput, 
-        androidIdInput, 
+        canClose,
+        keyInput,
+        promptPathInput,
+        modelInput,
+        rootFolderInput,
+        androidIdInput,
         setApiKey,
         setCustomPromptPath,
         setSelectedModel,
@@ -300,11 +298,11 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     />
                 </View>
             )}
-            
+
             <View className="mt-2 mb-2 pt-4 border-t border-slate-700">
                 <Text className="text-indigo-200 mb-2 font-semibold">Preferences</Text>
-                <TouchableOpacity 
-                    onPress={() => setTimeFormat(timeFormat === '24h' ? '12h' : '24h')} 
+                <TouchableOpacity
+                    onPress={() => setTimeFormat(timeFormat === '24h' ? '12h' : '24h')}
                     className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
                 >
                     <View className="flex-row items-center flex-1">
@@ -324,8 +322,8 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity 
-                    onPress={() => setEditorType(editorType === 'rich' ? 'simple' : 'rich')} 
+                <TouchableOpacity
+                    onPress={() => setEditorType(editorType === 'rich' ? 'simple' : 'rich')}
                     className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between mt-2"
                 >
                     <View className="flex-row items-center flex-1">
@@ -396,27 +394,34 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "API Keys, Vault, Model"
             )}
             {renderMenuButton(
-                "Tools",
-                "link-outline",
-                () => setActiveSection('tools'),
-                "Google Calendar, External Apps"
-            )}
-        </View>
-    );
-
-    const renderToolsMenu = () => (
-        <View className="px-4 mt-2">
-            {renderMenuButton(
-                "Google Calendar",
+                "Calendars",
                 "calendar-outline",
+                () => setActiveSection('calendars'),
+                "Manage connected calendars"
+            )}
+            {renderMenuButton(
+                "Event Types",
+                "pricetag-outline",
+                () => setActiveSection('event-types'),
+                "Configure event categories"
+            )}
+            {renderMenuButton(
+                "Time Ranges",
+                "time-outline",
+                () => setActiveSection('time-ranges'),
+                "Recurring calendar blocks"
+            )}
+            {renderMenuButton(
+                "Google Integration",
+                "logo-google",
                 () => setActiveSection('google-calendar'),
-                "Schedule events from notes"
+                "Client IDs & Account"
             )}
             {renderMenuButton(
                 "Reminders",
                 "alarm-outline",
                 () => setActiveSection('reminders'),
-                "Local notifications from notes"
+                "Local notifications"
             )}
         </View>
     );
@@ -424,14 +429,14 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     // If welcome mode, show everything in one list (simplified for initial setup)
     const renderWelcomeContent = () => (
         <View>
-              <View className="justify-center mt-10 mb-8">
-                    <Text className="text-3xl font-bold text-white mb-2 text-center">Welcome</Text>
-                    <Text className="text-indigo-200 text-center">Setup your AI Inbox</Text>
-                </View>
+            <View className="justify-center mt-10 mb-8">
+                <Text className="text-3xl font-bold text-white mb-2 text-center">Welcome</Text>
+                <Text className="text-indigo-200 text-center">Setup your AI Inbox</Text>
+            </View>
             {renderGeneralSettings()}
             <View className="h-4" />
             <View className="px-4">
-                 <Text className="text-xl font-bold text-white mb-2">Integrations</Text>
+                <Text className="text-xl font-bold text-white mb-2">Integrations</Text>
             </View>
             {renderGoogleCalendarSettings()}
 
@@ -440,14 +445,14 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             </View>
         </View>
     );
-    
+
     // Animation Interpolations
     const rootTranslateX = slideAnim.interpolate({
         inputRange: [0, 1],
         outputRange: [0, -SCREEN_WIDTH],
         extrapolate: 'clamp',
     });
-    
+
     const rootOpacity = slideAnim.interpolate({
         inputRange: [0, 0.5, 1],
         outputRange: [1, 0, 0],
@@ -459,7 +464,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         outputRange: [SCREEN_WIDTH, 0, -SCREEN_WIDTH],
         extrapolate: 'clamp',
     });
-    
+
     const level1Opacity = slideAnim.interpolate({
         inputRange: [0, 0.5, 1, 1.5, 2],
         outputRange: [0, 0, 1, 0, 0],
@@ -471,8 +476,8 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         outputRange: [SCREEN_WIDTH, 0],
         extrapolate: 'clamp',
     });
-    
-     const level2Opacity = slideAnim.interpolate({
+
+    const level2Opacity = slideAnim.interpolate({
         inputRange: [1, 1.5, 2],
         outputRange: [0, 0, 1],
         extrapolate: 'clamp',
@@ -481,13 +486,13 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
 
     // If canClose is false, we are in initial setup, so no fancy animations needed (or just render standard)
     if (!canClose) {
-         return (
+        return (
             <Layout>
-                 <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="always">
-                     {renderWelcomeContent()}
-                 </ScrollView>
-                 {/* Modals ... */}
-                  <Modal visible={showModelPicker} transparent animationType="slide">
+                <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="always">
+                    {renderWelcomeContent()}
+                </ScrollView>
+                {/* Modals ... */}
+                <Modal visible={showModelPicker} transparent animationType="slide">
                     <View className="flex-1 justify-end bg-black/50">
                         <View className="bg-slate-900 rounded-t-3xl p-6 max-h-[70%]">
                             <View className="flex-row justify-between items-center mb-4">
@@ -514,78 +519,76 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     </View>
                 </Modal>
             </Layout>
-         );
+        );
     }
 
     return (
         <Layout>
             <View className="flex-1 relative overflow-hidden">
                 {/* Level 0: Root */}
-                <Animated.View 
-                    style={{ 
-                        position: 'absolute', 
-                        top: 0, bottom: 0, left: 0, right: 0, 
+                <Animated.View
+                    style={{
+                        position: 'absolute',
+                        top: 0, bottom: 0, left: 0, right: 0,
                         transform: [{ translateX: rootTranslateX }],
                         zIndex: 0
                     }}
                     pointerEvents={activeSection === 'root' ? 'auto' : 'none'}
                 >
-                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="always">
-                         {renderHeader("Settings", onClose)}
-                         {renderRootMenu()}
-                     </ScrollView>
-                </Animated.View>
-
-                {/* Level 1: General OR Tools */}
-                <Animated.View 
-                    style={{ 
-                        position: 'absolute', 
-                        top: 0, bottom: 0, left: 0, right: 0, 
-                        transform: [{ translateX: level1TranslateX }],
-                        zIndex: 1
-                    }}
-                    pointerEvents={(activeSection === 'general' || activeSection === 'tools') ? 'auto' : 'none'}
-                >
                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="always">
-                        {activeSection === 'general' && (
-                             <>
-                                {renderHeader("General", () => setActiveSection('root'))}
-                                <View className="px-0">{renderGeneralSettings()}</View>
-                             </>
-                        )}
-                        {(activeSection === 'tools' || activeSection === 'google-calendar' || activeSection === 'reminders') && (
-                             <>
-                                {renderHeader("Tools", () => setActiveSection('root'))}
-                                {renderToolsMenu()}
-                             </>
-                        )}
+                        {renderHeader("Settings", onClose)}
+                        {renderRootMenu()}
                     </ScrollView>
                 </Animated.View>
 
-                {/* Level 2: Sub-tools */}
-                <Animated.View 
-                    style={{ 
-                        position: 'absolute', 
-                        top: 0, bottom: 0, left: 0, right: 0, 
-                        transform: [{ translateX: level2TranslateX }],
-                        zIndex: 2
+                {/* Level 1: Detail Views */}
+                <Animated.View
+                    style={{
+                        position: 'absolute',
+                        top: 0, bottom: 0, left: 0, right: 0,
+                        transform: [{ translateX: level1TranslateX }],
+                        zIndex: 1
                     }}
-                    pointerEvents={(activeSection === 'google-calendar' || activeSection === 'reminders') ? 'auto' : 'none'}
+                    pointerEvents={activeSection !== 'root' ? 'auto' : 'none'}
                 >
-                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="always">
-                         {activeSection === 'google-calendar' && (
-                             <>
-                                {renderHeader("Google Calendar", () => setActiveSection('tools'))}
+                    <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="always">
+                        {activeSection === 'general' && (
+                            <>
+                                {renderHeader("General", () => setActiveSection('root'))}
+                                <View className="px-0">{renderGeneralSettings()}</View>
+                            </>
+                        )}
+                        {activeSection === 'calendars' && (
+                            <>
+                                {renderHeader("Calendars", () => setActiveSection('root'))}
+                                <View className="px-0"><CalendarsSettings /></View>
+                            </>
+                        )}
+                        {activeSection === 'event-types' && (
+                            <>
+                                {renderHeader("Event Types", () => setActiveSection('root'))}
+                                <View className="px-0"><EventTypesSettings /></View>
+                            </>
+                        )}
+                        {activeSection === 'time-ranges' && (
+                            <>
+                                {renderHeader("Time Ranges", () => setActiveSection('root'))}
+                                <View className="px-0"><TimeRangesSettings /></View>
+                            </>
+                        )}
+                        {activeSection === 'google-calendar' && (
+                            <>
+                                {renderHeader("Google Integration", () => setActiveSection('root'))}
                                 <View className="px-0">{renderGoogleCalendarSettings()}</View>
-                             </>
-                         )}
-                         {activeSection === 'reminders' && (
-                              <>
-                                {renderHeader("Reminders", () => setActiveSection('tools'))}
+                            </>
+                        )}
+                        {activeSection === 'reminders' && (
+                            <>
+                                {renderHeader("Reminders", () => setActiveSection('root'))}
                                 <View className="px-0"><RemindersSettings /></View>
-                              </>
-                         )}
-                     </ScrollView>
+                            </>
+                        )}
+                    </ScrollView>
                 </Animated.View>
 
             </View>

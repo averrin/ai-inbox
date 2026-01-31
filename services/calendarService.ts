@@ -33,6 +33,10 @@ export const getWritableCalendars = async (): Promise<Calendar.Calendar[]> => {
     return calendars.filter(cal => cal.source.name !== 'AI Inbox'); // Exclude app's own if needed, or included.
 };
 
+import { mergeDuplicateEvents } from './calendarUtils';
+
+export { mergeDuplicateEvents };
+
 export const getCalendarEvents = async (
     calendarIds: string[],
     startDate: Date,
@@ -41,5 +45,6 @@ export const getCalendarEvents = async (
     const hasPermission = await ensureCalendarPermissions();
     if (!hasPermission || calendarIds.length === 0) return [];
 
-    return await Calendar.getEventsAsync(calendarIds, startDate, endDate);
+    const events = await Calendar.getEventsAsync(calendarIds, startDate, endDate);
+    return mergeDuplicateEvents(events);
 };
