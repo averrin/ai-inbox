@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, Switch } from 'react-native'
 import dayjs from 'dayjs'
+import { ActionButton } from '../../ActionButton'
 import type { TimeRangeDefinition } from '../interfaces'
 
 interface TimeRangeItemProps {
@@ -71,12 +72,11 @@ export const TimeRangeItem = ({
                     thumbColor={range.isEnabled ? '#ffffff' : '#94a3b8'}
                     className="scale-75"
                 />
-                <TouchableOpacity
+                <ActionButton
                     onPress={onDelete}
-                    className="w-8 h-8 items-center justify-center bg-slate-700/50 rounded-full"
-                >
-                    <Text className="text-slate-400 font-bold text-lg leading-none pb-1">×</Text>
-                </TouchableOpacity>
+                    icon="trash-outline"
+                    variant="danger"
+                />
             </View>
         </View>
     )
