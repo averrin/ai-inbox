@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Modal, FlatList, TextInput } from 'react-
 import { Ionicons } from '@expo/vector-icons';
 import { useEventTypesStore } from '../store/eventTypes';
 import { EventType } from '../services/eventTypeService';
+import { ActionButton } from './ui/ActionButton';
 import * as Crypto from 'expo-crypto';
 
 // Preset colors (Tailwind-ish)
@@ -67,13 +68,15 @@ export function EventTypesSettings() {
                 />
                 <Text className="text-white text-base font-medium">{item.title}</Text>
             </View>
-            <View className="flex-row gap-2">
+            <View className="flex-row gap-2 items-center">
                 <TouchableOpacity onPress={() => handleEdit(item)} className="p-2">
                     <Ionicons name="pencil" size={20} color="#94a3b8" />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDelete(item.id)} className="p-2">
-                    <Ionicons name="trash-outline" size={20} color="#ef4444" />
-                </TouchableOpacity>
+                <ActionButton
+                    onPress={() => handleDelete(item.id)}
+                    icon="trash-outline"
+                    variant="danger"
+                />
             </View>
         </View>
     );
