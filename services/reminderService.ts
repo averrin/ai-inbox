@@ -5,6 +5,8 @@ import { StorageAccessFramework } from 'expo-file-system/legacy';
 import { useSettingsStore } from '../store/settings';
 import { Platform } from 'react-native';
 import { scheduleNativeAlarm, stopNativeAlarm } from './alarmModule';
+import dayjs from 'dayjs';
+import { parseFrontmatter, updateFrontmatter } from '../utils/markdown';
 
 const REMINDER_TASK_NAME = 'BACKGROUND_REMINDER_CHECK';
 const REMINDER_PROPERTY_KEY = 'reminder_datetime';
@@ -14,9 +16,7 @@ const PERSISTENT_PROPERTY_KEY = 'reminder_persistent';
 
 // Helper to formatting local ISO string (YYYY-MM-DDTHH:mm:ss)
 export function toLocalISOString(date: Date): string {
-    const tzOffset = date.getTimezoneOffset() * 60000; // offset in milliseconds
-    const localISOTime = (new Date(date.getTime() - tzOffset)).toISOString().slice(0, 19);
-    return localISOTime;
+    return dayjs(date).format('YYYY-MM-DDTHH:mm:ss');
 }
 
 // Helper to generate unique filename
@@ -35,28 +35,9 @@ export async function getUniqueFilename(folderUri: string, baseName: string): Pr
     return fileName;
 }
 
-// Helper to clean frontmatter key/value
-function parseFrontmatter(content: string): Record<string, string> {
-    const fm: Record<string, string> = {};
-    const match = content.match(/^---\n([\s\S]*?)\n---/);
-    if (!match) return fm;
-
-    const lines = match[1].split('\n');
-    for (const line of lines) {
-        const parts = line.split(':');
-        if (parts.length >= 2) {
-            const key = parts[0].trim();
-            const value = parts.slice(1).join(':').trim();
-            fm[key] = value;
-        }
-    }
-    return fm;
-}
-
 // Check if string is a valid ISO date or date-time
 function isValidDate(dateString: string): boolean {
-    const d = new Date(dateString);
-    return !isNaN(d.getTime());
+    return dayjs(dateString).isValid();
 }
 
 export async function registerReminderTask() {
@@ -66,8 +47,6 @@ export async function registerReminderTask() {
 
         await BackgroundFetch.registerTaskAsync(REMINDER_TASK_NAME, {
             minimumInterval: interval,
-            stopOnTerminate: false, // Continue even if app is closed
-            startOnBoot: true, // Start on device boot
         });
 
 
@@ -115,39 +94,46 @@ export interface Reminder {
 
 export function calculateNextRecurrence(currentDate: Date, rule: string): Date | null {
     const r = rule.toLowerCase().trim();
-    const nextDate = new Date(currentDate);
+    let nextDate = dayjs(currentDate);
 
     if (r === 'daily' || r === 'day') {
-        nextDate.setDate(nextDate.getDate() + 1);
+        nextDate = nextDate.add(1, 'day');
     } else if (r === 'weekly' || r === 'week') {
-        nextDate.setDate(nextDate.getDate() + 7);
+        nextDate = nextDate.add(1, 'week');
     } else if (r === 'monthly' || r === 'month') {
-        nextDate.setMonth(nextDate.getMonth() + 1);
+        nextDate = nextDate.add(1, 'month');
     } else if (r === 'yearly' || r === 'year') {
-        nextDate.setFullYear(nextDate.getFullYear() + 1);
+        nextDate = nextDate.add(1, 'year');
     } else {
-        // Try parsing number + unit (e.g. "2 days", "30 minutes")
+        // Try parsing number + unit
         const parts = r.split(' ');
         if (parts.length === 2) {
             const val = parseInt(parts[0]);
             const unit = parts[1];
-            if (!isNaN(val)) {
-                if (unit.startsWith('min')) nextDate.setMinutes(nextDate.getMinutes() + val);
-                else if (unit.startsWith('hour')) nextDate.setHours(nextDate.getHours() + val);
-                else if (unit.startsWith('day')) nextDate.setDate(nextDate.getDate() + val);
-                else if (unit.startsWith('week')) nextDate.setDate(nextDate.getDate() + (val * 7));
-                else if (unit.startsWith('month')) nextDate.setMonth(nextDate.getMonth() + val);
-                else if (unit.startsWith('year')) nextDate.setFullYear(nextDate.getFullYear() + val);
+             if (!isNaN(val)) {
+                let unitKey: dayjs.ManipulateType | undefined;
+                if (unit.startsWith('min')) unitKey = 'minute';
+                else if (unit.startsWith('hour')) unitKey = 'hour';
+                else if (unit.startsWith('day')) unitKey = 'day';
+                else if (unit.startsWith('week')) unitKey = 'week';
+                else if (unit.startsWith('month')) unitKey = 'month';
+                else if (unit.startsWith('year')) unitKey = 'year';
+
+                if (unitKey) {
+                    nextDate = nextDate.add(val, unitKey);
+                } else {
+                    return null;
+                }
+            } else {
+                return null;
             }
         } else {
             return null; // Invalid rule
         }
     }
 
-    // Safety check - if date didn't change (e.g. invalid rule)
-    if (nextDate.getTime() === currentDate.getTime()) return null;
-
-    return nextDate;
+    if (nextDate.isSame(dayjs(currentDate))) return null;
+    return nextDate.toDate();
 }
 
 export async function scanForReminders(): Promise<Reminder[]> {
@@ -182,11 +168,6 @@ export async function scanForReminders(): Promise<Reminder[]> {
     return reminders;
 }
 
-// Update a reminder time or delete it (if newTime is null)
-// Update a reminder time or delete it (if newTime is null)
-// Also triggers sync if needed
-// Update a reminder time or delete it (if newTime is null)
-// Also triggers sync if needed
 export async function updateReminder(
     fileUri: string,
     newTime: string | null,
@@ -196,107 +177,41 @@ export async function updateReminder(
 ) {
     try {
         const content = await StorageAccessFramework.readAsStringAsync(fileUri);
+        const { frontmatter } = parseFrontmatter(content);
 
         // Check for existing alarm to cancel it if time changes or alarm is disabled
-        const oldFm = parseFrontmatter(content);
-        if (oldFm[ALARM_PROPERTY_KEY] === 'true' && oldFm[REMINDER_PROPERTY_KEY]) {
-            const oldTimeStr = oldFm[REMINDER_PROPERTY_KEY].replace(/^["']|["']$/g, '');
-            const oldDate = new Date(oldTimeStr);
-            if (!isNaN(oldDate.getTime())) {
+        if (frontmatter[ALARM_PROPERTY_KEY] === 'true' && frontmatter[REMINDER_PROPERTY_KEY]) {
+            const oldTimeStr = String(frontmatter[REMINDER_PROPERTY_KEY]).replace(/^["']|["']$/g, '');
+            const oldDate = dayjs(oldTimeStr);
+            if (oldDate.isValid()) {
                 console.log(`[ReminderService] Cancelling old native alarm for ${oldDate.toISOString()}`);
-                await stopNativeAlarm(oldDate.getTime());
+                await stopNativeAlarm(oldDate.valueOf());
             }
         }
 
-        let newContent = content;
+        const updates: Record<string, string | null> = {};
 
         if (newTime) {
-            // Update or add
-            if (content.match(new RegExp(`${REMINDER_PROPERTY_KEY}:.*`))) {
-                newContent = content.replace(
-                    new RegExp(`${REMINDER_PROPERTY_KEY}:.*`),
-                    `${REMINDER_PROPERTY_KEY}: ${newTime}`
-                );
-            } else {
-                // Insert into frontmatter if exists
-                if (content.startsWith('---')) {
-                    const endOfFM = content.indexOf('\n---', 3);
-                    if (endOfFM !== -1) {
-                        newContent = content.slice(0, endOfFM) + `\n${REMINDER_PROPERTY_KEY}: ${newTime}` + content.slice(endOfFM);
-                    }
-                }
-            }
+            updates[REMINDER_PROPERTY_KEY] = newTime;
 
-            // Update recurrence
             if (recurrenceRule !== undefined) {
-                if (newContent.match(new RegExp(`${RECURRENT_PROPERTY_KEY}:.*`))) {
-                    if (recurrenceRule) {
-                        newContent = newContent.replace(
-                            new RegExp(`${RECURRENT_PROPERTY_KEY}:.*`),
-                            `${RECURRENT_PROPERTY_KEY}: ${recurrenceRule}`
-                        );
-                    } else {
-                        newContent = newContent.replace(new RegExp(`^${RECURRENT_PROPERTY_KEY}:.*\\n?`, 'm'), '');
-                    }
-                } else if (recurrenceRule) {
-                    newContent = newContent.replace(
-                        new RegExp(`(${REMINDER_PROPERTY_KEY}:.*)`),
-                        `$1\n${RECURRENT_PROPERTY_KEY}: ${recurrenceRule}`
-                    );
-                }
+                updates[RECURRENT_PROPERTY_KEY] = recurrenceRule || null;
             }
 
-            // Update Alarm
             if (alarm !== undefined) {
-                const alarmVal = alarm ? 'true' : 'false';
-                // If false, we might prefer to remove the line to keep it clean, but explicit false is okay too.
-                // Let's remove if false for cleaner files, or explicit. 
-                // Spec implies boolean. Let's write 'true' if true, remove if false/undefined?
-                // Actually if I pass 'false', I probably want to disable it.
-
-                if (newContent.match(new RegExp(`${ALARM_PROPERTY_KEY}:.*`))) {
-                    if (alarm) {
-                        newContent = newContent.replace(
-                            new RegExp(`${ALARM_PROPERTY_KEY}:.*`),
-                            `${ALARM_PROPERTY_KEY}: ${alarmVal}`
-                        );
-                    } else {
-                        // Remove if false (default)
-                        newContent = newContent.replace(new RegExp(`^${ALARM_PROPERTY_KEY}:.*\\n?`, 'm'), '');
-                    }
-                } else if (alarm) {
-                    // Insert
-                    newContent = newContent.replace(
-                        new RegExp(`(${REMINDER_PROPERTY_KEY}:.*)`),
-                        `$1\n${ALARM_PROPERTY_KEY}: ${alarmVal}`
-                    );
-                }
+                 // If alarm is true, write 'true'. If false, remove it (pass null)
+                updates[ALARM_PROPERTY_KEY] = alarm ? 'true' : null;
             }
 
-            // Update Persistent
             if (persistent !== undefined) {
-                if (newContent.match(new RegExp(`${PERSISTENT_PROPERTY_KEY}:.*`))) {
-                    if (persistent) {
-                        newContent = newContent.replace(
-                            new RegExp(`${PERSISTENT_PROPERTY_KEY}:.*`),
-                            `${PERSISTENT_PROPERTY_KEY}: ${persistent}`
-                        );
-                    } else {
-                        newContent = newContent.replace(new RegExp(`^${PERSISTENT_PROPERTY_KEY}:.*\\n?`, 'm'), '');
-                    }
-                } else if (persistent) {
-                    // Insert
-                    newContent = newContent.replace(
-                        new RegExp(`(${REMINDER_PROPERTY_KEY}:.*)`),
-                        `$1\n${PERSISTENT_PROPERTY_KEY}: ${persistent}`
-                    );
-                }
+                updates[PERSISTENT_PROPERTY_KEY] = persistent ? String(persistent) : null;
             }
-
         } else {
-            // Delete (Remove the line)
-            newContent = content.replace(new RegExp(`^${REMINDER_PROPERTY_KEY}:.*\\n?`, 'm'), '');
+            // Delete reminder related keys
+            updates[REMINDER_PROPERTY_KEY] = null;
         }
+
+        const newContent = updateFrontmatter(content, updates);
 
         if (newContent !== content) {
             await StorageAccessFramework.writeAsStringAsync(fileUri, newContent);
@@ -308,7 +223,6 @@ export async function updateReminder(
         console.warn('[ReminderService] Failed to update reminder file:', e);
 
         // If file not found/readable, we should still trigger a sync
-        // This allows the notification for a deleted file to be cleaned up
         if (e.message?.includes('not readable') || e.message?.includes('does not exist')) {
             console.log('[ReminderService] File missing, triggering cleanup sync...');
             await syncAllReminders();
@@ -325,51 +239,41 @@ async function scanDirectory(uri: string, reminders: Reminder[]) {
         for (const fileUri of files) {
             const decoded = decodeURIComponent(fileUri);
 
-            // If it ends in .md, check it
             if (decoded.endsWith('.md')) {
                 await checkFileForReminder(fileUri, reminders);
             }
-            // If it has no extension, it *might* be a folder.
-            // SAF URIs for folders usually don't have extensions.
-            // However, simply calling readDirectoryAsync on a file will fail, so we try-catch it.
-            // A safer recursion check:
             else if (!decoded.split('/').pop()?.includes('.')) {
-                // Try to recurse
                 try {
                     await scanDirectory(fileUri, reminders);
                 } catch (ignored) {
-                    // Not a directory or permission denied
                 }
             }
         }
     } catch (e) {
-        // Ignore errors (e.g. permission or not a folder)
     }
 }
 
 async function checkFileForReminder(fileUri: string, reminders: Reminder[]) {
     try {
         const content = await StorageAccessFramework.readAsStringAsync(fileUri);
-        const fm = parseFrontmatter(content);
+        const { frontmatter, content: body } = parseFrontmatter(content);
 
-        if (fm[REMINDER_PROPERTY_KEY]) {
-            const timeStr = fm[REMINDER_PROPERTY_KEY];
-            // Remove quotes if present
+        if (frontmatter[REMINDER_PROPERTY_KEY]) {
+            const timeStr = String(frontmatter[REMINDER_PROPERTY_KEY]);
             const cleanTime = timeStr.replace(/^["']|["']$/g, '');
 
             if (isValidDate(cleanTime)) {
-                // Get filename from URI roughly
                 const decoded = decodeURIComponent(fileUri);
                 const parts = decoded.split('/');
                 const fileName = parts[parts.length - 1];
 
-                const recurrenceRule = fm[RECURRENT_PROPERTY_KEY] ? fm[RECURRENT_PROPERTY_KEY].replace(/^["']|["']$/g, '') : undefined;
+                const recurrenceRule = frontmatter[RECURRENT_PROPERTY_KEY] ? String(frontmatter[RECURRENT_PROPERTY_KEY]).replace(/^["']|["']$/g, '') : undefined;
 
-                const alarmStr = fm[ALARM_PROPERTY_KEY];
+                const alarmStr = String(frontmatter[ALARM_PROPERTY_KEY]);
                 const alarm = alarmStr === 'true';
 
-                const persistentStr = fm[PERSISTENT_PROPERTY_KEY];
-                const persistent = persistentStr ? parseInt(persistentStr.replace(/^["']|["']$/g, ''), 10) : undefined;
+                const persistentStr = frontmatter[PERSISTENT_PROPERTY_KEY];
+                const persistent = persistentStr ? parseInt(String(persistentStr).replace(/^["']|["']$/g, ''), 10) : undefined;
 
                 reminders.push({
                     fileUri,
@@ -378,7 +282,7 @@ async function checkFileForReminder(fileUri: string, reminders: Reminder[]) {
                     recurrenceRule,
                     alarm,
                     persistent: isNaN(persistent as number) ? undefined : persistent,
-                    content: content.replace(/^---[\s\S]*?---\n/, '').trim() // Full content without frontmatter
+                    content: body // Full content without frontmatter
                 });
             }
         }
@@ -388,7 +292,6 @@ async function checkFileForReminder(fileUri: string, reminders: Reminder[]) {
 }
 
 
-// Exported function to be called from background task OR foreground (e.g. after adding a file)
 export async function syncAllReminders() {
     try {
         // Ensure settings are hydrated (critical for background tasks)
@@ -400,10 +303,10 @@ export async function syncAllReminders() {
 
         await manageNotifications(reminders);
 
-        return BackgroundFetch.BackgroundFetchResult.NewData;
+        return BackgroundFetch.BackgroundTaskResult.Success;
     } catch (error) {
         console.error('[DEBUG_REMINDER] Sync failed:', error);
-        return BackgroundFetch.BackgroundFetchResult.Failed;
+        return BackgroundFetch.BackgroundTaskResult.Failed;
     }
 }
 
@@ -412,40 +315,29 @@ TaskManager.defineTask(REMINDER_TASK_NAME, async () => {
 });
 
 async function manageNotifications(activeReminders: Reminder[]) {
-    // 1. Get all currently scheduled notifications
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-
-    // 1.5. Check for missed/ignored notifications and resend if enabled
-    // We check per-reminder 'persistent' flag
     const presented = await Notifications.getPresentedNotificationsAsync();
-    const now = Date.now();
+    const now = dayjs();
 
     for (const notification of presented) {
         const fileUri = notification.request.content.data?.fileUri as string;
         if (!fileUri) continue;
 
-        // Try to find the reminder to check its persistent setting
         let reminderData = activeReminders.find(r => r.fileUri === fileUri);
-
         let intervalMs = -1;
 
         if (reminderData && reminderData.persistent) {
-            // Use per-reminder persistence if available
             intervalMs = reminderData.persistent * 60 * 1000;
         }
 
         if (intervalMs > 0) {
-            const triggerTime = notification.date; // timestamp when it was shown
-            if (now - triggerTime > intervalMs) {
-                // It's stale and ignored. Resend!
+            const triggerTime = dayjs(notification.date);
+            if (now.diff(triggerTime) > intervalMs) {
                 console.log(`[DEBUG_REMINDER] Resending persistent/missed notification for ${notification.request.content.title}`);
 
-                // Cancel the old one to clear it from tray
                 await Notifications.dismissNotificationAsync(notification.request.identifier);
 
-                // Re-fetch reminder data if we didn't have it (fallback logic)
                 if (!reminderData) {
-                    // Fallback: Try to read the file directly
                     try {
                         const recovered: Reminder[] = [];
                         await checkFileForReminder(fileUri, recovered);
@@ -453,7 +345,6 @@ async function manageNotifications(activeReminders: Reminder[]) {
                             reminderData = recovered[0];
                         }
                     } catch (e) {
-                        // ignore
                     }
                     if (!reminderData) {
                         reminderData = notification.request.content.data?.reminder as Reminder;
@@ -467,87 +358,58 @@ async function manageNotifications(activeReminders: Reminder[]) {
         }
     }
 
-    // 2. Identify stale notifications (those that don't match any active reminder or have changed time)
     for (const notification of scheduled) {
         const fileUri = notification.content.data?.fileUri;
         const reminderTime = notification.content.data?.reminderTime;
 
-        if (!fileUri) continue; // Not one of ours or malformed
+        if (!fileUri) continue;
 
-        // Find matching active reminder
         const match = activeReminders.find(r => r.fileUri === fileUri);
 
         if (!match) {
-            // Reminder no longer exists (deleted)
-            // Reminder no longer exists (deleted)
             await Notifications.cancelScheduledNotificationAsync(notification.identifier);
         } else if (match.reminderTime !== reminderTime) {
-            // Time has changed
-            // Time has changed
             await Notifications.cancelScheduledNotificationAsync(notification.identifier);
         }
     }
 
-    // 3. Schedule missing notifications
-    const nowTime = new Date();
+    const nowTime = now.toDate();
     for (const reminder of activeReminders) {
-        const remDate = new Date(reminder.reminderTime);
+        const remDate = dayjs(reminder.reminderTime);
 
-        if (remDate <= nowTime) {
-            // Check if it was recent (within 15 mins) and NOT already notified
-            // This is tricky without local state. For now, we rely on duplicate check below.
-            // But if it's past due, we might just fire it if it's recent.
-            const diff = nowTime.getTime() - remDate.getTime();
-            if (diff < 15 * 60 * 1000) {
-                // It's recent.
-                // We will NOT fire it immediately to avoid duplicates in loop.
-                // The user likely missed it or it was already handled.
-                // If we want to catch up, we need state tracking which we lack.
-                // If we want to catch up, we need state tracking which we lack.
+        if (remDate.isBefore(now)) {
+            const diff = now.diff(remDate, 'minute');
+            if (diff < 15) {
                 if (reminder.recurrenceRule) {
-                    // It's overdue and repeating. Advance it!
-                    const nextDate = calculateNextRecurrence(remDate, reminder.recurrenceRule);
-                    if (nextDate && nextDate > nowTime) {
-                        console.log(`[ReminderService] Auto-advancing overdue recurring reminder: ${reminder.fileName} to ${nextDate.toISOString()}`);
+                    const nextDate = calculateNextRecurrence(remDate.toDate(), reminder.recurrenceRule);
+                    if (nextDate && dayjs(nextDate).isAfter(now)) {
+                        console.log(`[ReminderService] Auto-advancing overdue recurring reminder: ${reminder.fileName} to ${dayjs(nextDate).toISOString()}`);
 
-                        // Update the file content
-                        await updateReminder(reminder.fileUri, nextDate.toISOString(), reminder.recurrenceRule);
-
-                        // We continue here because updateReminder triggers a full sync flow
-                        // to avoid race conditions or double scheduling
+                        await updateReminder(reminder.fileUri, dayjs(nextDate).toISOString(), reminder.recurrenceRule);
                         continue;
                     }
                 }
-
-                // If not recurring or invalid recurrence, skip (stale)
                 continue;
             }
         }
 
-        // Check if a valid notification exists for this Exact time
         const isScheduled = scheduled.some(n =>
             n.content.data?.fileUri === reminder.fileUri &&
             n.content.data?.reminderTime === reminder.reminderTime
         );
 
         if (!isScheduled) {
-            // Schedule it
-            if (remDate > nowTime) {
+            if (remDate.isAfter(now)) {
                 console.log(`[DEBUG_REMINDER] Scheduling future reminder: ${reminder.fileName}`);
                 await scheduleNotification(reminder);
-            } else {
-                // Recent past - Do NOT fire immediate prevents duplicate loops
             }
-        } else {
-            // Already scheduled correctly
         }
     }
 }
 
 async function scheduleNotification(reminder: Reminder, immediate = false) {
     if (reminder.alarm) {
-        // Use native alarm module for "Alarm" style reminders (blocking, looping sound)
-        const timestamp = immediate ? Date.now() + 1000 : new Date(reminder.reminderTime).getTime();
+        const timestamp = immediate ? Date.now() + 1000 : dayjs(reminder.reminderTime).valueOf();
         const success = await scheduleNativeAlarm(
             reminder.fileName.replace('.md', ''),
             reminder.content || "Alarm Reminder",
@@ -557,7 +419,6 @@ async function scheduleNotification(reminder: Reminder, immediate = false) {
             console.log(`[DEBUG_REMINDER] Scheduled NATIVE alarm for ${reminder.fileName}`);
             return;
         }
-        // Fallback to standard notification if native fails (shouldn't happen on Android)
     }
 
     const id = await Notifications.scheduleNotificationAsync({
@@ -579,7 +440,7 @@ async function scheduleNotification(reminder: Reminder, immediate = false) {
             }
             : {
                 type: Notifications.SchedulableTriggerInputTypes.DATE,
-                date: new Date(reminder.reminderTime),
+                date: dayjs(reminder.reminderTime).toDate(),
                 channelId: 'reminders-alarm'
             },
     });

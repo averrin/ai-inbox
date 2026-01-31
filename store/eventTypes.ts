@@ -43,8 +43,18 @@ export const useEventTypesStore = create<EventTypesState>()(
 
                 const config = await loadEventTypesFromVault(vaultUri);
                 if (config) {
+                    // Deduplicate loaded types by ID to prevent corruption
+                    const uniqueTypes = config.types.reduce((acc, current) => {
+                        const x = acc.find(item => item.id === current.id);
+                        if (!x) {
+                            return acc.concat([current]);
+                        } else {
+                            return acc;
+                        }
+                    }, [] as EventType[]);
+
                     set({
-                        eventTypes: config.types,
+                        eventTypes: uniqueTypes,
                         assignments: config.assignments,
                         difficulties: config.difficulties || {},
                         ranges: config.ranges || [],
@@ -59,6 +69,13 @@ export const useEventTypesStore = create<EventTypesState>()(
 
             addType: async (type) => {
                 const state = get();
+
+                // Prevent duplicates
+                if (state.eventTypes.some(t => t.id === type.id)) {
+                    console.warn('[EventTypesStore] Attempted to add duplicate type:', type.id);
+                    return;
+                }
+
                 const newTypes = [...state.eventTypes, type];
                 const newConfig: EventTypeConfig = {
                     types: newTypes,
