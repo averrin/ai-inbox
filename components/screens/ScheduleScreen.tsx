@@ -138,21 +138,6 @@ export default function ScheduleScreen() {
         }, [fetchEvents])
     );
 
-    const renderHeader = useCallback((headerProps: any) => {
-        // headerProps.dateRange is an array of dayjs objects for the current view (page)
-        // We use the first date in the range to represent the page's date in the DateRuler
-        const pageDate = headerProps.dateRange[0];
-        return (
-            <View>
-                <DateRuler
-                    date={pageDate.toDate()}
-                    onDateChange={changeDate}
-                />
-
-            </View>
-        );
-    }, [changeDate]);
-
     // Calculate date range for the hook (using same week logic as fetchEvents)
     const weekStart = useMemo(() => dayjs(date).startOf('week').subtract(1, 'week'), [date]);
     const weekEnd = useMemo(() => dayjs(date).endOf('week').add(1, 'week'), [date]);
@@ -173,6 +158,39 @@ export default function ScheduleScreen() {
     const focusRanges = useMemo(() => {
         return detectFocusRanges(events);
     }, [events]);
+
+    const renderHeader = useCallback((headerProps: any) => {
+        // headerProps.dateRange is an array of dayjs objects for the current view (page)
+        // We use the first date in the range to represent the page's date in the DateRuler
+        const pageDate = headerProps.dateRange[0];
+        const pageDay = dayjs(pageDate);
+
+        // Calculate score for this pageDate
+        const dailyEvents = events.filter(e =>
+            dayjs(e.start).isSame(pageDay, 'day') &&
+            e.type !== 'marker'
+        );
+        let score = dailyEvents.reduce((acc, evt) => acc + (evt.difficulty || 0), 0);
+
+        const dailyFocus = focusRanges.filter(f =>
+            dayjs(f.start).isSame(pageDay, 'day')
+        );
+        score += dailyFocus.length;
+
+        return (
+            <View>
+                <DateRuler
+                    date={pageDate.toDate()}
+                    onDateChange={changeDate}
+                />
+                <View className="bg-slate-900 border-b border-slate-800 px-4 pb-2 flex-row justify-end">
+                    <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                        Day Score: <Text className="text-indigo-400 text-sm">{score}</Text>
+                    </Text>
+                </View>
+            </View>
+        );
+    }, [changeDate, events, focusRanges]);
 
     const workRanges = useMemo(() => timeRangeEvents.filter((e: any) => e.isWork), [timeRangeEvents]);
 
