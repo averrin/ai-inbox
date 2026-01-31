@@ -14,18 +14,19 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useReminderModal } from '../../utils/reminderModalContext';
 import { ScheduleEvent } from './ScheduleEvent';
 import { useTimeRangeEvents } from '../ui/calendar/hooks/useTimeRangeEvents';
+import { calculateEventDifficulty } from '../../utils/difficultyUtils';
 
 
 export default function ScheduleScreen() {
     const { visibleCalendarIds, timeFormat, cachedReminders } = useSettingsStore();
-    const { assignments, difficulties, eventTypes, loadConfig } = useEventTypesStore();
+    const { assignments, difficulties, eventTypes, eventFlags, ranges, loadConfig } = useEventTypesStore();
     const { showReminder } = useReminderModal();
     const { height } = useWindowDimensions();
     const [events, setEvents] = useState<any[]>([]);
     const [date, setDate] = useState(new Date());
     const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
     const [viewMode, setViewMode] = useState<'day' | '3days' | 'week'>('day');
-    const [selectedEventTitle, setSelectedEventTitle] = useState<string | null>(null);
+    const [selectedEvent, setSelectedEvent] = useState<{ title: string, start: Date, end: Date } | null>(null);
     const [refreshing, setRefreshing] = useState(false);
 
 
@@ -80,8 +81,17 @@ export default function ScheduleScreen() {
             const mappedEvents = nativeEvents.map(evt => {
                 const assignedTypeId = assignments[evt.title];
                 const assignedType = assignedTypeId ? eventTypes.find(t => t.id === assignedTypeId) : null;
-                const difficulty = difficulties?.[evt.title];
+                const baseDifficulty = difficulties?.[evt.title] || 0;
+                const flags = eventFlags?.[evt.title];
                 const color = assignedType ? assignedType.color : (evt.calendarId ? 'rgba(79, 70, 229, 0.8)' : undefined);
+
+                // Calculate total difficulty
+                const { total } = calculateEventDifficulty(
+                    { title: evt.title, start: new Date(evt.startDate), end: new Date(evt.endDate) },
+                    baseDifficulty,
+                    ranges,
+                    flags
+                );
 
                 return {
                     title: evt.title,
@@ -90,7 +100,9 @@ export default function ScheduleScreen() {
                     color: color,
                     originalEvent: evt, // Keep ref for context menu
                     typeTag: assignedType ? assignedType.title : null,
-                    difficulty: difficulty
+                    difficulty: total, // Use total difficulty
+                    isEnglish: flags?.isEnglish,
+                    movable: flags?.movable
                 };
             });
 
@@ -112,7 +124,7 @@ export default function ScheduleScreen() {
         } catch (e) {
             console.error("Error fetching events", e);
         }
-    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, cachedReminders]);
+    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, ranges, cachedReminders]);
 
     const handleRefresh = async () => {
         setRefreshing(true);
@@ -260,10 +272,11 @@ export default function ScheduleScreen() {
                             }}
                             eventCellStyle={eventCellStyle}
                             onPressEvent={(evt) => {
-                                if (evt.type === 'marker') {
-                                    showReminder(evt.originalEvent);
+                                const event = evt as any;
+                                if (event.type === 'marker') {
+                                    showReminder(event.originalEvent);
                                 } else {
-                                    setSelectedEventTitle(evt.title);
+                                    setSelectedEvent({ title: event.title, start: event.start, end: event.end });
                                 }
                             }}
                             calendarCellStyle={{ borderColor: '#334155', backgroundColor: '#0f172a' }}
@@ -286,9 +299,9 @@ export default function ScheduleScreen() {
 
                 {/* Context Menu Modal */}
                 <EventContextModal
-                    visible={!!selectedEventTitle}
-                    onClose={() => setSelectedEventTitle(null)}
-                    eventTitle={selectedEventTitle}
+                    visible={!!selectedEvent}
+                    onClose={() => setSelectedEvent(null)}
+                    event={selectedEvent}
                 />
             </SafeAreaView>
         </View>

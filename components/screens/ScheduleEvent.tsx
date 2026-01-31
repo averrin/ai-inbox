@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import dayjs from 'dayjs';
+import { Ionicons } from '@expo/vector-icons';
 
 
 interface ScheduleEventProps {
@@ -9,7 +10,7 @@ interface ScheduleEventProps {
     timeFormat: string;
 }
 
-// Helper function to get difficulty color based on value (0-5)
+// Helper function to get difficulty color based on value (0-5+)
 const getDifficultyColor = (difficulty: number): string => {
     if (difficulty === 0) return '#64748b'; // slate-500 for 0
 
@@ -19,10 +20,12 @@ const getDifficultyColor = (difficulty: number): string => {
         '#eab308', // yellow-500 (difficulty 2)
         '#f97316', // orange-500 (difficulty 3)
         '#dc2626', // red-600 (difficulty 4)
-        '#b91c1c', // red-700 (difficulty 5)
+        '#b91c1c', // red-700 (difficulty 5+)
     ];
 
-    return difficultyColors[Math.min(difficulty - 1, 4)] || difficultyColors[4];
+    // Cap at index 4 (difficulty 5 color) for any value >= 5
+    const index = Math.min(Math.max(difficulty - 1, 0), 4);
+    return difficultyColors[index];
 };
 
 export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }: ScheduleEventProps) => {
@@ -112,7 +115,12 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
                 </Text>
             )}
 
-            <View className="absolute top-1 right-1 flex-row gap-1">
+            <View className="absolute top-1 right-1 flex-row gap-1 items-center">
+                {evt.movable && (
+                    <View className="bg-emerald-500/80 px-1 py-0.5 rounded">
+                        <Ionicons name="move" size={10} color="white" />
+                    </View>
+                )}
                 {evt.difficulty !== undefined && (
                     <View
                         className="px-1.5 py-0.5 rounded"
