@@ -10,7 +10,7 @@ interface ScheduleEventProps {
     timeFormat: string;
 }
 
-// Helper function to get difficulty color based on value (0-5)
+// Helper function to get difficulty color based on value (0-5+)
 const getDifficultyColor = (difficulty: number): string => {
     if (difficulty === 0) return '#64748b'; // slate-500 for 0
 
@@ -20,10 +20,12 @@ const getDifficultyColor = (difficulty: number): string => {
         '#eab308', // yellow-500 (difficulty 2)
         '#f97316', // orange-500 (difficulty 3)
         '#dc2626', // red-600 (difficulty 4)
-        '#b91c1c', // red-700 (difficulty 5)
+        '#b91c1c', // red-700 (difficulty 5+)
     ];
 
-    return difficultyColors[Math.min(difficulty - 1, 4)] || difficultyColors[4];
+    // Cap at index 4 (difficulty 5 color) for any value >= 5
+    const index = Math.min(Math.max(difficulty - 1, 0), 4);
+    return difficultyColors[index];
 };
 
 export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }: ScheduleEventProps) => {

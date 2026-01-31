@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Modal, FlatList } from 'react-native';
 import { useEventTypesStore } from '../store/eventTypes';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
+import { calculateEventDifficulty } from '../utils/difficultyUtils';
 
 interface Props {
     visible: boolean;
@@ -27,124 +28,26 @@ export function EventContextModal({ visible, onClose, event }: Props) {
         toggleEventFlag
     } = useEventTypesStore();
 
-    const { bonusDifficulty, reasons } = useMemo(() => {
-        if (!event || !visible) return { bonusDifficulty: 0, reasons: [] };
+    // Calculate derived difficulty
+    const currentDifficulty = difficulties?.[event?.title || ''] || 0;
 
-        const reasons: string[] = [];
-        let bonus = 0;
+    const { bonus: bonusDifficulty, total: totalDifficulty, reasons } = useMemo(() => {
+        if (!event || !visible) return { bonus: 0, total: currentDifficulty, reasons: [] };
 
-        // 0. Check for English flag
-        if (eventFlags?.[event.title]?.isEnglish) {
-            reasons.push("English Event");
-            bonus += 1;
-        }
-
-        const evtStart = dayjs(event.start);
-        const evtEnd = dayjs(event.end);
-
-        // 1. Check for intersection with Non-Work ranges (isWork = false)
-        const nonWorkRanges = ranges.filter(r => r.isEnabled && !r.isWork);
-
-        let current = evtStart.startOf('day');
-        const endDay = evtEnd.endOf('day');
-
-        while (current.isBefore(endDay) || current.isSame(endDay)) {
-            const dayOfWeek = current.day();
-
-            nonWorkRanges.forEach(range => {
-                if (range.days.includes(dayOfWeek)) {
-                    // Construct range start/end for this day
-                    const rStart = current.hour(range.start.hour).minute(range.start.minute).second(0);
-                    let rEnd = current.hour(range.end.hour).minute(range.end.minute).second(0);
-
-                    // Handle midnight span
-                    if (rEnd.isBefore(rStart)) {
-                        rEnd = rEnd.add(1, 'day');
-                    }
-
-                    // Check overlap: start < rEnd && end > rStart
-                    if (evtStart.isBefore(rEnd) && evtEnd.isAfter(rStart)) {
-                        const reason = `Intersects ${range.title}`;
-                        if (!reasons.includes(reason)) {
-                            reasons.push(reason);
-                            bonus += 1;
-                        }
-                    }
-                }
-            });
-
-            current = current.add(1, 'day');
-        }
-
-        // 2. Check for intersection with "Outside Work Hours"
-        const workRanges = ranges.filter(r => r.isEnabled && r.isWork);
-        if (workRanges.length > 0) {
-            const relevantWorkIntervals: { start: dayjs.Dayjs, end: dayjs.Dayjs }[] = [];
-
-            let curr = evtStart.startOf('day');
-            while (curr.isBefore(endDay) || curr.isSame(endDay)) {
-                const d = curr.day();
-                workRanges.forEach(range => {
-                    if (range.days.includes(d)) {
-                        const rStart = curr.hour(range.start.hour).minute(range.start.minute).second(0);
-                        let rEnd = curr.hour(range.end.hour).minute(range.end.minute).second(0);
-                        if (rEnd.isBefore(rStart)) rEnd = rEnd.add(1, 'day');
-
-                        // Intersection with event
-                        const intStart = rStart.isAfter(evtStart) ? rStart : evtStart;
-                        const intEnd = rEnd.isBefore(evtEnd) ? rEnd : evtEnd;
-
-                        if (intStart.isBefore(intEnd)) {
-                            relevantWorkIntervals.push({ start: intStart, end: intEnd });
-                        }
-                    }
-                });
-                curr = curr.add(1, 'day');
-            }
-
-            relevantWorkIntervals.sort((a, b) => a.start.valueOf() - b.start.valueOf());
-
-            const merged: { start: dayjs.Dayjs, end: dayjs.Dayjs }[] = [];
-            if (relevantWorkIntervals.length > 0) {
-                let currentInt = relevantWorkIntervals[0];
-                for (let i = 1; i < relevantWorkIntervals.length; i++) {
-                    if (relevantWorkIntervals[i].start.isBefore(currentInt.end) || relevantWorkIntervals[i].start.isSame(currentInt.end)) {
-                        if (relevantWorkIntervals[i].end.isAfter(currentInt.end)) {
-                            currentInt.end = relevantWorkIntervals[i].end;
-                        }
-                    } else {
-                        merged.push(currentInt);
-                        currentInt = relevantWorkIntervals[i];
-                    }
-                }
-                merged.push(currentInt);
-            }
-
-            let coveredDuration = 0;
-            merged.forEach(m => {
-                coveredDuration += m.end.diff(m.start);
-            });
-
-            const eventDuration = evtEnd.diff(evtStart);
-
-            if (coveredDuration < eventDuration) {
-                const reason = "Outside Work Hours";
-                if (!reasons.includes(reason)) {
-                    reasons.push(reason);
-                    bonus += 1;
-                }
-            }
-        }
-
-        return { bonusDifficulty: bonus, reasons };
-    }, [event, visible, ranges, eventFlags]);
+        return calculateEventDifficulty(
+            event,
+            currentDifficulty,
+            ranges,
+            eventFlags?.[event.title]
+        );
+    }, [event, visible, ranges, eventFlags, currentDifficulty]);
 
     if (!event) return null;
     const eventTitle = event.title;
 
     // Current assignment
     const currentTypeId = assignments[eventTitle];
-    const difficulty = difficulties?.[eventTitle] || 0;
+    const difficulty = currentDifficulty;
     const currentType = eventTypes.find(t => t.id === currentTypeId);
     const flags = eventFlags?.[eventTitle];
 
@@ -157,8 +60,6 @@ export function EventContextModal({ visible, onClose, event }: Props) {
         await unassignType(eventTitle);
         onClose();
     };
-
-    const totalDifficulty = difficulty + bonusDifficulty;
 
     return (
         <Modal visible={visible} transparent animationType="fade">
