@@ -1,0 +1,224 @@
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Layout } from '../ui/Layout';
+import { useState, useEffect } from 'react';
+import { scanForReminders, Reminder } from '../../services/reminderService';
+import { useSettingsStore } from '../../store/settings';
+import Toast from 'react-native-toast-message';
+import { useReminderModal } from '../../utils/reminderModalContext';
+import { ReminderItem } from '../ui/ReminderItem';
+import { ReminderEditModal } from '../ReminderEditModal';
+import { useOptimisticReminders } from '../../hooks/useOptimisticReminders';
+
+export default function RemindersListScreen() {
+  const { showReminder } = useReminderModal();
+  const [loading, setLoading] = useState(false);
+  
+  // Edit Modal State
+  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editDate, setEditDate] = useState(new Date());
+  const [editRecurrence, setEditRecurrence] = useState('');
+  const [editAlarm, setEditAlarm] = useState(false);
+  const [editPersistent, setEditPersistent] = useState<number | undefined>(undefined);
+
+  const { 
+    vaultUri,
+    remindersScanFolder,
+    setCachedReminders,
+    timeFormat,
+  } = useSettingsStore();
+  
+  const { reminders, addReminder, editReminder, deleteReminder, isSyncing } = useOptimisticReminders();
+
+  // Create Modal State
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+
+  useEffect(() => {
+    loadReminders();
+  }, []);
+
+  const loadReminders = async () => {
+    setLoading(true);
+    const found = await scanForReminders();
+    setCachedReminders(found);
+    setLoading(false);
+  };
+
+  const handleCreateReminder = ({ title, date, recurrence, alarm, persistent }: { title?: string, date: Date, recurrence: string, alarm: boolean, persistent?: number }) => {
+      addReminder(title || 'New Reminder', date, recurrence, alarm, persistent);
+      setIsCreateModalVisible(false);
+  };
+
+  const handleDeleteReminder = async (reminder: Reminder) => {
+    Alert.alert(
+      "Remove Reminder",
+      "Do you want to remove just the reminder property or delete the entire note?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove Reminder Only",
+          onPress: async () => {
+             await deleteReminder(reminder, false);
+          }
+        },
+        {
+          text: "Delete Note",
+          style: "destructive",
+          onPress: async () => {
+             await deleteReminder(reminder, true);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleEditReminder = (reminder: Reminder) => {
+    setEditingReminder(reminder);
+    setEditDate(new Date(reminder.reminderTime));
+    setEditRecurrence(reminder.recurrenceRule || '');
+    setEditAlarm(reminder.alarm || false);
+    setEditPersistent(reminder.persistent);
+    setIsEditModalVisible(true);
+  };
+  
+  const handleSaveEdit = ({ date, recurrence, alarm, persistent }: { date: Date, recurrence: string, alarm: boolean, persistent?: number }) => {
+      if (!editingReminder) return;
+      
+      editReminder(editingReminder, date, recurrence, alarm, persistent);
+      
+      setIsEditModalVisible(false);
+      setEditingReminder(null);
+  };
+
+  const now = new Date();
+  const overdue = reminders.filter(r => new Date(r.reminderTime) <= now).sort((a,b) => new Date(a.reminderTime).getTime() - new Date(b.reminderTime).getTime());
+  const upcoming = reminders.filter(r => new Date(r.reminderTime) > now).sort((a,b) => new Date(a.reminderTime).getTime() - new Date(b.reminderTime).getTime());
+
+  const getRelativeTime = (date: Date) => {
+    const diffMs = date.getTime() - now.getTime();
+    const diffSec = Math.round(diffMs / 1000);
+    const diffMin = Math.round(diffSec / 60);
+    const diffHr = Math.round(diffMin / 60);
+    const diffDay = Math.round(diffHr / 24);
+
+    if (Math.abs(diffSec) < 60) return 'just now';
+    if (Math.abs(diffMin) < 60) return diffMin > 0 ? `in ${diffMin} min` : `${Math.abs(diffMin)} min ago`;
+    if (Math.abs(diffHr) < 24) return diffHr > 0 ? `in ${diffHr} hr` : `${Math.abs(diffHr)} hr ago`;
+    return diffDay > 0 ? `in ${diffDay} days` : `${Math.abs(diffDay)} days ago`;
+  };
+
+  return (
+    <Layout>
+      <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: 100 }}>
+        <View className="flex-row items-center justify-between mb-6 mt-4">
+          <View className="flex-row items-center gap-2">
+            <Text className="text-3xl font-bold text-white">Reminders</Text>
+            {isSyncing && <ActivityIndicator size="small" color="#818cf8" />}
+          </View>
+          <TouchableOpacity onPress={loadReminders} disabled={loading || isSyncing}>
+            {loading ? (
+              <ActivityIndicator size="small" color="#818cf8" />
+            ) : (
+              <Ionicons name="refresh" size={24} color="#818cf8" />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {reminders.length === 0 ? (
+          <View className="bg-slate-800/50 p-8 rounded-xl border border-slate-700 items-center mt-4">
+            <Ionicons name="alarm-outline" size={64} color="#64748b" />
+            <Text className="text-slate-400 italic text-center mt-4 text-lg">No reminders found in vault.</Text>
+            <Text className="text-slate-500 text-sm text-center mt-2">
+              Add 'reminder_datetime: YYYY-MM-DDTHH:mm:ss' to your note's frontmatter.
+            </Text>
+            <Text className="text-slate-500 text-sm text-center mt-4">
+              Or tap the + button to create a test reminder!
+            </Text>
+          </View>
+        ) : (
+          <View className="gap-6">
+            {upcoming.length > 0 && (
+              <View>
+                <Text className="text-emerald-400 font-bold mb-3 text-sm uppercase tracking-wider">Upcoming</Text>
+                <View className="gap-3">
+                  {upcoming.map((reminder) => (
+                    <ReminderItem 
+                      key={reminder.fileUri} 
+                      reminder={reminder} 
+                      relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
+                      onEdit={() => handleEditReminder(reminder)}
+                      onDelete={() => handleDeleteReminder(reminder)}
+                      onShow={() => showReminder(reminder)}
+                      timeFormat={timeFormat}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {overdue.length > 0 && (
+              <View>
+                <Text className="text-red-400 font-bold mb-3 text-sm uppercase tracking-wider">Overdue</Text>
+                <View className="gap-3">
+                  {overdue.map((reminder) => (
+                    <ReminderItem 
+                      key={reminder.fileUri} 
+                      reminder={reminder} 
+                      relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
+                      onEdit={() => handleEditReminder(reminder)}
+                      onDelete={() => handleDeleteReminder(reminder)}
+                      onShow={() => showReminder(reminder)}
+                      timeFormat={timeFormat}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Floating Action Button */}
+      <TouchableOpacity 
+        onPress={() => setIsCreateModalVisible(true)}
+        className="absolute bottom-6 right-6 bg-indigo-600 rounded-full w-16 h-16 items-center justify-center shadow-lg"
+        style={{
+          elevation: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 4,
+        }}
+      >
+        <Ionicons name="add" size={32} color="white" />
+      </TouchableOpacity>
+
+      <ReminderEditModal
+        visible={isEditModalVisible}
+        initialDate={editDate}
+        initialRecurrence={editRecurrence}
+        initialAlarm={editAlarm}
+        initialPersistent={editPersistent}
+        onSave={handleSaveEdit}
+        onCancel={() => {
+            setIsEditModalVisible(false);
+            setEditingReminder(null);
+        }}
+        timeFormat={timeFormat}
+      />
+      
+      {/* Creation Modal (using Unified Edit Modal) */}
+      <ReminderEditModal
+        visible={isCreateModalVisible}
+        initialDate={new Date(new Date().setHours(new Date().getHours() + 1, 0, 0, 0))} // Default +1h
+        initialRecurrence=""
+        initialAlarm={false}
+        enableTitle={true}
+        onSave={handleCreateReminder}
+        onCancel={() => setIsCreateModalVisible(false)}
+        timeFormat={timeFormat}
+      />
+    </Layout>
+  );
+}

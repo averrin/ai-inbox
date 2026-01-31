@@ -21,6 +21,8 @@ interface SettingsState {
     setGoogleWebClientId: (id: string) => void;
     remindersScanFolder: string | null;
     setRemindersScanFolder: (folder: string) => void;
+    defaultReminderFolder: string | null;
+    setDefaultReminderFolder: (folder: string) => void;
     backgroundSyncInterval: number;
     setBackgroundSyncInterval: (interval: number) => void;
     reminderBypassDnd: boolean;
@@ -29,16 +31,14 @@ interface SettingsState {
     setReminderRingtone: (ringtone: string) => void;
     reminderVibration: boolean;
     setReminderVibration: (vibrate: boolean) => void;
-    resendMissedNotifications: boolean;
-    setResendMissedNotifications: (enabled: boolean) => void;
-    resendInterval: number;
-    setResendInterval: (interval: number) => void;
     timeFormat: '12h' | '24h';
     setTimeFormat: (format: '12h' | '24h') => void;
     cachedReminders: any[]; // Using any[] to avoid circular dependency with Reminder type
     setCachedReminders: (reminders: any[]) => void;
     editorType: 'rich' | 'simple';
     setEditorType: (type: 'rich' | 'simple') => void;
+    visibleCalendarIds: string[];
+    setVisibleCalendarIds: (ids: string[]) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -62,6 +62,8 @@ export const useSettingsStore = create<SettingsState>()(
             setGoogleWebClientId: (id) => set({ googleWebClientId: id }),
             remindersScanFolder: null,
             setRemindersScanFolder: (folder) => set({ remindersScanFolder: folder }),
+            defaultReminderFolder: null,
+            setDefaultReminderFolder: (folder) => set({ defaultReminderFolder: folder }),
             backgroundSyncInterval: 15,
             setBackgroundSyncInterval: (interval) => set({ backgroundSyncInterval: interval }),
             reminderBypassDnd: true,
@@ -70,16 +72,14 @@ export const useSettingsStore = create<SettingsState>()(
             setReminderRingtone: (ringtone) => set({ reminderRingtone: ringtone }),
             reminderVibration: true,
             setReminderVibration: (vibrate) => set({ reminderVibration: vibrate }),
-            resendMissedNotifications: false,
-            setResendMissedNotifications: (enabled) => set({ resendMissedNotifications: enabled }),
-            resendInterval: 10,
-            setResendInterval: (interval) => set({ resendInterval: interval }),
             timeFormat: '24h',
             setTimeFormat: (format) => set({ timeFormat: format }),
             cachedReminders: [],
             setCachedReminders: (reminders) => set({ cachedReminders: reminders }),
             editorType: 'rich',
             setEditorType: (type) => set({ editorType: type }),
+            visibleCalendarIds: [],
+            setVisibleCalendarIds: (ids) => set({ visibleCalendarIds: ids }),
         }),
         {
             name: 'ai-inbox-settings',

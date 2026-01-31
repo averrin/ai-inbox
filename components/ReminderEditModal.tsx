@@ -1,12 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, TextInput, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, TextInput, Platform, Switch } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+
+export interface ReminderSaveData {
+    title?: string;
+    date: Date;
+    recurrence: string;
+    alarm: boolean;
+    persistent?: number;
+}
 
 interface ReminderEditModalProps {
     visible: boolean;
     initialDate: Date;
     initialRecurrence: string;
-    onSave: (date: Date, recurrence: string) => void;
+    initialAlarm?: boolean;
+    initialPersistent?: number;
+    initialTitle?: string;
+    enableTitle?: boolean;
+    onSave: (data: ReminderSaveData) => void;
     onCancel: () => void;
     timeFormat: '12h' | '24h';
 }
@@ -15,12 +28,21 @@ export function ReminderEditModal({
     visible, 
     initialDate, 
     initialRecurrence, 
+    initialAlarm,
+    initialPersistent,
+    initialTitle = '',
+    enableTitle = false,
     onSave, 
     onCancel, 
     timeFormat 
 }: ReminderEditModalProps) {
     const [editDate, setEditDate] = useState<Date>(new Date());
     const [editRecurrence, setEditRecurrence] = useState<string>('');
+    const [editAlarm, setEditAlarm] = useState(false);
+    const [editPersistent, setEditPersistent] = useState('');
+    const [editTitle, setEditTitle] = useState('');
+    const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+    
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
 
@@ -28,43 +50,92 @@ export function ReminderEditModal({
         if (visible) {
             setEditDate(new Date(initialDate));
             setEditRecurrence(initialRecurrence || '');
+            setEditAlarm(initialAlarm || false);
+            setEditPersistent(initialPersistent ? initialPersistent.toString() : '');
+            setEditTitle(initialTitle || '');
         }
-    }, [visible, initialDate, initialRecurrence]);
+    }, [visible, initialDate, initialRecurrence, initialAlarm, initialPersistent, initialTitle]);
 
     const handleSave = () => {
-        onSave(editDate, editRecurrence);
+        const persistentVal = editPersistent ? parseInt(editPersistent, 10) : undefined;
+        onSave({
+            title: enableTitle ? editTitle : undefined,
+            date: editDate,
+            recurrence: editRecurrence,
+            alarm: editAlarm,
+            persistent: isNaN(persistentVal as number) ? undefined : persistentVal
+        });
     };
 
     return (
         <Modal visible={visible} transparent animationType="fade">
             <View className="flex-1 justify-center items-center bg-black/50 px-4">
-                <View className="bg-slate-900 w-full max-w-md p-6 rounded-2xl border border-slate-700">
-                    <Text className="text-white text-xl font-bold mb-4">Edit Reminder</Text>
+                <View className="bg-slate-900 w-full max-w-md p-6 rounded-3xl border border-slate-700">
+                    <Text className="text-white text-xl font-bold mb-4">
+                        {enableTitle ? 'New Reminder' : 'Edit Reminder'}
+                    </Text>
+
+                    {enableTitle && (
+                        <View className="mb-4">
+                            <Text className="text-indigo-200 mb-2 font-medium">Title</Text>
+                            <TextInput
+                                className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700 font-medium"
+                                value={editTitle}
+                                onChangeText={setEditTitle}
+                                placeholder="What to remind you about?"
+                                placeholderTextColor="#64748b"
+                                autoFocus
+                            />
+                        </View>
+                    )}
 
                     <View className="mb-6">
                         <Text className="text-indigo-200 mb-2 font-medium">Time</Text>
 
+                        {/* Date Picker - Full Width */}
                         <TouchableOpacity
                             onPress={() => setShowDatePicker(true)}
-                            className="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-2"
+                            className="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-3 flex-row justify-between items-center"
                         >
-                            <Text className="text-white text-center font-bold text-lg">
-                                {editDate.toLocaleDateString()}
-                            </Text>
+                             <View className="flex-row items-center">
+                                <Ionicons name="calendar-outline" size={20} color="#818cf8" />
+                                <Text className="text-white font-bold text-lg ml-3">
+                                    {editDate.toLocaleDateString()}
+                                </Text>
+                             </View>
+                             <Ionicons name="chevron-forward" size={16} color="#64748b" />
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                            onPress={() => setShowTimePicker(true)}
-                            className="bg-slate-800 p-4 rounded-xl border border-slate-700"
-                        >
-                            <Text className="text-white text-center font-bold text-lg">
-                                {editDate.toLocaleTimeString([], {
-                                    hour12: timeFormat === '12h',
-                                    hour: '2-digit', 
-                                    minute:'2-digit'
-                                })}
-                            </Text>
-                        </TouchableOpacity>
+                        {/* Time & Alarm Row */}
+                        <View className="flex-row gap-3">
+                            <TouchableOpacity
+                                onPress={() => setShowTimePicker(true)}
+                                className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row justify-between items-center"
+                            >
+                                <View className="flex-row items-center">
+                                    <Ionicons name="time-outline" size={20} color="#818cf8" />
+                                    <Text className="text-white font-bold text-lg ml-3">
+                                        {editDate.toLocaleTimeString([], {
+                                            hour12: timeFormat === '12h',
+                                            hour: '2-digit', 
+                                            minute:'2-digit'
+                                        })}
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
+
+                            <View className="flex-1 bg-slate-800 p-2 rounded-xl border border-slate-700 justify-center px-4">
+                                <View className="flex-row items-center justify-between">
+                                    <Text className="text-white font-medium">Alarm</Text>
+                                    <Switch
+                                        value={editAlarm}
+                                        onValueChange={setEditAlarm}
+                                        trackColor={{ false: "#334155", true: "#4f46e5" }}
+                                        thumbColor={editAlarm ? "#ffffff" : "#94a3b8"}
+                                    />
+                                </View>
+                            </View>
+                        </View>
 
                         {showDatePicker && (
                             <DateTimePicker
@@ -104,11 +175,18 @@ export function ReminderEditModal({
                         )}
                     </View>
                     
-                    {/* Quick Reset Options */}
-                    <View className="mb-4">
-                        <Text className="text-indigo-200 mb-2 font-medium">Reset (Postpone)</Text>
+                    {/* Quick Reschedule Options */}
+                    <View className="mb-6">
+                        <Text className="text-indigo-200 mb-2 font-medium">Quick Reschedule</Text>
                         <View className="flex-row flex-wrap gap-2">
-                            {[{ label: '+5m', min: 5 }, { label: '+15m', min: 15 }, { label: '+1h', min: 60 }, { label: '+1d', min: 1440 }].map((opt) => (
+                            {[
+                                { label: '+1m', min: 1 },
+                                { label: '+5m', min: 5 },
+                                { label: '+15m', min: 15 },
+                                { label: '+1h', min: 60 },
+                                { label: '+1d', min: 1440 },
+                                { label: '+7d', min: 10080 }
+                            ].map((opt) => (
                                 <TouchableOpacity
                                     key={opt.min}
                                     onPress={() => {
@@ -123,19 +201,47 @@ export function ReminderEditModal({
                         </View>
                     </View>
 
-                    {/* Recurrence Rule */}
+                    {/* Collapsible Advanced Section */}
                     <View className="mb-6">
-                        <Text className="text-indigo-200 mb-2 font-medium">Recurrence (Optional)</Text>
-                        <TextInput
-                            className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700"
-                            placeholder="e.g. daily, weekly, 3 days"
-                            placeholderTextColor="#64748b"
-                            value={editRecurrence}
-                            onChangeText={setEditRecurrence}
-                        />
-                        <Text className="text-slate-500 text-xs mt-1">
-                            Supported: daily, weekly, monthly, yearly, "2 days", "30 minutes"
-                        </Text>
+                        <TouchableOpacity 
+                            onPress={() => setIsAdvancedOpen(!isAdvancedOpen)}
+                            className="flex-row items-center justify-between mb-2"
+                        >
+                             <Text className="text-indigo-200 font-medium">Advanced</Text>
+                             <Ionicons name={isAdvancedOpen ? "chevron-up" : "chevron-down"} size={20} color="#818cf8" />
+                        </TouchableOpacity>
+                        
+                        {isAdvancedOpen && (
+                            <View className="bg-slate-800/50 p-3 rounded-xl border border-slate-700 space-y-4">
+                                {/* Recurrence Rule */}
+                                <View>
+                                    <Text className="text-slate-400 text-xs mb-1">Recurrence (Optional)</Text>
+                                    <TextInput
+                                        className="bg-slate-800 text-white p-3 rounded-lg border border-slate-600"
+                                        placeholder="e.g. daily, weekly, 3 days"
+                                        placeholderTextColor="#64748b"
+                                        value={editRecurrence}
+                                        onChangeText={setEditRecurrence}
+                                    />
+                                    <Text className="text-slate-500 text-[10px] mt-1 italic">
+                                        Supports: daily, weekly, monthly, yearly, "2 days"
+                                    </Text>
+                                </View>
+
+                                {/* Persistent */}
+                                <View>
+                                    <Text className="text-slate-400 text-xs mb-1">Persistent Nag (min)</Text>
+                                    <TextInput
+                                        className="bg-slate-800 text-white p-3 rounded-lg border border-slate-600"
+                                        placeholder="Nag interval (minutes)"
+                                        placeholderTextColor="#64748b"
+                                        keyboardType="numeric"
+                                        value={editPersistent}
+                                        onChangeText={setEditPersistent}
+                                    />
+                                </View>
+                            </View>
+                        )}
                     </View>
 
                     <View className="flex-row gap-3">

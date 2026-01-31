@@ -38,6 +38,16 @@ export function ReminderItem({ reminder, relativeTime, onEdit, onDelete, onShow,
                     <Ionicons name="repeat" size={10} color="#818cf8" />
                 </View>
             )}
+            {reminder.alarm && (
+                <View className="flex-row items-center bg-red-900/50 px-1.5 py-0.5 rounded">
+                     <Ionicons name="notifications" size={10} color="#f87171" />
+                </View>
+            )}
+            {reminder.persistent && (
+                <View className="flex-row items-center bg-yellow-900/50 px-1.5 py-0.5 rounded">
+                    <Ionicons name="alert-circle" size={10} color="#facc15" />
+               </View>
+           )}
         </View>
     );
 

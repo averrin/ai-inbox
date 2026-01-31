@@ -1,13 +1,39 @@
 import * as TaskManager from 'expo-task-manager';
-import * as BackgroundFetch from 'expo-background-fetch';
+import * as BackgroundFetch from 'expo-background-task';
 import * as Notifications from 'expo-notifications';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import { useSettingsStore } from '../store/settings';
 import { Platform } from 'react-native';
+import { scheduleNativeAlarm, stopNativeAlarm } from './alarmModule';
 
 const REMINDER_TASK_NAME = 'BACKGROUND_REMINDER_CHECK';
 const REMINDER_PROPERTY_KEY = 'reminder_datetime';
 const RECURRENT_PROPERTY_KEY = 'reminder_recurrent';
+const ALARM_PROPERTY_KEY = 'reminder_alarm';
+const PERSISTENT_PROPERTY_KEY = 'reminder_persistent';
+
+// Helper to formatting local ISO string (YYYY-MM-DDTHH:mm:ss)
+export function toLocalISOString(date: Date): string {
+    const tzOffset = date.getTimezoneOffset() * 60000; // offset in milliseconds
+    const localISOTime = (new Date(date.getTime() - tzOffset)).toISOString().slice(0, 19);
+    return localISOTime;
+}
+
+// Helper to generate unique filename
+export async function getUniqueFilename(folderUri: string, baseName: string): Promise<string> {
+    const { checkFileExists } = await import('../utils/saf');
+    const sanitizedName = baseName.replace(/[^a-zA-Z0-9\s-_]/g, '-').trim();
+
+    let fileName = `${sanitizedName}.md`;
+    let counter = 1;
+
+    while (await checkFileExists(folderUri, fileName)) {
+        fileName = `${sanitizedName} (${counter}).md`;
+        counter++;
+    }
+
+    return fileName;
+}
 
 // Helper to clean frontmatter key/value
 function parseFrontmatter(content: string): Record<string, string> {
@@ -82,6 +108,8 @@ export interface Reminder {
     fileName: string;
     reminderTime: string;
     recurrenceRule?: string; // e.g. "daily", "weekly", "10 minutes"
+    alarm?: boolean;
+    persistent?: number; // minutes
     content: string; // Full content for modal display
 }
 
@@ -157,9 +185,29 @@ export async function scanForReminders(): Promise<Reminder[]> {
 // Update a reminder time or delete it (if newTime is null)
 // Update a reminder time or delete it (if newTime is null)
 // Also triggers sync if needed
-export async function updateReminder(fileUri: string, newTime: string | null, recurrenceRule?: string) {
+// Update a reminder time or delete it (if newTime is null)
+// Also triggers sync if needed
+export async function updateReminder(
+    fileUri: string,
+    newTime: string | null,
+    recurrenceRule?: string,
+    alarm?: boolean,
+    persistent?: number
+) {
     try {
         const content = await StorageAccessFramework.readAsStringAsync(fileUri);
+
+        // Check for existing alarm to cancel it if time changes or alarm is disabled
+        const oldFm = parseFrontmatter(content);
+        if (oldFm[ALARM_PROPERTY_KEY] === 'true' && oldFm[REMINDER_PROPERTY_KEY]) {
+            const oldTimeStr = oldFm[REMINDER_PROPERTY_KEY].replace(/^["']|["']$/g, '');
+            const oldDate = new Date(oldTimeStr);
+            if (!isNaN(oldDate.getTime())) {
+                console.log(`[ReminderService] Cancelling old native alarm for ${oldDate.toISOString()}`);
+                await stopNativeAlarm(oldDate.getTime());
+            }
+        }
+
         let newContent = content;
 
         if (newTime) {
@@ -179,7 +227,7 @@ export async function updateReminder(fileUri: string, newTime: string | null, re
                 }
             }
 
-            // Update or add recurrence rule if provided (even empty string to remove)
+            // Update recurrence
             if (recurrenceRule !== undefined) {
                 if (newContent.match(new RegExp(`${RECURRENT_PROPERTY_KEY}:.*`))) {
                     if (recurrenceRule) {
@@ -188,17 +236,63 @@ export async function updateReminder(fileUri: string, newTime: string | null, re
                             `${RECURRENT_PROPERTY_KEY}: ${recurrenceRule}`
                         );
                     } else {
-                        // Remove line
                         newContent = newContent.replace(new RegExp(`^${RECURRENT_PROPERTY_KEY}:.*\\n?`, 'm'), '');
                     }
                 } else if (recurrenceRule) {
-                    // Insert after reminder time (which we know exists now)
                     newContent = newContent.replace(
                         new RegExp(`(${REMINDER_PROPERTY_KEY}:.*)`),
                         `$1\n${RECURRENT_PROPERTY_KEY}: ${recurrenceRule}`
                     );
                 }
             }
+
+            // Update Alarm
+            if (alarm !== undefined) {
+                const alarmVal = alarm ? 'true' : 'false';
+                // If false, we might prefer to remove the line to keep it clean, but explicit false is okay too.
+                // Let's remove if false for cleaner files, or explicit. 
+                // Spec implies boolean. Let's write 'true' if true, remove if false/undefined?
+                // Actually if I pass 'false', I probably want to disable it.
+
+                if (newContent.match(new RegExp(`${ALARM_PROPERTY_KEY}:.*`))) {
+                    if (alarm) {
+                        newContent = newContent.replace(
+                            new RegExp(`${ALARM_PROPERTY_KEY}:.*`),
+                            `${ALARM_PROPERTY_KEY}: ${alarmVal}`
+                        );
+                    } else {
+                        // Remove if false (default)
+                        newContent = newContent.replace(new RegExp(`^${ALARM_PROPERTY_KEY}:.*\\n?`, 'm'), '');
+                    }
+                } else if (alarm) {
+                    // Insert
+                    newContent = newContent.replace(
+                        new RegExp(`(${REMINDER_PROPERTY_KEY}:.*)`),
+                        `$1\n${ALARM_PROPERTY_KEY}: ${alarmVal}`
+                    );
+                }
+            }
+
+            // Update Persistent
+            if (persistent !== undefined) {
+                if (newContent.match(new RegExp(`${PERSISTENT_PROPERTY_KEY}:.*`))) {
+                    if (persistent) {
+                        newContent = newContent.replace(
+                            new RegExp(`${PERSISTENT_PROPERTY_KEY}:.*`),
+                            `${PERSISTENT_PROPERTY_KEY}: ${persistent}`
+                        );
+                    } else {
+                        newContent = newContent.replace(new RegExp(`^${PERSISTENT_PROPERTY_KEY}:.*\\n?`, 'm'), '');
+                    }
+                } else if (persistent) {
+                    // Insert
+                    newContent = newContent.replace(
+                        new RegExp(`(${REMINDER_PROPERTY_KEY}:.*)`),
+                        `$1\n${PERSISTENT_PROPERTY_KEY}: ${persistent}`
+                    );
+                }
+            }
+
         } else {
             // Delete (Remove the line)
             newContent = content.replace(new RegExp(`^${REMINDER_PROPERTY_KEY}:.*\\n?`, 'm'), '');
@@ -271,11 +365,19 @@ async function checkFileForReminder(fileUri: string, reminders: Reminder[]) {
 
                 const recurrenceRule = fm[RECURRENT_PROPERTY_KEY] ? fm[RECURRENT_PROPERTY_KEY].replace(/^["']|["']$/g, '') : undefined;
 
+                const alarmStr = fm[ALARM_PROPERTY_KEY];
+                const alarm = alarmStr === 'true';
+
+                const persistentStr = fm[PERSISTENT_PROPERTY_KEY];
+                const persistent = persistentStr ? parseInt(persistentStr.replace(/^["']|["']$/g, ''), 10) : undefined;
+
                 reminders.push({
                     fileUri,
                     fileName,
                     reminderTime: cleanTime,
                     recurrenceRule,
+                    alarm,
+                    persistent: isNaN(persistent as number) ? undefined : persistent,
                     content: content.replace(/^---[\s\S]*?---\n/, '').trim() // Full content without frontmatter
                 });
             }
@@ -310,58 +412,56 @@ TaskManager.defineTask(REMINDER_TASK_NAME, async () => {
 });
 
 async function manageNotifications(activeReminders: Reminder[]) {
-    const { resendMissedNotifications, resendInterval } = useSettingsStore.getState();
-
     // 1. Get all currently scheduled notifications
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
 
     // 1.5. Check for missed/ignored notifications and resend if enabled
-    if (resendMissedNotifications) {
-        const presented = await Notifications.getPresentedNotificationsAsync();
-        const now = Date.now();
-        const intervalMs = (resendInterval || 10) * 60 * 1000;
+    // We check per-reminder 'persistent' flag
+    const presented = await Notifications.getPresentedNotificationsAsync();
+    const now = Date.now();
 
-        for (const notification of presented) {
-            const fileUri = notification.request.content.data?.fileUri as string;
-            if (!fileUri) continue;
+    for (const notification of presented) {
+        const fileUri = notification.request.content.data?.fileUri as string;
+        if (!fileUri) continue;
 
+        // Try to find the reminder to check its persistent setting
+        let reminderData = activeReminders.find(r => r.fileUri === fileUri);
+
+        let intervalMs = -1;
+
+        if (reminderData && reminderData.persistent) {
+            // Use per-reminder persistence if available
+            intervalMs = reminderData.persistent * 60 * 1000;
+        }
+
+        if (intervalMs > 0) {
             const triggerTime = notification.date; // timestamp when it was shown
             if (now - triggerTime > intervalMs) {
                 // It's stale and ignored. Resend!
-                console.log(`[DEBUG_REMINDER] Resending missed notification for ${notification.request.content.title}`);
+                console.log(`[DEBUG_REMINDER] Resending persistent/missed notification for ${notification.request.content.title}`);
 
                 // Cancel the old one to clear it from tray
                 await Notifications.dismissNotificationAsync(notification.request.identifier);
 
-                // Schedule a new one immediately
-                // Try to get reminder from payload, but fallback to active list (payload might be truncated or stale)
-                // Also using active list ensures we don't resend deleted reminders
-                let reminderData = activeReminders.find(r => r.fileUri === fileUri);
-
+                // Re-fetch reminder data if we didn't have it (fallback logic)
                 if (!reminderData) {
-                    // Fallback: Try to read the file directly. 
-                    // This handles cases where the full scan failed or is incomplete, but the file still exists.
+                    // Fallback: Try to read the file directly
                     try {
                         const recovered: Reminder[] = [];
                         await checkFileForReminder(fileUri, recovered);
                         if (recovered.length > 0) {
                             reminderData = recovered[0];
-                            console.log(`[DEBUG_REMINDER] Recovered reminder data via direct read for ${fileUri}`);
                         }
                     } catch (e) {
-                        console.warn(`[DEBUG_REMINDER] Direct read recovery failed for ${fileUri}`, e);
+                        // ignore
                     }
-                }
-
-                if (!reminderData) {
-                    // Final Fallback: Payload
-                    reminderData = notification.request.content.data?.reminder as Reminder;
+                    if (!reminderData) {
+                        reminderData = notification.request.content.data?.reminder as Reminder;
+                    }
                 }
 
                 if (reminderData) {
                     await scheduleNotification(reminderData, true);
-                } else {
-                    console.log(`[DEBUG_REMINDER] skipped resend for ${fileUri} - not found in active reminders`);
                 }
             }
         }
@@ -389,15 +489,15 @@ async function manageNotifications(activeReminders: Reminder[]) {
     }
 
     // 3. Schedule missing notifications
-    const now = new Date();
+    const nowTime = new Date();
     for (const reminder of activeReminders) {
         const remDate = new Date(reminder.reminderTime);
 
-        if (remDate <= now) {
+        if (remDate <= nowTime) {
             // Check if it was recent (within 15 mins) and NOT already notified
             // This is tricky without local state. For now, we rely on duplicate check below.
             // But if it's past due, we might just fire it if it's recent.
-            const diff = now.getTime() - remDate.getTime();
+            const diff = nowTime.getTime() - remDate.getTime();
             if (diff < 15 * 60 * 1000) {
                 // It's recent.
                 // We will NOT fire it immediately to avoid duplicates in loop.
@@ -407,7 +507,7 @@ async function manageNotifications(activeReminders: Reminder[]) {
                 if (reminder.recurrenceRule) {
                     // It's overdue and repeating. Advance it!
                     const nextDate = calculateNextRecurrence(remDate, reminder.recurrenceRule);
-                    if (nextDate && nextDate > now) {
+                    if (nextDate && nextDate > nowTime) {
                         console.log(`[ReminderService] Auto-advancing overdue recurring reminder: ${reminder.fileName} to ${nextDate.toISOString()}`);
 
                         // Update the file content
@@ -432,7 +532,7 @@ async function manageNotifications(activeReminders: Reminder[]) {
 
         if (!isScheduled) {
             // Schedule it
-            if (remDate > now) {
+            if (remDate > nowTime) {
                 console.log(`[DEBUG_REMINDER] Scheduling future reminder: ${reminder.fileName}`);
                 await scheduleNotification(reminder);
             } else {
@@ -445,6 +545,21 @@ async function manageNotifications(activeReminders: Reminder[]) {
 }
 
 async function scheduleNotification(reminder: Reminder, immediate = false) {
+    if (reminder.alarm) {
+        // Use native alarm module for "Alarm" style reminders (blocking, looping sound)
+        const timestamp = immediate ? Date.now() + 1000 : new Date(reminder.reminderTime).getTime();
+        const success = await scheduleNativeAlarm(
+            reminder.fileName.replace('.md', ''),
+            reminder.content || "Alarm Reminder",
+            timestamp
+        );
+        if (success) {
+            console.log(`[DEBUG_REMINDER] Scheduled NATIVE alarm for ${reminder.fileName}`);
+            return;
+        }
+        // Fallback to standard notification if native fails (shouldn't happen on Android)
+    }
+
     const id = await Notifications.scheduleNotificationAsync({
         content: {
             title: "🔔 Reminder",

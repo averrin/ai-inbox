@@ -24,15 +24,15 @@ import { InputScreen } from './screens/InputScreen';
 import { PreviewScreen } from './screens/PreviewScreen';
 import { ReminderEditModal } from './ReminderEditModal';
 
-export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings }: { shareIntent: ShareIntent, onReset: () => void, onOpenSettings?: () => void }) {
+export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent: ShareIntent, onReset: () => void }) {
     const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder } = useSettingsStore();
     const analyzingRef = useRef(false);
+    const stateInitializedRef = useRef(false);
     
     // Main state
     const [loading, setLoading] = useState(true);
     const [loadingStatus, setLoadingStatus] = useState<string>('');
     const [saving, setSaving] = useState(false);
-    const [internalShowSettings, setInternalShowSettings] = useState(false);
     const [lastError, setLastError] = useState<string | undefined>(undefined);
 
     // Changed to array
@@ -41,7 +41,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
 
     const hasShareContent = !!(shareIntent?.text || shareIntent?.webUrl || (shareIntent?.files && shareIntent.files.length > 0));
     const [inputMode, setInputMode] = useState(!hasShareContent);
-    const [inputText, setInputText] = useState((shareIntent?.text || shareIntent?.webUrl) ?? '');
+    const [inputText, setInputText] = useState('');
     
     // Edit state
     const [title, setTitle] = useState('');
@@ -54,14 +54,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     
     // Attachment & recording
-    const [attachedFiles, setAttachedFiles] = useState<{ uri: string; name: string; size: number; mimeType: string }[]>(
-        shareIntent?.files?.map((f: any) => ({
-             uri: f.uri || f.path,
-             name: f.fileName || f.name || 'file',
-             size: f.fileSize || f.size || 0,
-             mimeType: f.mimeType || 'application/octet-stream'
-        })) || []
-    );
+    const [attachedFiles, setAttachedFiles] = useState<{ uri: string; name: string; size: number; mimeType: string }[]>([]);
     const [links, setLinks] = useState<URLMetadata[]>([]);
     const [recording, setRecording] = useState<Audio.Recording | undefined>();
     
@@ -83,6 +76,43 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
             getMostUsedTags(vaultUri, contextRootFolder).then(setSuggestedTags);
         }
     }, [vaultUri, contextRootFolder]);
+    
+    // Initialize state from shareIntent props (must run before auto-analyze effect)
+    useEffect(() => {
+        stateInitializedRef.current = false;
+        
+        // Sync inputText from shareIntent
+        if (shareIntent?.text || shareIntent?.webUrl) {
+            const newText = (shareIntent.text || shareIntent.webUrl) ?? '';
+            setInputText(newText);
+        }
+        
+        // Sync attachedFiles from shareIntent
+        if (shareIntent?.files && shareIntent.files.length > 0) {
+            const newFiles = shareIntent.files.map((f: any) => ({
+                uri: f.uri || f.path,
+                name: f.fileName || f.name || 'file',
+                size: f.fileSize || f.size || 0,
+                mimeType: f.mimeType || 'application/octet-stream'
+            }));
+            setAttachedFiles(newFiles);
+        }
+        
+        // Auto-analyze if we have content
+        if (shareIntent?.text || shareIntent?.webUrl || (shareIntent?.files && shareIntent.files.length > 0)) {
+             const textToAnalyze = (shareIntent.text || shareIntent.webUrl) ?? '';
+             // Use a timeout to allow state to settle
+             setTimeout(() => {
+                 analyze(appendTags(textToAnalyze));
+             }, 500);
+        }
+
+        // Mark state as initialized after state updates have been queued
+        // Use a microtask to ensure state setters have been called
+        Promise.resolve().then(() => {
+            stateInitializedRef.current = true;
+        });
+    }, [shareIntent]);
     
     // Folder validation
     const checkFolder = async () => {
@@ -259,7 +289,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
         setShowReminderModal(true);
     };
 
-    const handleReminderSave = (date: Date, recurrence: string) => {
+    const handleReminderSave = ({ date, recurrence }: { date: Date, recurrence: string }) => {
         setReminderData({ date, recurrence });
         setShowReminderModal(false);
     };
@@ -905,44 +935,51 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
     };
 
     // Auto-analyze on mount or intent change
+    // This effect depends on inputText and attachedFiles being synced by the initialization effect
     useEffect(() => {
         const hasContent = !!(shareIntent?.text || shareIntent?.webUrl || (shareIntent?.files && shareIntent.files.length > 0));
 
-        // If content is present, and we are either not in input mode OR we are in input mode but haven't typed anything yet
-        // (handling race condition where intent arrives slightly after mount)
+        if (!hasContent) {
+            setLoading(false);
+            return;
+        }
+
+        // Wait for state initialization to complete to avoid analyzing with stale state
+        if (!stateInitializedRef.current) {
+            // Schedule a retry after state has initialized
+            const timer = setTimeout(() => {
+                // Double-check after timeout
+                if (stateInitializedRef.current) {
+                    const isCleanInput = inputMode && !inputText && attachedFiles.length === 0;
+                    if (!inputMode || isCleanInput) {
+                        if (isCleanInput) setInputMode(false);
+                        const textToAnalyze = (shareIntent?.text || shareIntent?.webUrl) ?? '';
+                        analyze(textToAnalyze);
+                    } else {
+                        setLoading(false);
+                    }
+                }
+            }, 100); // Small delay to allow state to sync
+            return () => clearTimeout(timer);
+        }
+
+        // Auto-analyze when share content is present and we haven't manually entered input mode
+        // The state (inputText, attachedFiles) is synced by the initialization effect above
         const isCleanInput = inputMode && !inputText && attachedFiles.length === 0;
 
-        if (hasContent && (!inputMode || isCleanInput)) {
-             if (isCleanInput) setInputMode(false);
-
-             // If files came in via prop update (not mount), we need to sync state
-             if (shareIntent?.files && shareIntent.files.length > 0) {
-                 const currentUris = new Set(attachedFiles.map(f => f.uri));
-                 const newFiles = shareIntent.files
-                    .filter((f: any) => !currentUris.has(f.uri || f.path))
-                    .map((f: any) => ({
-                        uri: f.uri || f.path,
-                        name: f.fileName || f.name || 'file',
-                        size: f.fileSize || f.size || 0,
-                        mimeType: f.mimeType || 'application/octet-stream'
-                    }));
-
-                 if (newFiles.length > 0) {
-                     setAttachedFiles(prev => [...prev, ...newFiles]);
-                 }
-             }
-
-            analyze((shareIntent?.text || shareIntent?.webUrl) ?? '');
+        if (!inputMode || isCleanInput) {
+            if (isCleanInput) setInputMode(false);
+            
+            // Analyze with the synced state
+            const textToAnalyze = (shareIntent?.text || shareIntent?.webUrl) ?? '';
+            analyze(textToAnalyze);
         } else {
             setLoading(false);
         }
-    }, [shareIntent]);
+    }, [shareIntent, inputText, attachedFiles, inputMode]);
 
-    const settingsModal = (
-        <Modal visible={internalShowSettings} animationType="slide" onRequestClose={() => setInternalShowSettings(false)}>
-            <SetupScreen onClose={() => setInternalShowSettings(false)} canClose={true} />
-        </Modal>
-    );
+
+
 
     // Render screens
     if (loading && !inputMode) return <LoadingScreen message={loadingStatus || "Analyzing..."} />;
@@ -973,14 +1010,13 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                     onRecord={recording ? stopRecording : startRecording}
                     recording={!!recording}
                     disabled={loading ||  saving}
-                    onOpenSettings={() => setInternalShowSettings(true)}
                     links={links}
                     onRemoveLink={handleRemoveLink}
                     onReminder={handleReminderClick}
                     reminderData={reminderData}
                     onRemoveReminder={() => setReminderData(null)}
                 />
-                {settingsModal}
+
                 
                 <ReminderEditModal
                     visible={showReminderModal}
@@ -1022,7 +1058,6 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                     }}
                     saving={saving}
                     vaultUri={vaultUri}
-                    onOpenSettings={() => setInternalShowSettings(true)}
                     showTagModal={showTagModal}
                     newTag={newTag}
                     onNewTagChange={setNewTag}
@@ -1046,7 +1081,7 @@ export default function ProcessingScreen({ shareIntent, onReset, onOpenSettings 
                     totalTabs={data.length}
                     onTabChange={handleTabChange}
                 />
-                {settingsModal}
+
             </>
         );
     }
