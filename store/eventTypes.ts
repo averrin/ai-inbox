@@ -11,6 +11,7 @@ interface EventTypesState {
     assignments: Record<string, string>; // Event Title -> Type ID
     difficulties: Record<string, number>; // Event Title -> Difficulty
     ranges: TimeRangeDefinition[];
+    eventFlags: Record<string, { isEnglish?: boolean; movable?: boolean }>; // Event Title -> Flags
     isLoaded: boolean;
     loadConfig: () => Promise<void>;
     addType: (type: EventType) => Promise<void>;
@@ -23,6 +24,7 @@ interface EventTypesState {
     updateRange: (id: string, updates: Partial<Omit<TimeRangeDefinition, 'id'>>) => Promise<void>;
     deleteRange: (id: string) => Promise<void>;
     toggleRange: (id: string) => Promise<void>;
+    toggleEventFlag: (title: string, flag: 'isEnglish' | 'movable') => Promise<void>;
 }
 
 export const useEventTypesStore = create<EventTypesState>()(
@@ -32,6 +34,7 @@ export const useEventTypesStore = create<EventTypesState>()(
             assignments: {},
             difficulties: {},
             ranges: [],
+            eventFlags: {},
             isLoaded: false,
 
             loadConfig: async () => {
@@ -45,6 +48,7 @@ export const useEventTypesStore = create<EventTypesState>()(
                         assignments: config.assignments,
                         difficulties: config.difficulties || {},
                         ranges: config.ranges || [],
+                        eventFlags: config.eventFlags || {},
                         isLoaded: true
                     });
                 } else {
@@ -60,7 +64,8 @@ export const useEventTypesStore = create<EventTypesState>()(
                     types: newTypes,
                     assignments: state.assignments,
                     difficulties: state.difficulties,
-                    ranges: state.ranges
+                    ranges: state.ranges,
+                    eventFlags: state.eventFlags
                 };
 
                 set({ eventTypes: newTypes });
@@ -80,7 +85,8 @@ export const useEventTypesStore = create<EventTypesState>()(
                     types: newTypes,
                     assignments: state.assignments,
                     difficulties: state.difficulties,
-                    ranges: state.ranges
+                    ranges: state.ranges,
+                    eventFlags: state.eventFlags
                 };
 
                 set({ eventTypes: newTypes });
@@ -107,7 +113,8 @@ export const useEventTypesStore = create<EventTypesState>()(
                     types: newTypes,
                     assignments: newAssignments,
                     difficulties: state.difficulties,
-                    ranges: state.ranges
+                    ranges: state.ranges,
+                    eventFlags: state.eventFlags
                 };
 
                 set({ eventTypes: newTypes, assignments: newAssignments });
@@ -129,7 +136,8 @@ export const useEventTypesStore = create<EventTypesState>()(
                     types: state.eventTypes,
                     assignments: newAssignments,
                     difficulties: state.difficulties,
-                    ranges: state.ranges
+                    ranges: state.ranges,
+                    eventFlags: state.eventFlags
                 };
 
                 set({ assignments: newAssignments });
@@ -149,7 +157,8 @@ export const useEventTypesStore = create<EventTypesState>()(
                     types: state.eventTypes,
                     assignments: newAssignments,
                     difficulties: state.difficulties,
-                    ranges: state.ranges
+                    ranges: state.ranges,
+                    eventFlags: state.eventFlags
                 };
 
                 set({ assignments: newAssignments });
@@ -171,7 +180,8 @@ export const useEventTypesStore = create<EventTypesState>()(
                     types: state.eventTypes,
                     assignments: state.assignments,
                     difficulties: newDifficulties,
-                    ranges: state.ranges
+                    ranges: state.ranges,
+                    eventFlags: state.eventFlags
                 };
 
                 set({ difficulties: newDifficulties });
@@ -194,7 +204,8 @@ export const useEventTypesStore = create<EventTypesState>()(
                     types: state.eventTypes,
                     assignments: state.assignments,
                     difficulties: state.difficulties,
-                    ranges: newRanges
+                    ranges: newRanges,
+                    eventFlags: state.eventFlags
                 };
 
                 set({ ranges: newRanges });
@@ -214,7 +225,8 @@ export const useEventTypesStore = create<EventTypesState>()(
                     types: state.eventTypes,
                     assignments: state.assignments,
                     difficulties: state.difficulties,
-                    ranges: newRanges
+                    ranges: newRanges,
+                    eventFlags: state.eventFlags
                 };
 
                 set({ ranges: newRanges });
@@ -232,7 +244,8 @@ export const useEventTypesStore = create<EventTypesState>()(
                     types: state.eventTypes,
                     assignments: state.assignments,
                     difficulties: state.difficulties,
-                    ranges: newRanges
+                    ranges: newRanges,
+                    eventFlags: state.eventFlags
                 };
 
                 set({ ranges: newRanges });
@@ -252,10 +265,38 @@ export const useEventTypesStore = create<EventTypesState>()(
                     types: state.eventTypes,
                     assignments: state.assignments,
                     difficulties: state.difficulties,
-                    ranges: newRanges
+                    ranges: newRanges,
+                    eventFlags: state.eventFlags
                 };
 
                 set({ ranges: newRanges });
+
+                const vaultUri = useSettingsStore.getState().vaultUri;
+                if (vaultUri) {
+                    await saveEventTypesToVault(newConfig, vaultUri);
+                }
+            },
+
+            toggleEventFlag: async (title, flag) => {
+                const state = get();
+                const currentFlags = state.eventFlags[title] || {};
+                const newFlags = {
+                    ...state.eventFlags,
+                    [title]: {
+                        ...currentFlags,
+                        [flag]: !currentFlags[flag]
+                    }
+                };
+
+                const newConfig: EventTypeConfig = {
+                    types: state.eventTypes,
+                    assignments: state.assignments,
+                    difficulties: state.difficulties,
+                    ranges: state.ranges,
+                    eventFlags: newFlags
+                };
+
+                set({ eventFlags: newFlags });
 
                 const vaultUri = useSettingsStore.getState().vaultUri;
                 if (vaultUri) {
@@ -270,7 +311,8 @@ export const useEventTypesStore = create<EventTypesState>()(
                 eventTypes: state.eventTypes,
                 assignments: state.assignments,
                 difficulties: state.difficulties,
-                ranges: state.ranges
+                ranges: state.ranges,
+                eventFlags: state.eventFlags
             }), // Don't persist isLoaded
         }
     )

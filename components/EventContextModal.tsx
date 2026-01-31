@@ -15,13 +15,29 @@ interface Props {
 }
 
 export function EventContextModal({ visible, onClose, event }: Props) {
-    const { eventTypes, assignments, difficulties, ranges, assignTypeToTitle, unassignType, setDifficulty } = useEventTypesStore();
+    const {
+        eventTypes,
+        assignments,
+        difficulties,
+        ranges,
+        eventFlags,
+        assignTypeToTitle,
+        unassignType,
+        setDifficulty,
+        toggleEventFlag
+    } = useEventTypesStore();
 
     const { bonusDifficulty, reasons } = useMemo(() => {
         if (!event || !visible) return { bonusDifficulty: 0, reasons: [] };
 
         const reasons: string[] = [];
         let bonus = 0;
+
+        // 0. Check for English flag
+        if (eventFlags?.[event.title]?.isEnglish) {
+            reasons.push("English Event");
+            bonus += 1;
+        }
 
         const evtStart = dayjs(event.start);
         const evtEnd = dayjs(event.end);
@@ -121,7 +137,7 @@ export function EventContextModal({ visible, onClose, event }: Props) {
         }
 
         return { bonusDifficulty: bonus, reasons };
-    }, [event, visible, ranges]);
+    }, [event, visible, ranges, eventFlags]);
 
     if (!event) return null;
     const eventTitle = event.title;
@@ -130,6 +146,7 @@ export function EventContextModal({ visible, onClose, event }: Props) {
     const currentTypeId = assignments[eventTitle];
     const difficulty = difficulties?.[eventTitle] || 0;
     const currentType = eventTypes.find(t => t.id === currentTypeId);
+    const flags = eventFlags?.[eventTitle];
 
     const handleAssign = async (typeId: string) => {
         await assignTypeToTitle(eventTitle, typeId);
@@ -177,6 +194,32 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                                             </Text>
                                         </TouchableOpacity>
                                     ))}
+                                </View>
+                            </View>
+
+                            <View className="flex-row items-center justify-between border-t border-slate-700 pt-2 mt-1">
+                                {/* Flags */}
+                                <View className="flex-row gap-2">
+                                    <TouchableOpacity
+                                        onPress={() => toggleEventFlag(eventTitle, 'isEnglish')}
+                                        className={`px-2 py-1 rounded-md border ${flags?.isEnglish ? 'bg-indigo-500/20 border-indigo-500' : 'bg-slate-700 border-transparent'}`}
+                                    >
+                                        <Text className={`text-xs ${flags?.isEnglish ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}>
+                                            English
+                                        </Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        onPress={() => toggleEventFlag(eventTitle, 'movable')}
+                                        className={`px-2 py-1 rounded-md border ${flags?.movable ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-700 border-transparent'}`}
+                                    >
+                                        <View className="flex-row items-center gap-1">
+                                            <Ionicons name="move" size={12} color={flags?.movable ? '#34d399' : '#94a3b8'} />
+                                            <Text className={`text-xs ${flags?.movable ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}>
+                                                Movable
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
                                 </View>
                             </View>
 

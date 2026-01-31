@@ -18,7 +18,7 @@ import { useTimeRangeEvents } from '../ui/calendar/hooks/useTimeRangeEvents';
 
 export default function ScheduleScreen() {
     const { visibleCalendarIds, timeFormat, cachedReminders } = useSettingsStore();
-    const { assignments, difficulties, eventTypes, loadConfig } = useEventTypesStore();
+    const { assignments, difficulties, eventTypes, eventFlags, loadConfig } = useEventTypesStore();
     const { showReminder } = useReminderModal();
     const { height } = useWindowDimensions();
     const [events, setEvents] = useState<any[]>([]);
@@ -81,6 +81,7 @@ export default function ScheduleScreen() {
                 const assignedTypeId = assignments[evt.title];
                 const assignedType = assignedTypeId ? eventTypes.find(t => t.id === assignedTypeId) : null;
                 const difficulty = difficulties?.[evt.title];
+                const flags = eventFlags?.[evt.title];
                 const color = assignedType ? assignedType.color : (evt.calendarId ? 'rgba(79, 70, 229, 0.8)' : undefined);
 
                 return {
@@ -90,7 +91,9 @@ export default function ScheduleScreen() {
                     color: color,
                     originalEvent: evt, // Keep ref for context menu
                     typeTag: assignedType ? assignedType.title : null,
-                    difficulty: difficulty
+                    difficulty: difficulty,
+                    isEnglish: flags?.isEnglish,
+                    movable: flags?.movable
                 };
             });
 
@@ -112,7 +115,7 @@ export default function ScheduleScreen() {
         } catch (e) {
             console.error("Error fetching events", e);
         }
-    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, cachedReminders]);
+    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, cachedReminders]);
 
     const handleRefresh = async () => {
         setRefreshing(true);

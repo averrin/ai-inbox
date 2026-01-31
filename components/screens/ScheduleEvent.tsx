@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import dayjs from 'dayjs';
+import { Ionicons } from '@expo/vector-icons';
 
 
 interface ScheduleEventProps {
@@ -112,7 +113,12 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
                 </Text>
             )}
 
-            <View className="absolute top-1 right-1 flex-row gap-1">
+            <View className="absolute top-1 right-1 flex-row gap-1 items-center">
+                {evt.movable && (
+                    <View className="bg-emerald-500/80 px-1 py-0.5 rounded">
+                        <Ionicons name="move" size={10} color="white" />
+                    </View>
+                )}
                 {evt.difficulty !== undefined && (
                     <View
                         className="px-1.5 py-0.5 rounded"
