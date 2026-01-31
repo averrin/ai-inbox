@@ -3,6 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { FolderInput } from './ui/FolderInput';
+import { ToggleItem } from './ui/ToggleItem';
+import { SegmentedControl } from './ui/SegmentedControl';
 import { useState, useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import { scanForReminders, Reminder, updateReminder, registerReminderTask, syncAllReminders } from '../services/reminderService';
@@ -238,60 +240,40 @@ Ensure the app is in background to test the notification, or foreground to test 
 
             <View className="mb-6">
                 <Text className="text-indigo-200 mb-2 font-semibold">Sync Frequency</Text>
-                <View className="flex-row flex-wrap gap-2">
-                    {[5, 15, 30, 60, 120].map((interval) => (
-                        <TouchableOpacity
-                            key={interval}
-                            onPress={() => handleSyncIntervalChange(interval)}
-                            className={`px-4 py-2 rounded-xl border ${backgroundSyncInterval === interval ? 'bg-indigo-600 border-indigo-500' : 'bg-slate-800 border-slate-700'}`}
-                        >
-                            <Text className={`font-medium ${backgroundSyncInterval === interval ? 'text-white' : 'text-slate-400'}`}>
-                                {interval < 60 ? `${interval}m` : `${interval / 60}h`}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+                <SegmentedControl
+                    value={backgroundSyncInterval || 15}
+                    onChange={handleSyncIntervalChange}
+                    options={[5, 15, 30, 60, 120].map(interval => ({
+                        label: interval < 60 ? `${interval}m` : `${interval / 60}h`,
+                        value: interval
+                    }))}
+                />
             </View>
 
 
             <View className="mb-0">
                 <Text className="text-indigo-200 mb-3 font-semibold">Customization</Text>
 
-                <TouchableOpacity
-                    onPress={() => {
-                        setReminderBypassDnd(!reminderBypassDnd);
+                <ToggleItem
+                    title="Bypass DND"
+                    description="Sound when DND is on"
+                    icon="moon-outline"
+                    value={reminderBypassDnd}
+                    onToggle={(val) => {
+                        setReminderBypassDnd(val);
                         registerReminderTask();
                     }}
-                    className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 mb-3 flex-row items-center justify-between"
-                >
-                    <View className="flex-row items-center flex-1">
-                        <Ionicons name="moon-outline" size={20} color="#818cf8" />
-                        <View className="ml-3 flex-1">
-                            <Text className="text-white font-medium">Bypass DND</Text>
-                            <Text className="text-slate-400 text-xs">Sound when DND is on</Text>
-                        </View>
-                    </View>
-                    <View className={`w-12 h-7 rounded-full p-1 ${reminderBypassDnd ? 'bg-indigo-600' : 'bg-slate-700'}`}>
-                        <View className={`w-5 h-5 rounded-full bg-white ${reminderBypassDnd ? 'ml-auto' : ''}`} />
-                    </View>
-                </TouchableOpacity>
+                    className="mb-3"
+                />
 
-                <TouchableOpacity
-                    onPress={() => setReminderVibration(!reminderVibration)}
-                    className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between mb-3"
-                >
-                    <View className="flex-row items-center flex-1">
-                        <Ionicons name="phone-portrait-outline" size={20} color="#818cf8" />
-                        <View className="ml-3 flex-1">
-                            <Text className="text-white font-medium">Vibration</Text>
-                            <Text className="text-slate-400 text-xs">Vibrate on reminder</Text>
-                        </View>
-                    </View>
-                    <View className={`w-12 h-7 rounded-full p-1 ${reminderVibration ? 'bg-indigo-600' : 'bg-slate-700'}`}>
-                        <View className={`w-5 h-5 rounded-full bg-white ${reminderVibration ? 'ml-auto' : ''}`} />
-                    </View>
-                </TouchableOpacity>
-
+                <ToggleItem
+                    title="Vibration"
+                    description="Vibrate on reminder"
+                    icon="phone-portrait-outline"
+                    value={reminderVibration}
+                    onToggle={setReminderVibration}
+                    className="mb-3"
+                />
             </View>
 
 

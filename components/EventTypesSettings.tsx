@@ -5,18 +5,7 @@ import { useEventTypesStore } from '../store/eventTypes';
 import { EventType } from '../services/eventTypeService';
 import * as Crypto from 'expo-crypto';
 
-// Preset colors (Tailwind-ish)
-const PRESET_COLORS = [
-    '#ef4444', // red-500
-    '#f97316', // orange-500
-    '#eab308', // yellow-500
-    '#22c55e', // green-500
-    '#06b6d4', // cyan-500
-    '#3b82f6', // blue-500
-    '#8b5cf6', // violet-500
-    '#d946ef', // fuchsia-500
-    '#64748b', // slate-500
-];
+import { ColorPicker, PRESET_COLORS } from './ui/ColorPicker';
 
 export function EventTypesSettings() {
     const { eventTypes, addType, updateType, deleteType } = useEventTypesStore();
@@ -121,16 +110,11 @@ export function EventTypesSettings() {
                         />
 
                         <Text className="text-slate-400 mb-2 text-sm">Color</Text>
-                        <View className="flex-row flex-wrap gap-3 mb-8">
-                            {PRESET_COLORS.map(color => (
-                                <TouchableOpacity
-                                    key={color}
-                                    onPress={() => setSelectedColor(color)}
-                                    className={`w-8 h-8 rounded-full ${selectedColor === color ? 'border-2 border-white' : ''}`}
-                                    style={{ backgroundColor: color }}
-                                />
-                            ))}
-                        </View>
+                        <ColorPicker
+                            selectedColor={selectedColor}
+                            onSelectColor={setSelectedColor}
+                            className="mb-8"
+                        />
 
                         <View className="flex-row gap-3">
                             <TouchableOpacity

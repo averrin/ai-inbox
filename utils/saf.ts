@@ -1,5 +1,6 @@
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import * as FileSystem from 'expo-file-system/legacy';
+import { parseFrontmatter } from './markdown';
 
 export async function requestVaultAccess() {
     try {
@@ -85,21 +86,20 @@ export async function readVaultStructure(
                                     // Cache miss or stale - Read content
                                     const content = await StorageAccessFramework.readAsStringAsync(childUri);
                                     // Parse frontmatter to extract metadata
-                                    const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+                                    const { frontmatter } = parseFrontmatter(content);
                                     let metadata = '';
-                                    if (frontmatterMatch) {
-                                        const fm = frontmatterMatch[1];
-                                        const iconMatch = fm.match(/icon:\s*["']?([^"'\n]+)["']?/);
-                                        const tagsMatch = fm.match(/tags:\s*\[([^\]]+)\]/);
 
-                                        if (iconMatch) metadata += iconMatch[1] + ' ';
-                                        metadata += name.replace('.md', '');
-                                        if (tagsMatch) {
-                                            const tags = tagsMatch[1].split(',').map(t => t.trim().replace(/['"]/g, ''));
-                                            metadata += ` [${tags.join(', ')}]`;
-                                        }
-                                    } else {
-                                        metadata = name.replace('.md', '');
+                                    if (frontmatter.icon) {
+                                        metadata += frontmatter.icon + ' ';
+                                    }
+
+                                    metadata += name.replace('.md', '');
+
+                                    if (frontmatter.tags && Array.isArray(frontmatter.tags) && frontmatter.tags.length > 0) {
+                                        metadata += ` [${frontmatter.tags.join(', ')}]`;
+                                    } else if (frontmatter.tags && typeof frontmatter.tags === 'string') {
+                                         // Fallback if tags parsed as string
+                                        metadata += ` [${frontmatter.tags}]`;
                                     }
 
                                     const displayString = `📄 ${metadata}`;
