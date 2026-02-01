@@ -198,17 +198,19 @@ function _CalendarBody<T extends ICalendarEventBase>({
   const getMaxOverlappingRangeIndex = React.useCallback(
     (event: T, allRanges: T[], offsetsMap: Map<T, number>): number => {
       const eventStart = dayjs(event.start)
+      const eventEnd = dayjs(event.end)
 
       const overlappingRanges = allRanges.filter((range) => {
         const rangeStart = dayjs(range.start)
         const rangeEnd = dayjs(range.end)
 
-        // Check if the event START time falls within this range
-        // Use half-open interval [start, end): inclusive start, exclusive end
-        // This prevents double-counting for events exactly on boundaries
+        // Check if ranges overlap in time
+        // Overlap if (StartA < EndB) and (EndA > StartB)
         const isActive =
-          (eventStart.isAfter(rangeStart) || eventStart.isSame(rangeStart, 'minute')) &&
-          eventStart.isBefore(rangeEnd) && // Exclusive end
+          eventStart.isBefore(rangeEnd) &&
+          eventEnd.isAfter(rangeStart) &&
+          !eventEnd.isSame(rangeStart, 'minute') &&
+          !eventStart.isSame(rangeEnd, 'minute') &&
           rangeStart.isSame(eventStart, 'day')
 
         return isActive
