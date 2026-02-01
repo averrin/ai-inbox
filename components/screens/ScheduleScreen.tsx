@@ -737,6 +737,22 @@ export default function ScheduleScreen() {
                                                     return r;
                                                 });
                                                 setCachedReminders(updatedCache);
+
+                                                // Update events state as well to prevent "edit pending" issues
+                                                setEvents(prevEvents => prevEvents.map(e => {
+                                                    if (e.originalEvent && e.originalEvent.fileUri === currentEditingReminder.fileUri) {
+                                                        return {
+                                                            ...e,
+                                                            originalEvent: {
+                                                                ...e.originalEvent,
+                                                                fileUri: newUri,
+                                                                fileName: newUri.split('/').pop() || 'reminder.md',
+                                                                isNew: false
+                                                            }
+                                                        };
+                                                    }
+                                                    return e;
+                                                }));
                                             }
                                         } else {
                                             await updateReminder(
