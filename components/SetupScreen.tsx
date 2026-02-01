@@ -17,8 +17,11 @@ import { CalendarsSettings } from './CalendarsSettings';
 import { EventTypesSettings } from './EventTypesSettings';
 import { TimeRangesSettings } from './TimeRangesSettings';
 import { LunchSettings } from './LunchSettings';
+import { scanForReminders } from '../services/reminderService';
+import { useEventTypesStore } from '../store/eventTypes';
+import Toast from 'react-native-toast-message';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'google-calendar' | 'reminders';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'google-calendar' | 'reminders' | 'advanced';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -369,6 +372,46 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         </Card>
     );
 
+    const renderAdvancedSettings = () => (
+        <Card>
+             <View className="mb-4">
+                <Text className="text-indigo-200 mb-2 font-semibold">Data Management</Text>
+                <Text className="text-slate-400 text-sm mb-4">
+                    Clear locally cached data (reminders, event types). This does not delete any files from your vault, but forces a reload from disk.
+                </Text>
+                <Button
+                    title="Flush All Local Caches"
+                    onPress={async () => {
+                        try {
+                            // 1. Clear Reminders Cache
+                            useSettingsStore.getState().setCachedReminders([]);
+
+                            // 2. Refresh Reminders
+                            await scanForReminders();
+
+                            // 3. Reload Event Types
+                            await useEventTypesStore.getState().loadConfig();
+
+                            Toast.show({
+                                type: 'success',
+                                text1: 'Caches Flushed',
+                                text2: 'Local data has been refreshed from vault.'
+                            });
+                        } catch (e) {
+                            console.error(e);
+                            Toast.show({
+                                type: 'error',
+                                text1: 'Failed to flush caches',
+                                text2: 'Check logs for details.'
+                            });
+                        }
+                    }}
+                    variant="secondary"
+                />
+            </View>
+        </Card>
+    );
+
     const renderMenuButton = (title: string, icon: keyof typeof Ionicons.glyphMap, onPress: () => void, subtitle?: string) => (
         <TouchableOpacity
             onPress={onPress}
@@ -430,6 +473,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "alarm-outline",
                 () => setActiveSection('reminders'),
                 "Local notifications"
+            )}
+             {renderMenuButton(
+                "Advanced",
+                "construct-outline",
+                () => setActiveSection('advanced'),
+                "Debug & Cache tools"
             )}
         </View>
     );
@@ -594,6 +643,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("Reminders", () => setActiveSection('root'))}
                                 <View className="px-0"><RemindersSettings /></View>
+                            </>
+                        )}
+                        {activeSection === 'advanced' && (
+                            <>
+                                {renderHeader("Advanced", () => setActiveSection('root'))}
+                                <View className="px-0">{renderAdvancedSettings()}</View>
                             </>
                         )}
                     </ScrollView>

@@ -73,9 +73,9 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
                 ]}
             >
                 <View className="flex-row items-center w-full">
-                    {/* Text Label */}
+                    {/* Text Label & Tags */}
                     <View
-                        className="bg-slate-900/90 rounded px-2 py-0.5 border shadow-sm"
+                        className="bg-slate-900/90 rounded px-2 py-0.5 border shadow-sm flex-row items-center gap-1.5"
                         style={{ borderColor: color, opacity: 0.9, backgroundColor: "#0f172a" }}
                     >
                         <Text
@@ -85,6 +85,17 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
                         >
                             {dayjs(evt.start).format(timeFormatStr)} {evt.title}
                         </Text>
+
+                        {(evt.originalEvent.recurrenceRule) && (
+                            <View className="bg-slate-800 px-1 rounded flex-row items-center" style={{ paddingVertical: 1 }}>
+                                <Ionicons name="repeat" size={8} color={color} />
+                            </View>
+                        )}
+                        {(!!evt.originalEvent.persistent) && (
+                            <View className="bg-slate-800 px-1 rounded flex-row items-center" style={{ paddingVertical: 1 }}>
+                                <Ionicons name="alert-circle" size={8} color={color} />
+                            </View>
+                        )}
                     </View>
 
                     {/* Horizontal Line */}
@@ -94,7 +105,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
                             height: 1,
                             backgroundColor: color,
                             borderStyle: 'dashed',
-                            marginLeft: 0,
+                            marginLeft: 2,
                             opacity: 0.5
                         }}
                     />
