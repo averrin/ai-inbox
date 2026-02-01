@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, Modal, FlatList, TextInput } from 'react-
 import { Ionicons } from '@expo/vector-icons';
 import { useEventTypesStore } from '../store/eventTypes';
 import { EventType } from '../services/eventTypeService';
+import { ActionButton } from './ui/ActionButton';
+import { SettingsListItem } from './ui/SettingsListItem';
 import * as Crypto from 'expo-crypto';
 
 // Preset colors (Tailwind-ish)
@@ -59,23 +61,22 @@ export function EventTypesSettings() {
     };
 
     const renderItem = ({ item }: { item: EventType }) => (
-        <View className="flex-row items-center justify-between p-4 border-b border-slate-800 bg-slate-800 first:rounded-t-xl last:rounded-b-xl">
-            <View className="flex-row items-center gap-3">
-                <View
-                    className="w-4 h-4 rounded-full"
-                    style={{ backgroundColor: item.color }}
-                />
+        <SettingsListItem color={item.color}>
+            <View className="flex-1">
                 <Text className="text-white text-base font-medium">{item.title}</Text>
             </View>
-            <View className="flex-row gap-2">
+
+            <View className="flex-row gap-2 items-center">
                 <TouchableOpacity onPress={() => handleEdit(item)} className="p-2">
                     <Ionicons name="pencil" size={20} color="#94a3b8" />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDelete(item.id)} className="p-2">
-                    <Ionicons name="trash-outline" size={20} color="#ef4444" />
-                </TouchableOpacity>
+                <ActionButton
+                    onPress={() => handleDelete(item.id)}
+                    icon="trash-outline"
+                    variant="danger"
+                />
             </View>
-        </View>
+        </SettingsListItem>
     );
 
     return (

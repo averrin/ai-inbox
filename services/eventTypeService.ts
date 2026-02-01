@@ -13,7 +13,7 @@ export interface EventTypeConfig {
     assignments: Record<string, string>; // Event Title -> Type ID
     difficulties?: Record<string, number>; // Event Title -> Difficulty (0-5)
     ranges?: TimeRangeDefinition[];
-    eventFlags?: Record<string, { isEnglish?: boolean; movable?: boolean }>; // Event Title -> Flags
+    eventFlags?: Record<string, { isEnglish?: boolean; movable?: boolean; skippable?: boolean }>; // Event Title -> Flags
 }
 
 const CONFIG_FILENAME = 'event-types.json';

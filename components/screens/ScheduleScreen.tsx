@@ -102,7 +102,8 @@ export default function ScheduleScreen() {
                     typeTag: assignedType ? assignedType.title : null,
                     difficulty: total, // Use total difficulty
                     isEnglish: flags?.isEnglish,
-                    movable: flags?.movable
+                    movable: flags?.movable,
+                    isSkippable: flags?.skippable
                 };
             });
 
@@ -138,21 +139,6 @@ export default function ScheduleScreen() {
         }, [fetchEvents])
     );
 
-    const renderHeader = useCallback((headerProps: any) => {
-        // headerProps.dateRange is an array of dayjs objects for the current view (page)
-        // We use the first date in the range to represent the page's date in the DateRuler
-        const pageDate = headerProps.dateRange[0];
-        return (
-            <View>
-                <DateRuler
-                    date={pageDate.toDate()}
-                    onDateChange={changeDate}
-                />
-
-            </View>
-        );
-    }, [changeDate]);
-
     // Calculate date range for the hook (using same week logic as fetchEvents)
     const weekStart = useMemo(() => dayjs(date).startOf('week').subtract(1, 'week'), [date]);
     const weekEnd = useMemo(() => dayjs(date).endOf('week').add(1, 'week'), [date]);
@@ -173,6 +159,57 @@ export default function ScheduleScreen() {
     const focusRanges = useMemo(() => {
         return detectFocusRanges(events);
     }, [events]);
+
+    const renderHeader = useCallback((headerProps: any) => {
+        // headerProps.dateRange is an array of dayjs objects for the current view (page)
+        // We use the first date in the range to represent the page's date in the DateRuler
+        const pageDate = headerProps.dateRange[0];
+        const pageDay = dayjs(pageDate);
+
+        // Calculate score for this pageDate
+        const dailyEvents = events.filter(e =>
+            dayjs(e.start).isSame(pageDay, 'day') &&
+            e.type !== 'marker'
+        );
+        let score = dailyEvents.reduce((acc, evt) => acc + (evt.difficulty || 0), 0);
+
+        const dailyFocus = focusRanges.filter(f =>
+            dayjs(f.start).isSame(pageDay, 'day')
+        );
+        score += dailyFocus.length;
+
+        // Calculate Deep Work Duration (Sum of duration for difficulty > 0)
+        let deepWorkMinutes = 0;
+        dailyEvents.forEach(evt => {
+            if (evt.difficulty > 0) {
+                const duration = dayjs(evt.end).diff(dayjs(evt.start), 'minute');
+                deepWorkMinutes += duration;
+            }
+        });
+
+        const hours = Math.floor(deepWorkMinutes / 60);
+        const mins = deepWorkMinutes % 60;
+        const deepWorkStr = `${hours}h ${mins}m`;
+
+        return (
+            <View>
+                <DateRuler
+                    date={pageDate.toDate()}
+                    onDateChange={changeDate}
+                />
+                <View className="bg-slate-900 border-b border-slate-800 px-4 pb-2 flex-row justify-end items-center gap-4">
+                    {deepWorkMinutes > 0 && (
+                        <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                            Deep Work: <Text className="text-emerald-400 text-sm">{deepWorkStr}</Text>
+                        </Text>
+                    )}
+                    <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                        Day Score: <Text className="text-indigo-400 text-sm">{score}</Text>
+                    </Text>
+                </View>
+            </View>
+        );
+    }, [changeDate, events, focusRanges]);
 
     const workRanges = useMemo(() => timeRangeEvents.filter((e: any) => e.isWork), [timeRangeEvents]);
 
