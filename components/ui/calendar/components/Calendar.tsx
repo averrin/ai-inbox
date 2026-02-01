@@ -9,7 +9,9 @@ import { defaultTheme } from '../theme/defaultTheme'
 import { deepMerge } from '../utils/object'
 import { typedMemo } from '../utils/react'
 import type { DeepPartial } from '../utils/utility-types'
-import { CalendarContainer, type CalendarContainerProps } from './CalendarContainer'
+import { CalendarContainer, type CalendarContainerProps, type CalendarRef } from './CalendarContainer'
+
+export type { CalendarRef }
 
 export interface CalendarProps<T extends ICalendarEventBase> extends CalendarContainerProps<T> {
   theme?: DeepPartial<ThemeInterface>

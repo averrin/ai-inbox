@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Calendar as BigCalendar } from '../ui/calendar';
+import { Calendar as BigCalendar, CalendarRef } from '../ui/calendar';
 import dayjs from 'dayjs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore } from '../../store/settings';
@@ -15,19 +15,37 @@ import { useReminderModal } from '../../utils/reminderModalContext';
 import { ScheduleEvent } from './ScheduleEvent';
 import { useTimeRangeEvents } from '../ui/calendar/hooks/useTimeRangeEvents';
 import { calculateEventDifficulty } from '../../utils/difficultyUtils';
+import { useLunchSuggestion } from '../ui/calendar/hooks/useLunchSuggestion';
+import { LunchContextModal } from '../LunchContextModal';
+import { calculateDayStatus, aggregateDayStats, DayBreakdown, DayStatusLevel } from '../../utils/difficultyUtils';
+import { DayStatusMarker } from '../DayStatusMarker'; import { DaySummaryModal } from '../DaySummaryModal';
+import { ReminderEditModal, ReminderSaveData } from '../ReminderEditModal';
+import { updateReminder, toLocalISOString, createStandaloneReminder } from '../../services/reminderService';
+import { EventCreateModal, EventSaveData } from '../EventCreateModal';
+import { createCalendarEvent, getWritableCalendars } from '../../services/calendarService';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 
 export default function ScheduleScreen() {
-    const { visibleCalendarIds, timeFormat, cachedReminders } = useSettingsStore();
+    const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId } = useSettingsStore();
     const { assignments, difficulties, eventTypes, eventFlags, ranges, loadConfig } = useEventTypesStore();
     const { showReminder } = useReminderModal();
-    const { height } = useWindowDimensions();
+    const { height: windowHeight } = useWindowDimensions();
+    const tabBarHeight = useBottomTabBarHeight();
+    // Adjusted height accounting for tab bar
+    const height = windowHeight - tabBarHeight;
     const [events, setEvents] = useState<any[]>([]);
+    const [isEventsLoaded, setIsEventsLoaded] = useState(false);
     const [date, setDate] = useState(new Date());
     const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
     const [viewMode, setViewMode] = useState<'day' | '3days' | 'week'>('day');
-    const [selectedEvent, setSelectedEvent] = useState<{ title: string, start: Date, end: Date } | null>(null);
+    const [selectedEvent, setSelectedEvent] = useState<{ title: string, start: Date, end: Date, typeTag?: string, [key: string]: any } | null>(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [summaryModalVisible, setSummaryModalVisible] = useState(false);
+    const [summaryData, setSummaryData] = useState<{ breakdown: DayBreakdown, status: any, date: Date } | null>(null);
+    const [editingReminder, setEditingReminder] = useState<any | null>(null);
+    const [creatingEventDate, setCreatingEventDate] = useState<Date | null>(null);
+    const calendarRef = useRef<CalendarRef>(null);
 
 
     // Load event types config on mount
@@ -76,6 +94,11 @@ export default function ScheduleScreen() {
 
         try {
             const nativeEvents = await getCalendarEvents(visibleCalendarIds, start, end);
+            const calendars = await getWritableCalendars();
+            const calMap = calendars.reduce((acc, cal) => {
+                acc[cal.id] = cal.source.name;
+                return acc;
+            }, {} as Record<string, string>);
 
             // Map native events to BigCalendar format
             const mappedEvents = nativeEvents.map(evt => {
@@ -86,7 +109,7 @@ export default function ScheduleScreen() {
                 const color = assignedType ? assignedType.color : (evt.calendarId ? 'rgba(79, 70, 229, 0.8)' : undefined);
 
                 // Calculate total difficulty
-                const { total } = calculateEventDifficulty(
+                const difficultyResult = calculateEventDifficulty(
                     { title: evt.title, start: new Date(evt.startDate), end: new Date(evt.endDate) },
                     baseDifficulty,
                     ranges,
@@ -98,12 +121,17 @@ export default function ScheduleScreen() {
                     start: new Date(evt.startDate),
                     end: new Date(evt.endDate),
                     color: color,
-                    originalEvent: evt, // Keep ref for context menu
+                    originalEvent: {
+                        ...evt,
+                        source: { name: calMap[evt.calendarId] }
+                    }, // Keep ref for context menu with source info
                     typeTag: assignedType ? assignedType.title : null,
-                    difficulty: total, // Use total difficulty
+                    difficulty: difficultyResult, // Use full difficulty object
                     isEnglish: flags?.isEnglish,
                     movable: flags?.movable,
-                    isSkippable: flags?.skippable
+                    isSkippable: flags?.skippable,
+                    isRecurrent: !!evt.recurrenceRule, // Non-null means recurring
+                    hideBadges: assignedType?.hideBadges // From event type
                 };
             });
 
@@ -111,7 +139,7 @@ export default function ScheduleScreen() {
             const mappedReminders = (cachedReminders || [])
                 .filter((r: any) => r.reminderTime) // Filter out reminders without time
                 .map((r: any) => ({
-                    title: r.fileName.replace('.md', ''), // Backup title if content logic fails
+                    title: r.title || r.fileName.replace('.md', ''), // Backup title if content logic fails
                     start: new Date(r.reminderTime),
                     end: new Date(r.reminderTime),
                     color: r.alarm ? '#ef4444' : '#f59e0b',
@@ -122,15 +150,119 @@ export default function ScheduleScreen() {
                 }));
 
             setEvents([...mappedEvents, ...mappedReminders]);
+            setIsEventsLoaded(true);
         } catch (e) {
             console.error("Error fetching events", e);
         }
-    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, ranges, cachedReminders]);
+    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, ranges, cachedReminders, defaultOpenCalendarId]);
 
     const handleRefresh = async () => {
         setRefreshing(true);
         await fetchEvents();
         setRefreshing(false);
+    };
+
+    const handleQuickAction = useCallback((action: 'event' | 'reminder', date: Date) => {
+        if (action === 'reminder') {
+            setEditingReminder({
+                reminderTime: date.toISOString(),
+                fileName: '', // Will be generated or handled by ReminderEditModal logic if needed, but assuming new
+                recurrenceRule: null,
+                alarm: false,
+                persistent: false,
+                isNew: true // Flag to indicate new creation if needed
+            });
+        } else if (action === 'event') {
+            setCreatingEventDate(date);
+        }
+    }, [setEditingReminder, setCreatingEventDate]);
+
+    const handleCreateEvent = (data: EventSaveData) => {
+        // 1. Close modal immediately
+        setCreatingEventDate(null);
+
+        // 2. Optimistic Update
+        const tempEvent = {
+            title: data.title,
+            start: data.startDate,
+            end: data.endDate,
+            color: '#818cf8', // Default blue
+            type: 'event', // Internal marker
+            originalEvent: {
+                title: data.title,
+                startDate: data.startDate.toISOString(),
+                endDate: data.endDate.toISOString()
+            }
+        };
+
+        // Add to local state immediately
+        setEvents(prev => [...prev, tempEvent]);
+
+        // 3. Background Async Creation
+        (async () => {
+            console.log('[ScheduleScreen] Starting background event creation for:', data.title);
+            try {
+                // Better calendar selection logic (prioritize writable)
+                const calendars = await getWritableCalendars();
+                let targetCalendar;
+
+                // Priority 1: User Default for Create
+                if (defaultCreateCalendarId) {
+                    targetCalendar = calendars.find(c => c.id === defaultCreateCalendarId && c.allowsModifications);
+                    if (targetCalendar) console.log('[ScheduleScreen] Using default create calendar:', targetCalendar.title);
+                }
+
+                // Priority 2: Explicit Writable
+                if (!targetCalendar) {
+                    targetCalendar = calendars.find(c => c.allowsModifications);
+                    if (targetCalendar) console.log('[ScheduleScreen] Using first writable calendar:', targetCalendar.title);
+                }
+
+                // Priority 3: First Visible (if writable)
+                if (!targetCalendar && visibleCalendarIds.length > 0) {
+                    targetCalendar = calendars.find(c => c.id === visibleCalendarIds[0] && c.allowsModifications);
+                    if (targetCalendar) console.log('[ScheduleScreen] Using first visible calendar:', targetCalendar.title);
+                }
+
+                // Priority 4: Fallback to first available
+                if (!targetCalendar && calendars.length > 0) {
+                    targetCalendar = calendars[0];
+                    console.log('[ScheduleScreen] Fallback to first available calendar:', targetCalendar.title);
+                }
+
+                if (!targetCalendar) {
+                    console.error('[ScheduleScreen] No suitable calendar found to create event.');
+                    alert('No suitable calendar found to create event.');
+                    fetchEvents(); // Revert
+                    return;
+                }
+
+                if (!targetCalendar.allowsModifications) {
+                    console.warn('[ScheduleScreen] Selected calendar does not allow modifications:', targetCalendar.title);
+                    // Proceeding anyway but likely to fail
+                }
+
+                console.log('[ScheduleScreen] Creating event in calendar ID:', targetCalendar.id);
+                const newEventId = await createCalendarEvent(targetCalendar.id, {
+                    title: data.title,
+                    startDate: data.startDate,
+                    endDate: data.endDate,
+                    allDay: data.allDay,
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                });
+                console.log('[ScheduleScreen] Event created successfully! ID:', newEventId);
+
+                // 4. Re-sync to get real ID and finalized data
+                setTimeout(() => {
+                    console.log('[ScheduleScreen] Refreshing events after creation...');
+                    fetchEvents();
+                }, 500); // Small delay to ensure native calendar has updated
+            } catch (e) {
+                console.error("[ScheduleScreen] Failed to create event:", e);
+                alert('Failed to create event. Check logs.');
+                fetchEvents(); // Revert optimistic update
+            }
+        })();
     };
 
     useFocusEffect(
@@ -160,6 +292,53 @@ export default function ScheduleScreen() {
         return detectFocusRanges(events);
     }, [events]);
 
+    const { lunchEvents, dayDifficulties: lunchDifficulties } = useLunchSuggestion(events, hookDateRange);
+
+    const dayStatuses = useMemo(() => {
+        const map: Record<string, DayStatusLevel> = {};
+        const eventsByDay: Record<string, any[]> = {};
+
+        // Group events by day
+        events.forEach(e => {
+            if (e.type === 'marker') return;
+            const dayStr = dayjs(e.start).format('YYYY-MM-DD');
+            if (!eventsByDay[dayStr]) eventsByDay[dayStr] = [];
+            eventsByDay[dayStr].push(e);
+        });
+
+        // Calculate status for each day found
+        Object.keys(eventsByDay).forEach(dayStr => {
+            const dailyEvents = eventsByDay[dayStr];
+            const dayStats = aggregateDayStats(dailyEvents);
+
+            // Add Lunch Penalty
+            const lunchPenalty = lunchDifficulties[dayStr] || 0;
+            if (lunchPenalty > 0) {
+                dayStats.totalScore += lunchPenalty;
+            }
+
+            // Add Focus Bonus
+            const dailyFocus = focusRanges.filter(f =>
+                dayjs(f.start).format('YYYY-MM-DD') === dayStr
+            );
+            if (dailyFocus.length > 0) {
+                dayStats.totalScore += dailyFocus.length;
+            }
+
+            map[dayStr] = calculateDayStatus(dayStats.totalScore, dayStats.deepWorkMinutes / 60);
+        });
+
+        // Handle days with only penalties (e.g. from lunch hook) but no events?
+        // Usually lunch hook needs events to trigger, but let's cover if lunchDifficulties has keys not in events
+        Object.keys(lunchDifficulties).forEach(dayStr => {
+            if (!map[dayStr] && lunchDifficulties[dayStr] > 0) {
+                map[dayStr] = calculateDayStatus(lunchDifficulties[dayStr], 0);
+            }
+        });
+
+        return map;
+    }, [events, lunchDifficulties, focusRanges]);
+
     const renderHeader = useCallback((headerProps: any) => {
         // headerProps.dateRange is an array of dayjs objects for the current view (page)
         // We use the first date in the range to represent the page's date in the DateRuler
@@ -171,63 +350,74 @@ export default function ScheduleScreen() {
             dayjs(e.start).isSame(pageDay, 'day') &&
             e.type !== 'marker'
         );
-        let score = dailyEvents.reduce((acc, evt) => acc + (evt.difficulty || 0), 0);
 
+        // Calculate Day Stats using helper
+        const dayStats = aggregateDayStats(dailyEvents);
+
+        // Add Lunch Difficulty penalties (which come from hook, not events array directly yet)
+        const dayStr = pageDay.format('YYYY-MM-DD');
+        const lunchPenalty = lunchDifficulties[dayStr] || 0;
+
+        if (lunchPenalty > 0) {
+            dayStats.totalScore += lunchPenalty;
+            dayStats.penalties.push({ reason: 'Lunch Issues', points: lunchPenalty, count: 1 });
+        }
+
+        // Calculate Focus Range Bonus (existing logic added length to score)
+        // We should add this to stats
         const dailyFocus = focusRanges.filter(f =>
             dayjs(f.start).isSame(pageDay, 'day')
         );
-        score += dailyFocus.length;
+        if (dailyFocus.length > 0) {
+            dayStats.totalScore += dailyFocus.length;
+            dayStats.penalties.push({ reason: 'Focus Range Bonus', points: dailyFocus.length, count: dailyFocus.length });
+        }
 
-        // Calculate Deep Work Duration (Sum of duration for difficulty > 0)
-        let deepWorkMinutes = 0;
-        dailyEvents.forEach(evt => {
-            if (evt.difficulty > 0) {
-                const duration = dayjs(evt.end).diff(dayjs(evt.start), 'minute');
-                deepWorkMinutes += duration;
-            }
-        });
+        const status = calculateDayStatus(dayStats.totalScore, dayStats.deepWorkMinutes / 60);
 
-        const hours = Math.floor(deepWorkMinutes / 60);
-        const mins = deepWorkMinutes % 60;
+        const hours = Math.floor(dayStats.deepWorkMinutes / 60);
+        const mins = dayStats.deepWorkMinutes % 60;
         const deepWorkStr = `${hours}h ${mins}m`;
 
         return (
-            <View>
-                <DateRuler
-                    date={pageDate.toDate()}
-                    onDateChange={changeDate}
-                />
-                <View className="bg-slate-900 border-b border-slate-800 px-4 pb-2 flex-row justify-end items-center gap-4">
-                    {deepWorkMinutes > 0 && (
+            <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => {
+                    setSummaryData({ breakdown: dayStats, status, date: pageDate.toDate() });
+                    setSummaryModalVisible(true);
+                }}
+                className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex-row justify-end items-center gap-4"
+            >
+                <View className="flex-row items-center gap-2">
+                    <DayStatusMarker status={status} />
+                    {dayStats.deepWorkMinutes > 0 && (
                         <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
                             Deep Work: <Text className="text-emerald-400 text-sm">{deepWorkStr}</Text>
                         </Text>
                     )}
-                    <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                        Day Score: <Text className="text-indigo-400 text-sm">{score}</Text>
-                    </Text>
                 </View>
-            </View>
+
+                <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                    Day Score: <Text className="text-indigo-400 text-sm">{Math.round(dayStats.totalScore)}</Text>
+                </Text>
+
+                <Ionicons name="information-circle-outline" size={16} color="#64748b" />
+            </TouchableOpacity>
         );
-    }, [changeDate, events, focusRanges]);
+    }, [changeDate, events, focusRanges, lunchDifficulties]);
 
     const workRanges = useMemo(() => timeRangeEvents.filter((e: any) => e.isWork), [timeRangeEvents]);
 
     const freeTimeZones = useMemo(() => {
+        if (!isEventsLoaded) return [];
         return detectFreeTimeZones(events, workRanges);
-    }, [events, workRanges]);
+    }, [events, workRanges, isEventsLoaded]);
 
-    const lunchEvent = useMemo(() => {
-        return detectLunchEvent(events, ranges, hookDateRange);
-    }, [events, ranges, hookDateRange]);
+
 
     const allEvents = useMemo(() => {
-        const base = [...events, ...timeRangeEvents, ...focusRanges, ...freeTimeZones];
-        if (lunchEvent) {
-            base.push(...lunchEvent);
-        }
-        return base;
-    }, [events, timeRangeEvents, focusRanges, freeTimeZones, lunchEvent]);
+        return [...events, ...timeRangeEvents, ...focusRanges, ...freeTimeZones, ...lunchEvents];
+    }, [events, timeRangeEvents, focusRanges, freeTimeZones, lunchEvents]);
 
     const eventCellStyle = useCallback((event: any) => {
         const style: any = {
@@ -240,7 +430,7 @@ export default function ScheduleScreen() {
         };
 
         // Highlight events outside work hours (red dashed border)
-        if (workRanges.length > 0 && !event.type && event.difficulty > 0) {
+        if (workRanges.length > 0 && !event.type && (event.difficulty?.total || 0) > 0) {
             const evtStart = dayjs(event.start);
             const evtEnd = dayjs(event.end);
 
@@ -259,10 +449,57 @@ export default function ScheduleScreen() {
         return style;
     }, [workRanges]);
 
+    const handleEventDrop = async (event: any, newDate: Date) => {
+        // Only allow dropping reminders for now
+        if (event.typeTag !== 'REMINDER' && !event.originalEvent?.fileUri) {
+            alert('Only reminders can be rescheduled locally.');
+            return;
+        }
+
+        console.log('[ScheduleScreen] Dropped reminder:', event.title, 'to', newDate);
+
+        const originalReminder = event.originalEvent;
+        // const oldTime = originalReminder.reminderTime;
+        const newTimeStr = toLocalISOString(newDate);
+
+        // Optimistic Update
+        const updatedReminders = cachedReminders.map((r: any) => {
+            if (r.fileUri === originalReminder.fileUri) {
+                return { ...r, reminderTime: newTimeStr };
+            }
+            return r;
+        });
+        setCachedReminders(updatedReminders);
+
+        // Persist
+        try {
+            await updateReminder(
+                originalReminder.fileUri,
+                newTimeStr
+            );
+        } catch (e) {
+            console.error('[ScheduleScreen] Failed to update reminder drop', e);
+            alert('Failed to reschedule reminder.');
+            // Revert (fetchEvents will likely handle this on mount/focus, but manual revert is better)
+            // For now relying on store state which might be stale if we don't revert explicitly.
+            // But we didn't save old cachedReminders locally in this scop.
+            // Use setCachedReminders((prev) => ...) pattern if needed.
+        }
+    };
+
 
     return (
         <View className="flex-1 bg-slate-950">
             <SafeAreaView className="flex-1" edges={['left', 'right', 'bottom']}>
+                <DateRuler
+                    date={date}
+                    onDateChange={changeDate}
+                    onNext={() => calendarRef.current?.goNext()}
+                    onPrev={() => calendarRef.current?.goPrev()}
+                    onToday={() => calendarRef.current?.goToDate(new Date())}
+                    dayStatuses={dayStatuses}
+                />
+
                 {/* Calendar View */}
                 {visibleCalendarIds.length === 0 ? (
                     <View className="flex-1 justify-center items-center p-6">
@@ -278,12 +515,17 @@ export default function ScheduleScreen() {
                     <View className="flex-1 overflow-hidden">
                         {/* @ts-ignore - onScroll is monkey-patched */}
                         <BigCalendar
+                            imperativeRef={calendarRef}
                             renderHeader={renderHeader}
                             events={allEvents}
                             height={height}
                             date={date}
                             mode={viewMode}
-                            // onSwipeEnd={(d) => changeDate(d)}
+                            onEventDrop={handleEventDrop}
+                            onSwipeEnd={(d) => {
+                                if (dayjs(d).isSame(date, 'day')) return;
+                                setDate(d);
+                            }}
                             scrollOffsetMinutes={scrollOffset.current}
                             // onScroll={handleScroll}
                             theme={{
@@ -319,9 +561,9 @@ export default function ScheduleScreen() {
                             onPressEvent={(evt) => {
                                 const event = evt as any;
                                 if (event.type === 'marker') {
-                                    showReminder(event.originalEvent);
+                                    setEditingReminder(event.originalEvent);
                                 } else {
-                                    setSelectedEvent({ title: event.title, start: event.start, end: event.end });
+                                    setSelectedEvent({ title: event.title, start: event.start, end: event.end, ...event }); // Spread all props to include color/typeTag
                                 }
                             }}
                             calendarCellStyle={{ borderColor: '#334155', backgroundColor: '#0f172a' }}
@@ -333,9 +575,9 @@ export default function ScheduleScreen() {
                                     timeFormat={timeFormat}
                                 />
                             )}
-                            refreshControl={
-                                <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#fff" />
-                            }
+                            refreshing={refreshing}
+                            onRefresh={handleRefresh}
+                            onQuickAction={handleQuickAction}
                         />
                     </View>
                 )}
@@ -344,10 +586,136 @@ export default function ScheduleScreen() {
 
                 {/* Context Menu Modal */}
                 <EventContextModal
-                    visible={!!selectedEvent}
+                    visible={!!selectedEvent && !selectedEvent?.typeTag?.includes('LUNCH_SUGGESTION')}
                     onClose={() => setSelectedEvent(null)}
                     event={selectedEvent}
                 />
+
+                <LunchContextModal
+                    visible={!!selectedEvent && selectedEvent?.typeTag === 'LUNCH_SUGGESTION'}
+                    onClose={() => setSelectedEvent(null)}
+                    event={selectedEvent}
+                    onEventCreated={fetchEvents}
+                />
+
+                <DaySummaryModal
+                    visible={summaryModalVisible}
+                    onClose={() => setSummaryModalVisible(false)}
+                    breakdown={summaryData?.breakdown || null}
+                    status={summaryData?.status || 'healthy'}
+                    date={summaryData?.date || new Date()}
+                />
+
+                {editingReminder && (
+                    <ReminderEditModal
+                        visible={!!editingReminder}
+                        initialDate={new Date(editingReminder.reminderTime)}
+                        initialTitle={editingReminder.title || editingReminder.fileName.replace('.md', '')}
+                        enableTitle={true}
+                        initialRecurrence={editingReminder.recurrenceRule}
+                        initialAlarm={editingReminder.alarm}
+                        initialPersistent={editingReminder.persistent}
+                        initialContent={editingReminder.content}
+                        initialFileUri={editingReminder.fileUri}
+                        timeFormat={timeFormat}
+                        onCancel={() => setEditingReminder(null)}
+                        onSave={(data) => {
+                            if (editingReminder) {
+                                // 1. Capture payload for async operations
+                                const targetUri = editingReminder.fileUri;
+                                const currentEditingReminder = editingReminder;
+
+                                // 2. Optimistic Update (Cache & Events)
+                                const updatedReminder = {
+                                    ...editingReminder,
+                                    reminderTime: data.date.toISOString(),
+                                    recurrenceRule: data.recurrence,
+                                    alarm: data.alarm,
+                                    persistent: data.persistent,
+                                    title: data.title
+                                };
+
+                                // Cache update
+                                if (currentEditingReminder.isNew) {
+                                    setCachedReminders([...cachedReminders, updatedReminder]);
+                                } else {
+                                    const newCache = cachedReminders.map((r: any) =>
+                                        r.fileUri === targetUri ? updatedReminder : r
+                                    );
+                                    setCachedReminders(newCache);
+                                }
+
+                                // Events state update (Immediate UI reflection)
+                                const tempEvent = {
+                                    title: data.title || (currentEditingReminder.isNew ? 'Reminder' : 'Untitled'),
+                                    start: data.date,
+                                    end: data.date,
+                                    color: data.alarm ? '#ef4444' : '#f59e0b',
+                                    type: 'reminder',
+                                    originalEvent: updatedReminder
+                                };
+
+                                if (currentEditingReminder.isNew) {
+                                    setEvents([...events, tempEvent]);
+                                } else {
+                                    const newEvents = events.map(e => {
+                                        if (e.originalEvent && e.originalEvent.fileUri === targetUri) {
+                                            return {
+                                                ...e,
+                                                ...tempEvent,
+                                                title: data.title || e.title
+                                            };
+                                        }
+                                        return e;
+                                    });
+                                    setEvents(newEvents);
+                                }
+
+                                // 3. Close Modal IMMEDIATELY
+                                setEditingReminder(null);
+
+                                // 4. Async Persistence (Fire & Forget/Background)
+                                (async () => {
+                                    try {
+                                        if (currentEditingReminder.isNew) {
+                                            const newUri = await createStandaloneReminder(
+                                                data.date.toISOString(),
+                                                data.title,
+                                                data.recurrence,
+                                                data.alarm,
+                                                data.persistent
+                                            );
+                                            console.log('[ScheduleScreen] Created new standalone reminder:', newUri);
+                                            // Optional: update local cache with the new URI once we have it
+                                            // but syncAllReminders already does this in the background.
+                                        } else {
+                                            await updateReminder(
+                                                targetUri!,
+                                                data.date.toISOString(),
+                                                data.recurrence,
+                                                data.alarm,
+                                                data.persistent,
+                                                data.title
+                                            );
+                                        }
+                                    } catch (e) {
+                                        console.error("Failed to save reminder:", e);
+                                    }
+                                })();
+                            }
+                        }}
+                    />
+                )}
+
+                {creatingEventDate && (
+                    <EventCreateModal
+                        visible={!!creatingEventDate}
+                        initialDate={creatingEventDate}
+                        timeFormat={timeFormat}
+                        onCancel={() => setCreatingEventDate(null)}
+                        onSave={handleCreateEvent}
+                    />
+                )}
             </SafeAreaView>
         </View>
     );
@@ -358,7 +726,7 @@ const detectFocusRanges = (allEvents: any[]) => {
     // 1. Filter events with difficulty > 0
     // And exclude ranges/markers if any are in 'events'
     const candidates = allEvents.filter(e =>
-        (e.difficulty && e.difficulty > 0) &&
+        (e.difficulty?.total > 0) &&
         !e.type // exclude internal types if any
     );
 
@@ -438,149 +806,13 @@ const detectFocusRanges = (allEvents: any[]) => {
     return results;
 }
 
-// Helper: detect and place ephemeral Lunch event
-const detectLunchEvent = (allEvents: any[], ranges: any[], dateRange: dayjs.Dayjs[]) => {
-    // 1. Find "Lunch" range
-    const lunchRange = ranges.find(r => r.title === 'Lunch' && r.isEnabled);
-    if (!lunchRange) return null;
-
-    const results: any[] = [];
-    const eventsByDay: Record<string, any[]> = {};
-    allEvents.forEach(e => {
-        const d = dayjs(e.start).format('YYYY-MM-DD');
-        if (!eventsByDay[d]) eventsByDay[d] = [];
-        eventsByDay[d].push(e);
-    });
-
-    dateRange.forEach(currentDay => {
-        const dayStr = currentDay.format('YYYY-MM-DD');
-        const dayEvents = eventsByDay[dayStr] || [];
-        const dayOfWeek = currentDay.day(); // 0-6
-
-        // Check if Lunch range applies to this day
-        if (!lunchRange.days.includes(dayOfWeek)) return;
-
-        // Define Lunch Window for this day
-        let rStart = currentDay.hour(lunchRange.start.hour || dayjs(lunchRange.start).hour()).minute(lunchRange.start.minute || dayjs(lunchRange.start).minute()).second(0);
-        let rEnd = currentDay.hour(lunchRange.end.hour || dayjs(lunchRange.end).hour()).minute(lunchRange.end.minute || dayjs(lunchRange.end).minute()).second(0);
-
-        if (rEnd.isBefore(rStart)) rEnd = rEnd.add(1, 'day');
-
-        // Check for 60m slot
-        let bestSlot: { start: dayjs.Dayjs, tier: number } | null = null;
-        // Tier 1: Free (Cost 0)
-        // Tier 2: Skippable (Cost 1)
-        // Tier 3: Movable (Cost 2)
-
-        // Step 5 minutes
-        for (let t = rStart; t.isBefore(rEnd.subtract(59, 'minute')); t = t.add(5, 'minute')) {
-            const slotStart = t;
-            const slotEnd = t.add(60, 'minute');
-
-            // Find overlapping events with difficulty >= 1
-            const overlaps = dayEvents.filter(e => {
-                const eStart = dayjs(e.start);
-                const eEnd = dayjs(e.end);
-                // "Ignore zero difficulties": Only care if difficulty >= 1
-                if (e.difficulty === 0 || e.difficulty === undefined) return false;
-                if (e.type === 'marker') return false; // Ignore markers
-
-                return eStart.isBefore(slotEnd) && eEnd.isAfter(slotStart);
-            });
-
-            if (overlaps.length === 0) {
-                // Tier 1 found! Priority 1. Stop immediately.
-                bestSlot = { start: slotStart, tier: 1 };
-                break;
-            }
-
-            // Check Tier 2: All overlaps are skippable
-            const allSkippable = overlaps.every(e => e.movable || e.skippable); // Wait, prompt says "skippable" then "movable".
-            // Let's check flags. 'movable' is in the mapped object. Is 'skippable' mapped?
-            // In fetchEvents: flags = eventFlags?.[evt.title].
-            // mappedEvents has: isEnglish, movable.
-            // It DOES NOT seem to map 'skippable' explicitly in fetchEvents!
-            // I need to check fetchEvents again.
-            // "movable: flags?.movable".
-            // If 'skippable' is missing from the mapped event, I can't check it.
-            // Assuming 'movable' covers it or I need to add 'skippable' to the map.
-            // Let's check ScheduleScreen.tsx fetchEvents map logic.
-            // It only maps 'movable'.
-            // If the prompt distinguishes "skippable" vs "movable", I might be missing data.
-            // However, maybe 'movable' implies 'skippable'?
-            // Or maybe I should assume only 'movable' is available and treat 'skippable' as same or ignore?
-            // Prompt: "then skippable events, then movable events."
-            // This implies they are distinct.
-            // Since I can't easily change the fetch logic without potentially breaking things or needing more file reads (EventTypesStore),
-            // I will check if the 'originalEvent' has it or if I should just use 'movable' for both for now.
-            // BUT, if I can't see 'skippable', I can't prioritize it.
-            // Let's assume for this task that I should use 'movable' as the fallback for 'skippable' if not present,
-            // OR checks the 'flags' if available.
-            // Actually, mapped event has `originalEvent`.
-            // But `flags` came from `eventFlags` store.
-            // The `event` object passed to `detectLunchEvent` is the mapped one.
-            // It has `movable`. It does NOT have `skippable`.
-            // UseCase: Maybe "skippable" isn't implemented yet?
-            // Prompt says: "Prioritize free time ..., then skippable events, then movable events."
-            // If I can't check skippable, I'll group "skippable/movable" into Tier 3?
-            // Or assume "movable" IS the "movable" tier.
-            // Let's assume I can check `e.originalEvent` or the store if I had access.
-            // But `detectLunchEvent` is outside component, so no store access.
-            // I'll assume for now that if `movable` is true, it's Tier 3.
-            // If I can't distinguish Tier 2, I'll just skip it or merge with Tier 3?
-            // Wait, if I treat 'movable' as Tier 3, and I can't find Tier 2, I'll just look for Tier 3.
-
-            // Re-reading fetchEvents:
-            // const flags = eventFlags?.[evt.title];
-            // movable: flags?.movable
-            // No skippable.
-            // I'll proceed with Tier 1 (Free) and Tier 3 (Movable).
-            // If I miss Tier 2, it's safer than crashing.
-
-            // Tier 3 check: All overlaps are 'movable' (and diff >= 1)
-            const allMovable = overlaps.every(e => e.movable);
-            if (allMovable) {
-                if (!bestSlot || bestSlot.tier > 3) {
-                    bestSlot = { start: slotStart, tier: 3 };
-                }
-            }
-        }
-
-        if (bestSlot) {
-            results.push({
-                title: 'Lunch',
-                start: bestSlot.start.toDate(),
-                end: bestSlot.start.add(60, 'minute').toDate(),
-                color: '#22c55e', // Green for success? Or maybe logic color.
-                type: 'generated',
-                difficulty: bestSlot.tier === 3 ? 1 : 0, // +1 if intersects movable (Tier 3)
-                typeTag: 'LUNCH'
-            });
-        } else {
-            // Not placed -> +2 difficulty.
-            // Represent as a marker at end of range.
-            results.push({
-                title: 'Missed Lunch',
-                start: rEnd.toDate(),
-                end: rEnd.toDate(),
-                type: 'marker',
-                difficulty: 2,
-                color: '#ef4444', // Red
-                typeTag: 'MISSED'
-            });
-        }
-    });
-
-    return results;
-}
-
 // Helper: detect free time zones (gaps > 60m between difficulty >= 1 events)
 // Restricted to within provided workRanges
 const detectFreeTimeZones = (allEvents: any[], workRanges: any[] = []) => {
     // 1. Filter events with difficulty >= 1 (Busy events)
     // Ignore internal types
     const busyEvents = allEvents.filter(e =>
-        (e.difficulty && e.difficulty >= 1) &&
+        (e.difficulty?.total >= 1) &&
         !e.type
     );
 

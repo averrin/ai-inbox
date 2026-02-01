@@ -29,6 +29,17 @@ export interface Action {
     recurrence?: string[]; // RRULE strings for Google Calendar
 }
 
+export interface AIRescheduleContext {
+    currentTime: string;
+    workRanges: any[]; // TimeRangeDefinition simplified
+    upcomingEvents: {
+        title: string;
+        start: string;
+        end: string;
+        difficulty?: number;
+    }[];
+}
+
 export const DEFAULT_PROMPT = `
     You are an intelligent archiver.
     Analyze the following content and generate metadata for Obsidian.
@@ -96,6 +107,35 @@ export const DEFAULT_PROMPT = `
 
     Content:
 {{content}}
+`;
+
+export const RESCHEDULE_PROMPT = `
+    You are an expert personal assistant. Your goal is to reschedule a reminder to an optimal time slot.
+    
+    Target: {{type}}
+    - "later": Find a slot later today within work hours. If no free slot exists today, move to tomorrow morning.
+    - "tomorrow": Find a slot tomorrow around the same time as originally scheduled.
+    
+    Context:
+    - Current Time: {{currentTime}}
+    - Work Hours: {{workRanges}}
+    - Upcoming Schedule: {{upcomingEvents}}
+    
+    Rules:
+    1. **Avoid Overlaps**: Never overlap with events that have a difficulty > 0.
+    2. **Work Hours**: For "later", prioritize work hours.
+    3. **Contextual Suitability**: 
+        - Business calls/appointments should be within 09:00 - 17:00.
+        - Chores can be early morning or evening.
+        - Creative work is best in the morning or deep night.
+    4. **Safety**: Do not suggest a time in the past.
+    
+    Output:
+    Return ONLY a single RFC3339 timestamp (e.g., "2023-10-27T14:30:00"). No other text.
+    
+    Reminder to Reschedule:
+    Title: {{title}}
+    Content: {{content}}
 `;
 
 export async function processContent(apiKey: string, content: string, promptOverride?: string | null, model?: string, vaultStructure?: string, contextRootFolder?: string): Promise<ProcessedNote[] | null> {
@@ -254,6 +294,40 @@ export async function transcribeAudio(apiKey: string, base64Audio: string, mimeT
         return text.trim();
     } catch (e) {
         console.error("[Gemini] Transcription failed:", e);
+        return null;
+    }
+}
+
+export async function rescheduleReminderWithAI(
+    apiKey: string,
+    type: 'later' | 'tomorrow',
+    reminder: { title: string; content?: string },
+    context: AIRescheduleContext,
+    model?: string
+): Promise<string | null> {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const modelName = model || "gemini-3-flash-preview";
+    const genModel = genAI.getGenerativeModel({ model: modelName });
+
+    const prompt = RESCHEDULE_PROMPT
+        .replace('{{type}}', type)
+        .replace('{{currentTime}}', context.currentTime)
+        .replace('{{workRanges}}', JSON.stringify(context.workRanges))
+        .replace('{{upcomingEvents}}', JSON.stringify(context.upcomingEvents))
+        .replace('{{title}}', reminder.title)
+        .replace('{{content}}', reminder.content || '')
+
+    try {
+        const result = await genModel.generateContent(prompt);
+        const text = result.response.text().trim();
+
+        console.log(`[Gemini] Reschedule AI suggested: ${text}`);
+
+        // Extract RFC3339
+        const match = text.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+        return match ? match[0] : null;
+    } catch (e) {
+        console.error("[Gemini] Rescheduling AI failed:", e);
         return null;
     }
 }

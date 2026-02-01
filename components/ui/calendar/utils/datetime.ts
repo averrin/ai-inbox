@@ -316,19 +316,89 @@ export function enrichEvents<T extends ICalendarEventBase>(
   return eventsByDate
 }
 
+
+export function calculateEventLayout<T extends ICalendarEventBase>(events: T[]): T[] {
+  const sortedEvents = [...events].sort((a, b) => a.start.getTime() - b.start.getTime())
+
+  // 1. Detect clusters (connected groups of overlapping events)
+  const clusters: T[][] = []
+  let currentCluster: T[] = []
+  let clusterEnd = -1
+
+  sortedEvents.forEach((event) => {
+    const start = event.start.getTime()
+    const end = event.end.getTime()
+
+    if (currentCluster.length === 0) {
+      currentCluster.push(event)
+      clusterEnd = end
+    } else {
+      if (start < clusterEnd) {
+        currentCluster.push(event)
+        if (end > clusterEnd) clusterEnd = end
+      } else {
+        clusters.push(currentCluster)
+        currentCluster = [event]
+        clusterEnd = end
+      }
+    }
+  })
+  if (currentCluster.length > 0) clusters.push(currentCluster)
+
+  // 2. Assign columns within clusters
+  clusters.forEach((cluster) => {
+    const columns: T[][] = []
+    cluster.forEach((event) => {
+      let placeFound = false
+      for (let i = 0; i < columns.length; i++) {
+        const col = columns[i]
+        const lastEvent = col[col.length - 1]
+        // Check if event can fit in this column (starts after last event ends)
+        if (event.start.getTime() >= lastEvent.end.getTime()) {
+          col.push(event)
+          event.overlapPosition = i
+          placeFound = true
+          break
+        }
+      }
+      if (!placeFound) {
+        columns.push([event])
+        event.overlapPosition = columns.length - 1
+      }
+    })
+
+    const count = columns.length
+    cluster.forEach((event) => {
+      event.overlapCount = count
+    })
+  })
+
+  return sortedEvents
+}
+
 export function getStyleForOverlappingEvent(
   eventPosition: number,
   overlapOffset: number,
   palettes: Palette[],
+  overlapCount: number = 1
 ) {
   let overlapStyle = {}
-  const offset = overlapOffset
-  const start = eventPosition * offset
+
+  // Side-by-side layout
+  // Width is 100% divided by count (minus some padding)
+  const rightMargin = 1
+  const availableWidth = 100 - OVERLAP_PADDING - rightMargin
+  const widthPerEvent = availableWidth / overlapCount
+
+  const start = (eventPosition * widthPerEvent) + OVERLAP_PADDING / 2
+  const end = 100 - (start + widthPerEvent)
+
   const zIndex = 100 + eventPosition
   const bgColors = palettes.map((p) => p.main)
+
   overlapStyle = {
-    start: start + OVERLAP_PADDING,
-    end: OVERLAP_PADDING,
+    start: `${start}%`,
+    end: `${end}%`,
     backgroundColor: bgColors[eventPosition % bgColors.length] || bgColors[0],
     zIndex,
   }

@@ -69,14 +69,13 @@ function _CalendarEvent<T extends ICalendarEventBase>({
     onPressEvent,
     injectedStyles:
       mode === 'schedule'
-        ? [getStyleForOverlappingEvent(eventOrder, overlapOffset, palettes)]
+        ? [getStyleForOverlappingEvent(eventOrder, overlapOffset, palettes, eventCount)]
         : [
-            getEventCellPositionStyle(event.start, event.end, minHour, hours),
-            getStyleForOverlappingEvent(eventOrder, overlapOffset, palettes),
-            u.absolute,
-            u['mt-2'],
-            u['mx-3'],
-          ],
+          getEventCellPositionStyle(event.start, event.end, minHour, hours),
+          getStyleForOverlappingEvent(eventOrder, overlapOffset, palettes, eventCount),
+          u.absolute,
+          u['mt-2'],
+        ],
   })
 
   const textColor = React.useMemo(() => {

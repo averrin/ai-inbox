@@ -72,19 +72,10 @@ Created via Reminders App.`
         setPendingOperations(prev => prev + 1);
 
         try {
-            // 4. Perform Actual Operation
-            let frontmatter = `reminder_datetime: ${timeStr}`;
-            if (recurrence) frontmatter += `\nreminder_recurrent: ${recurrence}`;
-            if (alarm) frontmatter += `\nreminder_alarm: true`;
-            if (persistent !== undefined) frontmatter += `\nreminder_persistent: ${persistent}`;
-
-            const fileContent = `---\n${frontmatter}\n---\n# ${title}\n\nCreated via Reminders App.`;
-
-            const newFileUri = await StorageAccessFramework.createFileAsync(targetUri, fileName, 'text/markdown');
-            await StorageAccessFramework.writeAsStringAsync(newFileUri, fileContent);
-
-            // 5. Reconcile
-            await syncAllReminders();
+            // 4. Perform Actual Operation using shared service
+            const { createStandaloneReminder } = await import('../services/reminderService');
+            await createStandaloneReminder(timeStr, title, recurrence, alarm, persistent);
+            // Reconcile is handled inside createStandaloneReminder
         } catch (e) {
             console.error(e);
             // 6. Rollback

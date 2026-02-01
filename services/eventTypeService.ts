@@ -6,6 +6,7 @@ export interface EventType {
     id: string;
     title: string;
     color: string;
+    hideBadges?: boolean; // Hide corner badges for events of this type
 }
 
 export interface EventTypeConfig {
@@ -14,6 +15,10 @@ export interface EventTypeConfig {
     difficulties?: Record<string, number>; // Event Title -> Difficulty (0-5)
     ranges?: TimeRangeDefinition[];
     eventFlags?: Record<string, { isEnglish?: boolean; movable?: boolean; skippable?: boolean }>; // Event Title -> Flags
+    lunchConfig?: {
+        targetCalendarId?: string;
+        defaultInvitee?: string;
+    };
 }
 
 const CONFIG_FILENAME = 'event-types.json';
@@ -21,7 +26,7 @@ const CONFIG_FILENAME = 'event-types.json';
 export const saveEventTypesToVault = async (config: EventTypeConfig, vaultUri: string) => {
     try {
         const content = JSON.stringify(config, null, 2);
-        await saveToVault(vaultUri, CONFIG_FILENAME, content);
+        await saveToVault(vaultUri, CONFIG_FILENAME, content, undefined, 'application/json');
     } catch (e) {
         console.error('[EventTypeService] Failed to save config:', e);
         throw e;

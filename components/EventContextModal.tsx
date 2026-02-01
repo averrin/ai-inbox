@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, Modal, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, FlatList, Linking, Platform } from 'react-native';
 import { useEventTypesStore } from '../store/eventTypes';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
@@ -12,6 +12,7 @@ interface Props {
         title: string;
         start: Date;
         end: Date;
+        originalEvent?: any;
     } | null;
 }
 
@@ -50,6 +51,7 @@ export function EventContextModal({ visible, onClose, event }: Props) {
     const difficulty = currentDifficulty;
     const currentType = eventTypes.find(t => t.id === currentTypeId);
     const flags = eventFlags?.[eventTitle];
+    console.log(event?.originalEvent?.source?.name);
 
     const handleAssign = async (typeId: string) => {
         await assignTypeToTitle(eventTitle, typeId);
@@ -184,6 +186,38 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                             </View>
                         }
                     />
+
+                    {/* Google Calendar Link */}
+                    {/* {event?.originalEvent?.source?.name?.includes('Google') && ( */}
+                    <TouchableOpacity
+                        onPress={() => {
+                            const dateMs = new Date(event.start).getTime();
+                            const eventId = event.originalEvent?.id;
+
+                            if (Platform.OS === 'android') {
+                                if (eventId) {
+                                    // Try to open specific event
+                                    Linking.openURL(`content://com.android.calendar/events/${eventId}`);
+                                } else {
+                                    Linking.openURL(`content://com.android.calendar/time/${dateMs}`);
+                                }
+                            } else {
+                                if (eventId && /^\d+$/.test(eventId)) {
+                                    // On iOS, calshow:id works for some numeric IDs
+                                    Linking.openURL(`calshow:${eventId}`);
+                                } else {
+                                    const dateSec = Math.floor(dateMs / 1000);
+                                    Linking.openURL(`calshow:${dateSec}`);
+                                }
+                            }
+                            onClose();
+                        }}
+                        className="p-4 flex-row items-center justify-center gap-2 border-t border-slate-800 bg-slate-800/30"
+                    >
+                        <Ionicons name="open-outline" size={20} color="#60a5fa" />
+                        <Text className="text-blue-400 font-medium">Open in Calendar</Text>
+                    </TouchableOpacity>
+                    {/* )} */}
 
                     {currentType && (
                         <TouchableOpacity

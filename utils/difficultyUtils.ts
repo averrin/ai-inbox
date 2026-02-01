@@ -109,3 +109,112 @@ export const calculateEventDifficulty = (
         reasons
     };
 };
+
+export type DayStatusLevel = 'healthy' | 'moderate' | 'busy' | 'overloaded';
+
+export const calculateDayStatus = (totalDifficulty: number, totalHours: number): DayStatusLevel => {
+    // 1. Determine Level from Hours (Hard floors)
+    let hourLevel = 0;
+    if (totalHours < 1) hourLevel = 0;
+    else if (totalHours < 3) hourLevel = 1;
+    else if (totalHours < 5) hourLevel = 2; // Busy floor
+    else hourLevel = 3; // Overloaded floor
+
+    // 2. Determine Level from Difficulty
+    let diffLevel = 0;
+    if (totalDifficulty < 3) diffLevel = 0;
+    else if (totalDifficulty < 6) diffLevel = 1;
+    else if (totalDifficulty < 9) diffLevel = 2;
+    else diffLevel = 3;
+
+    // 3. Final Level is Max
+    const level = Math.max(hourLevel, diffLevel);
+
+    switch (level) {
+        case 0: return 'healthy';
+        case 1: return 'moderate';
+        case 2: return 'busy';
+        case 3: return 'overloaded';
+        default: return 'overloaded';
+    }
+};
+
+export interface DayBreakdown {
+    totalScore: number;
+    deepWorkMinutes: number;
+    eventCount: number;
+    breakdown: {
+        [type: string]: { count: number; score: number };
+    };
+    penalties: {
+        reason: string;
+        points: number;
+        count: number;
+    }[];
+}
+
+export const aggregateDayStats = (events: any[]): DayBreakdown => {
+    let totalScore = 0;
+    let deepWorkMinutes = 0;
+    let eventCount = 0;
+    const breakdown: DayBreakdown['breakdown'] = {};
+    const penaltiesMap: Record<string, { points: number; count: number }> = {};
+
+    events.forEach(event => {
+        // Skip lunch suggestions for score? Or include them?
+        // Lunch suggestions usually have penalties associated with the DAY not the event itself sometimes?
+        // Actually, penalties are usually attached to the event difficulty.
+
+        if (event.difficulty) {
+            totalScore += event.difficulty.total || 0;
+
+            // Track Breakdown by Type
+            const type = event.typeTag || 'Other';
+            if (!breakdown[type]) breakdown[type] = { count: 0, score: 0 };
+            breakdown[type].count++;
+            breakdown[type].score += event.difficulty.total || 0;
+
+            // Track Penalties/Bonuses
+            // User requested to hide individual event bonus reasons in day summary.
+            // Only day-level bonuses (lunch, focus) will be added manually in ScheduleScreen.
+
+            /* 
+            if (event.difficulty.reasons && event.difficulty.reasons.length > 0) {
+                event.difficulty.reasons.forEach((r: string) => {
+                    if (!penaltiesMap[r]) penaltiesMap[r] = { points: 0, count: 0 };
+                    penaltiesMap[r].count++;
+                });
+            }
+            */
+        }
+
+        // Deep Work Hours logic (approximate: based on difficulty > 0 or specific types?)
+        // proposal says "deep work duration".
+        // Usually deep work is considered events with difficulty > 0 or tracked explicitly.
+        // Let's assume all events with difficulty > 0 count towards "Load".
+        // Or strictly use the existing deep work calculation logic from ScheduleScreen.
+
+        // Use logic from ScheduleScreen: if difficulty > 0, it counts.
+        if (event.difficulty && event.difficulty.total > 0) {
+            const start = dayjs(event.start);
+            const end = dayjs(event.end);
+            deepWorkMinutes += end.diff(start, 'minute');
+            eventCount++;
+        }
+    });
+
+    // Convert penalties map to array
+    const penalties = Object.entries(penaltiesMap).map(([reason, stats]) => ({
+        reason,
+        points: stats.points, // We are not tracking points accurately per reason yet
+        count: stats.count
+    }));
+
+    return {
+        totalScore,
+        deepWorkMinutes,
+        eventCount,
+        breakdown,
+        penalties
+    };
+};

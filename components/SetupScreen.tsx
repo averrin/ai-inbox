@@ -16,6 +16,7 @@ import { RemindersSettings } from './RemindersSettings';
 import { CalendarsSettings } from './CalendarsSettings';
 import { EventTypesSettings } from './EventTypesSettings';
 import { TimeRangesSettings } from './TimeRangesSettings';
+import { LunchSettings } from './LunchSettings';
 
 type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'google-calendar' | 'reminders';
 
@@ -32,6 +33,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const [showModelPicker, setShowModelPicker] = useState(false);
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [promptFileStatus, setPromptFileStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
+    const [showLunchSettings, setShowLunchSettings] = useState(false);
 
     // Navigation state for settings mode
     const [activeSection, setActiveSection] = useState<SettingsSection>('root');
@@ -412,6 +414,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "Recurring calendar blocks"
             )}
             {renderMenuButton(
+                "Lunch Settings",
+                "restaurant-outline",
+                () => setShowLunchSettings(true),
+                "Lunch scheduling & defaults"
+            )}
+            {renderMenuButton(
                 "Google Integration",
                 "logo-google",
                 () => setActiveSection('google-calendar'),
@@ -620,6 +628,8 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     </View>
                 </View>
             </Modal>
+
+            <LunchSettings visible={showLunchSettings} onClose={() => setShowLunchSettings(false)} />
         </Layout>
     );
 }

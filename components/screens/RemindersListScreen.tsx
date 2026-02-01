@@ -200,6 +200,8 @@ export default function RemindersListScreen() {
         initialRecurrence={editRecurrence}
         initialAlarm={editAlarm}
         initialPersistent={editPersistent}
+        initialContent={editingReminder?.content}
+        initialFileUri={editingReminder?.fileUri}
         onSave={handleSaveEdit}
         onCancel={() => {
           setIsEditModalVisible(false);

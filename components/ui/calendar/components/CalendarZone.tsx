@@ -58,9 +58,9 @@ export function CalendarZone<T extends ICalendarEventBase>({
           height: `${relativeHeight}%`,
           borderColor: borderColor,
           borderWidth: 2,
-          borderStyle: 'dashed',
+          // borderStyle: 'dashed',
           borderRadius: 4,
-          overflow: 'hidden'
+          overflow: 'hidden',
         }
       ]}
     >

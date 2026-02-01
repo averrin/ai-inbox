@@ -7,8 +7,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useSettingsStore } from '../store/settings';
 import { useGoogleStore } from '../store/googleStore';
 import { processContent, ProcessedNote, transcribeAudio, Action } from '../services/gemini';
-import { CalendarService } from '../services/calendarService';
+import * as CalendarService from '../services/calendarService';
 import { TasksService } from '../services/tasksService';
+import { syncAllReminders } from '../services/reminderService';
 import { saveToVault, checkDirectoryExists, readVaultStructure } from '../utils/saf';
 import { openInObsidian as openNoteInObsidian } from '../utils/obsidian';
 import { getMostUsedTags } from '../utils/tagUtils';
@@ -28,7 +29,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
     const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder } = useSettingsStore();
     const analyzingRef = useRef(false);
     const stateInitializedRef = useRef(false);
-    
+
     // Main state
     const [loading, setLoading] = useState(true);
     const [loadingStatus, setLoadingStatus] = useState<string>('');
@@ -42,7 +43,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
     const hasShareContent = !!(shareIntent?.text || shareIntent?.webUrl || (shareIntent?.files && shareIntent.files.length > 0));
     const [inputMode, setInputMode] = useState(!hasShareContent);
     const [inputText, setInputText] = useState('');
-    
+
     // Edit state
     const [title, setTitle] = useState('');
     const [tags, setTags] = useState<string[]>([]);
@@ -52,20 +53,20 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
     const [folder, setFolder] = useState('');
     const [body, setBody] = useState('');
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
-    
+
     // Attachment & recording
     const [attachedFiles, setAttachedFiles] = useState<{ uri: string; name: string; size: number; mimeType: string }[]>([]);
     const [links, setLinks] = useState<URLMetadata[]>([]);
     const [recording, setRecording] = useState<Audio.Recording | undefined>();
-    
+
     // Reminder state
     const [reminderData, setReminderData] = useState<{ date: Date; recurrence: string } | null>(null);
     const [showReminderModal, setShowReminderModal] = useState(false);
-    
+
     // Tags
     const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
-    
+
     // Settings
     const [skipAnalyze, setSkipAnalyze] = useState(false);
     const [openInObsidian, setOpenInObsidian] = useState(true);
@@ -76,17 +77,17 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             getMostUsedTags(vaultUri, contextRootFolder).then(setSuggestedTags);
         }
     }, [vaultUri, contextRootFolder]);
-    
+
     // Initialize state from shareIntent props (must run before auto-analyze effect)
     useEffect(() => {
         stateInitializedRef.current = false;
-        
+
         // Sync inputText from shareIntent
         if (shareIntent?.text || shareIntent?.webUrl) {
             const newText = (shareIntent.text || shareIntent.webUrl) ?? '';
             setInputText(newText);
         }
-        
+
         // Sync attachedFiles from shareIntent
         if (shareIntent?.files && shareIntent.files.length > 0) {
             const newFiles = shareIntent.files.map((f: any) => ({
@@ -97,14 +98,14 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             }));
             setAttachedFiles(newFiles);
         }
-        
+
         // Auto-analyze if we have content
         if (shareIntent?.text || shareIntent?.webUrl || (shareIntent?.files && shareIntent.files.length > 0)) {
-             const textToAnalyze = (shareIntent.text || shareIntent.webUrl) ?? '';
-             // Use a timeout to allow state to settle
-             setTimeout(() => {
-                 analyze(appendTags(textToAnalyze));
-             }, 500);
+            const textToAnalyze = (shareIntent.text || shareIntent.webUrl) ?? '';
+            // Use a timeout to allow state to settle
+            setTimeout(() => {
+                analyze(appendTags(textToAnalyze));
+            }, 500);
         }
 
         // Mark state as initialized after state updates have been queued
@@ -113,7 +114,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             stateInitializedRef.current = true;
         });
     }, [shareIntent]);
-    
+
     // Folder validation
     const checkFolder = async () => {
         if (!vaultUri || !folder) return;
@@ -184,7 +185,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         await recording.stopAndUnloadAsync();
         const uri = recording.getURI();
         setRecording(undefined);
-        
+
         if (uri) {
             await new Promise(resolve => setTimeout(resolve, 500));
             let size = 0;
@@ -246,11 +247,11 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
     const handleRemoveAttachment = async (index: number) => {
         const file = attachedFiles[index];
         setAttachedFiles(prev => prev.filter((_, i) => i !== index));
-        
+
         try {
             const subfolder = getAttachmentSubfolder(file.mimeType);
             const targetPath = `Files/${subfolder}/${file.name}`;
-            
+
             // Remove from body/content
             const embedding = `![[${targetPath}]]`;
             const escapedEmbedding = embedding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -260,10 +261,10 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             // Delete from vault ONLY if it's a voice recording created by this app
             // and we have a vault connection
             const isVoiceRecording = file.name.startsWith('Recording_') && file.mimeType.startsWith('audio/');
-            
+
             if (isVoiceRecording && vaultUri) {
                 const { deleteFileByPath } = await import('../utils/saf');
-                
+
                 // key logic: reconstruct the path where analyze() saved it
                 // We must match the rootFolderForContext logic
                 let rootFolderForContext = '';
@@ -289,8 +290,8 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         setShowReminderModal(true);
     };
 
-    const handleReminderSave = ({ date, recurrence }: { date: Date, recurrence: string }) => {
-        setReminderData({ date, recurrence });
+    const handleReminderSave = (data: { date: Date, recurrence: string }) => {
+        setReminderData({ date: data.date, recurrence: data.recurrence });
         setShowReminderModal(false);
     };
 
@@ -299,11 +300,11 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             if (!prevData) return null;
             const newData = [...prevData];
             if (newData[activeNoteIndex]) {
-                 if (!newData[activeNoteIndex].actions) {
-                     newData[activeNoteIndex].actions = [];
-                 }
-                 // Update the specific action
-                 newData[activeNoteIndex].actions![index] = updatedAction;
+                if (!newData[activeNoteIndex].actions) {
+                    newData[activeNoteIndex].actions = [];
+                }
+                // Update the specific action
+                newData[activeNoteIndex].actions![index] = updatedAction;
             }
             return newData;
         });
@@ -319,12 +320,12 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
     };
 
     const handleAddTag = () => setShowTagModal(true);
-    
+
     const handleTagModalClose = () => {
         setShowTagModal(false);
         setNewTag('');
     };
-    
+
     const handleTagModalConfirm = () => {
         if (newTag.trim()) {
             setTags([...tags, newTag.trim()]);
@@ -345,7 +346,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
     };
 
     const handleIconChange = (text: string) => {
-         if (data && data[activeNoteIndex]) {
+        if (data && data[activeNoteIndex]) {
             const newData = [...data];
             newData[activeNoteIndex] = { ...newData[activeNoteIndex], icon: text };
             setData(newData);
@@ -353,7 +354,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
     };
 
     const handleRemoveFrontmatterKey = (key: string) => {
-         if (data && data[activeNoteIndex]?.frontmatter) {
+        if (data && data[activeNoteIndex]?.frontmatter) {
             const newData = [...data];
             const newFrontmatter = { ...newData[activeNoteIndex].frontmatter };
             delete newFrontmatter[key];
@@ -363,7 +364,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
     };
 
     const handleUpdateFrontmatter = (updates: Record<string, any>) => {
-         if (data && data[activeNoteIndex]) {
+        if (data && data[activeNoteIndex]) {
             const newData = [...data];
             const newFrontmatter = { ...(newData[activeNoteIndex].frontmatter || {}) };
             Object.entries(updates).forEach(([key, value]) => {
@@ -405,17 +406,17 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 const audioFiles = attachedFiles.filter(f => f.mimeType.startsWith('audio/'));
                 if (audioFiles.length > 0) {
                     setLoadingStatus('Transcribing audio...');
-                    
+
                     for (const file of audioFiles) {
                         try {
                             const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
                             const transcription = await transcribeAudio(apiKey || '', base64, file.mimeType, selectedModel || undefined);
-                            
+
                             if (transcription) {
                                 // For Note Body (Formatted)
                                 const formatted = transcription.split('\n').map(line => `> ${line}`).join('\n');
                                 transcriptionContext += `\n> [!quote] Transcription: ${file.name}\n${formatted}\n`;
-                                
+
                                 // For AI Prompt (Raw)
                                 rawTranscriptions += `\n\nTranscription of ${file.name}:\n${transcription}\n`;
                             }
@@ -451,9 +452,9 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 setLoadingStatus('Checking Schedule...'); // Update status
                 const now = new Date();
                 const currentTimeString = now.toLocaleString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                
+
                 let scheduleContext = `\n\n--- CONTEXT ---\nCurrent Time: ${currentTimeString}\n`;
-                
+
                 try {
                     const calendarEvents = await CalendarService.getUpcomingEvents(3); // Next 3 days
                     scheduleContext += `\nUpcoming Schedule (Use to find free slots):\n${calendarEvents}\n`;
@@ -465,11 +466,11 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 contentForAI += scheduleContext;
                 console.log('[Analyze] Schedule context added.');
             } else {
-                 // Even if we skip schedule, current time is useful for file naming (e.g. "Meeting 2023-10...")
-                 const now = new Date();
-                 const currentTimeString = now.toLocaleString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                 contentForAI += `\n\n--- CONTEXT ---\nCurrent Time: ${currentTimeString}\n`;
-                 console.log('[Analyze] Schedule context skipped (no voice or meaningful text).');
+                // Even if we skip schedule, current time is useful for file naming (e.g. "Meeting 2023-10...")
+                const now = new Date();
+                const currentTimeString = now.toLocaleString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                contentForAI += `\n\n--- CONTEXT ---\nCurrent Time: ${currentTimeString}\n`;
+                console.log('[Analyze] Schedule context skipped (no voice or meaningful text).');
             }
             console.log(`[Profile] Schedule context took ${Date.now() - scheduleStart}ms`);
             // --------------------------------
@@ -481,19 +482,19 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             if (vaultUri) {
                 // Resolve context root just so we have the string for the AI prompt
                 if (contextRootFolder && contextRootFolder.trim()) {
-                   // Verify it exists (optional, but good for robustness) - actually the store does this too.
-                   // To avoid double check, we might just assume it's valid if set, 
-                   // OR we check it once here. The store check is for generating structure.
-                   // The prompt logic needs the STRING.
-                   // Let's rely on the setting being valid-ish. 
-                   // But wait, safely getting the targetUri was useful.
-                   // Let's re-add the verification significantly faster or just trust the store?
-                   // The store returns a Promise<string>. 
-                   
-                   // Let's just set the variable, we can verify existence via the store call implicitly (store logs error if fails).
-                   // But processContent needs to know if we are RELATIVE to usage.
-                   // If store returns structure, it succeeded.
-                   rootFolderForContext = contextRootFolder.trim();
+                    // Verify it exists (optional, but good for robustness) - actually the store does this too.
+                    // To avoid double check, we might just assume it's valid if set, 
+                    // OR we check it once here. The store check is for generating structure.
+                    // The prompt logic needs the STRING.
+                    // Let's rely on the setting being valid-ish. 
+                    // But wait, safely getting the targetUri was useful.
+                    // Let's re-add the verification significantly faster or just trust the store?
+                    // The store returns a Promise<string>. 
+
+                    // Let's just set the variable, we can verify existence via the store call implicitly (store logs error if fails).
+                    // But processContent needs to know if we are RELATIVE to usage.
+                    // If store returns structure, it succeeded.
+                    rootFolderForContext = contextRootFolder.trim();
                 }
 
                 vaultStructure = await useVaultStore.getState().getStructure(vaultUri, rootFolderForContext);
@@ -518,7 +519,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             console.log(`[Profile] Custom prompt reading took ${Date.now() - promptStart}ms`);
 
             // Process URLs in the text - Already done above
-            
+
             // Prepare context from URL metadata for AI
             let urlContext = '';
             if (urlMetadata && urlMetadata.length > 0) {
@@ -535,25 +536,25 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 // For URL embeds, we rebuild contentForAI more specifically
                 // But we must preserve the transcription and file info we added earlier!
                 // Let's reconstruct systematically:
-                
+
                 let baseContent = urlContext;
                 if (cleanText.trim()) baseContent += `\n\nUser Notes:\n${cleanText}`;
                 if (rawTranscriptions) baseContent += rawTranscriptions;
-                
+
                 if (attachedFiles.length > 0) {
-                     const filesInfo = attachedFiles.map((f, i) => `File ${i + 1}: ${f.name} (${f.mimeType}, ${(f.size / 1024).toFixed(1)} KB)`).join('\n');
-                     contentForAI = `${filesInfo}\n\n${baseContent}`;
+                    const filesInfo = attachedFiles.map((f, i) => `File ${i + 1}: ${f.name} (${f.mimeType}, ${(f.size / 1024).toFixed(1)} KB)`).join('\n');
+                    contentForAI = `${filesInfo}\n\n${baseContent}`;
                 } else {
                     contentForAI = baseContent;
                 }
-                 // Re-add schedule context if valid
-                 // Note: we can't easily reuse the exact string from above because scope, but we can check if contentForAI has it
-                 // Actually, contentForAI above has it appended.
-                 // But here we overwrite contentForAI with baseContent.
-                 // So we need to append it again if it was generated.
-                 
-                 // Simpler: Just append what we added to contentForAI previously to the new baseContent
-                 // Extract context part
+                // Re-add schedule context if valid
+                // Note: we can't easily reuse the exact string from above because scope, but we can check if contentForAI has it
+                // Actually, contentForAI above has it appended.
+                // But here we overwrite contentForAI with baseContent.
+                // So we need to append it again if it was generated.
+
+                // Simpler: Just append what we added to contentForAI previously to the new baseContent
+                // Extract context part
                 const contextPart = contentForAI.match(/\n\n--- CONTEXT ---[\s\S]*$/);
                 if (contextPart) {
                     contentForAI += contextPart[0];
@@ -563,7 +564,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             const modelStart = Date.now();
             const result = await processContent(apiKey!, contentForAI, customPrompt, selectedModel, vaultStructure, rootFolderForContext);
             console.log(`[Profile] Model analysis took ${Date.now() - modelStart}ms`);
-            
+
             if (result && result.length > 0) {
                 // ... (existing code)
 
@@ -572,22 +573,22 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                     // Apply to all generated notes or just the first? 
                     // Let's apply to all as they likely share context.
                     result.forEach(note => {
-                         if (!note.frontmatter) note.frontmatter = {};
-                         note.frontmatter.reminder_datetime = reminderData.date.toISOString();
-                         if (reminderData.recurrence) {
-                             note.frontmatter.reminder_recurrent = reminderData.recurrence;
-                         }
+                        if (!note.frontmatter) note.frontmatter = {};
+                        note.frontmatter.reminder_datetime = reminderData.date.toISOString();
+                        if (reminderData.recurrence) {
+                            note.frontmatter.reminder_recurrent = reminderData.recurrence;
+                        }
                     });
                 }
-                
+
                 const embeddings: string[] = [];
-                
+
                 if (attachedFiles.length > 0) {
                     const startCopy = Date.now();
                     const { copyFileToVault } = await import('../utils/saf');
-                    
+
                     for (const file of attachedFiles) {
-                         const subfolder = getAttachmentSubfolder(file.mimeType);
+                        const subfolder = getAttachmentSubfolder(file.mimeType);
                         const targetPath = `Files/${subfolder}/${file.name}`;
                         const copiedUri = await copyFileToVault(file.uri, vaultUri!, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
                         if (copiedUri) embeddings.push(`![[${targetPath}]]`);
@@ -606,7 +607,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                         result[0].body = `${transcriptionContext}\n\n${result[0].body}`;
                     }
                     if (embeddings.length > 0) {
-                         result[0].body = `${embeddings.join('\n')}\n\n${result[0].body}`;
+                        result[0].body = `${embeddings.join('\n')}\n\n${result[0].body}`;
                     }
                 }
 
@@ -624,7 +625,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
 
                 if (quickSave) {
                     if (result.length === 1) {
-                         await handleSave(
+                        await handleSave(
                             result[0].title,
                             result[0].filename,
                             result[0].folder,
@@ -633,10 +634,10 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                             result[0]
                         );
                     } else {
-                         // If multiple notes, disable quick save and show preview
-                         Alert.alert('Multiple Notes', 'Multiple notes were generated. Please review them individually.');
-                         setLoading(false);
-                         setInputMode(false);
+                        // If multiple notes, disable quick save and show preview
+                        Alert.alert('Multiple Notes', 'Multiple notes were generated. Please review them individually.');
+                        setLoading(false);
+                        setInputMode(false);
                     }
                 } else {
                     setLoading(false);
@@ -686,7 +687,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         if (attachedFiles.length > 0) {
             const { copyFileToVault } = await import('../utils/saf');
             const { transcribeAudio } = await import('../services/gemini');
-            
+
             for (const file of attachedFiles) {
                 if (file.mimeType.startsWith('audio/')) {
                     try {
@@ -700,7 +701,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                         console.warn(`Failed to transcribe ${file.name}`, e);
                     }
                 }
-                
+
                 const subfolder = getAttachmentSubfolder(file.mimeType);
                 const targetPath = `Files/${subfolder}/${file.name}`;
                 const copiedUri = await copyFileToVault(file.uri, vaultUri, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
@@ -711,10 +712,10 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         }
 
         const { embeds: urlEmbeds, cleanText, metadata: urlMetadata } = await processURLsInText(processedText);
-        
+
         if (urlMetadata && urlMetadata.length > 0) {
             // In direct save, we also accumulate links
-             setLinks(prev => {
+            setLinks(prev => {
                 const existingUrls = new Set(prev.map(l => l.url));
                 const newLinks = urlMetadata.filter(l => !existingUrls.has(l.url));
                 return [...prev, ...newLinks];
@@ -723,26 +724,26 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
 
         // Direct Save Modifications
         const frontmatterEntries: string[] = ['tags: [quick_save]'];
-        
+
         if (reminderData) {
             frontmatterEntries.push(`reminder_datetime: "${reminderData.date.toISOString()}"`);
             if (reminderData.recurrence) {
                 frontmatterEntries.push(`reminder_recurrent: "${reminderData.recurrence}"`);
             }
         }
-        
+
         const frontmatter = `---\n${frontmatterEntries.join('\n')}\n---\n\n`;
         let content = frontmatter;
-        
+
         // Generate Link Embeds from ALL links (including just detected ones if they were added to state)
         // Note: For direct save, we might just want to use the detected ones + existing ones
         // But state update is async, so we should merge manually for immediate use
         const allLinks = [...links];
         if (urlMetadata) {
-             const existingUrls = new Set(links.map(l => l.url));
-             urlMetadata.forEach(m => {
-                 if (!existingUrls.has(m.url)) allLinks.push(m);
-             });
+            const existingUrls = new Set(links.map(l => l.url));
+            urlMetadata.forEach(m => {
+                if (!existingUrls.has(m.url)) allLinks.push(m);
+            });
         }
 
         if (allLinks.length > 0) {
@@ -753,23 +754,24 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
 
         if (cleanText.trim()) content += cleanText + '\n\n';
         if (!urlEmbeds && !cleanText.trim()) {
-             content += processedText + '\n\n';
+            content += processedText + '\n\n';
         }
 
         if (embeddings.length > 0) content += `${embeddings.join('\n')}`;
-        
+
         content = content.trim();
         const finalFilename = `Quick Note ${new Date().toISOString().split('T')[0]}.md`;
         const finalFolder = rootFolderForContext || 'Inbox';
-        
+
         const filePath = await saveToVault(vaultUri, finalFilename, content, finalFolder);
-        
+
         if (filePath && openInObsidian) {
             await new Promise(resolve => setTimeout(resolve, 1000));
             await openNoteInObsidian(vaultUri, filePath);
         }
 
         setSaving(false);
+        await syncAllReminders();
         clearState();
         if (openInObsidian) {
             onReset();
@@ -852,9 +854,9 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         // Prepend Links (Only on the first note to avoid duplication if multiple notes?)
         // Or if we want links on all? Let's assume links are relevant to all if split from same source.
         if (links.length > 0) {
-             const { buildObsidianEmbed } = await import('../utils/urlMetadata');
-             const linkEmbeds = links.map(l => buildObsidianEmbed(l)).join('\n\n');
-             content += linkEmbeds + '\n\n';
+            const { buildObsidianEmbed } = await import('../utils/urlMetadata');
+            const linkEmbeds = links.map(l => buildObsidianEmbed(l)).join('\n\n');
+            content += linkEmbeds + '\n\n';
         }
 
         content += targetBody;
@@ -888,9 +890,9 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 Alert.alert('Scheduling Skipped', 'No Google Access Token found. Please connect in settings.');
             }
         }
-        
+
         const filePath = await saveToVault(vaultUri, targetFilename, content, targetFolder);
-        
+
         // Handling post-save logic for multiple notes
         if (data && data.length > 1 && !overrideData) {
             // Remove current note from data
@@ -924,6 +926,8 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             await new Promise(resolve => setTimeout(resolve, 1000));
             await openNoteInObsidian(vaultUri, filePath);
         }
+
+        await syncAllReminders();
 
         setSaving(false);
         if (!data || data.length <= 1) { // If it was the last note
@@ -969,7 +973,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
 
         if (!inputMode || isCleanInput) {
             if (isCleanInput) setInputMode(false);
-            
+
             // Analyze with the synced state
             const textToAnalyze = (shareIntent?.text || shareIntent?.webUrl) ?? '';
             analyze(textToAnalyze);
@@ -985,7 +989,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
     if (loading && !inputMode) return <LoadingScreen message={loadingStatus || "Analyzing..."} />;
     if (saving) return <SavingScreen />;
     if (!data && !loading && !inputMode) return <ErrorScreen onRetry={() => setInputMode(true)} onClose={() => { clearState(); onReset(); }} errorMessage={lastError} />;
-    
+
     if (inputMode && !loading) {
         return (
             <>
@@ -1009,7 +1013,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                     onCamera={handleCamera}
                     onRecord={recording ? stopRecording : startRecording}
                     recording={!!recording}
-                    disabled={loading ||  saving}
+                    disabled={loading || saving}
                     links={links}
                     onRemoveLink={handleRemoveLink}
                     onReminder={handleReminderClick}
@@ -1017,11 +1021,13 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                     onRemoveReminder={() => setReminderData(null)}
                 />
 
-                
+
                 <ReminderEditModal
                     visible={showReminderModal}
                     initialDate={reminderData?.date || new Date()}
                     initialRecurrence={reminderData?.recurrence || ''}
+                    initialTitle={title || inputText}
+                    initialContent={body || inputText}
                     onSave={handleReminderSave}
                     onCancel={() => setShowReminderModal(false)}
                     timeFormat={useSettingsStore.getState().timeFormat}
