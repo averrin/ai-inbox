@@ -20,7 +20,7 @@ import { LunchContextModal } from '../LunchContextModal';
 import { calculateDayStatus, aggregateDayStats, DayBreakdown, DayStatusLevel } from '../../utils/difficultyUtils';
 import { DayStatusMarker } from '../DayStatusMarker'; import { DaySummaryModal } from '../DaySummaryModal';
 import { ReminderEditModal, ReminderSaveData } from '../ReminderEditModal';
-import { updateReminder, toLocalISOString, createStandaloneReminder } from '../../services/reminderService';
+import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder } from '../../services/reminderService';
 import { EventCreateModal, EventSaveData } from '../EventCreateModal';
 import { createCalendarEvent, getWritableCalendars } from '../../services/calendarService';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -46,6 +46,26 @@ export default function ScheduleScreen() {
     const [editingReminder, setEditingReminder] = useState<any | null>(null);
     const [creatingEventDate, setCreatingEventDate] = useState<Date | null>(null);
     const calendarRef = useRef<CalendarRef>(null);
+
+    const handleDeleteReminder = async (reminder: Reminder) => {
+        // Optimistic Delete
+        const targetUri = reminder.fileUri;
+        setCachedReminders(cachedReminders.filter((r: any) => r.fileUri !== targetUri));
+        setEvents(prev => prev.filter(e => e.originalEvent?.fileUri !== targetUri));
+
+        // Close Modal
+        setEditingReminder(null);
+
+        // Async Delete
+        try {
+            await updateReminder(targetUri, null); // Pass null to delete
+        } catch (e) {
+            console.error("Failed to delete reminder:", e);
+            alert("Failed to delete reminder");
+            // Revert state if needed? (Ideally we reload)
+            fetchEvents();
+        }
+    };
 
 
     // Load event types config on mount
@@ -620,6 +640,19 @@ export default function ScheduleScreen() {
                         initialFileUri={editingReminder.fileUri}
                         timeFormat={timeFormat}
                         onCancel={() => setEditingReminder(null)}
+                        onDelete={() => {
+                            // Show confirmation if it's an existing reminder
+                            if (editingReminder && !editingReminder.isNew) {
+                                handleDeleteReminder(editingReminder);
+                            } else {
+                                setEditingReminder(null);
+                            }
+                        }}
+                        onShow={() => {
+                            if (editingReminder) {
+                                showReminder(editingReminder);
+                            }
+                        }}
                         onSave={(data) => {
                             if (editingReminder) {
                                 // 1. Capture payload for async operations

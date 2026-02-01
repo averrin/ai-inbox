@@ -207,6 +207,18 @@ export default function RemindersListScreen() {
           setIsEditModalVisible(false);
           setEditingReminder(null);
         }}
+        onDelete={() => {
+            if (editingReminder) {
+                handleDeleteReminder(editingReminder);
+                setIsEditModalVisible(false);
+                setEditingReminder(null);
+            }
+        }}
+        onShow={() => {
+            if (editingReminder) {
+                showReminder(editingReminder);
+            }
+        }}
         timeFormat={timeFormat}
       />
 

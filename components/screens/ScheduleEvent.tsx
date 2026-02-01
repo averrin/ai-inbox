@@ -73,6 +73,23 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
                 ]}
             >
                 <View className="flex-row items-center w-full">
+                     {/* Badge Indicator */}
+                     <View
+                        className="rounded-full items-center justify-center mr-1"
+                        style={{
+                            backgroundColor: color,
+                            width: 16,
+                            height: 16,
+                            shadowColor: color,
+                            shadowOffset: { width: 0, height: 0 },
+                            shadowOpacity: 0.5,
+                            shadowRadius: 4,
+                            elevation: 3
+                        }}
+                     >
+                         <Ionicons name="notifications" size={10} color="white" />
+                     </View>
+
                     {/* Text Label */}
                     <View
                         className="bg-slate-900/90 rounded px-2 py-0.5 border shadow-sm"
@@ -94,7 +111,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
                             height: 1,
                             backgroundColor: color,
                             borderStyle: 'dashed',
-                            marginLeft: 0,
+                            marginLeft: 2,
                             opacity: 0.5
                         }}
                     />
