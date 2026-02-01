@@ -181,13 +181,12 @@ export default function ScheduleScreen() {
     }, [events, workRanges]);
 
     const lunchEvent = useMemo(() => {
-        return detectLunchEvent(events, ranges);
-    }, [events, ranges]);
+        return detectLunchEvent(events, ranges, hookDateRange);
+    }, [events, ranges, hookDateRange]);
 
     const allEvents = useMemo(() => {
         const base = [...events, ...timeRangeEvents, ...focusRanges, ...freeTimeZones];
         if (lunchEvent) {
-            // Spread the array, do not push the array itself
             base.push(...lunchEvent);
         }
         return base;
@@ -403,34 +402,10 @@ const detectFocusRanges = (allEvents: any[]) => {
 }
 
 // Helper: detect and place ephemeral Lunch event
-const detectLunchEvent = (allEvents: any[], ranges: any[]) => {
+const detectLunchEvent = (allEvents: any[], ranges: any[], dateRange: dayjs.Dayjs[]) => {
     // 1. Find "Lunch" range
     const lunchRange = ranges.find(r => r.title === 'Lunch' && r.isEnabled);
     if (!lunchRange) return null;
-
-    // We only care about the specific day currently being viewed?
-    // allEvents contains events for the current week.
-    // However, detectFocusRanges/detectFreeTimeZones process ALL events.
-    // But Lunch is a daily thing.
-    // If allEvents spans a week, we should generate a Lunch for EACH day in the view?
-    // The current ScheduleScreen seems to be focused on a single 'date' state,
-    // but fetches a week of events.
-    // 'detectFocusRanges' iterates over 'byDay'.
-    // We should probably do the same: Generate lunch for each day in the range.
-
-    // BUT, the prompt implies "If time range 'Lunch' is present..."
-    // Let's assume we just need to return an array of lunch events if multiple days are involved?
-    // The return type of useMemo above is 'lunchEvent' (singular).
-    // Let's look at detectFocusRanges: it returns an array 'results'.
-    // So detectLunchEvent should return an array.
-
-    // WAIT: The useMemo above was:
-    // const lunchEvent = useMemo(() => detectLunchEvent(events, ranges), ...);
-    // const allEvents = ... if (lunchEvent) base.push(lunchEvent);
-    // This implies a single event.
-    // BUT BigCalendar expects an array.
-    // I should change the integration point to spread the result if it's an array.
-    // Let's fix the implementation to return an array (one per day).
 
     const results: any[] = [];
     const eventsByDay: Record<string, any[]> = {};
@@ -440,31 +415,15 @@ const detectLunchEvent = (allEvents: any[], ranges: any[]) => {
         eventsByDay[d].push(e);
     });
 
-    // Determine days to cover.
-    // We can infer relevant days from the events list or the range logic.
-    // But easier: Iterate days present in eventsByDay?
-    // Or just iterate the days in the view?
-    // The 'ranges' object defines which DAYS of the week it applies to.
-    // We need to know the date range of the current view.
-    // ScheduleScreen has 'weekStart' and 'weekEnd'.
-    // But those are inside the component. We passed 'events' and 'ranges'.
-    // We can iterate the days found in 'eventsByDay' as a heuristic.
-
-    Object.keys(eventsByDay).forEach(dayStr => {
-        const dayEvents = eventsByDay[dayStr];
-        const currentDay = dayjs(dayStr);
+    dateRange.forEach(currentDay => {
+        const dayStr = currentDay.format('YYYY-MM-DD');
+        const dayEvents = eventsByDay[dayStr] || [];
         const dayOfWeek = currentDay.day(); // 0-6
 
         // Check if Lunch range applies to this day
         if (!lunchRange.days.includes(dayOfWeek)) return;
 
         // Define Lunch Window for this day
-        // range.start is a Date object with correct hour/minute but arbitrary date?
-        // Usually ranges store { hour: H, minute: M } or a Date.
-        // Looking at calculateEventDifficulty, it uses range.start.hour/minute.
-        // Let's assume 'ranges' has { start: { hour, minute }, end: { hour, minute } } structure
-        // OR it might be full Date objects.
-        // Let's rely on standard logic:
         let rStart = currentDay.hour(lunchRange.start.hour || dayjs(lunchRange.start).hour()).minute(lunchRange.start.minute || dayjs(lunchRange.start).minute()).second(0);
         let rEnd = currentDay.hour(lunchRange.end.hour || dayjs(lunchRange.end).hour()).minute(lunchRange.end.minute || dayjs(lunchRange.end).minute()).second(0);
 
@@ -474,7 +433,7 @@ const detectLunchEvent = (allEvents: any[], ranges: any[]) => {
         let bestSlot: { start: dayjs.Dayjs, tier: number } | null = null;
         // Tier 1: Free (Cost 0)
         // Tier 2: Skippable (Cost 1)
-        // Tier 3: Movable (Cost 2) - This mapping aligns with prompt priorities.
+        // Tier 3: Movable (Cost 2)
 
         // Step 5 minutes
         for (let t = rStart; t.isBefore(rEnd.subtract(59, 'minute')); t = t.add(5, 'minute')) {
@@ -486,7 +445,6 @@ const detectLunchEvent = (allEvents: any[], ranges: any[]) => {
                 const eStart = dayjs(e.start);
                 const eEnd = dayjs(e.end);
                 // "Ignore zero difficulties": Only care if difficulty >= 1
-                // Also exclude 'marker' types or existing generated types to be safe
                 if (e.difficulty === 0 || e.difficulty === undefined) return false;
                 if (e.type === 'marker') return false; // Ignore markers
 

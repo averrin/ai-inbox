@@ -161,7 +161,8 @@ function _CalendarBody<T extends ICalendarEventBase>({
         const rangeStart = dayjs(range.start)
         const rangeEnd = dayjs(range.end)
 
-        let offset = 0
+        const usedOffsets = new Set<number>()
+
         for (let i = 0; i < index; i++) {
           const otherRange = dayRanges[i]
           const otherStart = dayjs(otherRange.start)
@@ -176,9 +177,15 @@ function _CalendarBody<T extends ICalendarEventBase>({
 
           if (overlaps) {
             const otherOffset = currentOffsets[i]
-            offset = Math.max(offset, otherOffset + 1)
+            usedOffsets.add(otherOffset)
           }
         }
+
+        let offset = 0
+        while (usedOffsets.has(offset)) {
+          offset++
+        }
+
         currentOffsets.push(offset)
         map.set(range, offset)
       }
