@@ -1,0 +1,130 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import dayjs from 'dayjs';
+import { useMoodStore } from '../store/moodStore';
+
+interface MoodEvaluationModalProps {
+    visible: boolean;
+    onClose: () => void;
+    date: Date;
+}
+
+const MOOD_OPTIONS = [
+    { value: 1, color: '#ef4444', label: 'Very Bad', icon: 'thunderstorm-outline' },
+    { value: 2, color: '#f97316', label: 'Bad', icon: 'rainy-outline' },
+    { value: 3, color: '#eab308', label: 'Neutral', icon: 'cloudy-outline' },
+    { value: 4, color: '#84cc16', label: 'Good', icon: 'partly-sunny-outline' },
+    { value: 5, color: '#22c55e', label: 'Excellent', icon: 'sunny-outline' },
+];
+
+export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationModalProps) {
+    const { moods, setMood } = useMoodStore();
+    const dateStr = dayjs(date).format('YYYY-MM-DD');
+
+    const [selectedMood, setSelectedMood] = useState<number | null>(null);
+    const [note, setNote] = useState('');
+
+    useEffect(() => {
+        if (visible) {
+            const entry = moods[dateStr];
+            if (entry) {
+                setSelectedMood(entry.mood);
+                setNote(entry.note);
+            } else {
+                setSelectedMood(null);
+                setNote('');
+            }
+        }
+    }, [visible, dateStr, moods]);
+
+    const handleSave = () => {
+        if (selectedMood !== null) {
+            setMood(dateStr, selectedMood, note);
+        }
+        onClose();
+    };
+
+    return (
+        <Modal visible={visible} transparent animationType="fade">
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                className="flex-1 justify-center items-center bg-black/50 px-4"
+            >
+                <View className="bg-slate-900 w-full max-w-md p-6 rounded-3xl border border-slate-700">
+                    <View className="flex-row justify-between items-center mb-6">
+                        <View>
+                            <Text className="text-white text-xl font-bold">
+                                Evaluate Day
+                            </Text>
+                            <Text className="text-slate-400 text-sm">
+                                {dayjs(date).format('dddd, MMMM D, YYYY')}
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={onClose}
+                            className="bg-slate-800 p-2 rounded-full"
+                        >
+                            <Ionicons name="close" size={20} color="#94a3b8" />
+                        </TouchableOpacity>
+                    </View>
+
+                    <Text className="text-indigo-200 mb-3 font-medium">How was your day?</Text>
+
+                    <View className="flex-row justify-between mb-6">
+                        {MOOD_OPTIONS.map((option) => (
+                            <TouchableOpacity
+                                key={option.value}
+                                onPress={() => setSelectedMood(option.value)}
+                                className={`items-center justify-center w-12 h-12 rounded-full border-2 ${
+                                    selectedMood === option.value
+                                        ? 'border-white scale-110'
+                                        : 'border-transparent opacity-80'
+                                }`}
+                                style={{ backgroundColor: option.color }}
+                            >
+                                <Ionicons name={option.icon as any} size={24} color="white" />
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    {selectedMood && (
+                         <Text className="text-center text-white font-bold mb-4" style={{ color: MOOD_OPTIONS[selectedMood - 1].color }}>
+                            {MOOD_OPTIONS[selectedMood - 1].label}
+                        </Text>
+                    )}
+
+                    <Text className="text-indigo-200 mb-2 font-medium">Day Note</Text>
+                    <TextInput
+                        className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700 font-medium min-h-[100px] mb-6"
+                        value={note}
+                        onChangeText={setNote}
+                        placeholder="What happened today? Any reflections?"
+                        placeholderTextColor="#64748b"
+                        multiline
+                        textAlignVertical="top"
+                    />
+
+                    <View className="flex-row gap-3">
+                        <TouchableOpacity
+                            onPress={onClose}
+                            className="flex-1 bg-slate-800 p-3 rounded-xl items-center"
+                        >
+                            <Text className="text-white font-semibold">Cancel</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={handleSave}
+                            disabled={selectedMood === null}
+                            className={`flex-1 p-3 rounded-xl items-center ${
+                                selectedMood !== null ? 'bg-indigo-600' : 'bg-slate-700 opacity-50'
+                            }`}
+                        >
+                            <Text className="text-white font-semibold">Save</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </KeyboardAvoidingView>
+        </Modal>
+    );
+}
