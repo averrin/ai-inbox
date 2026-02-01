@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, TextInput, Platform, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useReminderModal } from '../utils/reminderModalContext';
+import { rescheduleReminderWithAI, AIRescheduleContext } from '../services/gemini';
+import { useSettingsStore } from '../store/settings';
+import { useEventTypesStore } from '../store/eventTypes';
+import { getCalendarEvents } from '../services/calendarService';
+import dayjs from 'dayjs';
 
 export interface ReminderSaveData {
     title?: string;
@@ -13,42 +19,105 @@ export interface ReminderSaveData {
 
 interface ReminderEditModalProps {
     visible: boolean;
-    initialDate: Date;
+    initialDate?: Date;
     initialRecurrence: string;
     initialAlarm?: boolean;
     initialPersistent?: number;
     initialTitle?: string;
+    initialContent?: string;
+    initialFileUri?: string;
     enableTitle?: boolean;
     onSave: (data: ReminderSaveData) => void;
     onCancel: () => void;
     timeFormat: '12h' | '24h';
 }
 
-export function ReminderEditModal({ 
-    visible, 
-    initialDate, 
-    initialRecurrence, 
+export function ReminderEditModal({
+    visible,
+    initialDate,
+    initialRecurrence,
     initialAlarm,
     initialPersistent,
     initialTitle = '',
+    initialContent = '',
+    initialFileUri = '',
     enableTitle = false,
-    onSave, 
-    onCancel, 
-    timeFormat 
+    onSave,
+    onCancel,
+    timeFormat
 }: ReminderEditModalProps) {
-    const [editDate, setEditDate] = useState<Date>(new Date());
-    const [editRecurrence, setEditRecurrence] = useState<string>('');
-    const [editAlarm, setEditAlarm] = useState(false);
-    const [editPersistent, setEditPersistent] = useState('');
-    const [editTitle, setEditTitle] = useState('');
+    const { showReminder } = useReminderModal();
+    // Lazy initialization for state
+    const [editDate, setEditDate] = useState<Date>(() => initialDate || new Date());
+    const [editRecurrence, setEditRecurrence] = useState<string>(initialRecurrence || '');
+    const [editAlarm, setEditAlarm] = useState(initialAlarm || false);
+    const [editPersistent, setEditPersistent] = useState(initialPersistent ? initialPersistent.toString() : '');
+    const [editTitle, setEditTitle] = useState(initialTitle || '');
     const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-    
+
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
 
+    // AI Rescheduling State
+    const [isRescheduling, setIsRescheduling] = useState<null | 'later' | 'tomorrow'>(null);
+    const apiKey = useSettingsStore(state => state.apiKey);
+    const visibleCalendarIds = useSettingsStore(state => state.visibleCalendarIds);
+
+    // Optimize selector
+    const ranges = useEventTypesStore(state => state.ranges);
+    const workRanges = React.useMemo(() => ranges.filter(r => r.isEnabled && r.isWork), [ranges]);
+
+    const handleAIReschedule = async (type: 'later' | 'tomorrow') => {
+        if (!apiKey) {
+            alert("Please configure your Gemini API Key in settings first.");
+            return;
+        }
+
+        setIsRescheduling(type);
+        try {
+            // 1. Gather Context
+            const now = dayjs();
+            const start = now.startOf('day').toDate();
+            const end = now.add(2, 'day').endOf('day').toDate(); // Look ahead 48h
+
+            const events = await getCalendarEvents(visibleCalendarIds, start, end);
+
+            const context: AIRescheduleContext = {
+                currentTime: now.toISOString(),
+                workRanges: workRanges,
+                upcomingEvents: events.map(e => ({
+                    title: e.title,
+                    start: new Date(e.startDate).toISOString(),
+                    end: new Date(e.endDate).toISOString(),
+                    difficulty: (e as any).difficulty
+                }))
+            };
+
+            // 2. Call AI
+            const suggestedTime = await rescheduleReminderWithAI(
+                apiKey,
+                type,
+                { title: initialTitle || editTitle || "Untitled Reminder", content: initialContent },
+                context
+            );
+
+            // 3. Update State
+            if (suggestedTime) {
+                setEditDate(new Date(suggestedTime));
+            } else {
+                alert("AI couldn't find a suitable time. Please try manually.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Failed to reschedule with AI.");
+        } finally {
+            setIsRescheduling(null);
+        }
+    };
+
     useEffect(() => {
         if (visible) {
-            setEditDate(new Date(initialDate));
+            setEditDate(initialDate ? new Date(initialDate) : new Date());
             setEditRecurrence(initialRecurrence || '');
             setEditAlarm(initialAlarm || false);
             setEditPersistent(initialPersistent ? initialPersistent.toString() : '');
@@ -97,13 +166,13 @@ export function ReminderEditModal({
                             onPress={() => setShowDatePicker(true)}
                             className="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-3 flex-row justify-between items-center"
                         >
-                             <View className="flex-row items-center">
+                            <View className="flex-row items-center">
                                 <Ionicons name="calendar-outline" size={20} color="#818cf8" />
                                 <Text className="text-white font-bold text-lg ml-3">
                                     {editDate.toLocaleDateString()}
                                 </Text>
-                             </View>
-                             <Ionicons name="chevron-forward" size={16} color="#64748b" />
+                            </View>
+                            <Ionicons name="chevron-forward" size={16} color="#64748b" />
                         </TouchableOpacity>
 
                         {/* Time & Alarm Row */}
@@ -117,8 +186,8 @@ export function ReminderEditModal({
                                     <Text className="text-white font-bold text-lg ml-3">
                                         {editDate.toLocaleTimeString([], {
                                             hour12: timeFormat === '12h',
-                                            hour: '2-digit', 
-                                            minute:'2-digit'
+                                            hour: '2-digit',
+                                            minute: '2-digit'
                                         })}
                                     </Text>
                                 </View>
@@ -174,10 +243,34 @@ export function ReminderEditModal({
                             />
                         )}
                     </View>
-                    
+
                     {/* Quick Reschedule Options */}
                     <View className="mb-6">
-                        <Text className="text-indigo-200 mb-2 font-medium">Quick Reschedule</Text>
+                        <View className="flex-row justify-between items-center mb-2">
+                            <Text className="text-indigo-200 font-medium">Quick Reschedule</Text>
+                            {apiKey && (
+                                <View className="flex-row gap-2">
+                                    <TouchableOpacity
+                                        onPress={() => handleAIReschedule('later')}
+                                        className={`px-3 py-1 rounded-full border ${isRescheduling === 'later' ? 'bg-indigo-600 border-indigo-500' : 'bg-slate-800 border-indigo-500/30'}`}
+                                        disabled={!!isRescheduling}
+                                    >
+                                        <Text className={`text-xs ${isRescheduling === 'later' ? 'text-white' : 'text-indigo-300'}`}>
+                                            {isRescheduling === 'later' ? 'Thinking...' : '✨ Later'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={() => handleAIReschedule('tomorrow')}
+                                        className={`px-3 py-1 rounded-full border ${isRescheduling === 'tomorrow' ? 'bg-indigo-600 border-indigo-500' : 'bg-slate-800 border-indigo-500/30'}`}
+                                        disabled={!!isRescheduling}
+                                    >
+                                        <Text className={`text-xs ${isRescheduling === 'tomorrow' ? 'text-white' : 'text-indigo-300'}`}>
+                                            {isRescheduling === 'tomorrow' ? 'Thinking...' : '✨ Tomorrow'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </View>
                         <View className="flex-row flex-wrap gap-2">
                             {[
                                 { label: '+1m', min: 1 },
@@ -203,14 +296,14 @@ export function ReminderEditModal({
 
                     {/* Collapsible Advanced Section */}
                     <View className="mb-6">
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             onPress={() => setIsAdvancedOpen(!isAdvancedOpen)}
                             className="flex-row items-center justify-between mb-2"
                         >
-                             <Text className="text-indigo-200 font-medium">Advanced</Text>
-                             <Ionicons name={isAdvancedOpen ? "chevron-up" : "chevron-down"} size={20} color="#818cf8" />
+                            <Text className="text-indigo-200 font-medium">Advanced</Text>
+                            <Ionicons name={isAdvancedOpen ? "chevron-up" : "chevron-down"} size={20} color="#818cf8" />
                         </TouchableOpacity>
-                        
+
                         {isAdvancedOpen && (
                             <View className="bg-slate-800/50 p-3 rounded-xl border border-slate-700 space-y-4">
                                 {/* Recurrence Rule */}
@@ -251,6 +344,27 @@ export function ReminderEditModal({
                         >
                             <Text className="text-white font-semibold">Cancel</Text>
                         </TouchableOpacity>
+
+                        {!enableTitle && (
+                            <TouchableOpacity
+                                onPress={() => {
+                                    showReminder({
+                                        fileUri: initialFileUri,
+                                        fileName: initialTitle || 'Reminder',
+                                        title: initialTitle,
+                                        reminderTime: editDate.toISOString(),
+                                        recurrenceRule: editRecurrence,
+                                        alarm: editAlarm,
+                                        persistent: editPersistent ? parseInt(editPersistent, 10) : undefined,
+                                        content: initialContent
+                                    });
+                                }}
+                                className="bg-amber-600/20 border border-amber-500/50 p-4 rounded-xl items-center justify-center"
+                            >
+                                <Ionicons name="eye-outline" size={20} color="#fbbf24" />
+                            </TouchableOpacity>
+                        )}
+
                         <TouchableOpacity
                             onPress={handleSave}
                             className="flex-1 bg-indigo-600 p-4 rounded-xl items-center"

@@ -189,7 +189,13 @@ export async function ensureDirectory(parentUri: string, dirName: string): Promi
     }
 }
 
-export async function saveToVault(vaultUri: string, filename: string, content: string, folderPath?: string): Promise<string> {
+export async function saveToVault(
+    vaultUri: string,
+    filename: string,
+    content: string,
+    folderPath?: string,
+    mimeType: string = 'text/markdown'
+): Promise<string> {
     try {
         let targetUri = vaultUri;
 
@@ -206,7 +212,7 @@ export async function saveToVault(vaultUri: string, filename: string, content: s
             await StorageAccessFramework.writeAsStringAsync(existingFileUri, content);
             return existingFileUri;
         } else {
-            const fileUri = await StorageAccessFramework.createFileAsync(targetUri, filename, 'text/markdown');
+            const fileUri = await StorageAccessFramework.createFileAsync(targetUri, filename, mimeType);
             await StorageAccessFramework.writeAsStringAsync(fileUri, content);
             return fileUri;
         }

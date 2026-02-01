@@ -1,36 +1,26 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, FlatList, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, FlatList, TextInput, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEventTypesStore } from '../store/eventTypes';
 import { EventType } from '../services/eventTypeService';
 import { ActionButton } from './ui/ActionButton';
 import { SettingsListItem } from './ui/SettingsListItem';
+import { ColorPicker, PRESET_COLORS } from './ui/ColorPicker';
 import * as Crypto from 'expo-crypto';
-
-// Preset colors (Tailwind-ish)
-const PRESET_COLORS = [
-    '#ef4444', // red-500
-    '#f97316', // orange-500
-    '#eab308', // yellow-500
-    '#22c55e', // green-500
-    '#06b6d4', // cyan-500
-    '#3b82f6', // blue-500
-    '#8b5cf6', // violet-500
-    '#d946ef', // fuchsia-500
-    '#64748b', // slate-500
-];
 
 export function EventTypesSettings() {
     const { eventTypes, addType, updateType, deleteType } = useEventTypesStore();
     const [editingType, setEditingType] = useState<EventType | null>(null);
     const [title, setTitle] = useState('');
     const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
+    const [hideBadges, setHideBadges] = useState(false);
     const [isFormVisible, setIsFormVisible] = useState(false);
 
     const handleEdit = (type: EventType) => {
         setEditingType(type);
         setTitle(type.title);
         setSelectedColor(type.color);
+        setHideBadges(type.hideBadges || false);
         setIsFormVisible(true);
     };
 
@@ -38,22 +28,29 @@ export function EventTypesSettings() {
         setEditingType(null);
         setTitle('');
         setSelectedColor(PRESET_COLORS[0]);
+        setHideBadges(false);
         setIsFormVisible(true);
     };
 
     const handleSave = async () => {
         if (!title.trim()) return;
 
-        if (editingType) {
-            await updateType({ ...editingType, title, color: selectedColor });
-        } else {
-            await addType({
-                id: Crypto.randomUUID(),
-                title,
-                color: selectedColor
-            });
+        try {
+            if (editingType) {
+                await updateType({ ...editingType, title, color: selectedColor, hideBadges });
+            } else {
+                await addType({
+                    id: Crypto.randomUUID(),
+                    title,
+                    color: selectedColor,
+                    hideBadges
+                });
+            }
+        } catch (error) {
+            console.error('Error saving event type:', error);
+        } finally {
+            setIsFormVisible(false);
         }
-        setIsFormVisible(false);
     };
 
     const handleDelete = async (id: string) => {
@@ -121,16 +118,24 @@ export function EventTypesSettings() {
                             autoFocus
                         />
 
-                        <Text className="text-slate-400 mb-2 text-sm">Color</Text>
-                        <View className="flex-row flex-wrap gap-3 mb-8">
-                            {PRESET_COLORS.map(color => (
-                                <TouchableOpacity
-                                    key={color}
-                                    onPress={() => setSelectedColor(color)}
-                                    className={`w-8 h-8 rounded-full ${selectedColor === color ? 'border-2 border-white' : ''}`}
-                                    style={{ backgroundColor: color }}
-                                />
-                            ))}
+                        <ColorPicker
+                            value={selectedColor}
+                            onChange={setSelectedColor}
+                            label="Color"
+                            style={{ marginBottom: 24 }}
+                        />
+
+                        <View className="bg-slate-800 rounded-lg p-3 flex-row justify-between items-center mb-8">
+                            <View className="flex-1 mr-3">
+                                <Text className="text-white font-medium">Hide Badges</Text>
+                                <Text className="text-slate-500 text-xs">Hide corner badges for events of this type</Text>
+                            </View>
+                            <Switch
+                                value={hideBadges}
+                                onValueChange={setHideBadges}
+                                trackColor={{ false: "#334155", true: "#4f46e5" }}
+                                thumbColor={hideBadges ? "#ffffff" : "#94a3b8"}
+                            />
                         </View>
 
                         <View className="flex-row gap-3">

@@ -5,10 +5,20 @@ import {
   Platform,
   StyleSheet,
   type TextStyle,
+  TouchableOpacity,
   View,
   type ViewStyle,
+  type RefreshControlProps,
+  RefreshControl,
 } from 'react-native'
-import { ScrollView } from 'react-native-gesture-handler'
+import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler'
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  runOnJS,
+  useDerivedValue,
+} from 'react-native-reanimated'
 import { u } from '../commonStyles'
 import { useNow } from '../hooks/useNow'
 import type {
@@ -26,6 +36,7 @@ import {
   getOrderOfEvent,
   getRelativeTopInDay,
   isToday,
+  calculateEventLayout,
 } from '../utils/datetime'
 import { typedMemo } from '../utils/react'
 import { CalendarEvent } from './CalendarEvent'
@@ -34,6 +45,9 @@ import { CalendarRange } from './CalendarRange'
 import { CalendarZone } from './CalendarZone'
 import { HourGuideCell } from './HourGuideCell'
 import { HourGuideColumn } from './HourGuideColumn'
+import { QuickEntryMarker } from './QuickEntryMarker'
+import * as Haptics from 'expo-haptics'
+import { QuickActionMenu } from './QuickActionMenu'
 
 const styles = StyleSheet.create({
   nowIndicator: {
@@ -75,10 +89,15 @@ interface CalendarBodyProps<T extends ICalendarEventBase> {
   showVerticalScrollIndicator?: boolean
   scrollEnabled?: boolean
   enrichedEventsByDate?: Record<string, T[]>
+  hourComponent?: HourRenderer
   enableEnrichedEvents?: boolean
   eventsAreSorted?: boolean
   timeslots?: number
-  hourComponent?: HourRenderer
+  timeslotHeight?: number
+  onQuickAction?: (action: 'event' | 'reminder', date: Date) => void
+  onEventDrop?: (event: T, newDate: Date) => void
+  refreshing?: boolean
+  onRefresh?: () => void
 }
 
 function _CalendarBody<T extends ICalendarEventBase>({
@@ -112,13 +131,18 @@ function _CalendarBody<T extends ICalendarEventBase>({
   showVerticalScrollIndicator = false,
   scrollEnabled = true,
   enrichedEventsByDate,
+  hourComponent,
+  refreshControl,
   enableEnrichedEvents = false,
   eventsAreSorted = false,
   timeslots = 0,
-  hourComponent,
-  refreshControl,
-}: CalendarBodyProps<T> & { refreshControl?: React.ReactElement }) {
+  onQuickAction,
+  onEventDrop,
+  refreshing,
+  onRefresh,
+}: CalendarBodyProps<T> & { refreshControl?: React.ReactElement<RefreshControlProps> }) {
   const scrollView = React.useRef<ScrollView>(null)
+  const [hasScrolled, setHasScrolled] = React.useState(false)
   const { now } = useNow(!hideNowIndicator)
   const hours = Array.from({ length: maxHour - minHour + 1 }, (_, i) => minHour + i)
 
@@ -137,6 +161,101 @@ function _CalendarBody<T extends ICalendarEventBase>({
 
     return { markers, zones, ranges, standardEvents }
   }, [events])
+
+  // --- Gesture Handling ---
+  const gestureActive = useSharedValue(false)
+  const touchY = useSharedValue(0)
+  const touchX = useSharedValue(0)
+
+  // Menu state - kept in JS state because it needs to mount/unmount content
+  const [menuVisible, setMenuVisible] = React.useState(false)
+  const [menuPosition, setMenuPosition] = React.useState({ top: 0, left: 0 })
+  const [selectedDateForAction, setSelectedDateForAction] = React.useState<Date | null>(null)
+
+  // Calculate snap interval (15 minutes)
+  const SNAP_MINUTES = 15
+  const SNAP_HEIGHT = (cellHeight * SNAP_MINUTES) / 60
+
+  const handleLongPressStart = React.useCallback(
+    () => {
+      try {
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium)
+      } catch (e) {
+        // Haptics not available
+      }
+    },
+    [],
+  )
+
+  const handleQuickActionTrigger = React.useCallback(
+    (action: 'event' | 'reminder', date: Date) => {
+      onQuickAction?.(action, date)
+    },
+    [onQuickAction]
+  )
+
+  const handleGestureEnd = React.useCallback(
+    (y: number, x: number) => {
+      // Show menu
+      setMenuVisible(true)
+      setMenuPosition({ top: y, left: x })
+
+      // Calculate date from Y position
+      const snapHeight = (cellHeight * 15) / 60
+      const snappedY = Math.floor(y / snapHeight) * snapHeight
+
+      // Determine day index (simplified)
+      const dayIndex = 0
+
+      // Calculate minutes from start of day (accounting for minHour if needed? 
+      // y=0 is minHour. cellHeight covers 1 hour.
+
+      // If Y is pixels from top of scrolling content...
+      // content starts at minHour.
+      // So y / cellHeight = hours since minHour.
+
+      const hoursFromMinHour = snappedY / cellHeight
+      const totalMinutesFromStartOfDay = (minHour * 60) + (hoursFromMinHour * 60)
+
+      if (dateRange[dayIndex]) {
+        // Use dayjs to robustly construct date
+        // Re-construct from format string to ensure Local 00:00 anchor
+        const baseDate = dayjs(dateRange[dayIndex].format('YYYY-MM-DD'))
+          .startOf('day')
+          .add(totalMinutesFromStartOfDay, 'minute')
+          .toDate()
+
+        setSelectedDateForAction(baseDate)
+      }
+    },
+    [cellHeight, dateRange, minHour]
+  )
+
+  const gesture = React.useMemo(() => {
+    return Gesture.Pan()
+      .activateAfterLongPress(500)
+      .onStart((e) => {
+        gestureActive.value = true
+        touchY.value = e.y
+        touchX.value = e.x
+        runOnJS(handleLongPressStart)()
+      })
+      .onUpdate((e) => {
+        touchY.value = e.y
+        touchX.value = e.x
+      })
+      .onEnd(() => {
+        gestureActive.value = false
+        runOnJS(handleGestureEnd)(touchY.value, touchX.value)
+      })
+  }, [gestureActive, touchY, touchX, handleLongPressStart, handleGestureEnd])
+
+  const handleMenuAction = (action: 'event' | 'reminder') => {
+    setMenuVisible(false)
+    if (selectedDateForAction) {
+      onQuickAction?.(action, selectedDateForAction)
+    }
+  }
 
   // Pre-calculate offsets for all ranges (grouped by day)
   const rangeOffsetsByEvent = React.useMemo(() => {
@@ -254,7 +373,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
 
   React.useEffect(() => {
     let timeout: NodeJS.Timeout
-    if (scrollView.current && scrollOffsetMinutes && Platform.OS !== 'ios') {
+    if (scrollView.current && scrollOffsetMinutes && Platform.OS !== 'ios' && !hasScrolled && !refreshing) {
       // We add delay here to work correct on React Native
       // see: https://stackoverflow.com/questions/33208477/react-native-android-scrollview-scrollto-not-working
       timeout = setTimeout(
@@ -264,6 +383,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
               y: (cellHeight * scrollOffsetMinutes) / 60,
               animated: false,
             })
+            setHasScrolled(true)
           }
         },
         Platform.OS === 'web' ? 0 : 10,
@@ -274,7 +394,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
         clearTimeout(timeout)
       }
     }
-  }, [scrollOffsetMinutes, cellHeight])
+  }, [scrollOffsetMinutes, cellHeight, hasScrolled, refreshing])
 
   const _onPressCell = React.useCallback(
     (date: dayjs.Dayjs) => {
@@ -301,13 +421,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
     if (enableEnrichedEvents) return []
 
     if (isEventOrderingEnabled) {
-      // Events are being sorted once so we dont have to do it on each loop
-      const sortedEvents = standardEvents.sort((a, b) => a.start.getDate() - b.start.getDate())
-      return sortedEvents.map((event) => ({
-        ...event,
-        overlapPosition: getOrderOfEvent(event, sortedEvents),
-        overlapCount: getCountOfEventsAtEvent(event, sortedEvents),
-      }))
+      return calculateEventLayout(standardEvents)
     }
 
     return standardEvents
@@ -423,6 +537,8 @@ function _CalendarBody<T extends ICalendarEventBase>({
               hours={hours.length}
               renderEvent={renderEvent}
               onPressEvent={onPressEvent}
+              cellHeight={cellHeight}
+              onEventDrop={onEventDrop}
             />
           )
         })
@@ -511,9 +627,18 @@ function _CalendarBody<T extends ICalendarEventBase>({
         scrollEnabled={scrollEnabled}
         nestedScrollEnabled
         contentOffset={Platform.OS === 'ios' ? { x: 0, y: scrollOffsetMinutes } : { x: 0, y: 0 }}
-        refreshControl={refreshControl}
+        refreshControl={
+          refreshControl || (onRefresh ? (
+            <RefreshControl
+              refreshing={!!refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.palette.primary.main}
+              colors={[theme.palette.primary.main]}
+            />
+          ) : undefined)
+        }
       >
-        <View style={[u['flex-1'], theme.isRTL ? u['flex-row-reverse'] : u['flex-row']]}>
+        <View style={[theme.isRTL ? u['flex-row-reverse'] : u['flex-row']]}>
           {(!hideHours || showWeekNumber) && (
             <View style={[u['z-20'], u['w-50']]}>
               {hours.map((hour) => (
@@ -532,20 +657,24 @@ function _CalendarBody<T extends ICalendarEventBase>({
 
           {dateRange.map((date) => (
             <View style={[u['flex-1'], u['overflow-hidden']]} key={date.toString()}>
-              {hours.map((hour, index) => (
-                <HourGuideCell
-                  key={hour}
-                  cellHeight={cellHeight}
-                  date={date}
-                  hour={hour}
-                  onLongPress={_onLongPressCell}
-                  onPress={_onPressCell}
-                  index={index}
-                  calendarCellStyle={calendarCellStyle}
-                  calendarCellAccessibilityProps={calendarCellAccessibilityProps}
-                  timeslots={timeslots}
-                />
-              ))}
+              <GestureDetector gesture={gesture}>
+                <View style={StyleSheet.absoluteFill}>
+                  {hours.map((hour, index) => (
+                    <HourGuideCell
+                      key={hour}
+                      cellHeight={cellHeight}
+                      date={date}
+                      hour={hour}
+                      onLongPress={_onLongPressCell}
+                      onPress={_onPressCell}
+                      index={index}
+                      calendarCellStyle={calendarCellStyle}
+                      calendarCellAccessibilityProps={calendarCellAccessibilityProps}
+                      timeslots={timeslots}
+                    />
+                  ))}
+                </View>
+              </GestureDetector>
               {_renderZones(date)}
               {_renderRanges(date)}
               {_renderEvents(date)}
@@ -563,6 +692,27 @@ function _CalendarBody<T extends ICalendarEventBase>({
               )}
             </View>
           ))}
+
+          {/* Overlay for Visual Markers - Now inside content view to share coordinate system */}
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <QuickEntryMarker touchY={touchY} isActive={gestureActive} cellHeight={cellHeight} minHour={minHour} />
+          </View>
+
+          {menuVisible && (
+            <View style={[StyleSheet.absoluteFill, { zIndex: 9999 }]}>
+              <TouchableOpacity
+                style={StyleSheet.absoluteFill}
+                onPress={() => setMenuVisible(false)}
+                activeOpacity={1}
+              />
+              <QuickActionMenu
+                top={menuPosition.top}
+                left={menuPosition.left}
+                onAction={handleMenuAction}
+              />
+            </View>
+          )}
+
         </View>
       </ScrollView>
     </React.Fragment>

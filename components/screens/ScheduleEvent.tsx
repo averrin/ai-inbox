@@ -34,7 +34,19 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
     const { key, ...restProps } = touchableOpacityProps;
     const timeFormatStr = timeFormat === '24h' ? 'HH:mm' : 'h:mm A';
     const rangeOverlapCount = (evt as any).rangeOverlapCount || 0;
-    const leftMargin = 4 + (rangeOverlapCount * 8);
+    const overlapPosition = (evt as any).overlapPosition || 0;
+    // First column needs more space to avoid overlapping with ranges/time ruler
+    // Subsequent columns should have smaller gap
+    let leftMargin = 1;
+    if (overlapPosition === 0) {
+        if (rangeOverlapCount > 0) {
+            // 2px base + 8px per range (to clear 6px strip with 2px gap)
+            leftMargin = 2 + (rangeOverlapCount * 8);
+        } else {
+            leftMargin = 8;
+        }
+    }
+    const difficultyValue = (evt.difficulty && typeof evt.difficulty === 'object') ? (evt.difficulty.total || 0) : (evt.difficulty || 0);
 
     if (evt.type === 'marker') {
         const color = evt.color || (evt.originalEvent.alarm ? '#ef4444' : '#f59e0b');
@@ -48,7 +60,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
                     {
                         padding: 0,
                         height: 24, // Fixed height for marker
-                        marginTop: -12, // Center on time (this might need adjustment depending on base offset)
+                        marginTop: 18, // Center on time (this might need adjustment depending on base offset)
                         overflow: 'visible',
                         zIndex: 20, // Above events,
                         backgroundColor: 'transparent',
@@ -94,10 +106,22 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
     const duration = dayjs(evt.end).diff(dayjs(evt.start), 'minute');
     const isCompact = duration <= 30;
 
+    // Special styling for generated lunch suggestions
+    const isLunchSuggestion = evt.type === 'generated' && evt.typeTag === 'LUNCH_SUGGESTION';
+    const containerStyle: any = {};
+    if (isLunchSuggestion) {
+        containerStyle.backgroundColor = (evt.color || '#22c55e') + '66'; // Opacity 40% (hex 66)
+        containerStyle.borderWidth = 2;
+        containerStyle.borderColor = (evt.color || '#22c55e') + 'AA'; // Slightly higher border opacity
+        containerStyle.borderStyle = 'dashed';
+    }
+
     return (
-        <TouchableOpacity key={key} {...restProps} style={[restProps.style, {
-            marginLeft: leftMargin,
-        }]}>
+        <TouchableOpacity key={key} {...restProps} style={[
+            restProps.style,
+            { marginLeft: leftMargin },
+            isLunchSuggestion && containerStyle
+        ]}>
             <View className={`flex-row items-center ${isCompact ? 'gap-2' : ''}`}>
                 <Text className="text-white font-semibold text-xs" numberOfLines={1}>
                     {evt.title}
@@ -115,35 +139,43 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
                 </Text>
             )}
 
-            <View className="absolute top-1 right-1 flex-row gap-1 items-center">
-                {evt.movable && (
-                    <View className="bg-emerald-500/80 px-1 py-0.5 rounded">
-                        <Ionicons name="move" size={10} color="white" />
-                    </View>
-                )}
-                {evt.isSkippable && (
-                    <View className="bg-rose-500/80 px-1 py-0.5 rounded">
-                        <Ionicons name="return-up-forward" size={10} color="white" />
-                    </View>
-                )}
-                {evt.difficulty !== undefined && (
-                    <View
-                        className="px-1.5 py-0.5 rounded"
-                        style={{ backgroundColor: getDifficultyColor(evt.difficulty) + 'CC' }} // CC adds 80% opacity
-                    >
-                        <Text className="text-white text-[8px] font-bold">
-                            {evt.difficulty}
-                        </Text>
-                    </View>
-                )}
-                {evt.typeTag && (
-                    <View className="bg-black/30 px-1.5 py-0.5 rounded">
-                        <Text className="text-white text-[8px] font-bold uppercase tracking-wider">
-                            {evt.typeTag}
-                        </Text>
-                    </View>
-                )}
-            </View>
+            {/* Hide badges if event type has hideBadges enabled */}
+            {!evt.hideBadges && (
+                <View className="absolute top-1 right-1 flex-row gap-1 items-center">
+                    {evt.movable && (
+                        <View className="bg-emerald-500/80 px-1 py-0.5 rounded">
+                            <Ionicons name="move" size={10} color="white" />
+                        </View>
+                    )}
+                    {evt.isSkippable && (
+                        <View className="bg-rose-500/80 px-1 py-0.5 rounded">
+                            <Ionicons name="return-up-forward" size={10} color="white" />
+                        </View>
+                    )}
+                    {evt.isRecurrent === false && (
+                        <View className="bg-sky-500/80 px-1 py-0.5 rounded">
+                            <Ionicons name="calendar-outline" size={10} color="white" />
+                        </View>
+                    )}
+                    {(evt.difficulty !== undefined && evt.difficulty !== null) && !isLunchSuggestion && (
+                        <View
+                            className="px-1.5 py-0.5 rounded"
+                            style={{ backgroundColor: getDifficultyColor(difficultyValue) + 'CC' }} // CC adds 80% opacity
+                        >
+                            <Text className="text-white text-[8px] font-bold">
+                                {difficultyValue}
+                            </Text>
+                        </View>
+                    )}
+                    {evt.typeTag && evt.typeTag !== 'LUNCH_SUGGESTION' && (
+                        <View className="bg-black/30 px-1.5 py-0.5 rounded">
+                            <Text className="text-white text-[8px] font-bold uppercase tracking-wider">
+                                {evt.typeTag}
+                            </Text>
+                        </View>
+                    )}
+                </View>
+            )}
         </TouchableOpacity>
     );
 };

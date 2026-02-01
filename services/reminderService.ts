@@ -1,5 +1,5 @@
 import * as TaskManager from 'expo-task-manager';
-import * as BackgroundFetch from 'expo-background-task';
+import * as BackgroundFetch from 'expo-background-fetch';
 import * as Notifications from 'expo-notifications';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import { useSettingsStore } from '../store/settings';
@@ -11,6 +11,7 @@ const REMINDER_PROPERTY_KEY = 'reminder_datetime';
 const RECURRENT_PROPERTY_KEY = 'reminder_recurrent';
 const ALARM_PROPERTY_KEY = 'reminder_alarm';
 const PERSISTENT_PROPERTY_KEY = 'reminder_persistent';
+const TITLE_PROPERTY_KEY = 'title';
 
 // Helper to formatting local ISO string (YYYY-MM-DDTHH:mm:ss)
 export function toLocalISOString(date: Date): string {
@@ -106,6 +107,7 @@ export async function unregisterReminderTask() {
 export interface Reminder {
     fileUri: string;
     fileName: string;
+    title?: string;
     reminderTime: string;
     recurrenceRule?: string; // e.g. "daily", "weekly", "10 minutes"
     alarm?: boolean;
@@ -192,7 +194,8 @@ export async function updateReminder(
     newTime: string | null,
     recurrenceRule?: string,
     alarm?: boolean,
-    persistent?: number
+    persistent?: number,
+    title?: string
 ) {
     try {
         const content = await StorageAccessFramework.readAsStringAsync(fileUri);
@@ -293,6 +296,26 @@ export async function updateReminder(
                 }
             }
 
+            // Update Title
+            if (title !== undefined) {
+                if (newContent.match(new RegExp(`${TITLE_PROPERTY_KEY}:.*`))) {
+                    if (title) {
+                        newContent = newContent.replace(
+                            new RegExp(`${TITLE_PROPERTY_KEY}:.*`),
+                            `${TITLE_PROPERTY_KEY}: ${title}`
+                        );
+                    } else {
+                        newContent = newContent.replace(new RegExp(`^${TITLE_PROPERTY_KEY}:.*\\n?`, 'm'), '');
+                    }
+                } else if (title) {
+                    // Insert
+                    newContent = newContent.replace(
+                        new RegExp(`(${REMINDER_PROPERTY_KEY}:.*)`),
+                        `$1\n${TITLE_PROPERTY_KEY}: ${title}`
+                    );
+                }
+            }
+
         } else {
             // Delete (Remove the line)
             newContent = content.replace(new RegExp(`^${REMINDER_PROPERTY_KEY}:.*\\n?`, 'm'), '');
@@ -315,6 +338,51 @@ export async function updateReminder(
             return; // Treated as success (cleanup)
         }
         throw e;
+    }
+}
+
+export async function createStandaloneReminder(
+    date: string,
+    title?: string,
+    recurrence?: string,
+    alarm?: boolean,
+    persistent?: number
+): Promise<string | null> {
+    try {
+        const { vaultUri, defaultReminderFolder, remindersScanFolder } = useSettingsStore.getState();
+        if (!vaultUri) return null;
+
+        let targetFolderUri = vaultUri;
+        const { checkDirectoryExists } = await import('../utils/saf');
+
+        if (defaultReminderFolder && defaultReminderFolder.trim()) {
+            const folderUri = await checkDirectoryExists(vaultUri, defaultReminderFolder.trim());
+            if (folderUri) targetFolderUri = folderUri;
+        } else if (remindersScanFolder && remindersScanFolder.trim()) {
+            const folderUri = await checkDirectoryExists(vaultUri, remindersScanFolder.trim());
+            if (folderUri) targetFolderUri = folderUri;
+        }
+
+        const baseName = title || 'Reminder';
+        const fileName = await getUniqueFilename(targetFolderUri, baseName);
+
+        let frontmatter = `reminder_datetime: ${date}`;
+        if (title) frontmatter += `\n${TITLE_PROPERTY_KEY}: ${title}`;
+        if (recurrence) frontmatter += `\n${RECURRENT_PROPERTY_KEY}: ${recurrence}`;
+        if (alarm) frontmatter += `\n${ALARM_PROPERTY_KEY}: true`;
+        if (persistent !== undefined) frontmatter += `\n${PERSISTENT_PROPERTY_KEY}: ${persistent}`;
+
+        const content = `---\n${frontmatter}\n---\n# ${baseName}\n\nCreated via Reminders App.`;
+        const fileUri = await StorageAccessFramework.createFileAsync(targetFolderUri, fileName, 'text/markdown');
+        await StorageAccessFramework.writeAsStringAsync(fileUri, content);
+
+        // Trigger global sync to update notifications
+        await syncAllReminders();
+
+        return fileUri;
+    } catch (e) {
+        console.error('[ReminderService] Failed to create standalone reminder:', e);
+        return null;
     }
 }
 
@@ -371,9 +439,12 @@ async function checkFileForReminder(fileUri: string, reminders: Reminder[]) {
                 const persistentStr = fm[PERSISTENT_PROPERTY_KEY];
                 const persistent = persistentStr ? parseInt(persistentStr.replace(/^["']|["']$/g, ''), 10) : undefined;
 
+                const title = fm[TITLE_PROPERTY_KEY] ? fm[TITLE_PROPERTY_KEY].replace(/^["']|["']$/g, '') : undefined;
+
                 reminders.push({
                     fileUri,
                     fileName,
+                    title,
                     reminderTime: cleanTime,
                     recurrenceRule,
                     alarm,
@@ -397,6 +468,8 @@ export async function syncAllReminders() {
         }
 
         const reminders = await scanForReminders();
+
+        useSettingsStore.getState().setCachedReminders(reminders);
 
         await manageNotifications(reminders);
 

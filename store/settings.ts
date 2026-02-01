@@ -39,6 +39,14 @@ interface SettingsState {
     setEditorType: (type: 'rich' | 'simple') => void;
     visibleCalendarIds: string[];
     setVisibleCalendarIds: (ids: string[]) => void;
+    hideLunchBadges: boolean;
+    setHideLunchBadges: (hide: boolean) => void;
+    defaultCalendarId: string | null;
+    setDefaultCalendarId: (id: string | null) => void;
+    defaultCreateCalendarId: string | null;
+    setDefaultCreateCalendarId: (id: string | null) => void;
+    defaultOpenCalendarId: string | null;
+    setDefaultOpenCalendarId: (id: string | null) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -80,10 +88,31 @@ export const useSettingsStore = create<SettingsState>()(
             setEditorType: (type) => set({ editorType: type }),
             visibleCalendarIds: [],
             setVisibleCalendarIds: (ids) => set({ visibleCalendarIds: ids }),
+            hideLunchBadges: true,
+            setHideLunchBadges: (hide) => set({ hideLunchBadges: hide }),
+            defaultCalendarId: null,
+            setDefaultCalendarId: (id) => set({ defaultCalendarId: id }),
+            defaultCreateCalendarId: null,
+            setDefaultCreateCalendarId: (id) => set({ defaultCreateCalendarId: id }),
+            defaultOpenCalendarId: null,
+            setDefaultOpenCalendarId: (id) => set({ defaultOpenCalendarId: id }),
         }),
         {
             name: 'ai-inbox-settings',
             storage: createJSONStorage(() => AsyncStorage),
+            version: 1,
+            migrate: (persistedState: any, version: number) => {
+                if (version === 0) {
+                    // Migration from version 0 to 1
+                    if (persistedState.defaultCalendarId && !persistedState.defaultCreateCalendarId) {
+                        persistedState.defaultCreateCalendarId = persistedState.defaultCalendarId;
+                    }
+                    if (persistedState.defaultCalendarId && !persistedState.defaultOpenCalendarId) {
+                        persistedState.defaultOpenCalendarId = persistedState.defaultCalendarId;
+                    }
+                }
+                return persistedState;
+            },
         }
     )
 );

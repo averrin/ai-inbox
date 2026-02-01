@@ -2,6 +2,7 @@ import React from 'react'
 import { View, Text, TextInput, TouchableOpacity, Switch } from 'react-native'
 import dayjs from 'dayjs'
 import DateTimePicker from '@react-native-community/datetimepicker'
+import { ColorPicker, PRESET_COLORS } from '../../ColorPicker'
 
 interface TimeRangeFormProps {
     initialValues?: {
@@ -24,16 +25,6 @@ interface TimeRangeFormProps {
 }
 
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] // Monday first
-const COLORS = [
-    '#ef4444', // red
-    '#f97316', // orange
-    '#eab308', // yellow
-    '#22c55e', // green
-    '#3b82f6', // blue
-    '#a855f7', // purple
-    '#ec4899', // pink
-    '#64748b', // slate
-]
 
 export const TimeRangeForm = ({
     initialValues,
@@ -158,20 +149,11 @@ export const TimeRangeForm = ({
             </View>
 
             {/* Color Picker */}
-            <View>
-                <Text className="text-slate-400 text-xs uppercase font-bold mb-1">Color</Text>
-                <View className="flex-row flex-wrap gap-2">
-                    {COLORS.map((c) => (
-                        <TouchableOpacity
-                            key={c}
-                            onPress={() => setColor(c)}
-                            className={`w-8 h-8 rounded-full border-2 ${color === c ? 'border-white' : 'border-transparent'
-                                }`}
-                            style={{ backgroundColor: c }}
-                        />
-                    ))}
-                </View>
-            </View>
+            <ColorPicker
+                value={color}
+                onChange={setColor}
+                label="Color"
+            />
 
             {/* Actions */}
             <View className="flex-row justify-end gap-3 mt-4">

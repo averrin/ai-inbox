@@ -5,6 +5,7 @@ import type { EventRenderer, ICalendarEventBase } from '../interfaces'
 import { getRelativeTopInDay } from '../utils/datetime'
 
 import { useCalendarTouchableOpacityProps } from '../hooks/useCalendarTouchableOpacityProps'
+import { DraggableEventWrapper } from './DraggableEventWrapper'
 
 const styles = StyleSheet.create({
   container: {
@@ -36,6 +37,8 @@ interface CalendarMarkerProps<T extends ICalendarEventBase> {
   hours: number
   renderEvent?: EventRenderer<T>
   onPressEvent?: (event: T) => void
+  cellHeight?: number
+  onEventDrop?: (event: T, newDate: Date) => void
 }
 
 export function CalendarMarker<T extends ICalendarEventBase>({
@@ -44,31 +47,47 @@ export function CalendarMarker<T extends ICalendarEventBase>({
   hours,
   renderEvent,
   onPressEvent,
+  cellHeight = 50, // Default if not passed
+  onEventDrop,
 }: CalendarMarkerProps<T>) {
   const top = getRelativeTopInDay(dayjs(event.start), minHour, hours)
+
+  // Position the outer wrapper
+  const wrapperStyle: any = [
+    styles.container,
+    { top: `${top}%`, marginTop: -6 }
+  ]
 
   const touchableOpacityProps = useCalendarTouchableOpacityProps({
     event,
     onPressEvent,
-    injectedStyles: [
-      styles.container,
-      { top: `${top}%`, marginTop: -6 }, // Default centering for standard marker
-    ],
+    injectedStyles: [{ position: 'absolute', width: '100%' }], // Ensure child fills wrapper
   })
-
-  // If renderEvent is provided, use it
-  if (renderEvent) {
-    return renderEvent(event, touchableOpacityProps)
-  }
 
   // Center the marker vertically on the time
   // Using simplified styling for now
   const color = (event as any).color || 'red'
 
+  // Content can be custom (from ScheduleScreen) or default
+  const content = renderEvent
+    ? renderEvent(event, touchableOpacityProps)
+    : (
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={[styles.marker, { backgroundColor: color }]} />
+        <View style={[styles.line, { backgroundColor: color }]} />
+      </View>
+    )
+
   return (
-    <View style={[styles.container, { top: `${top}%`, marginTop: -6 }]}>
-      <View style={[styles.marker, { backgroundColor: color }]} />
-      <View style={[styles.line, { backgroundColor: color }]} />
-    </View>
+    <DraggableEventWrapper
+      style={wrapperStyle}
+      eventStart={dayjs(event.start).toDate()}
+      minHour={minHour}
+      cellHeight={cellHeight}
+      onDrop={(newDate) => onEventDrop?.(event, newDate)}
+      enabled={!!onEventDrop}
+    >
+      {content}
+    </DraggableEventWrapper>
   )
 }

@@ -59,13 +59,14 @@ interface ScheduleProps<T extends ICalendarEventBase> {
   weekDayHeaderHighlightColor?: string
   dayHeaderHighlightColor?: string
   itemSeparatorComponent?:
-    | React.ComponentType<{
-        highlighted: boolean
-      }>
-    | null
-    | undefined
+  | React.ComponentType<{
+    highlighted: boolean
+  }>
+  | null
+  | undefined
   locale: string
   scheduleMonthSeparatorStyle?: TextStyle
+  onQuickAction?: (action: 'event' | 'reminder', date: Date) => void
 }
 
 function _Schedule<T extends ICalendarEventBase>({
@@ -87,6 +88,7 @@ function _Schedule<T extends ICalendarEventBase>({
   locale,
   calendarCellAccessibilityProps = {},
   scheduleMonthSeparatorStyle,
+  onQuickAction,
 }: ScheduleProps<T>) {
   const theme = useTheme()
 
@@ -185,9 +187,9 @@ function _Schedule<T extends ICalendarEventBase>({
                 theme.typography.xl,
                 u['text-center'],
                 Platform.OS === 'web' &&
-                  shouldHighlight &&
-                  !stringHasContent(dayHeaderHighlightColor) &&
-                  u['mt-6'],
+                shouldHighlight &&
+                !stringHasContent(dayHeaderHighlightColor) &&
+                u['mt-6'],
               ]}
             >
               {date.format('D')}

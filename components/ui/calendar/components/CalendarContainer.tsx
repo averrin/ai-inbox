@@ -1,6 +1,6 @@
 import dayjs from 'dayjs'
-import React, { useLayoutEffect, useRef } from 'react'
-import type { AccessibilityProps, TextStyle, ViewStyle } from 'react-native'
+import React, { useLayoutEffect, useRef, forwardRef, useImperativeHandle } from 'react'
+import { type AccessibilityProps, type TextStyle, type ViewStyle, type RefreshControlProps } from 'react-native'
 import InfinitePager, { type InfinitePagerImperativeApi } from 'react-native-infinite-pager'
 
 import { MIN_HEIGHT } from '../commonStyles'
@@ -35,6 +35,13 @@ import { CalendarBodyForMonthView } from './CalendarBodyForMonthView'
 import { CalendarHeader } from './CalendarHeader'
 import { CalendarHeaderForMonthView } from './CalendarHeaderForMonthView'
 import { Schedule } from './Schedule'
+
+// Imperative API for programmatic navigation
+export interface CalendarRef {
+  goNext: () => void
+  goPrev: () => void
+  goToDate: (date: Date) => void
+}
 
 export interface CalendarContainerProps<T extends ICalendarEventBase> {
   /**
@@ -162,7 +169,19 @@ export interface CalendarContainerProps<T extends ICalendarEventBase> {
   timeslots?: number
   hourComponent?: HourRenderer
   scheduleMonthSeparatorStyle?: TextStyle
-  refreshControl?: React.ReactElement
+  refreshControl?: React.ReactElement<RefreshControlProps>
+  /**
+   * Imperative ref for programmatic navigation (goNext, goPrev, goToDate)
+   */
+  imperativeRef?: React.RefObject<CalendarRef | null>
+
+  /**
+   * Callback when a quick action is triggered via long-press
+   */
+  onQuickAction?: (action: 'event' | 'reminder', date: Date) => void
+  onEventDrop?: (event: T, newDate: Date) => void
+  refreshing?: boolean
+  onRefresh?: () => void
 }
 
 function _CalendarContainer<T extends ICalendarEventBase>({
@@ -238,50 +257,42 @@ function _CalendarContainer<T extends ICalendarEventBase>({
   hourComponent,
   scheduleMonthSeparatorStyle = {},
   refreshControl,
+  imperativeRef,
+  onQuickAction,
+  onEventDrop,
+  refreshing,
+  onRefresh,
 }: CalendarContainerProps<T>) {
   // To ensure we have proper effect callback, use string to date comparision.
   const dateString = date?.toString()
 
   const calendarRef = useRef<InfinitePagerImperativeApi>(null)
+  const isInternalReset = useRef(false)
+  const currentPage = useRef(0)
 
   const [targetDate, setTargetDate] = React.useState(() => dayjs(date))
 
-  React.useEffect(() => {
-    if (dateString) {
-      setTargetDate(dayjs(dateString))
+  // Expose imperative navigation API
+  useImperativeHandle(imperativeRef, () => ({
+    goNext: () => {
+      calendarRef.current?.setPage(currentPage.current + 1, { animated: true })
+    },
+    goPrev: () => {
+      calendarRef.current?.setPage(currentPage.current - 1, { animated: true })
+    },
+    goToDate: (newDate: Date) => {
+      // For arbitrary date jumps, we need to update targetDate and reset page
+      setTargetDate(dayjs(newDate))
+      // Explicitly notify parent to synchronize other components (like DateRuler)
+      onSwipeEnd?.(newDate)
     }
-  }, [dateString]) // if setting `[date]`, it will triggered twice
+  }), [onSwipeEnd, mode, targetDate])
 
-  // Use useLayoutEffect to reset page synchronously before paint when mode changes
-  // This ensures InfinitePager doesn't render with the wrong page index
-  // The issue: InfinitePager maintains its page index across mode changes, but page indices
-  // mean different things in different modes (e.g., page 5 in day mode = 5 days, but in
-  // month mode = ~5 months). Resetting to page 0 on mode change prevents showing wrong dates.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mode is a prop and we need to reset when it changes
-  useLayoutEffect(() => {
-    if (calendarRef.current) {
-      calendarRef.current.setPage(0, { animated: false })
-    }
-  }, [mode]) // Reset to page 0 immediately when mode changes
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: targetDate changes should reset the page
-  React.useEffect(() => {
-    calendarRef.current?.setPage(0, { animated: false })
-  }, [targetDate])
-
-  const allDayEvents = React.useMemo(
-    () => events.filter((event) => isAllDayEvent(event.start, event.end)),
-    [events],
-  )
-
-  const daytimeEvents = React.useMemo(
-    () => events.filter((event) => !isAllDayEvent(event.start, event.end)),
-    [events],
-  )
-
-  const allEvents = React.useMemo(
-    () => [...daytimeEvents, ...allDayEvents],
-    [daytimeEvents, allDayEvents],
+  const getCurrentDate = React.useCallback(
+    (page: number) => {
+      return targetDate.add(modeToNum(mode, targetDate, page), 'day')
+    },
+    [mode, targetDate],
   )
 
   const getDateRange = React.useCallback(
@@ -306,6 +317,55 @@ function _CalendarContainer<T extends ICalendarEventBase>({
       }
     },
     [mode, locale, weekEndsOn, weekStartsOn],
+  )
+
+  const allDayEvents = React.useMemo(
+    () => events.filter((event) => isAllDayEvent(event.start, event.end)),
+    [events],
+  )
+
+  React.useEffect(() => {
+    if (dateString) {
+      const newDate = dayjs(dateString)
+      // Check if the current page already shows this date
+      if (newDate.isSame(getCurrentDate(currentPage.current), 'day')) {
+        return
+      }
+
+      setTargetDate(newDate)
+    }
+  }, [dateString, getCurrentDate]) // if setting `[date]`, it will triggered twice
+
+  // Use useLayoutEffect to reset page synchronously before paint when mode changes
+  // This ensures InfinitePager doesn't render with the wrong page index
+  // The issue: InfinitePager maintains its page index across mode changes, but page indices
+  // mean different things in different modes (e.g., page 5 in day mode = 5 days, but in
+  // month mode = ~5 months). Resetting to page 0 on mode change prevents showing wrong dates.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mode is a prop and we need to reset when it changes
+  useLayoutEffect(() => {
+    if (calendarRef.current) {
+      calendarRef.current.setPage(0, { animated: false })
+    }
+  }, [mode]) // Reset to page 0 immediately when mode changes
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: targetDate changes should reset the page
+  useLayoutEffect(() => {
+    isInternalReset.current = true
+    currentPage.current = 0
+    calendarRef.current?.setPage(0, { animated: false })
+    // We don't reset isInternalReset here because setPage is async-ish or might trigger immediately.
+    // We'll reset it in the next frame or after the effect.
+    setTimeout(() => { isInternalReset.current = false }, 50)
+  }, [targetDate])
+
+  const daytimeEvents = React.useMemo(
+    () => events.filter((event) => !isAllDayEvent(event.start, event.end)),
+    [events],
+  )
+
+  const allEvents = React.useMemo(
+    () => [...daytimeEvents, ...allDayEvents],
+    [daytimeEvents, allDayEvents],
   )
 
   if (minHour < 0) {
@@ -357,15 +417,10 @@ function _CalendarContainer<T extends ICalendarEventBase>({
     return undefined
   }, [dateString, onChangeDate, getDateRange])
 
-  const getCurrentDate = React.useCallback(
-    (page: number) => {
-      return targetDate.add(modeToNum(mode, targetDate, page), 'day')
-    },
-    [mode, targetDate],
-  )
-
   const handlePageChange = React.useCallback(
     (page: number) => {
+      currentPage.current = page
+      if (isInternalReset.current) return
       onSwipeEnd?.(getCurrentDate(page).toDate())
     },
     [onSwipeEnd, getCurrentDate],
@@ -500,59 +555,110 @@ function _CalendarContainer<T extends ICalendarEventBase>({
         showVerticalScrollIndicator={showVerticalScrollIndicator}
         itemSeparatorComponent={itemSeparatorComponent}
         scheduleMonthSeparatorStyle={scheduleMonthSeparatorStyle}
+        onQuickAction={onQuickAction}
       />
     )
   }
 
+  const renderPage = React.useCallback(
+    ({ index }: { index: number }) => (
+      <React.Fragment>
+        <HeaderComponent {...headerProps} dateRange={getDateRange(getCurrentDate(index))} />
+        <CalendarBody
+          {...commonProps}
+          dateRange={getDateRange(getCurrentDate(index))}
+          style={bodyContainerStyle}
+          containerHeight={height}
+          events={daytimeEvents}
+          eventCellStyle={eventCellStyle}
+          eventCellAccessibilityProps={eventCellAccessibilityProps}
+          eventCellTextColor={eventCellTextColor}
+          calendarCellStyle={calendarCellStyle}
+          calendarCellAccessibilityProps={calendarCellAccessibilityProps}
+          hideNowIndicator={hideNowIndicator}
+          overlapOffset={overlapOffset}
+          scrollOffsetMinutes={scrollOffsetMinutes}
+          ampm={ampm}
+          minHour={minHour}
+          maxHour={maxHour}
+          showTime={showTime}
+          onLongPressCell={onLongPressCell}
+          onPressCell={(date) => {
+            onPressCell?.(date)
+            if (mode !== 'day' && resetPageOnPressCell) {
+              calendarRef.current?.setPage(0, { animated: true })
+            }
+          }}
+          onPressEvent={onPressEvent}
+          renderEvent={renderEvent}
+          headerComponent={headerComponent}
+          headerComponentStyle={headerComponentStyle}
+          hourStyle={hourStyle}
+          isEventOrderingEnabled={isEventOrderingEnabled}
+          showVerticalScrollIndicator={showVerticalScrollIndicator}
+          scrollEnabled={verticalScrollEnabled}
+          enrichedEventsByDate={enrichedEventsByDate}
+          enableEnrichedEvents={enableEnrichedEvents}
+          eventsAreSorted={eventsAreSorted}
+          timeslots={timeslots}
+          hourComponent={hourComponent}
+          refreshControl={refreshControl}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          onQuickAction={onQuickAction}
+          onEventDrop={onEventDrop}
+        />
+      </React.Fragment>
+    ),
+    [
+      commonProps,
+      headerProps,
+      getDateRange,
+      getCurrentDate,
+      bodyContainerStyle,
+      height,
+      daytimeEvents,
+      eventCellStyle,
+      eventCellAccessibilityProps,
+      eventCellTextColor,
+      calendarCellStyle,
+      calendarCellAccessibilityProps,
+      hideNowIndicator,
+      overlapOffset,
+      scrollOffsetMinutes,
+      ampm,
+      minHour,
+      maxHour,
+      showTime,
+      onLongPressCell,
+      onPressCell,
+      mode,
+      resetPageOnPressCell,
+      onPressEvent,
+      renderEvent,
+      headerComponent,
+      headerComponentStyle,
+      hourStyle,
+      isEventOrderingEnabled,
+      showVerticalScrollIndicator,
+      verticalScrollEnabled,
+      enrichedEventsByDate,
+      enableEnrichedEvents,
+      eventsAreSorted,
+      timeslots,
+      hourComponent,
+      refreshControl,
+      refreshing,
+      onRefresh,
+      onQuickAction,
+      onEventDrop,
+    ],
+  )
+
   return (
     <InfinitePager
       ref={calendarRef}
-      renderPage={({ index }) => (
-        <React.Fragment>
-          <HeaderComponent {...headerProps} dateRange={getDateRange(getCurrentDate(index))} />
-          <CalendarBody
-            {...commonProps}
-            dateRange={getDateRange(getCurrentDate(index))}
-            style={bodyContainerStyle}
-            containerHeight={height}
-            events={daytimeEvents}
-            eventCellStyle={eventCellStyle}
-            eventCellAccessibilityProps={eventCellAccessibilityProps}
-            eventCellTextColor={eventCellTextColor}
-            calendarCellStyle={calendarCellStyle}
-            calendarCellAccessibilityProps={calendarCellAccessibilityProps}
-            hideNowIndicator={hideNowIndicator}
-            overlapOffset={overlapOffset}
-            scrollOffsetMinutes={scrollOffsetMinutes}
-            ampm={ampm}
-            minHour={minHour}
-            maxHour={maxHour}
-            showTime={showTime}
-            onLongPressCell={onLongPressCell}
-            onPressCell={(date) => {
-              onPressCell?.(date)
-
-              if (mode !== 'day' && resetPageOnPressCell) {
-                calendarRef.current?.setPage(0, { animated: true })
-              }
-            }}
-            onPressEvent={onPressEvent}
-            renderEvent={renderEvent}
-            headerComponent={headerComponent}
-            headerComponentStyle={headerComponentStyle}
-            hourStyle={hourStyle}
-            isEventOrderingEnabled={isEventOrderingEnabled}
-            showVerticalScrollIndicator={showVerticalScrollIndicator}
-            scrollEnabled={verticalScrollEnabled}
-            enrichedEventsByDate={enrichedEventsByDate}
-            enableEnrichedEvents={enableEnrichedEvents}
-            eventsAreSorted={eventsAreSorted}
-            timeslots={timeslots}
-            hourComponent={hourComponent}
-            refreshControl={refreshControl}
-          />
-        </React.Fragment>
-      )}
+      renderPage={renderPage}
       onPageChange={handlePageChange}
       pageBuffer={2}
     />
