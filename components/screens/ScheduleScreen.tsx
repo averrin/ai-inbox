@@ -24,10 +24,11 @@ import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder } 
 import { EventCreateModal, EventSaveData } from '../EventCreateModal';
 import { createCalendarEvent, getWritableCalendars } from '../../services/calendarService';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../services/weatherService';
 
 
 export default function ScheduleScreen() {
-    const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId } = useSettingsStore();
+    const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation } = useSettingsStore();
     const { assignments, difficulties, eventTypes, eventFlags, ranges, loadConfig } = useEventTypesStore();
     const { showReminder } = useReminderModal();
     const { height: windowHeight } = useWindowDimensions();
@@ -35,6 +36,7 @@ export default function ScheduleScreen() {
     // Adjusted height accounting for tab bar
     const height = windowHeight - tabBarHeight;
     const [events, setEvents] = useState<any[]>([]);
+    const [weatherData, setWeatherData] = useState<Record<string, WeatherData>>({});
     const [isEventsLoaded, setIsEventsLoaded] = useState(false);
     const [date, setDate] = useState(new Date());
     const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
@@ -66,6 +68,17 @@ export default function ScheduleScreen() {
             fetchEvents();
         }
     };
+
+    // Fetch Weather Effect
+    useEffect(() => {
+        const start = dayjs(date).startOf('week').subtract(1, 'week').toDate();
+        const end = dayjs(date).endOf('week').add(1, 'week').toDate();
+
+        getWeatherForecast(weatherLocation.lat, weatherLocation.lon, start, end)
+            .then(data => {
+                setWeatherData(prev => ({ ...prev, ...data }));
+            });
+    }, [date, weatherLocation]);
 
 
     // Load event types config on mount
@@ -400,6 +413,8 @@ export default function ScheduleScreen() {
         const mins = dayStats.deepWorkMinutes % 60;
         const deepWorkStr = `${hours}h ${mins}m`;
 
+        const weather = weatherData[dayStr];
+
         return (
             <TouchableOpacity
                 activeOpacity={0.7}
@@ -411,6 +426,14 @@ export default function ScheduleScreen() {
             >
                 <View className="flex-row items-center gap-2">
                     <DayStatusMarker status={status} />
+                    {weather && (
+                        <View className="flex-row items-center gap-1 ml-1">
+                            <Ionicons name={weather.icon as any} size={16} color="#94a3b8" />
+                            <Text className="text-slate-400 text-xs font-semibold">
+                                {Math.round(weather.maxTemp)}°C
+                            </Text>
+                        </View>
+                    )}
                     {dayStats.deepWorkMinutes > 0 && (
                         <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
                             Deep Work: <Text className="text-emerald-400 text-sm">{deepWorkStr}</Text>
@@ -425,7 +448,7 @@ export default function ScheduleScreen() {
                 <Ionicons name="information-circle-outline" size={16} color="#64748b" />
             </TouchableOpacity>
         );
-    }, [changeDate, events, focusRanges, lunchDifficulties]);
+    }, [changeDate, events, focusRanges, lunchDifficulties, weatherData]);
 
     const workRanges = useMemo(() => timeRangeEvents.filter((e: any) => e.isWork), [timeRangeEvents]);
 

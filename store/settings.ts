@@ -47,6 +47,8 @@ interface SettingsState {
     setDefaultCreateCalendarId: (id: string | null) => void;
     defaultOpenCalendarId: string | null;
     setDefaultOpenCalendarId: (id: string | null) => void;
+    weatherLocation: { lat: number, lon: number };
+    setWeatherLocation: (location: { lat: number, lon: number }) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -96,6 +98,8 @@ export const useSettingsStore = create<SettingsState>()(
             setDefaultCreateCalendarId: (id) => set({ defaultCreateCalendarId: id }),
             defaultOpenCalendarId: null,
             setDefaultOpenCalendarId: (id) => set({ defaultOpenCalendarId: id }),
+            weatherLocation: { lat: 37.7749, lon: -122.4194 },
+            setWeatherLocation: (location) => set({ weatherLocation: location }),
         }),
         {
             name: 'ai-inbox-settings',
