@@ -362,7 +362,7 @@ export function ReminderEditModal({
                     <View className="flex-row gap-3">
                         <TouchableOpacity
                             onPress={onCancel}
-                            className="flex-1 bg-slate-800 p-4 rounded-xl items-center"
+                            className="flex-1 bg-slate-800 p-3 rounded-xl items-center"
                         >
                             <Text className="text-white font-semibold">Cancel</Text>
                         </TouchableOpacity>
@@ -371,7 +371,7 @@ export function ReminderEditModal({
                         {onShow && (
                             <TouchableOpacity
                                 onPress={onShow}
-                                className="bg-amber-600/20 border border-amber-500/50 p-4 rounded-xl items-center justify-center"
+                                className="bg-amber-600/20 border border-amber-500/50 p-3 aspect-square rounded-xl items-center justify-center"
                             >
                                 <Ionicons name="eye-outline" size={20} color="#fbbf24" />
                             </TouchableOpacity>
@@ -392,7 +392,7 @@ export function ReminderEditModal({
                                         content: initialContent
                                     });
                                 }}
-                                className="bg-amber-600/20 border border-amber-500/50 p-4 rounded-xl items-center justify-center"
+                                className="bg-amber-600/20 border border-amber-500/50 p-3 aspect-square rounded-xl items-center justify-center"
                             >
                                 <Ionicons name="eye-outline" size={20} color="#fbbf24" />
                             </TouchableOpacity>
@@ -400,7 +400,7 @@ export function ReminderEditModal({
 
                         <TouchableOpacity
                             onPress={handleSave}
-                            className="flex-1 bg-indigo-600 p-4 rounded-xl items-center"
+                            className="flex-1 bg-indigo-600 p-3 rounded-xl items-center"
                         >
                             <Text className="text-white font-semibold">Save</Text>
                         </TouchableOpacity>
