@@ -29,6 +29,8 @@ interface ReminderEditModalProps {
     enableTitle?: boolean;
     onSave: (data: ReminderSaveData) => void;
     onCancel: () => void;
+    onDelete?: () => void;
+    onShow?: () => void;
     timeFormat: '12h' | '24h';
 }
 
@@ -44,6 +46,8 @@ export function ReminderEditModal({
     enableTitle = false,
     onSave,
     onCancel,
+    onDelete,
+    onShow,
     timeFormat
 }: ReminderEditModalProps) {
     const { showReminder } = useReminderModal();
@@ -136,13 +140,31 @@ export function ReminderEditModal({
         });
     };
 
+    const isNew = !initialFileUri;
+    const headerTitle = enableTitle
+        ? (isNew ? 'New Reminder' : 'Edit Reminder')
+        : 'Edit Reminder';
+
     return (
         <Modal visible={visible} transparent animationType="fade">
             <View className="flex-1 justify-center items-center bg-black/50 px-4">
                 <View className="bg-slate-900 w-full max-w-md p-6 rounded-3xl border border-slate-700">
-                    <Text className="text-white text-xl font-bold mb-4">
-                        {enableTitle ? 'New Reminder' : 'Edit Reminder'}
-                    </Text>
+                    <View className="flex-row justify-between items-center mb-4">
+                        <Text className="text-white text-xl font-bold">
+                            {headerTitle}
+                        </Text>
+                        {onDelete && !isNew && (
+                            <TouchableOpacity
+                                onPress={() => {
+                                    // Let parent handle confirmation or logic
+                                    onDelete();
+                                }}
+                                className="bg-red-500/20 p-2 rounded-full"
+                            >
+                                <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
 
                     {enableTitle && (
                         <View className="mb-4">
@@ -340,12 +362,23 @@ export function ReminderEditModal({
                     <View className="flex-row gap-3">
                         <TouchableOpacity
                             onPress={onCancel}
-                            className="flex-1 bg-slate-800 p-4 rounded-xl items-center"
+                            className="flex-1 bg-slate-800 p-3 rounded-xl items-center"
                         >
                             <Text className="text-white font-semibold">Cancel</Text>
                         </TouchableOpacity>
 
-                        {!enableTitle && (
+                        {/* Show Button (using onShow prop) */}
+                        {onShow && (
+                            <TouchableOpacity
+                                onPress={onShow}
+                                className="bg-amber-600/20 border border-amber-500/50 p-3 aspect-square rounded-xl items-center justify-center"
+                            >
+                                <Ionicons name="eye-outline" size={20} color="#fbbf24" />
+                            </TouchableOpacity>
+                        )}
+
+                        {/* Fallback internal show (legacy support if needed, but onShow is preferred) */}
+                        {!onShow && !enableTitle && (
                             <TouchableOpacity
                                 onPress={() => {
                                     showReminder({
@@ -359,7 +392,7 @@ export function ReminderEditModal({
                                         content: initialContent
                                     });
                                 }}
-                                className="bg-amber-600/20 border border-amber-500/50 p-4 rounded-xl items-center justify-center"
+                                className="bg-amber-600/20 border border-amber-500/50 p-3 aspect-square rounded-xl items-center justify-center"
                             >
                                 <Ionicons name="eye-outline" size={20} color="#fbbf24" />
                             </TouchableOpacity>
@@ -367,7 +400,7 @@ export function ReminderEditModal({
 
                         <TouchableOpacity
                             onPress={handleSave}
-                            className="flex-1 bg-indigo-600 p-4 rounded-xl items-center"
+                            className="flex-1 bg-indigo-600 p-3 rounded-xl items-center"
                         >
                             <Text className="text-white font-semibold">Save</Text>
                         </TouchableOpacity>
