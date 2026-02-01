@@ -121,6 +121,11 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
                         <Ionicons name="move" size={10} color="white" />
                     </View>
                 )}
+                {evt.isSkippable && (
+                    <View className="bg-rose-500/80 px-1 py-0.5 rounded">
+                        <Ionicons name="return-up-forward" size={10} color="white" />
+                    </View>
+                )}
                 {evt.difficulty !== undefined && (
                     <View
                         className="px-1.5 py-0.5 rounded"

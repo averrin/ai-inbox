@@ -121,6 +121,18 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                                             </Text>
                                         </View>
                                     </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        onPress={() => toggleEventFlag(eventTitle, 'skippable')}
+                                        className={`px-2 py-1 rounded-md border ${flags?.skippable ? 'bg-rose-500/20 border-rose-500' : 'bg-slate-700 border-transparent'}`}
+                                    >
+                                        <View className="flex-row items-center gap-1">
+                                            <Ionicons name="return-up-forward" size={12} color={flags?.skippable ? '#fb7185' : '#94a3b8'} />
+                                            <Text className={`text-xs ${flags?.skippable ? 'text-rose-400 font-bold' : 'text-slate-400'}`}>
+                                                Skippable
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
                                 </View>
                             </View>
 

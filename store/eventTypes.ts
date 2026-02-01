@@ -11,7 +11,7 @@ interface EventTypesState {
     assignments: Record<string, string>; // Event Title -> Type ID
     difficulties: Record<string, number>; // Event Title -> Difficulty
     ranges: TimeRangeDefinition[];
-    eventFlags: Record<string, { isEnglish?: boolean; movable?: boolean }>; // Event Title -> Flags
+    eventFlags: Record<string, { isEnglish?: boolean; movable?: boolean; skippable?: boolean }>; // Event Title -> Flags
     isLoaded: boolean;
     loadConfig: () => Promise<void>;
     addType: (type: EventType) => Promise<void>;
@@ -24,7 +24,7 @@ interface EventTypesState {
     updateRange: (id: string, updates: Partial<Omit<TimeRangeDefinition, 'id'>>) => Promise<void>;
     deleteRange: (id: string) => Promise<void>;
     toggleRange: (id: string) => Promise<void>;
-    toggleEventFlag: (title: string, flag: 'isEnglish' | 'movable') => Promise<void>;
+    toggleEventFlag: (title: string, flag: 'isEnglish' | 'movable' | 'skippable') => Promise<void>;
 }
 
 export const useEventTypesStore = create<EventTypesState>()(

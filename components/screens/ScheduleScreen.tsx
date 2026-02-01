@@ -102,7 +102,8 @@ export default function ScheduleScreen() {
                     typeTag: assignedType ? assignedType.title : null,
                     difficulty: total, // Use total difficulty
                     isEnglish: flags?.isEnglish,
-                    movable: flags?.movable
+                    movable: flags?.movable,
+                    isSkippable: flags?.skippable
                 };
             });
 
@@ -177,13 +178,31 @@ export default function ScheduleScreen() {
         );
         score += dailyFocus.length;
 
+        // Calculate Deep Work Duration (Sum of duration for difficulty > 0)
+        let deepWorkMinutes = 0;
+        dailyEvents.forEach(evt => {
+            if (evt.difficulty > 0) {
+                const duration = dayjs(evt.end).diff(dayjs(evt.start), 'minute');
+                deepWorkMinutes += duration;
+            }
+        });
+
+        const hours = Math.floor(deepWorkMinutes / 60);
+        const mins = deepWorkMinutes % 60;
+        const deepWorkStr = `${hours}h ${mins}m`;
+
         return (
             <View>
                 <DateRuler
                     date={pageDate.toDate()}
                     onDateChange={changeDate}
                 />
-                <View className="bg-slate-900 border-b border-slate-800 px-4 pb-2 flex-row justify-end">
+                <View className="bg-slate-900 border-b border-slate-800 px-4 pb-2 flex-row justify-end items-center gap-4">
+                    {deepWorkMinutes > 0 && (
+                        <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                            Deep Work: <Text className="text-emerald-400 text-sm">{deepWorkStr}</Text>
+                        </Text>
+                    )}
                     <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
                         Day Score: <Text className="text-indigo-400 text-sm">{score}</Text>
                     </Text>
