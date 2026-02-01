@@ -138,26 +138,89 @@ function _CalendarBody<T extends ICalendarEventBase>({
     return { markers, zones, ranges, standardEvents }
   }, [events])
 
-  // Helper to count how many ranges are active at the event's START time
-  const getOverlappingRangeCount = React.useCallback((event: T, allRanges: T[]): number => {
-    const eventStart = dayjs(event.start)
+  // Pre-calculate offsets for all ranges (grouped by day)
+  const rangeOffsetsByEvent = React.useMemo(() => {
+    const map = new Map<T, number>()
 
-    const count = allRanges.filter(range => {
-      const rangeStart = dayjs(range.start)
-      const rangeEnd = dayjs(range.end)
+    // Group ranges by day
+    const rangesByDay = new Map<string, T[]>()
+    ranges.forEach((r) => {
+      const d = dayjs(r.start).format(SIMPLE_DATE_FORMAT)
+      if (!rangesByDay.has(d)) rangesByDay.set(d, [])
+      rangesByDay.get(d)!.push(r)
+    })
 
-      // Check if the event START time falls within this range
-      // Use half-open interval [start, end): inclusive start, exclusive end
-      // This prevents double-counting for events exactly on boundaries
-      const isActive = (eventStart.isAfter(rangeStart) || eventStart.isSame(rangeStart, 'minute')) &&
-        eventStart.isBefore(rangeEnd) &&  // Exclusive end
-        rangeStart.isSame(eventStart, 'day')
+    // Calculate offsets for each day
+    rangesByDay.forEach((dayRanges) => {
+      // Sort ranges by start time for deterministic layout
+      dayRanges.sort((a, b) => a.start.getTime() - b.start.getTime())
 
-      return isActive
-    }).length
+      const currentOffsets: number[] = []
+      for (let index = 0; index < dayRanges.length; index++) {
+        const range = dayRanges[index]
+        const rangeStart = dayjs(range.start)
+        const rangeEnd = dayjs(range.end)
 
-    return count
-  }, [])
+        let offset = 0
+        for (let i = 0; i < index; i++) {
+          const otherRange = dayRanges[i]
+          const otherStart = dayjs(otherRange.start)
+          const otherEnd = dayjs(otherRange.end)
+
+          // Check if ranges overlap in time
+          const overlaps =
+            rangeStart.isBefore(otherEnd) &&
+            rangeEnd.isAfter(otherStart) &&
+            !rangeEnd.isSame(otherStart, 'minute') &&
+            !rangeStart.isSame(otherEnd, 'minute')
+
+          if (overlaps) {
+            const otherOffset = currentOffsets[i]
+            offset = Math.max(offset, otherOffset + 1)
+          }
+        }
+        currentOffsets.push(offset)
+        map.set(range, offset)
+      }
+    })
+
+    return map
+  }, [ranges])
+
+  // Helper to find the maximum offset of any overlapping range
+  const getMaxOverlappingRangeIndex = React.useCallback(
+    (event: T, allRanges: T[], offsetsMap: Map<T, number>): number => {
+      const eventStart = dayjs(event.start)
+
+      const overlappingRanges = allRanges.filter((range) => {
+        const rangeStart = dayjs(range.start)
+        const rangeEnd = dayjs(range.end)
+
+        // Check if the event START time falls within this range
+        // Use half-open interval [start, end): inclusive start, exclusive end
+        // This prevents double-counting for events exactly on boundaries
+        const isActive =
+          (eventStart.isAfter(rangeStart) || eventStart.isSame(rangeStart, 'minute')) &&
+          eventStart.isBefore(rangeEnd) && // Exclusive end
+          rangeStart.isSame(eventStart, 'day')
+
+        return isActive
+      })
+
+      if (overlappingRanges.length === 0) return -1
+
+      let maxIndex = -1
+      overlappingRanges.forEach((r) => {
+        const offset = offsetsMap.get(r)
+        if (offset !== undefined) {
+          maxIndex = Math.max(maxIndex, offset)
+        }
+      })
+
+      return maxIndex
+    },
+    [],
+  )
 
   // Helper to check if any events overlap with ranges on a given day
   const hasEventsOverlappingRanges = React.useCallback((date: dayjs.Dayjs, allRanges: T[], allEvents: T[]): boolean => {
@@ -243,10 +306,13 @@ function _CalendarBody<T extends ICalendarEventBase>({
 
   const _renderMappedEvent = React.useCallback(
     (event: T, index: number) => {
-      // Add range overlap count to event
+      // Calculate range overlap count based on max index of overlapping ranges
+      const maxRangeIndex = getMaxOverlappingRangeIndex(event, ranges, rangeOffsetsByEvent)
+      const rangeOverlapCount = maxRangeIndex + 1
+
       const enrichedEvent = {
         ...event,
-        rangeOverlapCount: getOverlappingRangeCount(event, ranges)
+        rangeOverlapCount,
       }
 
       return (
@@ -281,8 +347,9 @@ function _CalendarBody<T extends ICalendarEventBase>({
       maxHour,
       minHour,
       hours.length,
-      getOverlappingRangeCount,
+      getMaxOverlappingRangeIndex,
       ranges,
+      rangeOffsetsByEvent,
     ],
   )
 
@@ -290,37 +357,9 @@ function _CalendarBody<T extends ICalendarEventBase>({
     (date: dayjs.Dayjs) => {
       const dayRanges = ranges.filter((event) => dayjs(event.start).isSame(date, 'day'))
 
-      // Calculate offsets based on range-to-range overlap
-      // Build the offsets array sequentially so we can reference previous values
-      const rangeOffsets: number[] = []
-      for (let index = 0; index < dayRanges.length; index++) {
-        const range = dayRanges[index]
-        const rangeStart = dayjs(range.start)
-        const rangeEnd = dayjs(range.end)
-
-        // Count how many PREVIOUS ranges in the list overlap with this one
-        let offset = 0
-        for (let i = 0; i < index; i++) {
-          const otherRange = dayRanges[i]
-          const otherStart = dayjs(otherRange.start)
-          const otherEnd = dayjs(otherRange.end)
-
-          // Check if ranges overlap in time
-          const overlaps = rangeStart.isBefore(otherEnd) && rangeEnd.isAfter(otherStart) &&
-            !rangeEnd.isSame(otherStart, 'minute') && !rangeStart.isSame(otherEnd, 'minute')
-
-          if (overlaps) {
-            const otherOffset = rangeOffsets[i]
-            offset = Math.max(offset, otherOffset + 1)
-          }
-        }
-
-        rangeOffsets.push(offset)
-      }
-
       return dayRanges.map((event, index) => {
-        const offset = rangeOffsets[index]
-        const hasEventOverlap = offset > 0  // Range has overlap if offset > 0
+        const offset = rangeOffsetsByEvent.get(event) || 0
+        const hasEventOverlap = offset > 0 // Range has overlap if offset > 0
 
         return (
           <CalendarRange
@@ -334,7 +373,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
         )
       })
     },
-    [ranges, minHour, hours.length],
+    [ranges, minHour, hours.length, rangeOffsetsByEvent],
   )
 
   const _renderZones = React.useCallback(
@@ -359,9 +398,12 @@ function _CalendarBody<T extends ICalendarEventBase>({
         .filter((event) => dayjs(event.start).isSame(date, 'day'))
         .map((event, index) => {
           // Add range overlap count to marker
+          const maxRangeIndex = getMaxOverlappingRangeIndex(event, ranges, rangeOffsetsByEvent)
+          const rangeOverlapCount = maxRangeIndex + 1
+
           const enrichedEvent = {
             ...event,
-            rangeOverlapCount: getOverlappingRangeCount(event, ranges)
+            rangeOverlapCount,
           }
 
           return (
@@ -376,7 +418,16 @@ function _CalendarBody<T extends ICalendarEventBase>({
           )
         })
     },
-    [markers, minHour, hours.length, renderEvent, onPressEvent, getOverlappingRangeCount, ranges],
+    [
+      markers,
+      minHour,
+      hours.length,
+      renderEvent,
+      onPressEvent,
+      getMaxOverlappingRangeIndex,
+      ranges,
+      rangeOffsetsByEvent,
+    ],
   )
 
   const _renderEvents = React.useCallback(
