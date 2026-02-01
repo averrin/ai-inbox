@@ -170,7 +170,8 @@ export default function ScheduleScreen() {
                 recurrenceRule: null,
                 alarm: false,
                 persistent: false,
-                isNew: true // Flag to indicate new creation if needed
+                isNew: true, // Flag to indicate new creation if needed
+                fileUri: `temp-${Date.now()}` // Temporary URI to track this item during creation
             });
         } else if (action === 'event') {
             setCreatingEventDate(date);
@@ -686,8 +687,24 @@ export default function ScheduleScreen() {
                                                 data.persistent
                                             );
                                             console.log('[ScheduleScreen] Created new standalone reminder:', newUri);
-                                            // Optional: update local cache with the new URI once we have it
-                                            // but syncAllReminders already does this in the background.
+
+                                            // Update cache with real URI and remove isNew flag immediately
+                                            // This prevents "rescheduling creates new reminder" bug if user edits again before sync
+                                            if (newUri) {
+                                                const { cachedReminders, setCachedReminders } = useSettingsStore.getState();
+                                                const updatedCache = cachedReminders.map((r: any) => {
+                                                    if (r.fileUri === currentEditingReminder.fileUri) {
+                                                        return {
+                                                            ...r,
+                                                            fileUri: newUri,
+                                                            isNew: false,
+                                                            fileName: newUri.split('/').pop() || r.fileName
+                                                        };
+                                                    }
+                                                    return r;
+                                                });
+                                                setCachedReminders(updatedCache);
+                                            }
                                         } else {
                                             await updateReminder(
                                                 targetUri!,
