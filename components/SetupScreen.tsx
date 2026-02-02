@@ -17,11 +17,12 @@ import { CalendarsSettings } from './CalendarsSettings';
 import { EventTypesSettings } from './EventTypesSettings';
 import { TimeRangesSettings } from './TimeRangesSettings';
 import { LunchSettings } from './LunchSettings';
+import { MoodSettings } from './MoodSettings';
 import { scanForReminders } from '../services/reminderService';
 import { useEventTypesStore } from '../store/eventTypes';
 import Toast from 'react-native-toast-message';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'google-calendar' | 'reminders' | 'advanced';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'google-calendar' | 'reminders' | 'mood' | 'advanced';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -463,6 +464,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "Lunch scheduling & defaults"
             )}
             {renderMenuButton(
+                "Mood Tracker",
+                "happy-outline",
+                () => setActiveSection('mood'),
+                "Daily evaluation & reflections"
+            )}
+            {renderMenuButton(
                 "Google Integration",
                 "logo-google",
                 () => setActiveSection('google-calendar'),
@@ -643,6 +650,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("Reminders", () => setActiveSection('root'))}
                                 <View className="px-0"><RemindersSettings /></View>
+                            </>
+                        )}
+                        {activeSection === 'mood' && (
+                            <>
+                                {renderHeader("Mood Tracker", () => setActiveSection('root'))}
+                                <View className="px-0"><MoodSettings /></View>
                             </>
                         )}
                         {activeSection === 'advanced' && (
