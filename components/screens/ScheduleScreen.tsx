@@ -421,6 +421,7 @@ export default function ScheduleScreen() {
         const weather = weatherData[dayStr];
 
         // Mood Logic
+        // Display mood and weather in the header
         const moodEntry = moods[dayStr];
         const moodColors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
         const moodColor = moodEntry ? moodColors[moodEntry.mood - 1] : undefined;
@@ -451,25 +452,7 @@ export default function ScheduleScreen() {
                             </Text>
                         </View>
                     )}
-                </TouchableOpacity>
-
-                {/* Right: Stats (Clickable for details) */}
-                <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => {
-                        setSummaryData({ breakdown: dayStats, status, date: pageDate.toDate() });
-                        setSummaryModalVisible(true);
-                    }}
-                    className="flex-row items-center gap-4"
-                >
-                    <View className="flex-row items-center gap-2">
-                        <DayStatusMarker status={status} />
-                        {dayStats.deepWorkMinutes > 0 && (
-                            <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                                Deep Work: <Text className="text-emerald-400 text-sm">{deepWorkStr}</Text>
-                            </Text>
-                        )}
-                    </View>
+                </View>
 
                 {/* Right: Stats (Clickable for details) */}
                 <TouchableOpacity
