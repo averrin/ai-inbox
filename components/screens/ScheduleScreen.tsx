@@ -24,12 +24,13 @@ import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder } 
 import { EventCreateModal, EventSaveData } from '../EventCreateModal';
 import { createCalendarEvent, getWritableCalendars } from '../../services/calendarService';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../services/weatherService';
 import { useMoodStore } from '../../store/moodStore';
 import { MoodEvaluationModal } from '../MoodEvaluationModal';
 
 
 export default function ScheduleScreen() {
-    const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId } = useSettingsStore();
+    const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation } = useSettingsStore();
     const { assignments, difficulties, eventTypes, eventFlags, ranges, loadConfig } = useEventTypesStore();
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
@@ -38,6 +39,7 @@ export default function ScheduleScreen() {
     // Adjusted height accounting for tab bar
     const height = windowHeight - tabBarHeight;
     const [events, setEvents] = useState<any[]>([]);
+    const [weatherData, setWeatherData] = useState<Record<string, WeatherData>>({});
     const [isEventsLoaded, setIsEventsLoaded] = useState(false);
     const [date, setDate] = useState(new Date());
     const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
@@ -71,6 +73,17 @@ export default function ScheduleScreen() {
             fetchEvents();
         }
     };
+
+    // Fetch Weather Effect
+    useEffect(() => {
+        const start = dayjs(date).startOf('week').subtract(1, 'week').toDate();
+        const end = dayjs(date).endOf('week').add(1, 'week').toDate();
+
+        getWeatherForecast(weatherLocation.lat, weatherLocation.lon, start, end)
+            .then(data => {
+                setWeatherData(prev => ({ ...prev, ...data }));
+            });
+    }, [date, weatherLocation]);
 
 
     // Load event types config on mount
@@ -405,27 +418,41 @@ export default function ScheduleScreen() {
         const mins = dayStats.deepWorkMinutes % 60;
         const deepWorkStr = `${hours}h ${mins}m`;
 
+        const weather = weatherData[dayStr];
+
         // Mood Logic
+        // Display mood and weather in the header
         const moodEntry = moods[dayStr];
         const moodColors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
         const moodColor = moodEntry ? moodColors[moodEntry.mood - 1] : undefined;
 
         return (
             <View className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex-row justify-between items-center">
-                {/* Left: Mood Tracker */}
-                <TouchableOpacity
-                    onPress={() => {
-                        setMoodDate(pageDate.toDate());
-                        setMoodModalVisible(true);
-                    }}
-                    className="flex-row items-center"
-                >
-                    {moodEntry ? (
-                        <View className="w-5 h-5 rounded-full border border-white/20" style={{ backgroundColor: moodColor }} />
-                    ) : (
-                        <Ionicons name="add-circle-outline" size={20} color="#475569" />
+                {/* Left: Mood Tracker and Weather */}
+                <View className="flex-row items-center gap-4">
+                    <TouchableOpacity
+                        onPress={() => {
+                            setMoodDate(pageDate.toDate());
+                            setMoodModalVisible(true);
+                        }}
+                        className="flex-row items-center"
+                    >
+                        {moodEntry ? (
+                            <View className="w-5 h-5 rounded-full border border-white/20" style={{ backgroundColor: moodColor }} />
+                        ) : (
+                            <Ionicons name="add-circle-outline" size={20} color="#475569" />
+                        )}
+                    </TouchableOpacity>
+
+                    {weather && (
+                        <View className="flex-row items-center gap-1">
+                            <Ionicons name={weather.icon as any} size={16} color="#94a3b8" />
+                            <Text className="text-slate-400 text-xs font-semibold">
+                                {Math.round(weather.maxTemp)}°C
+                            </Text>
+                        </View>
                     )}
-                </TouchableOpacity>
+                </View>
 
                 {/* Right: Stats (Clickable for details) */}
                 <TouchableOpacity
@@ -453,7 +480,7 @@ export default function ScheduleScreen() {
                 </TouchableOpacity>
             </View>
         );
-    }, [changeDate, events, focusRanges, lunchDifficulties, moods]);
+    }, [changeDate, events, focusRanges, lunchDifficulties, weatherData, moods]);
 
     const workRanges = useMemo(() => timeRangeEvents.filter((e: any) => e.isWork), [timeRangeEvents]);
 
