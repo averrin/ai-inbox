@@ -451,7 +451,25 @@ export default function ScheduleScreen() {
                             </Text>
                         </View>
                     )}
-                </View>
+                </TouchableOpacity>
+
+                {/* Right: Stats (Clickable for details) */}
+                <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => {
+                        setSummaryData({ breakdown: dayStats, status, date: pageDate.toDate() });
+                        setSummaryModalVisible(true);
+                    }}
+                    className="flex-row items-center gap-4"
+                >
+                    <View className="flex-row items-center gap-2">
+                        <DayStatusMarker status={status} />
+                        {dayStats.deepWorkMinutes > 0 && (
+                            <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                                Deep Work: <Text className="text-emerald-400 text-sm">{deepWorkStr}</Text>
+                            </Text>
+                        )}
+                    </View>
 
                 {/* Right: Stats (Clickable for details) */}
                 <TouchableOpacity
