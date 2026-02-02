@@ -132,11 +132,12 @@ export default function ScheduleScreen() {
 
         try {
             const nativeEvents = await getCalendarEvents(visibleCalendarIds, start, end);
-            const calendars = await getWritableCalendars();
-            const calMap = calendars.reduce((acc, cal) => {
-                acc[cal.id] = cal.source.name;
+            // Fetch ALL calendars to get colors/names for merged events, not just writable ones
+            const allCalendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+            const calDetailsMap = allCalendars.reduce((acc, cal) => {
+                acc[cal.id] = { title: cal.title, color: cal.color, source: cal.source.name };
                 return acc;
-            }, {} as Record<string, string>);
+            }, {} as Record<string, { title: string, color: string, source: string }>);
 
             // Map native events to BigCalendar format
             const mappedEvents = nativeEvents.map(evt => {
@@ -154,6 +155,20 @@ export default function ScheduleScreen() {
                     flags
                 );
 
+                // Resolve merged calendars
+                const mergedIds = (evt as any).mergedCalendarIds || [evt.calendarId];
+                const sourceCalendars = mergedIds.map((id: string) => {
+                    const details = calDetailsMap[id];
+                    return {
+                        id,
+                        title: details?.title || 'Unknown Calendar',
+                        color: details?.color || '#888888',
+                        source: details?.source || ''
+                    };
+                });
+                // Deduplicate by ID just in case
+                const uniqueSourceCalendars = Array.from(new Map(sourceCalendars.map((c: any) => [c.id, c])).values());
+
                 return {
                     title: evt.title,
                     start: new Date(evt.startDate),
@@ -161,7 +176,8 @@ export default function ScheduleScreen() {
                     color: color,
                     originalEvent: {
                         ...evt,
-                        source: { name: calMap[evt.calendarId] }
+                        sourceCalendars: uniqueSourceCalendars,
+                        source: { name: calDetailsMap[evt.calendarId]?.source || '' }
                     }, // Keep ref for context menu with source info
                     typeTag: assignedType ? assignedType.title : null,
                     difficulty: difficultyResult, // Use full difficulty object

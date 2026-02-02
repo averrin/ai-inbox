@@ -199,6 +199,24 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                         }
                     />
 
+                    {/* Source Calendars */}
+                    {event?.originalEvent?.sourceCalendars && (
+                        <View className="p-4 border-t border-slate-800">
+                            <Text className="text-slate-400 text-xs font-semibold uppercase mb-2">Calendars</Text>
+                            <View className="gap-2">
+                                {(event.originalEvent.sourceCalendars as any[]).map((cal: any) => (
+                                    <View key={cal.id} className="flex-row items-center gap-2">
+                                        <View
+                                            className="w-3 h-3 rounded-full"
+                                            style={{ backgroundColor: cal.color || '#64748b' }}
+                                        />
+                                        <Text className="text-slate-300 text-sm">{cal.title}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    )}
+
                     {/* Google Calendar Link */}
                     {/* {event?.originalEvent?.source?.name?.includes('Google') && ( */}
                     <TouchableOpacity

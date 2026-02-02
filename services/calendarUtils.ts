@@ -15,22 +15,26 @@ export const mergeDuplicateEvents = (events: Event[], priorityCalendarId?: strin
 
         const existing = uniqueEventsMap.get(key);
         if (!existing) {
+            // Initialize mergedCalendarIds with the current event's calendarId
+            (event as any).mergedCalendarIds = [event.calendarId];
             uniqueEventsMap.set(key, event);
         } else {
             // Duplicate found
             const existingCalId = existing.calendarId;
             const newCalId = event.calendarId;
 
-            // Log the duplicate discovery
-            // console.log(`[EventMerge] Found duplicate event: "${event.title}"`);
-            // console.log(`[EventMerge] Existing Cal: ${existingCalId}, New Cal: ${newCalId}, Priority: ${priorityCalendarId}`);
+            // Get existing merged IDs or initialize if missing (sanity check)
+            const existingMergedIds = (existing as any).mergedCalendarIds || [existingCalId];
 
             if (priorityCalendarId && String(event.calendarId) === String(priorityCalendarId)) {
                 // Overwrite existing if current event is from the priority calendar
-                // Using String() conversion to ensure matches regardless of ID format (number/string)
+                // Transfer accumulated IDs to the new event
+                (event as any).mergedCalendarIds = [...existingMergedIds, newCalId];
                 console.log(`[EventMerge] -> SWAPPING for priority calendar: ${event.title}`);
                 uniqueEventsMap.set(key, event);
             } else {
+                // Keep existing, but add the new calendar ID to it
+                (existing as any).mergedCalendarIds = [...existingMergedIds, newCalId];
                 console.log(`[EventMerge] -> Keeping existing (New is not priority): ${event.title} (Existing: ${existingCalId})`);
             }
         }
