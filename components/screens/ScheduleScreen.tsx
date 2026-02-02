@@ -168,6 +168,7 @@ export default function ScheduleScreen() {
                     isEnglish: flags?.isEnglish,
                     movable: flags?.movable,
                     isSkippable: flags?.skippable,
+                    needPrep: flags?.needPrep,
                     isRecurrent: !!evt.recurrenceRule, // Non-null means recurring
                     hideBadges: assignedType?.hideBadges // From event type
                 };
@@ -574,6 +575,8 @@ export default function ScheduleScreen() {
                     onPrev={() => calendarRef.current?.goPrev()}
                     onToday={() => calendarRef.current?.goToDate(new Date())}
                     dayStatuses={dayStatuses}
+                    onSync={handleRefresh}
+                    isSyncing={refreshing}
                 />
 
                 {/* Calendar View */}
@@ -651,8 +654,8 @@ export default function ScheduleScreen() {
                                     timeFormat={timeFormat}
                                 />
                             )}
-                            refreshing={refreshing}
-                            onRefresh={handleRefresh}
+                            // refreshing={refreshing}
+                            // onRefresh={handleRefresh}
                             onQuickAction={handleQuickAction}
                         />
                     </View>

@@ -15,6 +15,8 @@ interface DateRulerProps {
     onToday?: () => void;
     // Day status markers (keyed by date string YYYY-MM-DD)
     dayStatuses?: Record<string, DayStatusLevel>;
+    onSync?: () => void;
+    isSyncing?: boolean;
 }
 
 const ITEM_WIDTH = 56; // Width (48)n+ Margin (4*2)
@@ -83,7 +85,7 @@ const DateRulerItem = React.memo(({ item, isSelected, isToday, onPress, status }
     );
 });
 
-export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSettingsPress, onNext, onPrev, onToday, dayStatuses }) => {
+export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSettingsPress, onNext, onPrev, onToday, dayStatuses, onSync, isSyncing }) => {
     const flatListRef = useRef<FlatList>(null);
     const insets = useSafeAreaInsets();
 
@@ -200,9 +202,25 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
         <View className="bg-slate-900 border-b border-slate-800 pb-4" style={{ paddingTop: insets.top }}>
             {/* Header with Month/Year and Buttons */}
             <View className="flex-row justify-between items-center px-4 py-2">
-                <Text className="text-white text-lg font-bold">
-                    {dayjs(date).format('MMMM YYYY')}
-                </Text>
+                <View className="flex-row items-center gap-2">
+                    <Text className="text-white text-lg font-bold">
+                        {dayjs(date).format('MMMM YYYY')}
+                    </Text>
+                    {onSync && (
+                         <TouchableOpacity 
+                            onPress={onSync} 
+                            disabled={isSyncing}
+                            className={`p-1 rounded-full ${isSyncing ? 'opacity-50' : 'active:bg-slate-800'}`}
+                        >
+                            <Ionicons 
+                                name={isSyncing ? "refresh" : "sync-outline"} 
+                                size={18} 
+                                color="#94a3b8" 
+                                style={isSyncing ? { transform: [{ rotate: '45deg' }] } : {}} // Basic visual, rotation would need Reanimated
+                            />
+                        </TouchableOpacity>
+                    )}
+                </View>
                 <View className="flex-row gap-2">
                     <TouchableOpacity onPress={handlePrevDay} className="p-2 bg-slate-800 rounded-full">
                         <Ionicons name="chevron-back" size={20} color="#cbd5e1" />

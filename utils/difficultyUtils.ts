@@ -12,7 +12,7 @@ export const calculateEventDifficulty = (
     event: { title: string; start: Date; end: Date },
     baseDifficulty: number,
     ranges: TimeRangeDefinition[],
-    flags?: { isEnglish?: boolean; movable?: boolean; skippable?: boolean }
+    flags?: { isEnglish?: boolean; movable?: boolean; skippable?: boolean; needPrep?: boolean }
 ): DifficultyResult => {
     if (baseDifficulty === 0) {
         return {
@@ -29,6 +29,11 @@ export const calculateEventDifficulty = (
     // 0. Check for English flag
     if (flags?.isEnglish) {
         reasons.push("English Event");
+        bonus += 1;
+    }
+
+    if (flags?.needPrep) {
+        reasons.push("Preparation Needed");
         bonus += 1;
     }
 
