@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { useMoodStore } from '../store/moodStore';
 import { useHabitStore } from '../store/habitStore';
+import { syncMoodReminders } from '../services/reminderService';
 
 interface MoodEvaluationModalProps {
     visible: boolean;
@@ -60,6 +61,9 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
             Object.keys(checkedHabits).forEach(habitId => {
                 setHabitStatus(dateStr, habitId, checkedHabits[habitId]);
             });
+
+            // Sync reminders to cancel today's notification
+            syncMoodReminders();
         }
         onClose();
     };

@@ -6,6 +6,7 @@ import * as Notifications from 'expo-notifications';
 import { Card } from './ui/Card';
 import { useMoodStore } from '../store/moodStore';
 import { useSettingsStore } from '../store/settings';
+import { syncMoodReminders } from '../services/reminderService';
 
 export function MoodSettings() {
     const { moodReminderEnabled, moodReminderTime, setMoodReminder } = useMoodStore();
@@ -27,51 +28,21 @@ export function MoodSettings() {
         setPermissionStatus(status);
     };
 
-    const updateNotification = async (enabled: boolean, timeStr: string) => {
-        // 1. Cancel existing mood notifications
-        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-        for (const notif of scheduled) {
-            if (notif.content.data?.type === 'mood_daily') {
-                await Notifications.cancelScheduledNotificationAsync(notif.identifier);
-            }
-        }
-
-        // 2. Schedule new if enabled
-        if (enabled) {
-            const time = new Date(timeStr);
-            await Notifications.scheduleNotificationAsync({
-                content: {
-                    title: "How was your day?",
-                    body: "Take a moment to evaluate your day and add a note.",
-                    data: { type: 'mood_daily' },
-                },
-                trigger: {
-                    type: Notifications.SchedulableTriggerInputTypes.DAILY,
-                    hour: time.getHours(),
-                    minute: time.getMinutes(),
-                },
-            });
-            console.log(`[MoodSettings] Scheduled daily reminder for ${time.getHours()}:${time.getMinutes()}`);
-        } else {
-            console.log('[MoodSettings] Cancelled daily reminder');
-        }
-    };
-
-    const handleToggle = (val: boolean) => {
+    const handleToggle = async (val: boolean) => {
         setMoodReminder(val, moodReminderTime);
-        updateNotification(val, moodReminderTime);
+        await syncMoodReminders();
         if (val && permissionStatus !== 'granted') {
             requestPermissions();
         }
     };
 
-    const handleTimeChange = (event: any, selectedDate?: Date) => {
+    const handleTimeChange = async (event: any, selectedDate?: Date) => {
         setShowTimePicker(false);
         if (selectedDate) {
             const timeStr = selectedDate.toISOString();
             setMoodReminder(moodReminderEnabled, timeStr);
             if (moodReminderEnabled) {
-                updateNotification(true, timeStr);
+                await syncMoodReminders();
             }
         }
     };

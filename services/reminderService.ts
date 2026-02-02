@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import { useSettingsStore } from '../store/settings';
 import { useEventTypesStore } from '../store/eventTypes';
+import { useMoodStore } from '../store/moodStore';
 import { Platform } from 'react-native';
 import { scheduleNativeAlarm, stopNativeAlarm } from './alarmModule';
 import dayjs from 'dayjs';
@@ -461,6 +462,74 @@ async function checkFileForReminder(fileUri: string, reminders: Reminder[]) {
 }
 
 
+// Helper to sync mood daily reminders
+export async function syncMoodReminders() {
+    try {
+        if (!useMoodStore.persist.hasHydrated()) {
+            await useMoodStore.persist.rehydrate();
+        }
+
+        const { moodReminderEnabled, moodReminderTime, moods } = useMoodStore.getState();
+
+        // 1. Cancel all existing mood notifications to ensure clean slate
+        // We identify them by data.type === 'mood_daily'
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        for (const notification of scheduled) {
+            if (notification.content.data?.type === 'mood_daily') {
+                await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+            }
+        }
+
+        if (!moodReminderEnabled) {
+            console.log('[MoodService] Mood reminders disabled, cleared all.');
+            return;
+        }
+
+        // 2. Schedule for next 7 days if not already logged
+        const now = dayjs();
+        const reminderTime = dayjs(moodReminderTime); // This has the correct hour/minute
+
+        for (let i = 0; i < 7; i++) {
+            const targetDate = now.add(i, 'day')
+                .hour(reminderTime.hour())
+                .minute(reminderTime.minute())
+                .second(0)
+                .millisecond(0);
+
+            const dateStr = targetDate.format('YYYY-MM-DD');
+
+            // If time is in the past, skip
+            if (targetDate.isBefore(now)) {
+                continue;
+            }
+
+            // Check if mood exists
+            if (moods[dateStr]) {
+                // Already logged for this day
+                continue;
+            }
+
+            // Schedule
+             await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: "How was your day?",
+                    body: "Take a moment to evaluate your day and add a note.",
+                    data: { type: 'mood_daily', date: dateStr },
+                },
+                trigger: {
+                    type: Notifications.SchedulableTriggerInputTypes.DATE,
+                    date: targetDate.toDate(),
+                    channelId: 'reminders-alarm',
+                }
+            });
+            console.log(`[MoodService] Scheduled mood reminder for ${dateStr} at ${targetDate.format('HH:mm')}`);
+        }
+
+    } catch (e) {
+        console.error('[MoodService] Sync failed:', e);
+    }
+}
+
 // Helper to sync time range notifications
 async function syncRangeNotifications() {
     try {
@@ -559,6 +628,9 @@ export async function syncAllReminders() {
 
         // Sync Time Ranges
         await syncRangeNotifications();
+
+        // Sync Mood Reminders
+        await syncMoodReminders();
 
         const reminders = await scanForReminders();
 
