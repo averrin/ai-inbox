@@ -135,6 +135,18 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                                             </Text>
                                         </View>
                                     </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        onPress={() => toggleEventFlag(eventTitle, 'needPrep')}
+                                        className={`px-2 py-1 rounded-md border ${flags?.needPrep ? 'bg-amber-500/20 border-amber-500' : 'bg-slate-700 border-transparent'}`}
+                                    >
+                                        <View className="flex-row items-center gap-1">
+                                            <Ionicons name="pricetag-outline" size={12} color={flags?.needPrep ? '#fbbf24' : '#94a3b8'} />
+                                            <Text className={`text-xs ${flags?.needPrep ? 'text-amber-400 font-bold' : 'text-slate-400'}`}>
+                                                Prep
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
                                 </View>
                             </View>
 

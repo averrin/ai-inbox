@@ -19,11 +19,13 @@ import { TimeRangesSettings } from './TimeRangesSettings';
 import { LunchSettings } from './LunchSettings';
 import { WeatherSettings } from './WeatherSettings';
 import { MoodSettings } from './MoodSettings';
+import { HabitSettings } from './HabitSettings';
 import { scanForReminders } from '../services/reminderService';
 import { useEventTypesStore } from '../store/eventTypes';
 import Toast from 'react-native-toast-message';
+import { generateDebugSnapshot } from '../utils/debugUtils';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'google-calendar' | 'reminders' | 'weather' | 'mood' | 'advanced';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'habits' | 'google-calendar' | 'reminders' | 'weather' | 'mood' | 'advanced';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -39,6 +41,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [promptFileStatus, setPromptFileStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [showLunchSettings, setShowLunchSettings] = useState(false);
+    const [isGeneratingSnapshot, setIsGeneratingSnapshot] = useState(false);
 
     // Navigation state for settings mode
     const [activeSection, setActiveSection] = useState<SettingsSection>('root');
@@ -410,6 +413,33 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     }}
                     variant="secondary"
                 />
+
+                <View className="mt-6 mb-2 pt-4 border-t border-slate-700">
+                    <Text className="text-indigo-200 mb-2 font-semibold">Debug Tools</Text>
+                    <Text className="text-slate-400 text-sm mb-4">
+                        Export a snapshot of all internal application state (settings, event types, moods, habits, etc.) to a JSON file for debugging.
+                    </Text>
+                    <Button
+                        title={isGeneratingSnapshot ? "Generating..." : "Export State Snapshot"}
+                        onPress={async () => {
+                            if (isGeneratingSnapshot) return;
+                            setIsGeneratingSnapshot(true);
+                            try {
+                                await generateDebugSnapshot();
+                            } catch (e) {
+                                console.error(e);
+                                Toast.show({
+                                    type: 'error',
+                                    text1: 'Snapshot Failed',
+                                    text2: 'Check logs for details.'
+                                });
+                            } finally {
+                                setIsGeneratingSnapshot(false);
+                            }
+                        }}
+                        variant="secondary"
+                    />
+                </View>
             </View>
         </Card>
     );
@@ -463,6 +493,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "restaurant-outline",
                 () => setShowLunchSettings(true),
                 "Lunch scheduling & defaults"
+            )}
+            {renderMenuButton(
+                "Checks",
+                "checkmark-circle-outline",
+                () => setActiveSection('habits'),
+                "Tracking daily habits"
             )}
             {renderMenuButton(
                 "Mood Tracker",
@@ -645,6 +681,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("Time Ranges", () => setActiveSection('root'))}
                                 <View className="px-0"><TimeRangesSettings /></View>
+                            </>
+                        )}
+                        {activeSection === 'habits' && (
+                            <>
+                                {renderHeader("Checks", () => setActiveSection('root'))}
+                                <View className="px-0"><HabitSettings /></View>
                             </>
                         )}
                         {activeSection === 'google-calendar' && (

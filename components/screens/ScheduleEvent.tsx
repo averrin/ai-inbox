@@ -163,6 +163,11 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
                             <Ionicons name="return-up-forward" size={10} color="white" />
                         </View>
                     )}
+                    {evt.needPrep && (
+                        <View className="bg-amber-500/80 px-1 py-0.5 rounded">
+                            <Ionicons name="pricetag-outline" size={10} color="white" />
+                        </View>
+                    )}
                     {evt.isRecurrent === false && (
                         <View className="bg-sky-500/80 px-1 py-0.5 rounded">
                             <Ionicons name="calendar-outline" size={10} color="white" />
