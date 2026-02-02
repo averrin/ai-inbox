@@ -6,7 +6,7 @@ import { useEffect } from 'react';
 export default function Home() {
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent({
     debug: false,
-    resetOnBackground: false,
+    resetOnBackground: true,
   });
 
   useEffect(() => {
