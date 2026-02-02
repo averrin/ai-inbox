@@ -17,12 +17,13 @@ import { CalendarsSettings } from './CalendarsSettings';
 import { EventTypesSettings } from './EventTypesSettings';
 import { TimeRangesSettings } from './TimeRangesSettings';
 import { LunchSettings } from './LunchSettings';
+import { WeatherSettings } from './WeatherSettings';
 import { MoodSettings } from './MoodSettings';
 import { scanForReminders } from '../services/reminderService';
 import { useEventTypesStore } from '../store/eventTypes';
 import Toast from 'react-native-toast-message';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'google-calendar' | 'reminders' | 'mood' | 'advanced';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'google-calendar' | 'reminders' | 'weather' | 'mood' | 'advanced';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -481,6 +482,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 () => setActiveSection('reminders'),
                 "Local notifications"
             )}
+            {renderMenuButton(
+                "Weather",
+                "cloud-outline",
+                () => setActiveSection('weather'),
+                "Location & Preferences"
+            )}
              {renderMenuButton(
                 "Advanced",
                 "construct-outline",
@@ -650,6 +657,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("Reminders", () => setActiveSection('root'))}
                                 <View className="px-0"><RemindersSettings /></View>
+                            </>
+                        )}
+                        {activeSection === 'weather' && (
+                            <>
+                                {renderHeader("Weather", () => setActiveSection('root'))}
+                                <View className="px-0"><WeatherSettings /></View>
                             </>
                         )}
                         {activeSection === 'mood' && (
