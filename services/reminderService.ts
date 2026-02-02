@@ -3,8 +3,10 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import * as Notifications from 'expo-notifications';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import { useSettingsStore } from '../store/settings';
+import { useEventTypesStore } from '../store/eventTypes';
 import { Platform } from 'react-native';
 import { scheduleNativeAlarm, stopNativeAlarm } from './alarmModule';
+import dayjs from 'dayjs';
 
 const REMINDER_TASK_NAME = 'BACKGROUND_REMINDER_CHECK';
 const REMINDER_PROPERTY_KEY = 'reminder_datetime';
@@ -459,6 +461,94 @@ async function checkFileForReminder(fileUri: string, reminders: Reminder[]) {
 }
 
 
+// Helper to sync time range notifications
+async function syncRangeNotifications() {
+    try {
+        if (!useEventTypesStore.persist.hasHydrated()) {
+            await useEventTypesStore.persist.rehydrate();
+        }
+
+        const { ranges } = useEventTypesStore.getState();
+        const enabledRanges = ranges.filter(r => r.isEnabled);
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        const now = dayjs();
+        const upcoming: { id: string, date: Date, title: string }[] = [];
+
+        // Check today and tomorrow
+        [0, 1].forEach(offset => {
+            const targetDate = now.add(offset, 'day');
+            const dayOfWeek = targetDate.day(); // 0-6
+
+            enabledRanges.forEach(range => {
+                if (range.days.includes(dayOfWeek)) {
+                    const start = targetDate
+                        .hour(range.start.hour)
+                        .minute(range.start.minute)
+                        .second(0)
+                        .millisecond(0);
+
+                    // Only schedule if in future
+                    if (start.isAfter(now)) {
+                        upcoming.push({
+                            id: `range-${range.id}-${start.format('YYYY-MM-DD')}`,
+                            date: start.toDate(),
+                            title: range.title
+                        });
+                    }
+                }
+            });
+        });
+
+        // 1. Clean up stale range notifications
+        const cancelledIds = new Set<string>();
+        for (const notification of scheduled) {
+            const data = notification.content.data as Record<string, any>;
+            if (data?.type === 'range_start') {
+                const found = upcoming.find(u => u.id === data.rangeInstanceId);
+                // If not found in upcoming (deleted/disabled) OR time has changed significantly (> 1 min diff)
+                if (!found || (data.triggerDate && Math.abs(dayjs(found.date).diff(dayjs(data.triggerDate), 'minute')) > 1)) {
+                    await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+                    cancelledIds.add(notification.identifier);
+                }
+            }
+        }
+
+        // 2. Schedule new ones
+        for (const item of upcoming) {
+            const exists = scheduled.find(n =>
+                !cancelledIds.has(n.identifier) &&
+                n.content.data?.type === 'range_start' &&
+                n.content.data?.rangeInstanceId === item.id
+            );
+
+            if (!exists) {
+                await Notifications.scheduleNotificationAsync({
+                    content: {
+                        title: item.title,
+                        body: `Starting now`,
+                        sound: true,
+                        priority: Notifications.AndroidNotificationPriority.HIGH,
+                        data: {
+                            type: 'range_start',
+                            rangeInstanceId: item.id,
+                            triggerDate: item.date.toISOString()
+                        }
+                    },
+                    trigger: {
+                        type: Notifications.SchedulableTriggerInputTypes.DATE,
+                        date: item.date,
+                        channelId: 'reminders-alarm'
+                    }
+                });
+                console.log(`[RangeService] Scheduled range notification for ${item.title} at ${item.date.toISOString()}`);
+            }
+        }
+
+    } catch (e) {
+        console.error('[RangeService] Sync failed:', e);
+    }
+}
+
 // Exported function to be called from background task OR foreground (e.g. after adding a file)
 export async function syncAllReminders() {
     try {
@@ -466,6 +556,9 @@ export async function syncAllReminders() {
         if (!useSettingsStore.persist.hasHydrated()) {
             await useSettingsStore.persist.rehydrate();
         }
+
+        // Sync Time Ranges
+        await syncRangeNotifications();
 
         const reminders = await scanForReminders();
 
