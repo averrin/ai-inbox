@@ -49,6 +49,16 @@ interface SettingsState {
     setDefaultOpenCalendarId: (id: string | null) => void;
     weatherLocation: { lat: number, lon: number };
     setWeatherLocation: (location: { lat: number, lon: number }) => void;
+    tagConfig: Record<string, MetadataConfig>;
+    propertyConfig: Record<string, MetadataConfig>;
+    setTagConfig: (tag: string, config: MetadataConfig) => void;
+    setPropertyConfig: (prop: string, config: MetadataConfig) => void;
+}
+
+export interface MetadataConfig {
+    hidden?: boolean;
+    color?: string;
+    valueConfigs?: Record<string, MetadataConfig>; // For property values
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -100,6 +110,14 @@ export const useSettingsStore = create<SettingsState>()(
             setDefaultOpenCalendarId: (id) => set({ defaultOpenCalendarId: id }),
             weatherLocation: { lat: 37.7749, lon: -122.4194 },
             setWeatherLocation: (location) => set({ weatherLocation: location }),
+            tagConfig: {},
+            propertyConfig: {},
+            setTagConfig: (tag, config) => set((state) => ({
+                tagConfig: { ...state.tagConfig, [tag]: config }
+            })),
+            setPropertyConfig: (prop, config) => set((state) => ({
+                propertyConfig: { ...state.propertyConfig, [prop]: config }
+            })),
         }),
         {
             name: 'ai-inbox-settings',

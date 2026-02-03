@@ -39,8 +39,8 @@ export async function checkDirectoryExists(parentUri: string, dirName: string): 
 export async function readVaultStructure(
     vaultUri: string,
     maxDepth: number = 2,
-    metadataCache?: Record<string, { mtime: number, display: string, frontmatterKeys?: string[] }>
-): Promise<{ structure: string, updatedCache: Record<string, { mtime: number, display: string, frontmatterKeys?: string[] }> }> {
+    metadataCache?: Record<string, { mtime: number, display: string, frontmatterKeys?: string[], frontmatter?: Record<string, any> }>
+): Promise<{ structure: string, updatedCache: Record<string, { mtime: number, display: string, frontmatterKeys?: string[], frontmatter?: Record<string, any> }> }> {
     try {
         const structure: string[] = [];
         const updatedCache = { ...metadataCache };
@@ -88,6 +88,7 @@ export async function readVaultStructure(
                                     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
                                     let metadata = '';
                                     let frontmatterKeys: string[] = [];
+                                    let frontmatter: Record<string, any> = {};
 
                                     if (frontmatterMatch) {
                                         const fm = frontmatterMatch[1];
@@ -101,14 +102,25 @@ export async function readVaultStructure(
                                             metadata += ` [${tags.join(', ')}]`;
                                         }
 
-                                        // Extract all property keys
-                                        const keyMatches = fm.matchAll(/^([a-zA-Z0-9_-]+):/gm);
-                                        for (const match of keyMatches) {
-                                            const key = match[1];
-                                            if (key !== 'tags' && key !== 'icon') {
-                                                frontmatterKeys.push(key);
+                                        // Extract all property keys and values
+                                        const lines = fm.split('\n');
+                                        lines.forEach(line => {
+                                            const match = line.match(/^([a-zA-Z0-9_-]+):\s*(.*)$/);
+                                            if (match) {
+                                                const key = match[1];
+                                                let value = match[2].trim();
+
+                                                // Remove quotes if present
+                                                if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+                                                    value = value.substring(1, value.length - 1);
+                                                }
+
+                                                if (key !== 'tags' && key !== 'icon') {
+                                                    frontmatterKeys.push(key);
+                                                    frontmatter[key] = value;
+                                                }
                                             }
-                                        }
+                                        });
                                     } else {
                                         metadata = name.replace('.md', '');
                                     }
@@ -121,7 +133,8 @@ export async function readVaultStructure(
                                         updatedCache[cacheKey] = {
                                             mtime: info.modificationTime,
                                             display: displayString,
-                                            frontmatterKeys
+                                            frontmatterKeys,
+                                            frontmatter
                                         };
                                     }
                                 }

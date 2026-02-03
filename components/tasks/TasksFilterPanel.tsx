@@ -8,6 +8,7 @@ interface TasksFilterPanelProps {
     showCompleted: boolean;
     setShowCompleted: (show: boolean) => void;
     onRemoveCompleted: () => void;
+    onMergeTasks: () => void;
 }
 
 export function TasksFilterPanel({
@@ -16,6 +17,7 @@ export function TasksFilterPanel({
     showCompleted,
     setShowCompleted,
     onRemoveCompleted,
+    onMergeTasks,
 }: TasksFilterPanelProps) {
     const [showMenu, setShowMenu] = useState(false);
     return (
@@ -79,9 +81,20 @@ export function TasksFilterPanel({
 
                     {showMenu && (
                         <View 
-                            className="absolute right-0 top-12 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl min-w-[160px] overflow-hidden"
+                            className="absolute right-0 top-12 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl min-w-[180px] overflow-hidden"
                             style={{ elevation: 5, zIndex: 1000 }}
                         >
+                            <TouchableOpacity 
+                                onPress={() => {
+                                    setShowMenu(false);
+                                    onMergeTasks();
+                                }}
+                                className="flex-row items-center p-4 border-b border-slate-700 active:bg-slate-700"
+                            >
+                                <Ionicons name="document-text-outline" size={18} color="#818cf8" />
+                                <Text className="text-slate-200 ml-3 font-medium">Merge to File</Text>
+                            </TouchableOpacity>
+
                             <TouchableOpacity 
                                 onPress={() => {
                                     setShowMenu(false);
