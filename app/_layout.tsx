@@ -201,7 +201,7 @@ export default function Layout() {
   return (
     <ReminderModalProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <ShareIntentProvider options={{ debug: false, resetOnBackground: false }}>
+        <ShareIntentProvider options={{ debug: false, resetOnBackground: true }}>
           <AppContent />
         </ShareIntentProvider>
       </GestureHandlerRootView>

@@ -10,6 +10,7 @@ import { FolderInput } from '../ui/FolderInput';
 import { FileAttachment } from '../ui/FileAttachment';
 import { RichTextEditor } from '../RichTextEditor';
 import { SimpleTextEditor } from '../SimpleTextEditor';
+import { TagEditor } from '../ui/TagEditor';
 import { ProcessedNote } from '../../services/gemini';
 
 import { LongPressButton } from '../ui/LongPressButton';
@@ -22,8 +23,9 @@ import { TimeSyncPanel } from '../ui/TimeSyncPanel';
 import { Action } from '../../services/gemini';
 import { URLMetadata } from '../../utils/urlMetadata';
 import { useSettingsStore } from '../../store/settings';
-import { useVaultStore } from '../../services/vaultService';
-import { getTagsFromCache } from '../../utils/tagUtils';
+import { RichTaskItem } from '../markdown/RichTaskItem';
+import { TaskEditModal } from '../markdown/TaskEditModal';
+import { findTasks, updateTaskInText, RichTask, removeTaskFromText } from '../../utils/taskParser';
 
 interface PreviewScreenProps {
     data: ProcessedNote;
@@ -37,7 +39,7 @@ interface PreviewScreenProps {
     onCheckFolder: () => void;
     tags: string[];
     onRemoveTag: (index: number) => void;
-    onAddTag: () => void;
+    onAddTag: (tag: string) => void;
     body: string;
     onBodyChange: (text: string) => void;
     attachedFiles: { uri: string; name: string; size: number; mimeType: string }[];
@@ -48,11 +50,6 @@ interface PreviewScreenProps {
     saving: boolean;
     vaultUri: string | null;
     onOpenSettings?: () => void;
-    showTagModal: boolean;
-    newTag: string;
-    onNewTagChange: (text: string) => void;
-    onTagModalClose: () => void;
-    onTagModalConfirm: () => void;
     onRemoveIcon: () => void;
     onIconChange: (text: string) => void;
     onRemoveFrontmatterKey: (key: string) => void;
@@ -95,11 +92,6 @@ export function PreviewScreen({
     saving,
     vaultUri,
     onOpenSettings,
-    showTagModal,
-    newTag,
-    onNewTagChange,
-    onTagModalClose,
-    onTagModalConfirm,
     onRemoveIcon,
     onIconChange,
     onRemoveFrontmatterKey,
@@ -254,6 +246,37 @@ export function PreviewScreen({
         setEditingEventIndex(null);
     };
 
+    // Rich Task State
+    const [editingTask, setEditingTask] = React.useState<RichTask | null>(null);
+    const [isTaskModalVisible, setIsTaskModalVisible] = React.useState(false);
+
+    const tasks = React.useMemo(() => findTasks(body), [body]);
+
+    const handleToggleTask = (task: RichTask) => {
+        const updatedTask = { ...task, completed: !task.completed };
+        const newText = updateTaskInText(body, task, updatedTask);
+        onBodyChange(newText);
+    };
+
+    const handleEditTask = (task: RichTask) => {
+        setEditingTask(task);
+        setIsTaskModalVisible(true);
+    };
+
+    const handleDeleteTask = (task: RichTask) => {
+        const newText = removeTaskFromText(body, task);
+        onBodyChange(newText);
+    };
+
+    const handleSaveTask = (updatedTask: RichTask) => {
+        if (editingTask) {
+            const newText = updateTaskInText(body, editingTask, updatedTask);
+            onBodyChange(newText);
+        }
+        setIsTaskModalVisible(false);
+        setEditingTask(null);
+    };
+
     return (
         <Layout>
             <KeyboardAvoidingView
@@ -357,24 +380,11 @@ export function PreviewScreen({
                                 />
 
                                 {/* Tags - Always Visible */}
-                                <View className="flex-row flex-wrap gap-2 mt-2 mb-1">
-                                    {tags.map((tag, index) => (
-                                        <View key={index} className="bg-indigo-600/80 px-2.5 py-1 rounded-md flex-row items-center border border-indigo-500/50">
-                                            <Text className="text-white mr-1 text-xs font-medium">{tag}</Text>
-                                            <TouchableOpacity onPress={() => onRemoveTag(index)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                                <Ionicons name="close" size={10} color="rgba(255,255,255,0.7)" />
-                                            </TouchableOpacity>
-                                        </View>
-                                    ))}
-                                    {/* Add tag button */}
-                                    <TouchableOpacity
-                                        onPress={onAddTag}
-                                        className="bg-slate-700 px-2.5 py-1 rounded-md flex-row items-center border border-slate-600"
-                                    >
-                                        <Ionicons name="add" size={12} color="white" />
-                                        <Text className="text-white text-xs font-medium ml-1">Tag</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                <TagEditor
+                                    tags={tags}
+                                    onAddTag={onAddTag}
+                                    onRemoveTag={onRemoveTag}
+                                />
 
                                 {/* Collapsible Metadata (Frontmatter) */}
                                 <View className="mt-2 text-wrap">
@@ -436,6 +446,23 @@ export function PreviewScreen({
                                                 showRemove={true}
                                                 onRemove={onRemoveLink ? () => onRemoveLink(index) : undefined}
                                             />
+                                        ))}
+                                     </View>
+                                )}
+
+                                {/* Rich Task Items */}
+                                {tasks.length > 0 && (
+                                    <View className="mb-2">
+                                        <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Tasks</Text>
+                                        {tasks.map((task, index) => (
+                                            <View key={`${task.title}-${index}`} className="mb-1">
+                                                <RichTaskItem
+                                                    task={task}
+                                                    onToggle={() => handleToggleTask(task)}
+                                                    onEdit={() => handleEditTask(task)}
+                                                    onDelete={() => handleDeleteTask(task)}
+                                                />
+                                            </View>
                                         ))}
                                     </View>
                                 )}
@@ -582,70 +609,7 @@ export function PreviewScreen({
                 </View>
             </KeyboardAvoidingView>
 
-            {/* Tag Input Modal */}
-            <Modal visible={showTagModal} transparent animationType="fade">
-                <View className="flex-1 justify-center items-center bg-black/50">
-                    <View className="bg-slate-900 rounded-3xl p-6 w-[85%] max-w-md">
-                        <View className="flex-row justify-between items-center mb-4">
-                            <Text className="text-white text-xl font-bold">Add Tag</Text>
-                            <TouchableOpacity onPress={onTagModalClose}>
-                                <Ionicons name="close" size={24} color="white" />
-                            </TouchableOpacity>
-                        </View>
-                        <View className="flex-row gap-2 mb-2">
-                            <View className="flex-1">
-                                <TextInput
-                                    value={newTag}
-                                    onChangeText={onNewTagChange}
-                                    placeholder="Enter tag name..."
-                                    placeholderTextColor="#94a3b8"
-                                    className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-white font-medium"
-                                    onSubmitEditing={onTagModalConfirm}
-                                    returnKeyType="done"
-                                    autoFocus
-                                />
-                            </View>
-                            <TouchableOpacity
-                                onPress={onTagModalConfirm}
-                                className="px-6 py-4 rounded-xl bg-indigo-600"
-                            >
-                                <Text className="text-white font-semibold">Add</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Tag Suggestions */}
-                        {(() => {
-                            // Get tags from cache
-                            const vaultCache = useVaultStore((state) => state.metadataCache);
-                            const allTags = React.useMemo(() => getTagsFromCache(vaultCache), [vaultCache]);
-                            const suggestions = allTags
-                                .filter(t => !tags.includes(t) && t.toLowerCase().includes(newTag.toLowerCase()))
-                                .slice(0, 10); // Limit to 10
-
-                            if (suggestions.length === 0) return null;
-
-                            return (
-                                <View className="mt-2 max-h-40">
-                                    <Text className="text-slate-400 text-xs font-bold mb-2 uppercase">Suggestions</Text>
-                                    <ScrollView style={{ maxHeight: 150 }} keyboardShouldPersistTaps="handled">
-                                        <View className="flex-row flex-wrap gap-2">
-                                            {suggestions.map(tag => (
-                                                <TouchableOpacity
-                                                    key={tag}
-                                                    onPress={() => onNewTagChange(tag)}
-                                                    className="bg-slate-800 border border-slate-700 px-3 py-2 rounded-lg"
-                                                >
-                                                    <Text className="text-slate-300 text-sm">#{tag}</Text>
-                                                </TouchableOpacity>
-                                            ))}
-                                        </View>
-                                    </ScrollView>
-                                </View>
-                            );
-                        })()}
-                    </View>
-                </View>
-            </Modal>
+            {/* Removed inline Tag Input Modal - now handled by TagEditor */}
 
             <ReminderEditModal
                 visible={isEditingReminder}
@@ -664,11 +628,18 @@ export function PreviewScreen({
                 visible={showEventModal}
                 initialEvent={(editingEventIndex !== null && data?.actions) ? data.actions[editingEventIndex] : null}
                 onSave={handleSaveEvent}
-                onCancel={() => {
+                 onCancel={() => {
                     setShowEventModal(false);
                     setEditingEventIndex(null);
                 }}
                 timeFormat={timeFormat}
+            />
+
+            <TaskEditModal
+                visible={isTaskModalVisible}
+                task={editingTask}
+                onSave={handleSaveTask}
+                onCancel={() => setIsTaskModalVisible(false)}
             />
         </Layout>
     );

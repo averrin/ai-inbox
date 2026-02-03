@@ -51,6 +51,7 @@ export function CalendarZone<T extends ICalendarEventBase>({
 
   return (
     <View
+      pointerEvents="none"
       style={[
         styles.container,
         {
