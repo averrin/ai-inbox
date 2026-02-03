@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RichTask } from '../../utils/taskParser';
 import { TagEditor } from '../ui/TagEditor';
+import { PropertyEditor } from '../ui/PropertyEditor';
+import { useVaultStore } from '../../services/vaultService';
+import { getPropertyKeysFromCache } from '../../utils/propertyUtils';
 
 interface TaskEditModalProps {
     visible: boolean;
@@ -13,13 +16,18 @@ interface TaskEditModalProps {
 
 export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModalProps) {
     const [title, setTitle] = useState('');
-    const [properties, setProperties] = useState<[string, string][]>([]);
+    const [status, setStatus] = useState(' ');
+    const [properties, setProperties] = useState<Record<string, any>>({});
     const [tags, setTags] = useState<string[]>([]);
+
+    const vaultCache = useVaultStore(state => state.metadataCache);
+    const keySuggestions = useMemo(() => getPropertyKeysFromCache(vaultCache), [vaultCache]);
 
     useEffect(() => {
         if (task) {
             setTitle(task.title);
-            setProperties(Object.entries(task.properties));
+            setStatus(task.status);
+            setProperties(task.properties);
             setTags(task.tags);
         }
     }, [task]);
@@ -29,19 +37,13 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
         const updatedTask: RichTask = {
             ...task,
             title,
-            properties: Object.fromEntries(properties),
+            status,
+            completed: status === 'x',
+            properties,
             tags,
         };
         onSave(updatedTask);
     };
-
-    const addProperty = () => setProperties([...properties, ['', '']]);
-    const updateProperty = (index: number, key: string, value: string) => {
-        const newProps = [...properties];
-        newProps[index] = [key, value];
-        setProperties(newProps);
-    };
-    const removeProperty = (index: number) => setProperties(properties.filter((_, i) => i !== index));
 
     const handleRemoveTag = (index: number) => setTags(tags.filter((_, i) => i !== index));
     const handleAddTag = (tag: string) => {
@@ -78,33 +80,41 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                         </View>
 
                         <View className="mb-4">
-                            <View className="flex-row justify-between items-center mb-2">
-                                <Text className="text-indigo-200 font-medium text-xs uppercase tracking-wider">Properties</Text>
-                                <TouchableOpacity onPress={addProperty} className="bg-indigo-600/20 px-2 py-1 rounded">
-                                    <Text className="text-indigo-400 text-[10px] font-bold">+ ADD</Text>
-                                </TouchableOpacity>
-                            </View>
-                            {properties.map(([key, value], index) => (
-                                <View key={index} className="flex-row gap-2 mb-2">
-                                    <TextInput
-                                        className="flex-1 bg-slate-800 text-white p-2 rounded-lg border border-slate-700 text-sm"
-                                        value={key}
-                                        onChangeText={(v) => updateProperty(index, v, value)}
-                                        placeholder="Key"
-                                        placeholderTextColor="#64748b"
-                                    />
-                                    <TextInput
-                                        className="flex-2 bg-slate-800 text-white p-2 rounded-lg border border-slate-700 text-sm"
-                                        value={value}
-                                        onChangeText={(v) => updateProperty(index, key, v)}
-                                        placeholder="Value"
-                                        placeholderTextColor="#64748b"
-                                    />
-                                    <TouchableOpacity onPress={() => removeProperty(index)} className="justify-center">
-                                        <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                            <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Status</Text>
+                            <View className="flex-row flex-wrap gap-2">
+                                {[
+                                    { id: ' ', icon: 'square-outline', label: 'Pending', color: '#94a3b8' },
+                                    { id: '/', icon: 'play-circle-outline', label: 'Doing', color: '#818cf8' },
+                                    { id: 'x', icon: 'checkbox', label: 'Done', color: '#6366f1' },
+                                    { id: '-', icon: 'close-circle-outline', label: 'Won\'t Do', color: '#94a3b8' },
+                                    { id: '?', icon: 'help-circle-outline', label: 'Planned', color: '#fbbf24' },
+                                    { id: '>', icon: 'arrow-forward-circle-outline', label: 'Delayed', color: '#6366f1' },
+                                ].map((s) => (
+                                    <TouchableOpacity
+                                        key={s.id}
+                                        onPress={() => setStatus(s.id)}
+                                        className={`flex-row items-center px-3 py-2 rounded-xl border ${status === s.id ? 'bg-indigo-600/20 border-indigo-500' : 'bg-slate-800 border-slate-700'}`}
+                                    >
+                                        <Ionicons 
+                                            name={s.icon as any} 
+                                            size={16} 
+                                            color={status === s.id ? '#818cf8' : s.color} 
+                                        />
+                                        <Text className={`ml-2 text-xs font-medium ${status === s.id ? 'text-indigo-300' : 'text-slate-400'}`}>
+                                            {s.label}
+                                        </Text>
                                     </TouchableOpacity>
-                                </View>
-                            ))}
+                                ))}
+                            </View>
+                        </View>
+
+                        <View className="mb-4">
+                            <PropertyEditor
+                                label="Properties"
+                                properties={properties}
+                                onUpdate={setProperties}
+                                keySuggestions={keySuggestions}
+                            />
                         </View>
 
                         <View className="mb-6">

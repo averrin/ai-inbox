@@ -7,9 +7,17 @@ import ScheduleScreen from '../screens/ScheduleScreen';
 import SetupScreen from '../SetupScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect } from 'react';
-import { useNavigation, NavigationContainer, NavigationIndependentTree } from '@react-navigation/native';
+import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View } from 'react-native';
+
+const TransparentTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: 'transparent',
+  },
+};
 
 const Tab = createMaterialTopTabNavigator();
 
@@ -132,7 +140,7 @@ export default function BottomTabNavigator(props: {
 }) {
   return (
     <NavigationIndependentTree>
-      <NavigationContainer>
+      <NavigationContainer theme={TransparentTheme}>
         <NavigationHandler shareIntent={props.shareIntent} />
         <InnerTabNavigator {...props} />
       </NavigationContainer>

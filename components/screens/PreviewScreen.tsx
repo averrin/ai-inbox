@@ -11,6 +11,7 @@ import { FileAttachment } from '../ui/FileAttachment';
 import { RichTextEditor } from '../RichTextEditor';
 import { SimpleTextEditor } from '../SimpleTextEditor';
 import { TagEditor } from '../ui/TagEditor';
+import { PropertyEditor } from '../ui/PropertyEditor';
 import { ProcessedNote } from '../../services/gemini';
 
 import { LongPressButton } from '../ui/LongPressButton';
@@ -23,6 +24,8 @@ import { TimeSyncPanel } from '../ui/TimeSyncPanel';
 import { Action } from '../../services/gemini';
 import { URLMetadata } from '../../utils/urlMetadata';
 import { useSettingsStore } from '../../store/settings';
+import { useVaultStore } from '../../services/vaultService';
+import { getPropertyKeysFromCache } from '../../utils/propertyUtils';
 import { RichTaskItem } from '../markdown/RichTaskItem';
 import { TaskEditModal } from '../markdown/TaskEditModal';
 import { findTasks, updateTaskInText, RichTask, removeTaskFromText } from '../../utils/taskParser';
@@ -121,9 +124,6 @@ export function PreviewScreen({
 
     // Focus Mode
     const [isFocused, setIsFocused] = React.useState(false);
-
-    // Properties Expansion State
-    const [isPropertiesExpanded, setIsPropertiesExpanded] = React.useState(true);
 
     // Time Sync State
     const [isTimeSynced, setIsTimeSynced] = React.useState(false);
@@ -387,35 +387,43 @@ export function PreviewScreen({
                                 />
 
                                 {/* Collapsible Metadata (Frontmatter) */}
-                                <View className="mt-2 text-wrap">
-                                    <TouchableOpacity
-                                        onPress={() => setIsPropertiesExpanded(!isPropertiesExpanded)}
-                                        className="flex-row items-center gap-1 mb-1"
-                                    >
-                                        <Text className="text-indigo-200 text-xs font-semibold">Properties</Text>
-                                        <Ionicons name={isPropertiesExpanded ? "chevron-up" : "chevron-down"} size={12} color="#818cf8" />
-                                    </TouchableOpacity>
+                                <PropertyEditor
+                                    label="Properties"
+                                    properties={(() => {
+                                        const props = { ...data.frontmatter };
+                                        delete props.tags;
+                                        delete props.icon;
+                                        return props;
+                                    })()}
+                                    onUpdate={(newProps) => {
+                                        if (!onUpdateFrontmatter) return;
+                                        
+                                        const updates: Record<string, any> = {};
+                                        // We need to compare with the subset of properties we are editing
+                                        const currentProps = { ...data.frontmatter };
+                                        delete currentProps.tags;
+                                        delete currentProps.icon;
 
-                                    {isPropertiesExpanded && (
-                                        <View className="flex-row flex-wrap gap-2">
-                                            {data?.frontmatter && Object.entries(data.frontmatter).map(([key, value]) => (
-                                                <View key={key} className="bg-slate-700/80 px-2.5 py-1 rounded-md flex-row items-center border border-slate-600/50">
-                                                    <Text className="text-slate-400 text-xs mr-1">{key}:</Text>
-                                                    <Text className="text-slate-200 text-xs mr-2">{typeof value === 'string' ? value : JSON.stringify(value)}</Text>
-                                                    <TouchableOpacity
-                                                        onPress={() => onRemoveFrontmatterKey(key)}
-                                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                                    >
-                                                        <Ionicons name="close" size={10} color="#94a3b8" />
-                                                    </TouchableOpacity>
-                                                </View>
-                                            ))}
-                                            {(!data?.frontmatter || Object.keys(data.frontmatter).length === 0) && (
-                                                <Text className="text-slate-500 text-xs italic">No additional properties</Text>
-                                            )}
-                                        </View>
-                                    )}
-                                </View>
+                                        // 1. Check for modified or added properties
+                                        Object.keys(newProps).forEach(key => {
+                                            if (newProps[key] !== currentProps[key]) {
+                                                updates[key] = newProps[key];
+                                            }
+                                        });
+
+                                        // 2. Check for removed properties
+                                        Object.keys(currentProps).forEach(key => {
+                                            if (!(key in newProps)) {
+                                                updates[key] = undefined;
+                                            }
+                                        });
+                                        
+                                        if (Object.keys(updates).length > 0) {
+                                            onUpdateFrontmatter(updates);
+                                        }
+                                    }}
+                                    keySuggestions={getPropertyKeysFromCache(useVaultStore.getState().metadataCache)}
+                                />
                             </Card>
                         )}
 

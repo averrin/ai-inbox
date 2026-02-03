@@ -6,6 +6,7 @@ import { RichTask } from '../utils/taskParser';
 export interface TaskWithSource extends RichTask {
     filePath: string;
     fileName: string;
+    fileUri: string;
 }
 
 interface TasksState {

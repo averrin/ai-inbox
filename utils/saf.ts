@@ -39,8 +39,8 @@ export async function checkDirectoryExists(parentUri: string, dirName: string): 
 export async function readVaultStructure(
     vaultUri: string,
     maxDepth: number = 2,
-    metadataCache?: Record<string, { mtime: number, display: string }>
-): Promise<{ structure: string, updatedCache: Record<string, { mtime: number, display: string }> }> {
+    metadataCache?: Record<string, { mtime: number, display: string, frontmatterKeys?: string[] }>
+): Promise<{ structure: string, updatedCache: Record<string, { mtime: number, display: string, frontmatterKeys?: string[] }> }> {
     try {
         const structure: string[] = [];
         const updatedCache = { ...metadataCache };
@@ -87,6 +87,8 @@ export async function readVaultStructure(
                                     // Parse frontmatter to extract metadata
                                     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
                                     let metadata = '';
+                                    let frontmatterKeys: string[] = [];
+
                                     if (frontmatterMatch) {
                                         const fm = frontmatterMatch[1];
                                         const iconMatch = fm.match(/icon:\s*["']?([^"'\n]+)["']?/);
@@ -97,6 +99,15 @@ export async function readVaultStructure(
                                         if (tagsMatch) {
                                             const tags = tagsMatch[1].split(',').map(t => t.trim().replace(/['"]/g, ''));
                                             metadata += ` [${tags.join(', ')}]`;
+                                        }
+
+                                        // Extract all property keys
+                                        const keyMatches = fm.matchAll(/^([a-zA-Z0-9_-]+):/gm);
+                                        for (const match of keyMatches) {
+                                            const key = match[1];
+                                            if (key !== 'tags' && key !== 'icon') {
+                                                frontmatterKeys.push(key);
+                                            }
                                         }
                                     } else {
                                         metadata = name.replace('.md', '');
@@ -109,7 +120,8 @@ export async function readVaultStructure(
                                     if (info.exists) {
                                         updatedCache[cacheKey] = {
                                             mtime: info.modificationTime,
-                                            display: displayString
+                                            display: displayString,
+                                            frontmatterKeys
                                         };
                                     }
                                 }
