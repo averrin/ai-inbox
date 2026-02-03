@@ -3,18 +3,8 @@ import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvo
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './ui/Button';
 import { HabitDefinition } from '../store/habitStore';
-
-// Common icons suitable for habits
-const HABIT_ICONS = [
-    'barbell', 'book', 'water', 'bed', 'bicycle', 'walk', 'medkit', 
-    'nutrition', 'musical-notes', 'brush', 'language', 'sunny', 
-    'moon', 'desktop', 'code', 'wallet', 'leaf', 'heart', 'star'
-];
-
-const COLORS = [
-    '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', 
-    '#ec4899', '#6366f1', '#14b8a6', '#f97316', '#84cc16'
-];
+import { ColorPicker, PRESET_COLORS } from './ui/ColorPicker';
+import { IconPicker } from './ui/IconPicker';
 
 interface HabitModalProps {
     visible: boolean;
@@ -26,7 +16,7 @@ interface HabitModalProps {
 export function HabitModal({ visible, onClose, onSave, initialData }: HabitModalProps) {
     const [title, setTitle] = useState('');
     const [selectedIcon, setSelectedIcon] = useState('star');
-    const [selectedColor, setSelectedColor] = useState(COLORS[0]);
+    const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
 
     useEffect(() => {
         if (visible) {
@@ -37,7 +27,7 @@ export function HabitModal({ visible, onClose, onSave, initialData }: HabitModal
             } else {
                 setTitle('');
                 setSelectedIcon('star');
-                setSelectedColor(COLORS[0]);
+                setSelectedColor(PRESET_COLORS[0]);
             }
         }
     }, [visible, initialData]);
@@ -83,42 +73,19 @@ export function HabitModal({ visible, onClose, onSave, initialData }: HabitModal
                         </View>
 
                         <View className="mb-6">
-                            <Text className="text-indigo-200 mb-2 font-medium">Icon</Text>
-                            <View className="flex-row flex-wrap gap-3">
-                                {HABIT_ICONS.map(icon => (
-                                    <TouchableOpacity
-                                        key={icon}
-                                        onPress={() => setSelectedIcon(icon)}
-                                        className={`w-12 h-12 rounded-xl items-center justify-center border-2 ${
-                                            selectedIcon === icon 
-                                                ? 'bg-slate-800 border-indigo-500' 
-                                                : 'bg-slate-800/50 border-transparent'
-                                        }`}
-                                    >
-                                        <Ionicons 
-                                            name={icon as any} 
-                                            size={24} 
-                                            color={selectedIcon === icon ? '#818cf8' : '#64748b'} 
-                                        />
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
+                            <IconPicker
+                                label="Icon"
+                                value={selectedIcon}
+                                onChange={setSelectedIcon}
+                            />
                         </View>
 
                         <View className="mb-8">
-                            <Text className="text-indigo-200 mb-2 font-medium">Color</Text>
-                            <View className="flex-row flex-wrap gap-3">
-                                {COLORS.map(color => (
-                                    <TouchableOpacity
-                                        key={color}
-                                        onPress={() => setSelectedColor(color)}
-                                        className={`w-10 h-10 rounded-full border-2 ${
-                                            selectedColor === color ? 'border-white' : 'border-transparent'
-                                        }`}
-                                        style={{ backgroundColor: color }}
-                                    />
-                                ))}
-                            </View>
+                            <ColorPicker
+                                label="Color"
+                                value={selectedColor}
+                                onChange={setSelectedColor}
+                            />
                         </View>
 
                         <Button 

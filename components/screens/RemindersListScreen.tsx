@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
 import { useState, useEffect } from 'react';
@@ -50,27 +50,18 @@ export default function RemindersListScreen() {
     setIsCreateModalVisible(false);
   };
 
-  const handleDeleteReminder = async (reminder: Reminder) => {
-    Alert.alert(
-      "Remove Reminder",
-      "Do you want to remove just the reminder property or delete the entire note?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove Reminder Only",
-          onPress: async () => {
-            await deleteReminder(reminder, false);
-          }
-        },
-        {
-          text: "Delete Note",
-          style: "destructive",
-          onPress: async () => {
-            await deleteReminder(reminder, true);
-          }
-        }
-      ]
-    );
+  const handleDeleteReminderOnly = async (reminder: Reminder) => {
+    // Long press: delete reminder only, keep note
+    await deleteReminder(reminder, false);
+    setIsEditModalVisible(false);
+    setEditingReminder(null);
+  };
+
+  const handleDeleteReminderWithNote = async (reminder: Reminder) => {
+    // Default tap: delete reminder AND note
+    await deleteReminder(reminder, true);
+    setIsEditModalVisible(false);
+    setEditingReminder(null);
   };
 
   const handleEditReminder = (reminder: Reminder) => {
@@ -148,7 +139,7 @@ export default function RemindersListScreen() {
                       reminder={reminder}
                       relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
                       onEdit={() => handleEditReminder(reminder)}
-                      onDelete={() => handleDeleteReminder(reminder)}
+                      onDelete={() => handleDeleteReminderWithNote(reminder)}
                       onShow={() => showReminder(reminder)}
                       timeFormat={timeFormat}
                     />
@@ -167,7 +158,7 @@ export default function RemindersListScreen() {
                       reminder={reminder}
                       relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
                       onEdit={() => handleEditReminder(reminder)}
-                      onDelete={() => handleDeleteReminder(reminder)}
+                      onDelete={() => handleDeleteReminderWithNote(reminder)}
                       onShow={() => showReminder(reminder)}
                       timeFormat={timeFormat}
                     />
@@ -209,9 +200,12 @@ export default function RemindersListScreen() {
         }}
         onDelete={() => {
             if (editingReminder) {
-                handleDeleteReminder(editingReminder);
-                setIsEditModalVisible(false);
-                setEditingReminder(null);
+                handleDeleteReminderOnly(editingReminder);
+            }
+        }}
+        onDeleteWithNote={() => {
+            if (editingReminder) {
+                handleDeleteReminderWithNote(editingReminder);
             }
         }}
         onShow={() => {

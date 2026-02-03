@@ -447,7 +447,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const renderMenuButton = (title: string, icon: keyof typeof Ionicons.glyphMap, onPress: () => void, subtitle?: string) => (
         <TouchableOpacity
             onPress={onPress}
-            className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-3 flex-row items-center justify-between"
+            className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-2 flex-row items-center justify-between"
         >
             <View className="flex-row items-center flex-1">
                 <View className="w-10 h-10 rounded-full bg-slate-700 items-center justify-center mr-3">
