@@ -263,7 +263,7 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                         <View className="mb-4">
                             <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Reminder</Text>
                             {reminderDate ? (
-                                <View className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                                <View>
                                     <ReminderItem
                                         reminder={{
                                             fileUri: task?.fileUri || '',
@@ -273,7 +273,7 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                                             recurrenceRule: properties[RECURRENT_PROPERTY_KEY],
                                             alarm: properties[ALARM_PROPERTY_KEY] === 'true',
                                             persistent: properties[PERSISTENT_PROPERTY_KEY] ? parseInt(properties[PERSISTENT_PROPERTY_KEY]) : undefined,
-                                            content: title
+                                            content: ''
                                         }}
                                         timeFormat="12h"
                                         onEdit={() => setShowReminderModal(true)}
