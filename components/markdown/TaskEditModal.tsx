@@ -15,7 +15,8 @@ import {
     REMINDER_PROPERTY_KEY,
     RECURRENT_PROPERTY_KEY,
     ALARM_PROPERTY_KEY,
-    PERSISTENT_PROPERTY_KEY
+    PERSISTENT_PROPERTY_KEY,
+    createStandaloneReminder
 } from '../../services/reminderService';
 
 interface TaskEditModalProps {
@@ -104,10 +105,69 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
         ? new Date(properties[REMINDER_PROPERTY_KEY])
         : undefined;
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!title.trim()) {
             Alert.alert('Validation', 'Task title cannot be empty.');
             return;
+        }
+
+        // Logic to extract task to file if it has a reminder and is not already a link
+        const hasReminder = !!properties[REMINDER_PROPERTY_KEY];
+        const isWikiLink = /^\[\[.*\]\]$/.test(title.trim());
+
+        if (hasReminder && !isWikiLink) {
+            // Extract to new file
+            const reminderDate = properties[REMINDER_PROPERTY_KEY];
+            const recurrence = properties[RECURRENT_PROPERTY_KEY];
+            const alarm = properties[ALARM_PROPERTY_KEY] === 'true';
+            const persistent = properties[PERSISTENT_PROPERTY_KEY] ? parseInt(properties[PERSISTENT_PROPERTY_KEY]) : undefined;
+
+            // Prepare extra props (excluding reminder props which are passed explicitly)
+            const extraProps: Record<string, any> = {};
+            Object.entries(properties).forEach(([k, v]) => {
+                if (![REMINDER_PROPERTY_KEY, RECURRENT_PROPERTY_KEY, ALARM_PROPERTY_KEY, PERSISTENT_PROPERTY_KEY].includes(k)) {
+                    extraProps[k] = v;
+                }
+            });
+
+            const result = await createStandaloneReminder(
+                reminderDate,
+                title,
+                recurrence,
+                alarm,
+                persistent,
+                extraProps,
+                tags
+            );
+
+            if (result) {
+                // Update task to be a link to the new file
+                // Remove extension from filename for cleaner link
+                const linkName = result.fileName.replace(/\.md$/i, '');
+
+                // Construct replacement task
+                // We remove reminder properties from the list item since they are now in the file
+                const newProps = { ...properties };
+                delete newProps[REMINDER_PROPERTY_KEY];
+                delete newProps[RECURRENT_PROPERTY_KEY];
+                delete newProps[ALARM_PROPERTY_KEY];
+                delete newProps[PERSISTENT_PROPERTY_KEY];
+
+                const updatedTask: RichTask = {
+                    title: `[[${linkName}]]`,
+                    status,
+                    completed: status === 'x',
+                    properties: newProps,
+                    tags, // Keep tags on list item too? Yes, useful for filtering.
+                    indentation: task?.indentation || '',
+                    originalLine: task?.originalLine || '',
+                };
+                onSave(updatedTask);
+                return;
+            } else {
+                 Alert.alert("Error", "Failed to create reminder file.");
+                 return;
+            }
         }
 
         const updatedTask: RichTask = {

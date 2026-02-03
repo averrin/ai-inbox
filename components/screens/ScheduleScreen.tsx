@@ -814,26 +814,26 @@ export default function ScheduleScreen() {
                                 (async () => {
                                     try {
                                         if (currentEditingReminder.isNew) {
-                                            const newUri = await createStandaloneReminder(
+                                            const result = await createStandaloneReminder(
                                                 data.date.toISOString(),
                                                 data.title,
                                                 data.recurrence,
                                                 data.alarm,
                                                 data.persistent
                                             );
-                                            console.log('[ScheduleScreen] Created new standalone reminder:', newUri);
+                                            console.log('[ScheduleScreen] Created new standalone reminder:', result);
 
                                             // Update cache with real URI and remove isNew flag immediately
                                             // This prevents "rescheduling creates new reminder" bug if user edits again before sync
-                                            if (newUri) {
+                                            if (result) {
                                                 const { cachedReminders, setCachedReminders } = useSettingsStore.getState();
                                                 const updatedCache = cachedReminders.map((r: any) => {
                                                     if (r.fileUri === currentEditingReminder.fileUri) {
                                                         return {
                                                             ...r,
-                                                            fileUri: newUri,
+                                                            fileUri: result.uri,
                                                             isNew: false,
-                                                            fileName: newUri.split('/').pop() || r.fileName
+                                                            fileName: result.fileName
                                                         };
                                                     }
                                                     return r;
@@ -847,8 +847,8 @@ export default function ScheduleScreen() {
                                                             ...e,
                                                             originalEvent: {
                                                                 ...e.originalEvent,
-                                                                fileUri: newUri,
-                                                                fileName: newUri.split('/').pop() || 'reminder.md',
+                                                                fileUri: result.uri,
+                                                                fileName: result.fileName,
                                                                 isNew: false
                                                             }
                                                         };
