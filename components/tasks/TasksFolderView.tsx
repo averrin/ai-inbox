@@ -55,18 +55,33 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
 
     const filteredTasks = useMemo(() => {
         return tasks.filter(task => {
-            const matchesStatus = task.completed === showCompleted;
+            const isDone = task.status === 'x' || task.status === '-';
+            const matchesStatus = isDone === showCompleted;
             const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase());
             return matchesStatus && matchesSearch;
         });
     }, [tasks, search, showCompleted]);
 
+    const tasksWithGroups = useMemo(() => {
+        return filteredTasks.map((task, index) => {
+            const isFirstInFile = index === 0 || filteredTasks[index - 1].filePath !== task.filePath;
+            const isLastInFile = index === filteredTasks.length - 1 || filteredTasks[index + 1].filePath !== task.filePath;
+            const isSingleInFile = isFirstInFile && isLastInFile;
+            return { 
+                ...task, 
+                isFirstInFile, 
+                isLastInFile,
+                showGuide: !isSingleInFile
+            };
+        });
+    }, [filteredTasks]);
+
     const handleToggleTask = async (task: TaskWithSource) => {
-        const updatedTask: RichTask = { ...task, completed: !task.completed };
+        const newStatus = task.status === 'x' ? ' ' : 'x';
+        const updatedTask: RichTask = { ...task, status: newStatus, completed: newStatus === 'x' };
         
-        // Optimistic UI update
         setTasks(prev => prev.map(t => 
-            (t.filePath === task.filePath && t.title === task.title) ? { ...t, completed: !t.completed } : t
+            (t.fileUri === task.fileUri && t.originalLine === task.originalLine) ? { ...t, status: newStatus, completed: newStatus === 'x', originalLine: serializeTaskLine(updatedTask) } : t
         ));
 
         try {
@@ -95,7 +110,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
         try {
             await TaskService.syncTaskUpdate(vaultUri, editingTask, updatedTask);
             setTasks(prev => prev.map(t => 
-                (t.filePath === editingTask.filePath && t.title === editingTask.title) ? { ...t, ...updatedTask } : t
+                (t.fileUri === editingTask.fileUri && t.originalLine === editingTask.originalLine) ? { ...t, ...updatedTask, originalLine: serializeTaskLine(updatedTask) } : t
             ));
             setIsModalVisible(false);
             setEditingTask(null);
@@ -131,6 +146,49 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
         );
     };
 
+    const handleRemoveCompleted = async () => {
+        const completedTasks = tasks.filter(t => t.completed);
+        if (completedTasks.length === 0) {
+            Toast.show({ type: 'info', text1: 'No completed tasks to remove' });
+            return;
+        }
+
+        Alert.alert(
+            "Clear Completed",
+            `Are you sure you want to remove all ${completedTasks.length} completed tasks from their files?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                { 
+                    text: "Clear", 
+                    style: "destructive",
+                    onPress: async () => {
+                        setIsLoading(true);
+                        try {
+                            // Group by fileUri to avoid reading/writing same file multiple times
+                            const byFile = completedTasks.reduce((acc, task) => {
+                                if (!acc[task.fileUri]) acc[task.fileUri] = [];
+                                acc[task.fileUri].push(task);
+                                return acc;
+                            }, {} as Record<string, TaskWithSource[]>);
+
+                            for (const [fileUri, tasksInFile] of Object.entries(byFile)) {
+                                await TaskService.syncBulkDeletion(vaultUri!, tasksInFile);
+                            }
+
+                            setTasks(prev => prev.filter(t => !t.completed));
+                            Toast.show({ type: 'success', text1: `Cleared ${completedTasks.length} tasks` });
+                        } catch (e) {
+                            console.error('[handleRemoveCompleted] Failed', e);
+                            Toast.show({ type: 'error', text1: 'Bulk removal failed' });
+                        } finally {
+                            setIsLoading(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     if (isLoading && tasks.length === 0) {
         return (
             <View className="flex-1 justify-center items-center bg-slate-950">
@@ -140,16 +198,17 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
     }
 
     return (
-        <View className="flex-1 bg-slate-950">
+        <View className="flex-1 bg-transparent">
             <TasksFilterPanel 
                 search={search}
                 setSearch={setSearch}
                 showCompleted={showCompleted}
                 setShowCompleted={setShowCompleted}
+                onRemoveCompleted={handleRemoveCompleted}
             />
 
             <FlatList
-                data={filteredTasks}
+                data={tasksWithGroups}
                 keyExtractor={(item, index) => `${item.filePath}-${index}`}
                 renderItem={({ item }) => (
                     <RichTaskItem
@@ -157,7 +216,10 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                         onToggle={() => handleToggleTask(item)}
                         onEdit={() => handleEditTask(item)}
                         onDelete={() => handleDeleteTask(item)}
-                        subtitle={`File: ${item.fileName}`}
+                        fileName={item.fileName}
+                        showGuide={item.showGuide}
+                        isFirstInFile={item.isFirstInFile}
+                        isLastInFile={item.isLastInFile}
                     />
                 )}
                 contentContainerStyle={{ padding: 16 }}
@@ -179,7 +241,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                 <TaskEditModal
                     visible={isModalVisible}
                     task={editingTask}
-                    onClose={() => {
+                    onCancel={() => {
                         setIsModalVisible(false);
                         setEditingTask(null);
                     }}

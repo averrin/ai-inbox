@@ -6,11 +6,12 @@ import { readVaultStructure, checkDirectoryExists } from '../utils/saf';
 interface CachedFile {
     mtime: number;
     display: string;
+    frontmatterKeys?: string[];
 }
 
 interface VaultState {
     structure: string;
-    metadataCache: Record<string, CachedFile>; // path -> { mtime, display }
+    metadataCache: Record<string, CachedFile>; // path -> { mtime, display, frontmatterKeys }
     lastUpdated: number;
     isUpdating: boolean;
     refreshStructure: (vaultUri: string, contextRoot?: string) => Promise<void>;

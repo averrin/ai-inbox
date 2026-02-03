@@ -73,9 +73,12 @@ export default function TasksScreen() {
     }
 
     return (
-        <Layout>
-            <View className="flex-1">
+        <Layout fullBleed={true}>
+            <View className="flex-1 bg-transparent">
                 <TopTab.Navigator
+                    style={{ backgroundColor: 'transparent' }}
+                    // @ts-ignore
+                    sceneContainerStyle={{ backgroundColor: 'transparent' }}
                     screenOptions={{
                         tabBarStyle: {
                             backgroundColor: '#0f172a',

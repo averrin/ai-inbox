@@ -82,6 +82,7 @@ export class TaskService {
                                         ...parsed,
                                         filePath: `${path}/${name}`,
                                         fileName: name,
+                                        fileUri: childUri,
                                     });
                                 }
                             });
@@ -102,14 +103,9 @@ export class TaskService {
      */
     static async syncTaskUpdate(vaultUri: string, task: TaskWithSource, updatedTask: RichTask): Promise<void> {
         try {
-            const content = await readFileContent(vaultUri, task.filePath);
+            const content = await StorageAccessFramework.readAsStringAsync(task.fileUri);
             const newContent = updateTaskInText(content, task, updatedTask);
-
-            const pathParts = task.filePath.split('/');
-            const fileName = pathParts.pop()!;
-            const folderPath = pathParts.join('/');
-
-            await saveToVault(vaultUri, fileName, newContent, folderPath);
+            await StorageAccessFramework.writeAsStringAsync(task.fileUri, newContent);
         } catch (e) {
             console.error(`[TaskService] Failed to sync update for ${task.title}`, e);
             throw e;
@@ -121,16 +117,30 @@ export class TaskService {
      */
     static async syncTaskDeletion(vaultUri: string, task: TaskWithSource): Promise<void> {
         try {
-            const content = await readFileContent(vaultUri, task.filePath);
+            const content = await StorageAccessFramework.readAsStringAsync(task.fileUri);
             const newContent = removeTaskFromText(content, task);
-
-            const pathParts = task.filePath.split('/');
-            const fileName = pathParts.pop()!;
-            const folderPath = pathParts.join('/');
-
-            await saveToVault(vaultUri, fileName, newContent, folderPath);
+            await StorageAccessFramework.writeAsStringAsync(task.fileUri, newContent);
         } catch (e) {
             console.error(`[TaskService] Failed to sync deletion for ${task.title}`, e);
+            throw e;
+        }
+    }
+
+    static async syncBulkDeletion(vaultUri: string, tasks: TaskWithSource[]) {
+        if (tasks.length === 0) return;
+        const fileUri = tasks[0].fileUri;
+
+        try {
+            const content = await StorageAccessFramework.readAsStringAsync(fileUri);
+            let updatedContent = content;
+
+            for (const task of tasks) {
+                updatedContent = removeTaskFromText(updatedContent, task);
+            }
+
+            await StorageAccessFramework.writeAsStringAsync(fileUri, updatedContent);
+        } catch (e) {
+            console.error('[TaskService] Bulk deletion failed', e);
             throw e;
         }
     }

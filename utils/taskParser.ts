@@ -1,5 +1,6 @@
 export interface RichTask {
     indentation: string;
+    status: string; // ' ', 'x', '/', '-', '?', '>'
     completed: boolean;
     title: string;
     properties: Record<string, string>;
@@ -7,7 +8,7 @@ export interface RichTask {
     originalLine: string;
 }
 
-const TASK_REGEX = /^(\s*)-\s\[([ x])\]\s+(.*)$/;
+const TASK_REGEX = /^(\s*)-\s\[([ x\/\-\? >])\]\s+(.*)$/;
 const PROPERTY_REGEX = /\[([^:\]]+)::\s*([^\]]+)\]/g;
 const TAG_REGEX = /#([^\s#\[\]]+)/g;
 
@@ -18,8 +19,8 @@ export function parseTaskLine(line: string): RichTask | null {
     const match = line.match(TASK_REGEX);
     if (!match) return null;
 
-    const [, indentation, statusChar, fullContent] = match;
-    const completed = statusChar === 'x';
+    const [, indentation, status, fullContent] = match;
+    const completed = status === 'x';
 
     let title = fullContent;
     const properties: Record<string, string> = {};
@@ -45,6 +46,7 @@ export function parseTaskLine(line: string): RichTask | null {
 
     return {
         indentation,
+        status,
         completed,
         title,
         properties,
@@ -57,7 +59,7 @@ export function parseTaskLine(line: string): RichTask | null {
  * Serializes a RichTask object back into a markdown line.
  */
 export function serializeTaskLine(task: RichTask): string {
-    const status = task.completed ? 'x' : ' ';
+    const status = task.status;
     let content = task.title;
 
     // Append properties
