@@ -31,7 +31,7 @@ export const mergeDuplicateEvents = (events: Event[], priorityCalendarId?: strin
                 console.log(`[EventMerge] -> SWAPPING for priority calendar: ${event.title}`);
                 uniqueEventsMap.set(key, event);
             } else {
-                console.log(`[EventMerge] -> Keeping existing (New is not priority): ${event.title} (Existing: ${existingCalId})`);
+                // console.log(`[EventMerge] -> Keeping existing (New is not priority): ${event.title} (Existing: ${existingCalId})`);
             }
         }
     }

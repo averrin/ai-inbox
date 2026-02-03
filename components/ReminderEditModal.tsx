@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, TextInput, Platform, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, TextInput, Platform, Switch, Pressable } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import Toast from 'react-native-toast-message';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useReminderModal } from '../utils/reminderModalContext';
@@ -29,7 +31,8 @@ interface ReminderEditModalProps {
     enableTitle?: boolean;
     onSave: (data: ReminderSaveData) => void;
     onCancel: () => void;
-    onDelete?: () => void;
+    onDelete?: () => void;           // Long press: remove reminder only
+    onDeleteWithNote?: () => void;    // Default press: remove reminder + note
     onShow?: () => void;
     timeFormat: '12h' | '24h';
 }
@@ -47,6 +50,7 @@ export function ReminderEditModal({
     onSave,
     onCancel,
     onDelete,
+    onDeleteWithNote,
     onShow,
     timeFormat
 }: ReminderEditModalProps) {
@@ -153,16 +157,38 @@ export function ReminderEditModal({
                         <Text className="text-white text-xl font-bold">
                             {headerTitle}
                         </Text>
-                        {onDelete && !isNew && (
-                            <TouchableOpacity
+                        {(onDelete || onDeleteWithNote) && !isNew && (
+                            <Pressable
                                 onPress={() => {
-                                    // Let parent handle confirmation or logic
-                                    onDelete();
+                                    if (onDeleteWithNote) {
+                                        onDeleteWithNote();
+                                        Toast.show({
+                                            type: 'success',
+                                            text1: 'Reminder & note removed',
+                                            position: 'bottom',
+                                            visibilityTime: 2000,
+                                        });
+                                    } else if (onDelete) {
+                                        onDelete();
+                                    }
                                 }}
+                                onLongPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                    if (onDelete) {
+                                        onDelete();
+                                        Toast.show({
+                                            type: 'info',
+                                            text1: 'Reminder removed (note kept)',
+                                            position: 'bottom',
+                                            visibilityTime: 2000,
+                                        });
+                                    }
+                                }}
+                                delayLongPress={500}
                                 className="bg-red-500/20 p-2 rounded-full"
                             >
                                 <Ionicons name="trash-outline" size={20} color="#ef4444" />
-                            </TouchableOpacity>
+                            </Pressable>
                         )}
                     </View>
 

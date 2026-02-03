@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { useMoodStore } from '../store/moodStore';
 import { useHabitStore } from '../store/habitStore';
+import { ForecastSection } from './ForecastSection';
 
 interface MoodEvaluationModalProps {
     visible: boolean;
@@ -87,6 +88,8 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
                             <Ionicons name="close" size={20} color="#94a3b8" />
                         </TouchableOpacity>
                     </View>
+
+                    <ForecastSection date={date} />
 
                     <Text className="text-indigo-200 mb-3 font-medium">How was your day?</Text>
 

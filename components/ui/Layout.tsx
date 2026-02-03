@@ -9,7 +9,7 @@ export function Layout({ children, scrollable = false }: { children: React.React
       colors={['#0f172a', '#1e1b4b', '#312e81']}
       className="flex-1"
     >
-      <SafeAreaView className="flex-1 px-4 pt-2">
+      <SafeAreaView className="flex-1 px-4 pt-2" edges={['top', 'left', 'right']}>
          {children}
       </SafeAreaView>
     </LinearGradient>
