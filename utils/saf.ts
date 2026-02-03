@@ -389,3 +389,44 @@ export async function deleteFileByPath(vaultUri: string, relativePath: string): 
         return false;
     }
 }
+
+export async function getParentFolderUri(vaultUri: string, fileUri: string): Promise<string | null> {
+    try {
+        const fileDecoded = decodeURIComponent(fileUri);
+        const vaultDecoded = decodeURIComponent(vaultUri);
+
+        // SAF URI Heuristic: .../document/<ID>
+        const getDocId = (uri: string) => {
+            const parts = uri.split('/document/');
+            return parts.length > 1 ? parts[1] : null;
+        };
+
+        const fileId = getDocId(fileDecoded);
+        const vaultId = getDocId(vaultDecoded);
+
+        if (fileId && vaultId && fileId.startsWith(vaultId)) {
+            // Extract relative path from ID
+            let relativeId = fileId.substring(vaultId.length);
+            // Clean up separators (ids often use ':' or '/')
+            if (relativeId.startsWith(':')) relativeId = relativeId.substring(1);
+            if (relativeId.startsWith('/')) relativeId = relativeId.substring(1);
+
+            // Get directory path
+            const pathParts = relativeId.split('/');
+            // If it has parts, the last one is filename, rest is path
+            if (pathParts.length > 0) {
+                pathParts.pop(); // remove filename
+                const dirPath = pathParts.join('/');
+
+                if (!dirPath) return vaultUri; // It's in the root
+
+                // Need checkDirectoryExists (it is in this module)
+                return await checkDirectoryExists(vaultUri, dirPath);
+            }
+        }
+        return null;
+    } catch (e) {
+        console.warn('[SAF] Failed to resolve parent folder:', e);
+        return null;
+    }
+}

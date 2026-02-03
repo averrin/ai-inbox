@@ -8,6 +8,7 @@ import { useMoodStore } from '../store/moodStore';
 import { Platform } from 'react-native';
 import { scheduleNativeAlarm, stopNativeAlarm } from './alarmModule';
 import dayjs from 'dayjs';
+import { getParentFolderUri } from '../utils/saf';
 
 const REMINDER_TASK_NAME = 'BACKGROUND_REMINDER_CHECK';
 export const REMINDER_PROPERTY_KEY = 'reminder_datetime';
@@ -351,7 +352,8 @@ export async function createStandaloneReminder(
     alarm?: boolean,
     persistent?: number,
     additionalProps: Record<string, any> = {},
-    tags: string[] = []
+    tags: string[] = [],
+    siblingFileUri?: string
 ): Promise<{ uri: string, fileName: string } | null> {
     try {
         const { vaultUri, defaultReminderFolder, remindersScanFolder } = useSettingsStore.getState();
@@ -360,12 +362,24 @@ export async function createStandaloneReminder(
         let targetFolderUri = vaultUri;
         const { checkDirectoryExists } = await import('../utils/saf');
 
-        if (defaultReminderFolder && defaultReminderFolder.trim()) {
-            const folderUri = await checkDirectoryExists(vaultUri, defaultReminderFolder.trim());
-            if (folderUri) targetFolderUri = folderUri;
-        } else if (remindersScanFolder && remindersScanFolder.trim()) {
-            const folderUri = await checkDirectoryExists(vaultUri, remindersScanFolder.trim());
-            if (folderUri) targetFolderUri = folderUri;
+        // Prioritize sibling location
+        let foundSiblingFolder = false;
+        if (siblingFileUri) {
+            const parentUri = await getParentFolderUri(vaultUri, siblingFileUri);
+            if (parentUri) {
+                targetFolderUri = parentUri;
+                foundSiblingFolder = true;
+            }
+        }
+
+        if (!foundSiblingFolder) {
+            if (defaultReminderFolder && defaultReminderFolder.trim()) {
+                const folderUri = await checkDirectoryExists(vaultUri, defaultReminderFolder.trim());
+                if (folderUri) targetFolderUri = folderUri;
+            } else if (remindersScanFolder && remindersScanFolder.trim()) {
+                const folderUri = await checkDirectoryExists(vaultUri, remindersScanFolder.trim());
+                if (folderUri) targetFolderUri = folderUri;
+            }
         }
 
         const baseName = title || 'Reminder';

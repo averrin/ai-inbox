@@ -16,8 +16,10 @@ import {
     RECURRENT_PROPERTY_KEY,
     ALARM_PROPERTY_KEY,
     PERSISTENT_PROPERTY_KEY,
-    createStandaloneReminder
+    createStandaloneReminder,
+    updateReminder
 } from '../../services/reminderService';
+import { getParentFolderUri, findFile } from '../../utils/saf';
 
 interface TaskEditModalProps {
     visible: boolean;
@@ -137,7 +139,8 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                 alarm,
                 persistent,
                 extraProps,
-                tags
+                tags,
+                task?.fileUri
             );
 
             if (result) {
@@ -146,9 +149,10 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                 const linkName = result.fileName.replace(/\.md$/i, '');
 
                 // Construct replacement task
-                // We remove reminder properties from the list item since they are now in the file
+                // We keep REMINDER_PROPERTY_KEY for visual indicator in the list
+                // But remove config flags to avoid confusion/double-logic (though scan doesn't check list items)
                 const newProps = { ...properties };
-                delete newProps[REMINDER_PROPERTY_KEY];
+                // delete newProps[REMINDER_PROPERTY_KEY]; // Keep for indicator
                 delete newProps[RECURRENT_PROPERTY_KEY];
                 delete newProps[ALARM_PROPERTY_KEY];
                 delete newProps[PERSISTENT_PROPERTY_KEY];
@@ -167,6 +171,49 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
             } else {
                  Alert.alert("Error", "Failed to create reminder file.");
                  return;
+            }
+        } else if (isWikiLink && vaultUri && task?.fileUri) {
+            // Check if we need to sync reminder changes to the linked file
+            const match = title.trim().match(/^\[\[(.*)\]\]$/);
+            const linkedFileName = match ? match[1] : null;
+
+            if (linkedFileName) {
+                try {
+                    // Try to resolve linked file in sibling folder first
+                    const parentUri = await getParentFolderUri(vaultUri, task.fileUri);
+                    let linkedFileUri = null;
+
+                    if (parentUri) {
+                        linkedFileUri = await findFile(parentUri, linkedFileName + '.md');
+                    }
+
+                    // Fallback to vault root if not found
+                    if (!linkedFileUri) {
+                        linkedFileUri = await findFile(vaultUri, linkedFileName + '.md');
+                    }
+
+                    if (linkedFileUri) {
+                        if (hasReminder) {
+                            const reminderDate = properties[REMINDER_PROPERTY_KEY];
+                            const recurrence = properties[RECURRENT_PROPERTY_KEY];
+                            const alarm = properties[ALARM_PROPERTY_KEY] === 'true';
+                            const persistent = properties[PERSISTENT_PROPERTY_KEY] ? parseInt(properties[PERSISTENT_PROPERTY_KEY]) : undefined;
+
+                            await updateReminder(
+                                linkedFileUri,
+                                reminderDate,
+                                recurrence,
+                                alarm,
+                                persistent
+                            );
+                        } else {
+                            // Reminder removed - clear it from file
+                            await updateReminder(linkedFileUri, null);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Failed to sync reminder to linked file:', e);
+                }
             }
         }
 
