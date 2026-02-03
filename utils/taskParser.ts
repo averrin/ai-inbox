@@ -8,8 +8,8 @@ export interface RichTask {
 }
 
 const TASK_REGEX = /^(\s*)-\s\[([ x])\]\s+(.*)$/;
-const PROPERTY_REGEX = /\[([\w-]+)::\s*([^\]]+)\]/g;
-const TAG_REGEX = /#([\w-]+)/g;
+const PROPERTY_REGEX = /\[([^:\]]+)::\s*([^\]]+)\]/g;
+const TAG_REGEX = /#([^\s#\[\]]+)/g;
 
 /**
  * Parses a single line of markdown text into a RichTask object if it matches the task pattern.
@@ -40,8 +40,8 @@ export function parseTaskLine(line: string): RichTask | null {
         title = title.replace(m[0], '');
     }
 
-    // Clean up title (remove extra whitespace left by removals)
-    title = title.trim().replace(/\s+/g, ' ');
+    // Clean up title (remove extra whitespace left by removals, but keep it minimal)
+    title = title.trim();
 
     return {
         indentation,
@@ -90,9 +90,15 @@ export function updateTaskInText(originalText: string, oldTask: RichTask, newTas
     const oldLine = oldTask.originalLine;
     const newLine = serializeTaskLine(newTask);
 
-    const index = lines.indexOf(oldLine);
+    // Find the line. We use trimEnd() to avoid issues with different line endings (\r\n vs \n)
+    const oldLineTrimmed = oldLine.trimEnd();
+    const index = lines.findIndex(l => l.trimEnd() === oldLineTrimmed);
+
     if (index !== -1) {
-        lines[index] = newLine;
+        // preserve the original line ending style if possible
+        const originalLine = lines[index];
+        const hasCR = originalLine.endsWith('\r');
+        lines[index] = newLine + (hasCR ? '\r' : '');
     }
 
     return lines.join('\n');
@@ -105,7 +111,9 @@ export function removeTaskFromText(originalText: string, task: RichTask): string
     const lines = originalText.split('\n');
     const oldLine = task.originalLine;
 
-    const index = lines.indexOf(oldLine);
+    const oldLineTrimmed = oldLine.trimEnd();
+    const index = lines.findIndex(l => l.trimEnd() === oldLineTrimmed);
+
     if (index !== -1) {
         lines.splice(index, 1);
     }

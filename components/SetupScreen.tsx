@@ -20,12 +20,13 @@ import { LunchSettings } from './LunchSettings';
 import { WeatherSettings } from './WeatherSettings';
 import { MoodSettings } from './MoodSettings';
 import { HabitSettings } from './HabitSettings';
+import { TasksSettings } from './TasksSettings';
 import { scanForReminders } from '../services/reminderService';
 import { useEventTypesStore } from '../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../utils/debugUtils';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'habits' | 'google-calendar' | 'reminders' | 'weather' | 'mood' | 'advanced';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'habits' | 'google-calendar' | 'reminders' | 'tasks' | 'weather' | 'mood' | 'advanced';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -513,6 +514,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "Client IDs & Account"
             )}
             {renderMenuButton(
+                "Tasks Dashboard",
+                "list-outline",
+                () => setActiveSection('tasks'),
+                "Configure task aggregation"
+            )}
+            {renderMenuButton(
                 "Reminders",
                 "alarm-outline",
                 () => setActiveSection('reminders'),
@@ -693,6 +700,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("Google Integration", () => setActiveSection('root'))}
                                 <View className="px-0">{renderGoogleCalendarSettings()}</View>
+                            </>
+                        )}
+                        {activeSection === 'tasks' && (
+                            <>
+                                {renderHeader("Tasks Configuration", () => setActiveSection('root'))}
+                                <View className="px-0"><TasksSettings /></View>
                             </>
                         )}
                         {activeSection === 'reminders' && (
