@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 export default function Home() {
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent({
     debug: false,
-    resetOnBackground: false,
+    resetOnBackground: true,
   });
 
   const [localShareIntent, setLocalShareIntent] = useState<ShareIntent | null>(null);
