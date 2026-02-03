@@ -9,6 +9,14 @@ import { useSettingsStore } from '../../store/settings';
 import { TaskWithSource } from '../../store/tasks';
 import { useVaultStore } from '../../services/vaultService';
 import { openInObsidian } from '../../utils/obsidian';
+import { ReminderItem } from '../ui/ReminderItem';
+import { ReminderEditModal, ReminderSaveData } from '../ReminderEditModal';
+import {
+    REMINDER_PROPERTY_KEY,
+    RECURRENT_PROPERTY_KEY,
+    ALARM_PROPERTY_KEY,
+    PERSISTENT_PROPERTY_KEY
+} from '../../services/reminderService';
 
 interface TaskEditModalProps {
     visible: boolean;
@@ -25,6 +33,7 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
     const [status, setStatus] = useState(' ');
     const [properties, setProperties] = useState<Record<string, any>>({});
     const [tags, setTags] = useState<string[]>([]);
+    const [showReminderModal, setShowReminderModal] = useState(false);
     
     // Derived from settings for autocomplete
     const keySuggestions = Object.keys(propertyConfig);
@@ -55,6 +64,45 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
     const handleRemoveTag = (index: number) => {
         setTags(tags.filter((_, i) => i !== index));
     };
+
+    const handleReminderSave = (data: ReminderSaveData) => {
+        const newProps = { ...properties };
+        newProps[REMINDER_PROPERTY_KEY] = data.date.toISOString();
+
+        if (data.recurrence) {
+            newProps[RECURRENT_PROPERTY_KEY] = data.recurrence;
+        } else {
+            delete newProps[RECURRENT_PROPERTY_KEY];
+        }
+
+        if (data.alarm) {
+            newProps[ALARM_PROPERTY_KEY] = 'true';
+        } else {
+            delete newProps[ALARM_PROPERTY_KEY];
+        }
+
+        if (data.persistent) {
+            newProps[PERSISTENT_PROPERTY_KEY] = data.persistent.toString();
+        } else {
+            delete newProps[PERSISTENT_PROPERTY_KEY];
+        }
+
+        setProperties(newProps);
+        setShowReminderModal(false);
+    };
+
+    const handleReminderDelete = () => {
+        const newProps = { ...properties };
+        delete newProps[REMINDER_PROPERTY_KEY];
+        delete newProps[RECURRENT_PROPERTY_KEY];
+        delete newProps[ALARM_PROPERTY_KEY];
+        delete newProps[PERSISTENT_PROPERTY_KEY];
+        setProperties(newProps);
+    };
+
+    const reminderDate = properties[REMINDER_PROPERTY_KEY]
+        ? new Date(properties[REMINDER_PROPERTY_KEY])
+        : undefined;
 
     const handleSave = () => {
         if (!title.trim()) {
@@ -153,6 +201,38 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                         </View>
 
                         <View className="mb-4">
+                            <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Reminder</Text>
+                            {reminderDate ? (
+                                <View className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                                    <ReminderItem
+                                        reminder={{
+                                            fileUri: task?.fileUri || '',
+                                            fileName: title,
+                                            title: title,
+                                            reminderTime: properties[REMINDER_PROPERTY_KEY],
+                                            recurrenceRule: properties[RECURRENT_PROPERTY_KEY],
+                                            alarm: properties[ALARM_PROPERTY_KEY] === 'true',
+                                            persistent: properties[PERSISTENT_PROPERTY_KEY] ? parseInt(properties[PERSISTENT_PROPERTY_KEY]) : undefined,
+                                            content: title
+                                        }}
+                                        timeFormat="12h"
+                                        onEdit={() => setShowReminderModal(true)}
+                                        onDelete={handleReminderDelete}
+                                        showActions={true}
+                                    />
+                                </View>
+                            ) : (
+                                <TouchableOpacity
+                                    onPress={() => setShowReminderModal(true)}
+                                    className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex-row items-center justify-center border-dashed"
+                                >
+                                    <Ionicons name="alarm-outline" size={20} color="#94a3b8" />
+                                    <Text className="text-slate-400 ml-2 font-medium">Add Reminder</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        <View className="mb-4">
                             <PropertyEditor
                                 label="Properties"
                                 properties={properties}
@@ -188,6 +268,19 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                     </View>
                 </View>
             </KeyboardAvoidingView>
+
+            <ReminderEditModal
+                visible={showReminderModal}
+                initialDate={reminderDate}
+                initialRecurrence={properties[RECURRENT_PROPERTY_KEY]}
+                initialAlarm={properties[ALARM_PROPERTY_KEY] === 'true'}
+                initialPersistent={properties[PERSISTENT_PROPERTY_KEY] ? parseInt(properties[PERSISTENT_PROPERTY_KEY]) : undefined}
+                initialTitle={title}
+                enableTitle={false}
+                onSave={handleReminderSave}
+                onCancel={() => setShowReminderModal(false)}
+                timeFormat="12h"
+            />
         </Modal>
     );
 }
