@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Calendar as BigCalendar, CalendarRef } from '../ui/calendar';
 import dayjs from 'dayjs';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { getCalendarEvents, ensureCalendarPermissions } from '../../services/cal
 import { EventContextModal } from '../EventContextModal';
 import { DateRuler } from '../DateRuler';
 import * as Calendar from 'expo-calendar';
+import * as FileSystem from 'expo-file-system';
 import { useFocusEffect } from '@react-navigation/native';
 import { useReminderModal } from '../../utils/reminderModalContext';
 import { ScheduleEvent } from './ScheduleEvent';
@@ -23,7 +24,7 @@ import { ReminderEditModal, ReminderSaveData } from '../ReminderEditModal';
 import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder } from '../../services/reminderService';
 import { EventCreateModal, EventSaveData } from '../EventCreateModal';
 import { createCalendarEvent, getWritableCalendars } from '../../services/calendarService';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+
 import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../services/weatherService';
 import { useMoodStore } from '../../store/moodStore';
 import { MoodEvaluationModal } from '../MoodEvaluationModal';
@@ -35,7 +36,8 @@ export default function ScheduleScreen() {
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
     const { height: windowHeight } = useWindowDimensions();
-    const tabBarHeight = useBottomTabBarHeight();
+    const insets = useSafeAreaInsets();
+    const tabBarHeight = 62 + insets.bottom; // Tab bar height including safe area
     // Adjusted height accounting for tab bar
     const height = windowHeight - tabBarHeight;
     const [events, setEvents] = useState<any[]>([]);
@@ -70,6 +72,24 @@ export default function ScheduleScreen() {
             console.error("Failed to delete reminder:", e);
             alert("Failed to delete reminder");
             // Revert state if needed? (Ideally we reload)
+            fetchEvents();
+        }
+    };
+
+    const handleDeleteReminderWithNote = async (reminder: Reminder) => {
+        const targetUri = reminder.fileUri;
+        
+        // Optimistic Delete
+        setCachedReminders(cachedReminders.filter((r: any) => r.fileUri !== targetUri));
+        setEvents(prev => prev.filter(e => e.originalEvent?.fileUri !== targetUri));
+        setEditingReminder(null);
+
+        // Async Delete: note file + reminder
+        try {
+            await FileSystem.deleteAsync(targetUri, { idempotent: true });
+        } catch (e) {
+            console.error("Failed to delete note file:", e);
+            alert("Failed to delete note");
             fetchEvents();
         }
     };
@@ -715,9 +735,17 @@ export default function ScheduleScreen() {
                         timeFormat={timeFormat}
                         onCancel={() => setEditingReminder(null)}
                         onDelete={() => {
-                            // Show confirmation if it's an existing reminder
+                            // Long press: Remove reminder only (keep note)
                             if (editingReminder && !editingReminder.isNew) {
                                 handleDeleteReminder(editingReminder);
+                            } else {
+                                setEditingReminder(null);
+                            }
+                        }}
+                        onDeleteWithNote={() => {
+                            // Default tap: Remove reminder AND note
+                            if (editingReminder && !editingReminder.isNew) {
+                                handleDeleteReminderWithNote(editingReminder);
                             } else {
                                 setEditingReminder(null);
                             }
