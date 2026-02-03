@@ -11,6 +11,9 @@ import { URLMetadata } from '../../utils/urlMetadata';
 import { useSettingsStore } from '../../store/settings';
 import { SimpleTextEditor } from '../SimpleTextEditor';
 import { ReminderItem } from '../ui/ReminderItem';
+import { RichTaskItem } from '../markdown/RichTaskItem';
+import { TaskEditModal } from '../markdown/TaskEditModal';
+import { findTasks, updateTaskInText, RichTask, serializeTaskLine, removeTaskFromText } from '../../utils/taskParser';
 
 interface InputScreenProps {
     inputText: string;
@@ -70,6 +73,37 @@ export function InputScreen({
     onRemoveReminder,
 }: InputScreenProps) {
     const { editorType, timeFormat } = useSettingsStore();
+
+    // Rich Task State
+    const [editingTask, setEditingTask] = React.useState<RichTask | null>(null);
+    const [isTaskModalVisible, setIsTaskModalVisible] = React.useState(false);
+
+    const tasks = React.useMemo(() => findTasks(inputText), [inputText]);
+
+    const handleToggleTask = (task: RichTask) => {
+        const updatedTask = { ...task, completed: !task.completed };
+        const newText = updateTaskInText(inputText, task, updatedTask);
+        onInputTextChange(newText);
+    };
+
+    const handleEditTask = (task: RichTask) => {
+        setEditingTask(task);
+        setIsTaskModalVisible(true);
+    };
+
+    const handleDeleteTask = (task: RichTask) => {
+        const newText = removeTaskFromText(inputText, task);
+        onInputTextChange(newText);
+    };
+
+    const handleSaveTask = (updatedTask: RichTask) => {
+        if (editingTask) {
+            const newText = updateTaskInText(inputText, editingTask, updatedTask);
+            onInputTextChange(newText);
+        }
+        setIsTaskModalVisible(false);
+        setEditingTask(null);
+    };
     return (
         <Layout>
             <KeyboardAvoidingView 
@@ -142,6 +176,23 @@ export function InputScreen({
                                     onRemove={onRemoveLink ? () => onRemoveLink(index) : undefined}
                                     showRemove={true}
                                 />
+                            ))}
+                         </View>
+                    )}
+
+                    {/* Rich Task Items */}
+                    {tasks.length > 0 && (
+                        <View className="mb-4">
+                            <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Tasks</Text>
+                            {tasks.map((task, index) => (
+                                <View key={`${task.title}-${index}`} className="mb-1">
+                                    <RichTaskItem 
+                                        task={task}
+                                        onToggle={() => handleToggleTask(task)}
+                                        onEdit={() => handleEditTask(task)}
+                                        onDelete={() => handleDeleteTask(task)}
+                                    />
+                                </View>
                             ))}
                         </View>
                     )}
@@ -223,13 +274,20 @@ export function InputScreen({
                         />
                     )}
                     <View className="h-4" />
-                    <Button
+                     <Button
                         title="Cancel"
                         onPress={onCancel}
                         variant="secondary"
                     />
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            <TaskEditModal 
+                visible={isTaskModalVisible}
+                task={editingTask}
+                onSave={handleSaveTask}
+                onCancel={() => setIsTaskModalVisible(false)}
+            />
         </Layout>
     );
 }

@@ -47,8 +47,6 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
     // Edit state
     const [title, setTitle] = useState('');
     const [tags, setTags] = useState<string[]>([]);
-    const [newTag, setNewTag] = useState('');
-    const [showTagModal, setShowTagModal] = useState(false);
     const [filename, setFilename] = useState('');
     const [folder, setFolder] = useState('');
     const [body, setBody] = useState('');
@@ -319,18 +317,9 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         }
     };
 
-    const handleAddTag = () => setShowTagModal(true);
-
-    const handleTagModalClose = () => {
-        setShowTagModal(false);
-        setNewTag('');
-    };
-
-    const handleTagModalConfirm = () => {
-        if (newTag.trim()) {
-            setTags([...tags, newTag.trim()]);
-            setNewTag('');
-            setShowTagModal(false);
+    const handleAddTag = (tag: string) => {
+        if (tag.trim()) {
+            setTags(prev => [...prev, tag.trim()]);
         }
     };
 
@@ -944,43 +933,41 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         const hasContent = !!(shareIntent?.text || shareIntent?.webUrl || (shareIntent?.files && shareIntent.files.length > 0));
 
         if (!hasContent) {
-            setLoading(false);
+            // Only stop loading if we don't have content and aren't already analyzing
+            if (!analyzingRef.current) {
+                setLoading(false);
+            }
             return;
         }
 
         // Wait for state initialization to complete to avoid analyzing with stale state
         if (!stateInitializedRef.current) {
-            // Schedule a retry after state has initialized
             const timer = setTimeout(() => {
-                // Double-check after timeout
                 if (stateInitializedRef.current) {
                     const isCleanInput = inputMode && !inputText && attachedFiles.length === 0;
                     if (!inputMode || isCleanInput) {
                         if (isCleanInput) setInputMode(false);
-                        const textToAnalyze = (shareIntent?.text || shareIntent?.webUrl) ?? '';
-                        analyze(textToAnalyze);
+                        analyze((shareIntent?.text || shareIntent?.webUrl) ?? '');
                     } else {
                         setLoading(false);
                     }
                 }
-            }, 100); // Small delay to allow state to sync
+            }, 50);
             return () => clearTimeout(timer);
         }
 
         // Auto-analyze when share content is present and we haven't manually entered input mode
-        // The state (inputText, attachedFiles) is synced by the initialization effect above
+        // OR if content arrived and we were previously "clean" in input mode
         const isCleanInput = inputMode && !inputText && attachedFiles.length === 0;
 
         if (!inputMode || isCleanInput) {
+            console.log("[ProcessingScreen] Auto-triggering analysis, isCleanInput:", isCleanInput);
             if (isCleanInput) setInputMode(false);
-
-            // Analyze with the synced state
-            const textToAnalyze = (shareIntent?.text || shareIntent?.webUrl) ?? '';
-            analyze(textToAnalyze);
+            analyze((shareIntent?.text || shareIntent?.webUrl) ?? '');
         } else {
             setLoading(false);
         }
-    }, [shareIntent, inputText, attachedFiles, inputMode]);
+    }, [shareIntent, stateInitializedRef.current]);
 
 
 
@@ -1064,11 +1051,6 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                     }}
                     saving={saving}
                     vaultUri={vaultUri}
-                    showTagModal={showTagModal}
-                    newTag={newTag}
-                    onNewTagChange={setNewTag}
-                    onTagModalClose={handleTagModalClose}
-                    onTagModalConfirm={handleTagModalConfirm}
                     onRemoveIcon={handleRemoveIcon}
                     onIconChange={handleIconChange}
                     onRemoveFrontmatterKey={handleRemoveFrontmatterKey}
