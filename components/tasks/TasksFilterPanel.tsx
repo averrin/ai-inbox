@@ -9,6 +9,8 @@ interface TasksFilterPanelProps {
     setShowCompleted: (show: boolean) => void;
     onRemoveCompleted: () => void;
     onMergeTasks: () => void;
+    sortBy: string;
+    onToggleSort: () => void;
 }
 
 export function TasksFilterPanel({
@@ -18,6 +20,8 @@ export function TasksFilterPanel({
     setShowCompleted,
     onRemoveCompleted,
     onMergeTasks,
+    sortBy,
+    onToggleSort,
 }: TasksFilterPanelProps) {
     const [showMenu, setShowMenu] = useState(false);
     return (
@@ -54,6 +58,16 @@ export function TasksFilterPanel({
                     >
                         <Text className={`font-semibold ${showCompleted ? 'text-white' : 'text-slate-400'}`}>
                             Completed
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={onToggleSort}
+                        className="flex-row items-center px-3 py-2 rounded-lg border border-slate-700 bg-slate-800"
+                    >
+                        <Ionicons name="swap-vertical" size={16} color="#818cf8" />
+                        <Text className="text-slate-300 text-xs font-bold ml-1.5 uppercase tracking-tight">
+                            {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
                         </Text>
                     </TouchableOpacity>
                 </View>

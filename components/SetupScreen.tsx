@@ -298,13 +298,39 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             />
 
             {/* Open in Obsidian button */}
-            {promptPathInput && promptFileStatus === 'valid' && (
+            {promptPathInput && promptFileStatus === 'valid' && vaultUri && (
                 <View className="mt-2 mb-4">
                     <Button
                         title="📝 Open Prompt File in Obsidian"
                         onPress={async () => {
-                            if (!promptPathInput) return;
-                            await openInObsidian(promptPathInput, rootFolderInput);
+                            if (!promptPathInput || !vaultUri) return;
+                            
+                            // Determine full file URI
+                            const { findFile, findSubdirectory } = await import('../utils/saf');
+                            let baseUri = vaultUri;
+                            if (rootFolderInput && rootFolderInput.trim()) {
+                                const contextUri = await findSubdirectory(vaultUri, rootFolderInput.trim());
+                                if (contextUri) baseUri = contextUri;
+                            }
+                            
+                            // Reresolve parts if nesting
+                            let targetDirUri = baseUri;
+                            let filename = promptPathInput;
+                            if (promptPathInput.includes('/')) {
+                                const parts = promptPathInput.split('/').filter(p => p.trim());
+                                filename = parts.pop()!;
+                                if (parts.length > 0) {
+                                    const subDir = await findSubdirectory(baseUri, parts.join('/'));
+                                    if (subDir) targetDirUri = subDir;
+                                }
+                            }
+
+                            const fullFilePath = await findFile(targetDirUri, filename);
+                            if (fullFilePath) {
+                                await openInObsidian(vaultUri, fullFilePath);
+                            } else {
+                                Alert.alert("Error", "Could not resolve prompt file path");
+                            }
                         }}
                         variant="secondary"
                     />

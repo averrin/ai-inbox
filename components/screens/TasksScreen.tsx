@@ -6,6 +6,7 @@ import { Layout } from '../ui/Layout';
 import { useTasksStore } from '../../store/tasks';
 import { useSettingsStore } from '../../store/settings';
 import { TaskService, FolderGroup } from '../../services/taskService';
+import { useVaultStore } from '../../services/vaultService';
 import { TasksFolderView } from '../tasks/TasksFolderView';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -41,7 +42,11 @@ export default function TasksScreen() {
     useFocusEffect(
         useCallback(() => {
             loadFolders();
-        }, [loadFolders])
+            // Trigger vault structure refresh limited to tasksRoot for efficient property suggestions
+            if (vaultUri && tasksRoot) {
+                useVaultStore.getState().refreshStructure(vaultUri, tasksRoot);
+            }
+        }, [loadFolders, vaultUri, tasksRoot])
     );
 
     const renderEmptyState = () => (

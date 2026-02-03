@@ -1,5 +1,5 @@
 import { StorageAccessFramework } from 'expo-file-system/legacy';
-import { readFileContent, saveToVault, checkDirectoryExists } from '../utils/saf';
+import { readFileContent, saveToVault, checkDirectoryExists, writeSafe } from '../utils/saf';
 import { parseTaskLine, RichTask, updateTaskInText, removeTaskFromText, serializeTaskLine } from '../utils/taskParser';
 import { TaskWithSource } from '../store/tasks';
 
@@ -104,8 +104,9 @@ export class TaskService {
     static async syncTaskUpdate(vaultUri: string, task: TaskWithSource, updatedTask: RichTask): Promise<void> {
         try {
             const content = await StorageAccessFramework.readAsStringAsync(task.fileUri);
+            // ensure we use the content from the file to avoid stale references, but we already read it above.
             const newContent = updateTaskInText(content, task, updatedTask);
-            await StorageAccessFramework.writeAsStringAsync(task.fileUri, newContent);
+            await writeSafe(task.fileUri, newContent);
         } catch (e) {
             console.error(`[TaskService] Failed to sync update for ${task.title}`, e);
             throw e;
@@ -121,7 +122,7 @@ export class TaskService {
             const taskLine = serializeTaskLine(task);
             const newContent = content.endsWith('\n') ? content + taskLine + '\n' : content + '\n' + taskLine + '\n';
 
-            await StorageAccessFramework.writeAsStringAsync(fileUri, newContent);
+            await writeSafe(fileUri, newContent);
 
             return {
                 ...task,
@@ -140,7 +141,16 @@ export class TaskService {
         try {
             const content = await StorageAccessFramework.readAsStringAsync(task.fileUri);
             const newContent = removeTaskFromText(content, task);
-            await StorageAccessFramework.writeAsStringAsync(task.fileUri, newContent);
+
+            if (content === newContent) {
+                console.warn(`[TaskService] Task deletion had no effect: ${task.title}`);
+            }
+
+            // Always write if different, or if we want to ensure consistency. 
+            // Optimally we only write if changed.
+            if (content !== newContent) {
+                await writeSafe(task.fileUri, newContent);
+            }
         } catch (e) {
             console.error(`[TaskService] Failed to sync deletion for ${task.title}`, e);
             throw e;
@@ -149,20 +159,34 @@ export class TaskService {
 
     static async syncBulkDeletion(vaultUri: string, tasks: TaskWithSource[]) {
         if (tasks.length === 0) return;
-        const fileUri = tasks[0].fileUri;
 
-        try {
-            const content = await StorageAccessFramework.readAsStringAsync(fileUri);
-            let updatedContent = content;
+        // Group by file first to minimize IO
+        const tasksByFile = tasks.reduce((acc, task) => {
+            if (!acc[task.fileUri]) acc[task.fileUri] = [];
+            acc[task.fileUri].push(task);
+            return acc;
+        }, {} as Record<string, TaskWithSource[]>);
 
-            for (const task of tasks) {
-                updatedContent = removeTaskFromText(updatedContent, task);
+        for (const [fileUri, fileTasks] of Object.entries(tasksByFile)) {
+            try {
+                const content = await StorageAccessFramework.readAsStringAsync(fileUri);
+                let updatedContent = content;
+
+                for (const task of fileTasks) {
+                    const nextContent = removeTaskFromText(updatedContent, task);
+                    if (nextContent === updatedContent) {
+                        console.warn(`[TaskService] Bulk deletion skipped missing task: ${task.title}`);
+                    }
+                    updatedContent = nextContent;
+                }
+
+                if (updatedContent !== content) {
+                    await writeSafe(fileUri, updatedContent);
+                }
+            } catch (e) {
+                console.error(`[TaskService] Bulk deletion failed for file ${fileUri}`, e);
+                // Continue with other files
             }
-
-            await StorageAccessFramework.writeAsStringAsync(fileUri, updatedContent);
-        } catch (e) {
-            console.error('[TaskService] Bulk deletion failed', e);
-            throw e;
         }
     }
 
@@ -172,8 +196,8 @@ export class TaskService {
     static async mergeTasks(vaultUri: string, tasks: TaskWithSource[], targetFolderUri: string, targetFileName: string): Promise<void> {
         if (tasks.length === 0) return;
 
-        // 1. Prepare content for the new file
-        const newFileContent = tasks.map(t => t.originalLine).join('\n') + '\n';
+        // 1. Prepare content for the new file using serialization to clean up formatting
+        const newFileContent = tasks.map(t => serializeTaskLine(t)).join('\n') + '\n';
 
         // 2. Group tasks by source file to prepare updates (removals)
         const tasksByFile = tasks.reduce((acc, task) => {
@@ -196,28 +220,19 @@ export class TaskService {
             }
 
             // 4. Write the NEW file first (Safe creation)
-            // Check if file exists to append or create?
-            // Proposal said "new file", usually implying creation. If it exists, we append.
-            let fullTargetUri = targetFolderUri;
-            // Construct target URI is hard without knowing if it exists. 
-            // We'll use SAF to create or write.
-            // Actually, simplest is to create a new file. If we want to append, we'd need to read it first.
-            // Let's assume we create a new file for now as per "prompt for its name". 
-            // If user types existing name, SAF usually handles duplicate names or we can check.
-
-            // We'll use createFileAsync which creates a new file. If strictly "Merge into one file", maybe we append?
-            // "Enter name for the new file" suggests creation. 
-
             const newFileUri = await StorageAccessFramework.createFileAsync(targetFolderUri, targetFileName, 'text/markdown');
-            await StorageAccessFramework.writeAsStringAsync(newFileUri, newFileContent);
+            await writeSafe(newFileUri, newFileContent);
 
             // 5. If new file write succeeded, APPLY deletions to source files
             for (const [uri, newContent] of fileUpdates.entries()) {
                 if (newContent.trim().length === 0) {
-                    // File is empty, delete it
-                    await StorageAccessFramework.deleteAsync(uri, { idempotent: true });
+                    // If file is effectively empty, we might choose to delete it, 
+                    // or just write the empty string. 
+                    // Ideally we check if it has other content (frontmatter?)
+                    // For now, let's just write the new content (even if empty) to be safe.
+                    await writeSafe(uri, newContent);
                 } else {
-                    await StorageAccessFramework.writeAsStringAsync(uri, newContent);
+                    await writeSafe(uri, newContent);
                 }
             }
 
