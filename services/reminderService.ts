@@ -349,8 +349,10 @@ export async function createStandaloneReminder(
     title?: string,
     recurrence?: string,
     alarm?: boolean,
-    persistent?: number
-): Promise<string | null> {
+    persistent?: number,
+    additionalProps: Record<string, any> = {},
+    tags: string[] = []
+): Promise<{ uri: string, fileName: string } | null> {
     try {
         const { vaultUri, defaultReminderFolder, remindersScanFolder } = useSettingsStore.getState();
         if (!vaultUri) return null;
@@ -375,6 +377,18 @@ export async function createStandaloneReminder(
         if (alarm) frontmatter += `\n${ALARM_PROPERTY_KEY}: true`;
         if (persistent !== undefined) frontmatter += `\n${PERSISTENT_PROPERTY_KEY}: ${persistent}`;
 
+        // Add additional props
+        for (const [key, value] of Object.entries(additionalProps)) {
+            // Avoid duplicates if they were passed in standard args
+            if ([REMINDER_PROPERTY_KEY, TITLE_PROPERTY_KEY, RECURRENT_PROPERTY_KEY, ALARM_PROPERTY_KEY, PERSISTENT_PROPERTY_KEY].includes(key)) continue;
+            frontmatter += `\n${key}: ${value}`;
+        }
+
+        // Add tags
+        if (tags.length > 0) {
+            frontmatter += `\ntags: [${tags.join(', ')}]`;
+        }
+
         const content = `---\n${frontmatter}\n---\n# ${baseName}\n\nCreated via Reminders App.`;
         const fileUri = await StorageAccessFramework.createFileAsync(targetFolderUri, fileName, 'text/markdown');
         await StorageAccessFramework.writeAsStringAsync(fileUri, content);
@@ -382,7 +396,7 @@ export async function createStandaloneReminder(
         // Trigger global sync to update notifications
         await syncAllReminders();
 
-        return fileUri;
+        return { uri: fileUri, fileName };
     } catch (e) {
         console.error('[ReminderService] Failed to create standalone reminder:', e);
         return null;
