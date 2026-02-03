@@ -5,6 +5,7 @@ import { BaseListItem } from '../ui/BaseListItem';
 import { ActionButton } from '../ui/ActionButton';
 import { RichTask } from '../../utils/taskParser';
 import { useSettingsStore } from '../../store/settings';
+import { REMINDER_PROPERTY_KEY } from '../../services/reminderService';
 
 interface RichTaskItemProps {
     task: RichTask;
@@ -102,7 +103,12 @@ export function RichTaskItem({
     );
 
     const metadataSubtitle = (
-        <View className="flex-row flex-wrap gap-1 mt-1">
+        <View className="flex-row flex-wrap gap-1 mt-1 items-center">
+            {task.properties[REMINDER_PROPERTY_KEY] && (
+                <View className="mr-1">
+                    <Ionicons name="alarm" size={14} color="#fbbf24" />
+                </View>
+            )}
             {Object.entries(task.properties).map(([key, value]) => {
                 const config = propertyConfig[key];
                 if (config?.hidden) return null;

@@ -10,11 +10,11 @@ import { scheduleNativeAlarm, stopNativeAlarm } from './alarmModule';
 import dayjs from 'dayjs';
 
 const REMINDER_TASK_NAME = 'BACKGROUND_REMINDER_CHECK';
-const REMINDER_PROPERTY_KEY = 'reminder_datetime';
-const RECURRENT_PROPERTY_KEY = 'reminder_recurrent';
-const ALARM_PROPERTY_KEY = 'reminder_alarm';
-const PERSISTENT_PROPERTY_KEY = 'reminder_persistent';
-const TITLE_PROPERTY_KEY = 'title';
+export const REMINDER_PROPERTY_KEY = 'reminder_datetime';
+export const RECURRENT_PROPERTY_KEY = 'reminder_recurrent';
+export const ALARM_PROPERTY_KEY = 'reminder_alarm';
+export const PERSISTENT_PROPERTY_KEY = 'reminder_persistent';
+export const TITLE_PROPERTY_KEY = 'title';
 
 // Helper to formatting local ISO string (YYYY-MM-DDTHH:mm:ss)
 export function toLocalISOString(date: Date): string {
