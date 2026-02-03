@@ -277,6 +277,11 @@ export function PreviewScreen({
         setEditingTask(null);
     };
 
+    const handleUpdateTask = (originalTask: RichTask, updatedTask: RichTask) => {
+        const newText = updateTaskInText(body, originalTask, updatedTask);
+        onBodyChange(newText);
+    };
+
     return (
         <Layout>
             <KeyboardAvoidingView
@@ -422,7 +427,7 @@ export function PreviewScreen({
                                             onUpdateFrontmatter(updates);
                                         }
                                     }}
-                                    keySuggestions={getPropertyKeysFromCache(useVaultStore.getState().metadataCache)}
+                                    metadataCache={useVaultStore.getState().metadataCache}
                                 />
                             </Card>
                         )}
@@ -469,6 +474,7 @@ export function PreviewScreen({
                                                     onToggle={() => handleToggleTask(task)}
                                                     onEdit={() => handleEditTask(task)}
                                                     onDelete={() => handleDeleteTask(task)}
+                                                    onUpdate={(updated) => handleUpdateTask(task, updated)}
                                                 />
                                             </View>
                                         ))}

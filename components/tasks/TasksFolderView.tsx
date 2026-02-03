@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, FlatList, ActivityIndicator, Text, RefreshControl, Alert } from 'react-native';
+import { View, FlatList, ActivityIndicator, Text, RefreshControl, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useTasksStore, TaskWithSource } from '../../store/tasks';
 import { useSettingsStore } from '../../store/settings';
 import { TaskService } from '../../services/taskService';
@@ -8,6 +8,8 @@ import { TaskEditModal } from '../markdown/TaskEditModal';
 import { TasksFilterPanel } from './TasksFilterPanel';
 import { RichTask, serializeTaskLine } from '../../utils/taskParser';
 import Toast from 'react-native-toast-message';
+import { FloatingActionButton } from '../ui/FloatingActionButton';
+import { SelectionSheet, SelectionOption } from '../ui/SelectionSheet';
 
 interface TasksFolderViewProps {
     folderUri: string;
@@ -27,6 +29,32 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
     // Edit Modal State
     const [editingTask, setEditingTask] = useState<TaskWithSource | null>(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
+
+    // Merge Modal State
+    const [isMergeModalVisible, setIsMergeModalVisible] = useState(false);
+    const [mergeFileName, setMergeFileName] = useState('');
+    const [mergeScope, setMergeScope] = useState<'all' | 'filtered'>('all');
+
+    // Selection Sheet State
+    const [activeTaskForSheet, setActiveTaskForSheet] = useState<TaskWithSource | null>(null);
+    const [isStatusSheetVisible, setIsStatusSheetVisible] = useState(false);
+    const [isPrioritySheetVisible, setIsPrioritySheetVisible] = useState(false);
+
+    const STATUS_OPTIONS: SelectionOption[] = [
+        { id: ' ', label: 'Pending', icon: 'square-outline', color: '#94a3b8' },
+        { id: '/', label: 'In Progress', icon: 'play-circle-outline', color: '#818cf8' },
+        { id: 'x', label: 'Done', icon: 'checkbox', color: '#22c55e' },
+        { id: '-', label: "Won't Do", icon: 'close-circle-outline', color: '#94a3b8' },
+        { id: '?', label: 'Planned', icon: 'help-circle-outline', color: '#fbbf24' },
+        { id: '>', label: 'Delayed', icon: 'arrow-forward-circle-outline', color: '#6366f1' },
+    ];
+
+    const PRIORITY_OPTIONS: SelectionOption[] = [
+        { id: 'high', label: 'High Priority', icon: 'arrow-up-circle', color: '#ef4444' },
+        { id: 'medium', label: 'Medium Priority', icon: 'remove-circle', color: '#f59e0b' },
+        { id: 'low', label: 'Low Priority', icon: 'arrow-down-circle', color: '#22c55e' },
+        { id: 'clear', label: 'Clear Priority', icon: 'close-circle', destructive: true },
+    ];
 
     const loadTasks = useCallback(async (refresh = false) => {
         if (!folderUri) return;
@@ -104,13 +132,54 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
         setIsModalVisible(true);
     };
 
-    const handleSaveEdit = async (updatedTask: RichTask) => {
-        if (!editingTask || !vaultUri) return;
+    const handleCreateTask = () => {
+        setEditingTask(null); 
+        setIsModalVisible(true);
+    };
+
+    const handleSaveNewTask = async (newTask: RichTask) => {
+        if (!vaultUri || !folderUri) return;
+        
+        // Strategy: append to first file in folder or create tasks.md
+        let targetFileUri = '';
+        let targetFileName = 'tasks.md';
+        let targetFilePath = `${folderPath}/${targetFileName}`;
+        
+        if (tasks.length > 0) {
+            targetFileUri = tasks[0].fileUri;
+            targetFileName = tasks[0].fileName;
+            targetFilePath = tasks[0].filePath;
+        } else {
+             if (tasks.length === 0) {
+                 Alert.alert("No File Found", "Please create a markdown file in this folder first to add tasks.");
+                 return;
+             }
+        }
+        
+        try {
+            const baseAddedTask = await TaskService.addTask(vaultUri, targetFileUri, newTask);
+            const addedTask: TaskWithSource = {
+                ...baseAddedTask,
+                filePath: targetFilePath,
+                fileName: targetFileName,
+                fileUri: targetFileUri
+            };
+            setTasks(prev => [...prev, addedTask]);
+            setIsModalVisible(false);
+            Toast.show({ type: 'success', text1: 'Task Created' });
+        } catch (e) {
+            Toast.show({ type: 'error', text1: 'Create Failed', text2: 'Could not save new task.' });
+        }
+    };
+
+    const handleSaveEdit = async (updatedTask: RichTask, targetTaskOverride?: TaskWithSource) => {
+        const target = targetTaskOverride || editingTask;
+        if (!target || !vaultUri) return;
 
         try {
-            await TaskService.syncTaskUpdate(vaultUri, editingTask, updatedTask);
+            await TaskService.syncTaskUpdate(vaultUri, target, updatedTask);
             setTasks(prev => prev.map(t => 
-                (t.fileUri === editingTask.fileUri && t.originalLine === editingTask.originalLine) ? { ...t, ...updatedTask, originalLine: serializeTaskLine(updatedTask) } : t
+                (t.fileUri === target.fileUri && t.originalLine === target.originalLine) ? { ...t, ...updatedTask, originalLine: serializeTaskLine(updatedTask) } : t
             ));
             setIsModalVisible(false);
             setEditingTask(null);
@@ -189,6 +258,41 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
         );
     };
 
+    const handleMergeRequest = () => {
+        if (filteredTasks.length === 0) {
+            Toast.show({ type: 'info', text1: 'No tasks to merge' });
+            return;
+        }
+        setMergeFileName('');
+        setMergeScope('all'); // Default to all
+        setIsMergeModalVisible(true);
+    };
+
+    const executeMerge = async () => {
+        if (!mergeFileName.trim()) {
+            Toast.show({ type: 'error', text1: 'Please enter a filename' });
+            return;
+        }
+        
+        let targetName = mergeFileName.trim();
+        if (!targetName.endsWith('.md')) targetName += '.md';
+
+        setIsMergeModalVisible(false);
+        setIsLoading(true);
+
+        const tasksToMerge = mergeScope === 'all' ? tasks : filteredTasks;
+
+        try {
+            await TaskService.mergeTasks(vaultUri!, tasksToMerge, folderUri, targetName);
+            Toast.show({ type: 'success', text1: 'Tasks merged successfully' });
+            loadTasks(true); // Refresh list
+        } catch (e) {
+            console.error('[TasksFolderView] Merge failed', e);
+            Toast.show({ type: 'error', text1: 'Merge failed' });
+            setIsLoading(false); 
+        }
+    };
+
     if (isLoading && tasks.length === 0) {
         return (
             <View className="flex-1 justify-center items-center bg-slate-950">
@@ -205,6 +309,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                 showCompleted={showCompleted}
                 setShowCompleted={setShowCompleted}
                 onRemoveCompleted={handleRemoveCompleted}
+                onMergeTasks={handleMergeRequest}
             />
 
             <FlatList
@@ -216,10 +321,19 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                         onToggle={() => handleToggleTask(item)}
                         onEdit={() => handleEditTask(item)}
                         onDelete={() => handleDeleteTask(item)}
+                        onUpdate={(updated) => handleSaveEdit(updated, item)} // Need to modify handleSaveEdit to accept task or use current logic
                         fileName={item.fileName}
                         showGuide={item.showGuide}
                         isFirstInFile={item.isFirstInFile}
                         isLastInFile={item.isLastInFile}
+                        onStatusLongPress={() => {
+                            setActiveTaskForSheet(item);
+                            setIsStatusSheetVisible(true);
+                        }}
+                        onPriorityLongPress={() => {
+                            setActiveTaskForSheet(item);
+                            setIsPrioritySheetVisible(true);
+                        }}
                     />
                 )}
                 contentContainerStyle={{ padding: 16 }}
@@ -237,7 +351,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                 }
             />
 
-            {editingTask && (
+            {editingTask !== undefined && (
                 <TaskEditModal
                     visible={isModalVisible}
                     task={editingTask}
@@ -245,9 +359,112 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                         setIsModalVisible(false);
                         setEditingTask(null);
                     }}
-                    onSave={handleSaveEdit}
+                    onSave={editingTask ? handleSaveEdit : handleSaveNewTask}
                 />
             )}
+
+            <FloatingActionButton 
+                onPress={handleCreateTask}
+                style={{ position: 'absolute', bottom: 24, right: 24 }}
+            />
+
+            {/* Merge Filename Prompt Modal */}
+            <Modal
+                visible={isMergeModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setIsMergeModalVisible(false)}
+            >
+                <KeyboardAvoidingView 
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    className="flex-1 justify-center items-center bg-black/50 p-6"
+                >
+                    <View className="w-full bg-slate-900 rounded-xl border border-slate-700 p-4">
+                        <Text className="text-lg font-bold text-white mb-2">Merge Tasks to File</Text>
+                        <Text className="text-slate-400 mb-4">
+                            {mergeScope === 'all' ? `All ${tasks.length} tasks` : `${filteredTasks.length} visible tasks`} will be moved to this new file.
+                        </Text>
+
+                        {/* Show scope toggle only if there's a difference */}
+                        {filteredTasks.length !== tasks.length && (
+                            <View className="flex-row gap-2 mb-4">
+                                <TouchableOpacity
+                                    onPress={() => setMergeScope('all')}
+                                    className={`flex-1 py-2 rounded-lg border ${mergeScope === 'all' ? 'border-indigo-500 bg-indigo-900/30' : 'border-slate-700 bg-slate-800'}`}
+                                >
+                                    <Text className={`text-center font-medium ${mergeScope === 'all' ? 'text-indigo-300' : 'text-slate-400'}`}>All ({tasks.length})</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => setMergeScope('filtered')}
+                                    className={`flex-1 py-2 rounded-lg border ${mergeScope === 'filtered' ? 'border-indigo-500 bg-indigo-900/30' : 'border-slate-700 bg-slate-800'}`}
+                                >
+                                    <Text className={`text-center font-medium ${mergeScope === 'filtered' ? 'text-indigo-300' : 'text-slate-400'}`}>Visible ({filteredTasks.length})</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                        
+                        <Text className="text-slate-300 text-sm mb-1 ml-1">New Filename</Text>
+                        <TextInput
+                            className="bg-slate-800 text-white p-3 rounded-lg border border-slate-700 mb-6"
+                            placeholder="e.g. MyProject"
+                            placeholderTextColor="#64748b"
+                            value={mergeFileName}
+                            onChangeText={setMergeFileName}
+                            autoFocus
+                        />
+
+                        <View className="flex-row justify-end gap-3">
+                            <TouchableOpacity 
+                                onPress={() => setIsMergeModalVisible(false)}
+                                className="px-4 py-2"
+                            >
+                                <Text className="text-slate-400 font-medium">Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                onPress={executeMerge}
+                                className="bg-indigo-600 px-4 py-2 rounded-lg"
+                            >
+                                <Text className="text-white font-medium">Merge Tasks</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
+
+            {/* Status Picker Sheet */}
+            <SelectionSheet
+                visible={isStatusSheetVisible}
+                title="Change Status"
+                options={STATUS_OPTIONS}
+                onSelect={(option) => {
+                    if (activeTaskForSheet) {
+                        const newStatus = option.id;
+                        const updatedTask: RichTask = { ...activeTaskForSheet, status: newStatus, completed: newStatus === 'x' };
+                        handleSaveEdit(updatedTask, activeTaskForSheet);
+                    }
+                }}
+                onClose={() => setIsStatusSheetVisible(false)}
+            />
+
+            {/* Priority Picker Sheet */}
+            <SelectionSheet
+                visible={isPrioritySheetVisible}
+                title="Set Priority"
+                options={PRIORITY_OPTIONS}
+                onSelect={(option) => {
+                    if (activeTaskForSheet) {
+                        const newProps = { ...activeTaskForSheet.properties };
+                        if (option.id === 'clear') {
+                            delete newProps.priority;
+                        } else {
+                            newProps.priority = option.id;
+                        }
+                        const updatedTask: RichTask = { ...activeTaskForSheet, properties: newProps };
+                        handleSaveEdit(updatedTask, activeTaskForSheet);
+                    }
+                }}
+                onClose={() => setIsPrioritySheetVisible(false)}
+            />
         </View>
     );
 }

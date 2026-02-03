@@ -21,12 +21,13 @@ import { WeatherSettings } from './WeatherSettings';
 import { MoodSettings } from './MoodSettings';
 import { HabitSettings } from './HabitSettings';
 import { TasksSettings } from './TasksSettings';
+import { TagPropertySettings } from './TagPropertySettings';
 import { scanForReminders } from '../services/reminderService';
 import { useEventTypesStore } from '../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../utils/debugUtils';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'habits' | 'google-calendar' | 'reminders' | 'tasks' | 'weather' | 'mood' | 'advanced';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'habits' | 'google-calendar' | 'reminders' | 'tasks' | 'tag-property' | 'weather' | 'mood' | 'advanced';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -520,6 +521,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "Configure task aggregation"
             )}
             {renderMenuButton(
+                "Tags & Properties",
+                "pricetags-outline",
+                () => setActiveSection('tag-property'),
+                "Visibility & Colors"
+            )}
+            {renderMenuButton(
                 "Reminders",
                 "alarm-outline",
                 () => setActiveSection('reminders'),
@@ -706,6 +713,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("Tasks Configuration", () => setActiveSection('root'))}
                                 <View className="px-0"><TasksSettings /></View>
+                            </>
+                        )}
+                        {activeSection === 'tag-property' && (
+                            <>
+                                {renderHeader("Tags & Properties", () => setActiveSection('root'))}
+                                <View className="px-0"><TagPropertySettings /></View>
                             </>
                         )}
                         {activeSection === 'reminders' && (

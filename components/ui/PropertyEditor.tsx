@@ -2,33 +2,51 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BaseEditor } from './BaseEditor';
+import { getPropertyKeysFromCache, getPropertyValuesFromCache } from '../../utils/propertyUtils';
 
 interface PropertyEditorProps {
     properties: Record<string, any>;
     onUpdate: (properties: Record<string, any>) => void;
     label?: string;
-    keySuggestions?: string[];
+    metadataCache?: Record<string, any>;
 }
 
-export function PropertyEditor({ properties, onUpdate, label, keySuggestions = [] }: PropertyEditorProps) {
+export function PropertyEditor({ 
+    properties, 
+    onUpdate, 
+    label, 
+    metadataCache = {}
+}: PropertyEditorProps) {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [tempKey, setTempKey] = useState('');
     const [tempValue, setTempValue] = useState('');
     const [editingKey, setEditingKey] = useState<string | null>(null);
+    const [activeInput, setActiveInput] = useState<'key' | 'value' | null>(null);
 
     const propertyItems = useMemo(() => Object.entries(properties), [properties]);
 
-    const filteredSuggestions = useMemo(() => {
+    const keySuggestions = useMemo(() => getPropertyKeysFromCache(metadataCache), [metadataCache]);
+    const valueSuggestions = useMemo(() => getPropertyValuesFromCache(metadataCache, tempKey), [metadataCache, tempKey]);
+
+    const filteredKeySuggestions = useMemo(() => {
         if (!tempKey) return keySuggestions.slice(0, 5);
         return keySuggestions
-            .filter(k => k.toLowerCase().includes(tempKey.toLowerCase()) && !properties[k])
+            .filter(k => k.toLowerCase().includes(tempKey.toLowerCase()) && (!properties[k] || k === editingKey))
+            .slice(0, 10);
+    }, [keySuggestions, tempKey, properties, editingKey]);
+
+    const filteredValueSuggestions = useMemo(() => {
+        if (!tempValue) return valueSuggestions.slice(0, 5);
+        return valueSuggestions
+            .filter(v => v.toLowerCase().includes(tempValue.toLowerCase()))
             .slice(0, 5);
-    }, [keySuggestions, tempKey, properties]);
+    }, [valueSuggestions, tempValue]);
 
     const handleAdd = () => {
         setTempKey('');
         setTempValue('');
         setEditingKey(null);
+        setActiveInput('key');
         setIsModalVisible(true);
     };
 
@@ -36,6 +54,7 @@ export function PropertyEditor({ properties, onUpdate, label, keySuggestions = [
         setTempKey(key);
         setTempValue(typeof value === 'string' ? value : JSON.stringify(value));
         setEditingKey(key);
+        setActiveInput('value');
         setIsModalVisible(true);
     };
 
@@ -86,22 +105,45 @@ export function PropertyEditor({ properties, onUpdate, label, keySuggestions = [
         </View>
     );
 
-    const suggestionsUI = filteredSuggestions.length > 0 ? (
+    const suggestionsUI = (
         <View>
-            <Text className="text-slate-400 text-[10px] font-bold mb-2 uppercase tracking-tight">Key Suggestions</Text>
-            <View className="flex-row flex-wrap gap-2">
-                {filteredSuggestions.map(suggestion => (
-                    <TouchableOpacity
-                        key={suggestion}
-                        onPress={() => setTempKey(suggestion)}
-                        className="bg-slate-800 border border-slate-700 px-2 py-1 rounded-md"
-                    >
-                        <Text className="text-slate-300 text-xs">{suggestion}</Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
+            {activeInput === 'key' && filteredKeySuggestions.length > 0 && (
+                <View>
+                    <Text className="text-slate-400 text-[10px] font-bold mb-2 uppercase tracking-tight">Key Suggestions</Text>
+                    <View className="flex-row flex-wrap gap-2">
+                        {filteredKeySuggestions.map(suggestion => (
+                            <TouchableOpacity
+                                key={suggestion}
+                                onPress={() => {
+                                    setTempKey(suggestion);
+                                    setActiveInput('value');
+                                }}
+                                className="bg-slate-800 border border-slate-700 px-2 py-1 rounded-md"
+                            >
+                                <Text className="text-slate-300 text-xs">{suggestion}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+            )}
+            {activeInput === 'value' && filteredValueSuggestions.length > 0 && (
+                <View>
+                    <Text className="text-slate-400 text-[10px] font-bold mb-2 uppercase tracking-tight">Value Suggestions</Text>
+                    <View className="flex-row flex-wrap gap-2">
+                        {filteredValueSuggestions.map(suggestion => (
+                            <TouchableOpacity
+                                key={suggestion}
+                                onPress={() => setTempValue(suggestion)}
+                                className="bg-slate-900 border border-indigo-500/30 px-2 py-1 rounded-md"
+                            >
+                                <Text className="text-indigo-300 text-xs">{suggestion}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+            )}
         </View>
-    ) : null;
+    );
 
     return (
         <BaseEditor
@@ -122,6 +164,7 @@ export function PropertyEditor({ properties, onUpdate, label, keySuggestions = [
                     <TextInput
                         value={tempKey}
                         onChangeText={setTempKey}
+                        onFocus={() => setActiveInput('key')}
                         placeholder="e.g., status, priority"
                         placeholderTextColor="#64748b"
                         className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white text-sm"
@@ -133,6 +176,7 @@ export function PropertyEditor({ properties, onUpdate, label, keySuggestions = [
                     <TextInput
                         value={tempValue}
                         onChangeText={setTempValue}
+                        onFocus={() => setActiveInput('value')}
                         placeholder="Value..."
                         placeholderTextColor="#64748b"
                         className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white text-sm"

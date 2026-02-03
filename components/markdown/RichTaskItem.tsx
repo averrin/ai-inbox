@@ -4,12 +4,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { BaseListItem } from '../ui/BaseListItem';
 import { ActionButton } from '../ui/ActionButton';
 import { RichTask } from '../../utils/taskParser';
+import { useSettingsStore } from '../../store/settings';
 
 interface RichTaskItemProps {
     task: RichTask;
     onToggle: () => void;
     onEdit: () => void;
     onDelete: () => void;
+    onUpdate: (updatedTask: RichTask) => void;
+    onStatusLongPress?: () => void;
+    onPriorityLongPress?: () => void;
     fileName?: string;
     subtitle?: string | React.ReactNode;
     showGuide?: boolean;
@@ -22,12 +26,47 @@ export function RichTaskItem({
     onToggle, 
     onEdit, 
     onDelete, 
+    onUpdate,
+    onStatusLongPress,
+    onPriorityLongPress,
     fileName,
     subtitle,
     showGuide,
     isFirstInFile,
     isLastInFile
 }: RichTaskItemProps) {
+    const { tagConfig, propertyConfig } = useSettingsStore();
+
+    const updateStatus = (newStatus: string) => {
+        onUpdate({ 
+            ...task, 
+            status: newStatus, 
+            completed: newStatus === 'x' 
+        });
+    };
+
+    const handleStatusLongPress = () => {
+        if (onStatusLongPress) {
+            onStatusLongPress();
+        }
+    };
+
+    const updatePriority = (priority?: string) => {
+        const newProps = { ...task.properties };
+        if (priority) {
+            newProps.priority = priority;
+        } else {
+            delete newProps.priority;
+        }
+        onUpdate({ ...task, properties: newProps });
+    };
+
+    const handleBodyLongPress = () => {
+        if (onPriorityLongPress) {
+            onPriorityLongPress();
+        }
+    };
+
     const getStatusConfig = (status: string) => {
         switch (status) {
             case 'x':
@@ -50,6 +89,8 @@ export function RichTaskItem({
     const leftIcon = (
         <TouchableOpacity 
             onPress={onToggle}
+            onLongPress={handleStatusLongPress}
+            delayLongPress={500}
             className="w-full h-full items-center justify-center"
         >
             <Ionicons 
@@ -62,17 +103,52 @@ export function RichTaskItem({
 
     const metadataSubtitle = (
         <View className="flex-row flex-wrap gap-1 mt-1">
-            {Object.entries(task.properties).map(([key, value]) => (
-                <View key={key} className="bg-slate-700/50 px-1.5 py-0.5 rounded border border-slate-600/50 flex-row">
-                    <Text className="text-slate-400 text-[10px] mr-1">{key}:</Text>
-                    <Text className="text-slate-200 text-[10px]">{value}</Text>
-                </View>
-            ))}
-            {task.tags.map(tag => (
-                <View key={tag} className="bg-indigo-900/30 px-1.5 py-0.5 rounded border border-indigo-500/30">
-                    <Text className="text-indigo-300 text-[10px]">#{tag}</Text>
-                </View>
-            ))}
+            {Object.entries(task.properties).map(([key, value]) => {
+                const config = propertyConfig[key];
+                if (config?.hidden) return null;
+
+                const valStr = String(value);
+                const valueConfig = config?.valueConfigs?.[valStr];
+                
+                const activeColor = valueConfig?.color || config?.color;
+
+                const customStyle = activeColor ? {
+                    backgroundColor: `${activeColor}33`, 
+                    borderColor: `${activeColor}66`, 
+                } : undefined;
+                const textStyle = activeColor ? { color: activeColor } : undefined;
+
+                return (
+                    <View 
+                        key={key} 
+                        className="bg-slate-700/50 px-1.5 py-0.5 rounded border border-slate-600/50 flex-row"
+                        style={customStyle}
+                    >
+                        <Text className="text-slate-400 text-[10px] mr-1" style={textStyle}>{key}:</Text>
+                        <Text className="text-slate-200 text-[10px]" style={textStyle}>{value}</Text>
+                    </View>
+                );
+            })}
+            {task.tags.map(tag => {
+                const config = tagConfig[tag];
+                if (config?.hidden) return null;
+
+                const customStyle = config?.color ? {
+                    backgroundColor: `${config.color}33`, 
+                    borderColor: `${config.color}66`, 
+                } : undefined;
+                const textStyle = config?.color ? { color: config.color } : undefined;
+
+                return (
+                    <View 
+                        key={tag} 
+                        className="bg-indigo-900/30 px-1.5 py-0.5 rounded border border-indigo-500/30"
+                        style={customStyle}
+                    >
+                        <Text className="text-indigo-300 text-[10px]" style={textStyle}>#{tag}</Text>
+                    </View>
+                );
+            })}
         </View>
     );
 
@@ -90,32 +166,22 @@ export function RichTaskItem({
                     style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 20 }}
                     pointerEvents="none"
                 >
-                    {/* The 2px Guide Line */}
                     <View 
                         className={`absolute left-[-10px] w-0.5 bg-indigo-500/50 ${isFirstInFile ? 'top-6' : 'top-0'} ${isLastInFile ? 'bottom-6' : 'bottom-0'}`}
                     />
 
-                    {/* The File Label */}
                     {isFirstInFile && fileName && (
                         <View 
                             style={{ 
                                 position: 'absolute',
-                                // Center of label should be at x=-10 (guide line)
-                                // We want the TOP of the rotated text to start around y=24 (top-6)
-                                // Width 160px (w-40), Height 20px (h-5)
-                                // Pivot is center (80, 10)
-                                // Visual Top = CenterY - 80 = 24 => CenterY = 104
-                                // Actual Top = CenterY - 10 = 94
                                 top: 94,
-                                // Visual CenterX = CenterX = -10
-                                // Actual Left = CenterX - 80 = -90
                                 left: -84,
                                 width: 160,
                                 height: 20,
                                 transform: [{ rotate: '90deg' }],
                                 zIndex: 10,
-                                alignItems: 'center', // Center text vertically in the strip
-                                flexDirection: 'row', // Ensure text aligns
+                                alignItems: 'center', 
+                                flexDirection: 'row', 
                             }}
                         >
                             <Text 
@@ -140,6 +206,7 @@ export function RichTaskItem({
                 }
                 subtitle={subtitle || (Object.keys(task.properties).length > 0 || task.tags.length > 0 ? metadataSubtitle : undefined)}
                 onPress={onEdit}
+                onLongPress={handleBodyLongPress}
                 rightActions={rightActions}
                 containerStyle={task.status === 'x' || task.status === '-' ? { opacity: 0.8 } : undefined}
             />

@@ -1,4 +1,3 @@
-
 /**
  * Extract unique property keys from VaultService metadata cache
  */
@@ -13,4 +12,25 @@ export function getPropertyKeysFromCache(metadataCache: Record<string, { frontma
 
     // Return sorted keys
     return Array.from(allKeys).sort();
+}
+
+/**
+ * Extract unique property values for a specific key from VaultService metadata cache
+ */
+export function getPropertyValuesFromCache(metadataCache: Record<string, { frontmatter?: Record<string, any> }>, key: string): string[] {
+    if (!key) return [];
+
+    const allValues = new Set<string>();
+
+    Object.values(metadataCache).forEach(file => {
+        if (file.frontmatter && file.frontmatter[key] !== undefined) {
+            const val = file.frontmatter[key];
+            if (val !== null && val !== '') {
+                allValues.add(String(val));
+            }
+        }
+    });
+
+    // Return sorted values
+    return Array.from(allValues).sort();
 }

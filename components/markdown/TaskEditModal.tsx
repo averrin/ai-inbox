@@ -1,69 +1,103 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { RichTask } from '../../utils/taskParser';
-import { TagEditor } from '../ui/TagEditor';
 import { PropertyEditor } from '../ui/PropertyEditor';
+import { TagEditor } from '../ui/TagEditor';
+import { useSettingsStore } from '../../store/settings';
+import { TaskWithSource } from '../../store/tasks';
 import { useVaultStore } from '../../services/vaultService';
-import { getPropertyKeysFromCache } from '../../utils/propertyUtils';
 
 interface TaskEditModalProps {
     visible: boolean;
-    task: RichTask | null;
-    onSave: (updatedTask: RichTask) => void;
+    task: (RichTask & { fileUri?: string }) | null;
+    onSave: (task: RichTask) => void;
     onCancel: () => void;
 }
 
 export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModalProps) {
+    const { propertyConfig } = useSettingsStore();
+    
     const [title, setTitle] = useState('');
     const [status, setStatus] = useState(' ');
     const [properties, setProperties] = useState<Record<string, any>>({});
     const [tags, setTags] = useState<string[]>([]);
-
-    const vaultCache = useVaultStore(state => state.metadataCache);
-    const keySuggestions = useMemo(() => getPropertyKeysFromCache(vaultCache), [vaultCache]);
+    
+    // Derived from settings for autocomplete
+    const keySuggestions = Object.keys(propertyConfig);
 
     useEffect(() => {
-        if (task) {
-            setTitle(task.title);
-            setStatus(task.status);
-            setProperties(task.properties);
-            setTags(task.tags);
+        if (visible) {
+            if (task) {
+                setTitle(task.title);
+                setStatus(task.status);
+                setProperties({ ...task.properties }); // Clone to avoid mutation
+                setTags([...task.tags]);
+            } else {
+                setTitle('');
+                setStatus(' ');
+                setProperties({});
+                setTags([]);
+            }
         }
-    }, [task]);
+    }, [task, visible]);
+
+    const handleAddTag = (tag: string) => {
+        const cleanTag = tag.trim().replace(/^#/, '');
+        if (cleanTag && !tags.includes(cleanTag)) {
+            setTags([...tags, cleanTag]);
+        }
+    };
+
+    const handleRemoveTag = (index: number) => {
+        setTags(tags.filter((_, i) => i !== index));
+    };
 
     const handleSave = () => {
-        if (!task) return;
+        if (!title.trim()) {
+            Alert.alert('Validation', 'Task title cannot be empty.');
+            return;
+        }
+
         const updatedTask: RichTask = {
-            ...task,
             title,
             status,
             completed: status === 'x',
             properties,
             tags,
+            indentation: task?.indentation || '',
+            originalLine: task?.originalLine || '',
         };
         onSave(updatedTask);
     };
 
-    const handleRemoveTag = (index: number) => setTags(tags.filter((_, i) => i !== index));
-    const handleAddTag = (tag: string) => {
-        if (!tags.includes(tag)) {
-            setTags([...tags, tag]);
-        }
+    const handleOpenNote = () => {
+        if (!task || !task.fileUri) return;
+        onCancel(); // Close modal first
+        // Navigate to editor with parameters
+        router.push({ pathname: '/editor', params: { uri: task.fileUri } });
     };
 
     return (
-        <Modal visible={visible} transparent animationType="slide">
+        <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
             <KeyboardAvoidingView 
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 className="flex-1 justify-center items-center bg-black/50 px-4"
             >
                 <View className="bg-slate-900 w-full max-w-md p-6 rounded-3xl border border-slate-700 max-h-[80%]">
                     <View className="flex-row justify-between items-center mb-4">
-                        <Text className="text-white text-xl font-bold">Edit Task</Text>
-                        <TouchableOpacity onPress={onCancel}>
-                            <Ionicons name="close" size={24} color="#94a3b8" />
-                        </TouchableOpacity>
+                        <Text className="text-white text-xl font-bold">{task ? 'Edit Task' : 'New Task'}</Text>
+                        <View className="flex-row gap-2">
+                             {task && (
+                                <TouchableOpacity onPress={handleOpenNote} className="p-2 bg-slate-800 rounded-lg">
+                                    <Ionicons name="document-text-outline" size={20} color="#94a3b8" />
+                                </TouchableOpacity>
+                            )}
+                            <TouchableOpacity onPress={onCancel} className="p-2">
+                                <Ionicons name="close" size={24} color="#94a3b8" />
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
                     <ScrollView showsVerticalScrollIndicator={false}>
@@ -113,7 +147,7 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                                 label="Properties"
                                 properties={properties}
                                 onUpdate={setProperties}
-                                keySuggestions={keySuggestions}
+                                metadataCache={useVaultStore.getState().metadataCache}
                             />
                         </View>
 

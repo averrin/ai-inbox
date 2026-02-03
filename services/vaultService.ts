@@ -7,6 +7,7 @@ interface CachedFile {
     mtime: number;
     display: string;
     frontmatterKeys?: string[];
+    frontmatter?: Record<string, any>;
 }
 
 interface VaultState {
