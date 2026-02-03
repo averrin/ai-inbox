@@ -1,4 +1,4 @@
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import ProcessingScreen from '../ProcessingScreen';
 import RemindersListScreen from '../screens/RemindersListScreen';
@@ -7,8 +7,10 @@ import SetupScreen from '../SetupScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect } from 'react';
 import { useNavigation, NavigationContainer, NavigationIndependentTree } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View } from 'react-native';
 
-const Tab = createBottomTabNavigator();
+const Tab = createMaterialTopTabNavigator();
 
 function NavigationHandler({ shareIntent }: { shareIntent: ShareIntent }) {
   const navigation = useNavigation();
@@ -33,66 +35,83 @@ function InnerTabNavigator({
   shareIntent: ShareIntent;
   onReset: () => void;
 }) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: '#0f172a', // slate-900
-          borderTopColor: '#334155', // slate-700
-          borderTopWidth: 1,
-          height: 68,
-          paddingBottom: 6,
-          paddingTop: 4,
-        },
-        tabBarActiveTintColor: '#818cf8', // indigo-400
-        tabBarInactiveTintColor: '#64748b', // slate-500
-      }}
-      initialRouteName="Input"
-    >
-      <Tab.Screen
-        name="Input"
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="create-outline" size={size} color={color} />
-          ),
-          tabBarLabel: 'Note',
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
+        tabBarPosition="bottom"
+        screenOptions={{
+          tabBarStyle: {
+            backgroundColor: '#0f172a', // slate-900
+            borderTopColor: '#334155', // slate-700
+            borderTopWidth: 1,
+            height: 62 + insets.bottom,
+            paddingBottom: insets.bottom,
+            paddingTop: 0,
+          },
+          tabBarIndicatorStyle: {
+            height: 0, // Hide the material indicator line
+          },
+          tabBarActiveTintColor: '#818cf8', // indigo-400
+          tabBarInactiveTintColor: '#64748b', // slate-500
+          tabBarLabelStyle: {
+            textTransform: 'none',
+            fontSize: 10,
+            fontWeight: '600',
+            marginTop: 0,
+          },
+          tabBarShowIcon: true,
+          swipeEnabled: true,
+          animationEnabled: true,
         }}
+        initialRouteName="Input"
       >
-        {() => <ProcessingScreen shareIntent={shareIntent} onReset={onReset} />}
-      </Tab.Screen>
+        <Tab.Screen
+          name="Input"
+          options={{
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="create-outline" size={24} color={color} />
+            ),
+            tabBarLabel: 'Note',
+          }}
+        >
+          {() => <ProcessingScreen shareIntent={shareIntent} onReset={onReset} />}
+        </Tab.Screen>
 
-      <Tab.Screen
-        name="Reminders"
-        component={RemindersListScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="alarm-outline" size={size} color={color} />
-          ),
-        }}
-      />
+        <Tab.Screen
+          name="Reminders"
+          component={RemindersListScreen}
+          options={{
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="alarm-outline" size={24} color={color} />
+            ),
+          }}
+        />
 
-      <Tab.Screen
-        name="Schedule"
-        component={ScheduleScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size} color={color} />
-          ),
-        }}
-      />
+        <Tab.Screen
+          name="Schedule"
+          component={ScheduleScreen}
+          options={{
+            swipeEnabled: false, // CRITICAL: Disable swipe for this tab to avoid conflict with calendar gestures
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="calendar-outline" size={24} color={color} />
+            ),
+          }}
+        />
 
-      <Tab.Screen
-        name="Settings"
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
-          ),
-        }}
-      >
-        {() => <SetupScreen canClose={true} />}
-      </Tab.Screen>
-    </Tab.Navigator>
+        <Tab.Screen
+          name="Settings"
+          options={{
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="settings-outline" size={24} color={color} />
+            ),
+          }}
+        >
+          {() => <SetupScreen canClose={true} />}
+        </Tab.Screen>
+      </Tab.Navigator>
+    </View>
   );
 }
 
