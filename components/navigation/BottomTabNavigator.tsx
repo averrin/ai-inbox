@@ -2,6 +2,7 @@ import { createMaterialTopTabNavigator } from '@react-navigation/material-top-ta
 import { Ionicons } from '@expo/vector-icons';
 import ProcessingScreen from '../ProcessingScreen';
 import RemindersListScreen from '../screens/RemindersListScreen';
+import TasksScreen from '../screens/TasksScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SetupScreen from '../SetupScreen';
 import { ShareIntent } from 'expo-share-intent';
@@ -85,6 +86,16 @@ function InnerTabNavigator({
           options={{
             tabBarIcon: ({ color }) => (
               <Ionicons name="alarm-outline" size={24} color={color} />
+            ),
+          }}
+        />
+
+        <Tab.Screen
+          name="Tasks"
+          component={TasksScreen}
+          options={{
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="list-outline" size={24} color={color} />
             ),
           }}
         />
