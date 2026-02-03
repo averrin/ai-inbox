@@ -31,7 +31,9 @@ export const useVaultStore = create<VaultState>()(
             isUpdating: false,
 
             refreshStructure: async (vaultUri: string, contextRoot?: string) => {
-                if (get().isUpdating) return;
+                if (get().isUpdating) {
+                    return;
+                }
                 set({ isUpdating: true });
 
                 try {

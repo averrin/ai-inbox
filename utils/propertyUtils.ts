@@ -18,13 +18,14 @@ export function getPropertyKeysFromCache(metadataCache: Record<string, { frontma
  * Extract unique property values for a specific key from VaultService metadata cache
  */
 export function getPropertyValuesFromCache(metadataCache: Record<string, { frontmatter?: Record<string, any> }>, key: string): string[] {
-    if (!key) return [];
+    const trimmedKey = key.trim();
+    if (!trimmedKey) return [];
 
     const allValues = new Set<string>();
 
     Object.values(metadataCache).forEach(file => {
-        if (file.frontmatter && file.frontmatter[key] !== undefined) {
-            const val = file.frontmatter[key];
+        if (file.frontmatter && file.frontmatter[trimmedKey] !== undefined) {
+            const val = file.frontmatter[trimmedKey];
             if (val !== null && val !== '') {
                 allValues.add(String(val));
             }

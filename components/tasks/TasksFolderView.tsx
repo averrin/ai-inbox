@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, FlatList, ActivityIndicator, Text, RefreshControl, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useTasksStore, TaskWithSource } from '../../store/tasks';
 import { useSettingsStore } from '../../store/settings';
-import { TaskService } from '../../services/taskService';
+import { TaskService, FolderGroup } from '../../services/taskService';
+import { useVaultStore } from '../../services/vaultService';
 import { RichTaskItem } from '../markdown/RichTaskItem';
 import { TaskEditModal } from '../markdown/TaskEditModal';
 import { TasksFilterPanel } from './TasksFilterPanel';
@@ -18,6 +19,7 @@ interface TasksFolderViewProps {
 
 export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps) {
     const { vaultUri } = useSettingsStore();
+    const { tasksRoot } = useTasksStore();
     const [tasks, setTasks] = useState<TaskWithSource[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -39,6 +41,10 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
     const [activeTaskForSheet, setActiveTaskForSheet] = useState<TaskWithSource | null>(null);
     const [isStatusSheetVisible, setIsStatusSheetVisible] = useState(false);
     const [isPrioritySheetVisible, setIsPrioritySheetVisible] = useState(false);
+    const [isSortSheetVisible, setIsSortSheetVisible] = useState(false);
+    
+    // Sort State
+    const [sortBy, setSortBy] = useState<'smart' | 'file' | 'title' | 'priority'>('smart');
 
     const STATUS_OPTIONS: SelectionOption[] = [
         { id: ' ', label: 'Pending', icon: 'square-outline', color: '#94a3b8' },
@@ -56,12 +62,24 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
         { id: 'clear', label: 'Clear Priority', icon: 'close-circle', destructive: true },
     ];
 
+    const SORT_OPTIONS: SelectionOption[] = [
+        { id: 'smart', label: 'Smart Sort (Status + Priority)', icon: 'flash-outline', color: '#818cf8' },
+        { id: 'file', label: 'File Order', icon: 'document-text-outline', color: '#94a3b8' },
+        { id: 'title', label: 'Alphabetical (Title)', icon: 'text-outline', color: '#94a3b8' },
+        { id: 'priority', label: 'Priority Only', icon: 'flag-outline', color: '#ef4444' },
+    ];
+
     const loadTasks = useCallback(async (refresh = false) => {
         if (!folderUri) return;
         if (refresh) setIsRefreshing(true);
         else setIsLoading(true);
 
         try {
+            // Also refresh vault structure to get latest property suggestions
+            if (vaultUri && tasksRoot) {
+                console.log('[TasksFolderView] Triggering vault structure refresh with context:', tasksRoot);
+                useVaultStore.getState().refreshStructure(vaultUri, tasksRoot);
+            }
             const result = await TaskService.scanTasksInFolder(folderUri, folderPath);
             setTasks(result);
         } catch (e) {
@@ -82,13 +100,39 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
     }, [loadTasks]);
 
     const filteredTasks = useMemo(() => {
-        return tasks.filter(task => {
+        let result = tasks.filter(task => {
             const isDone = task.status === 'x' || task.status === '-';
             const matchesStatus = isDone === showCompleted;
             const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase());
             return matchesStatus && matchesSearch;
         });
-    }, [tasks, search, showCompleted]);
+
+        if (sortBy === 'file') return result;
+
+        const priorityMap: Record<string, number> = { high: 3, medium: 2, low: 1 };
+        const statusOrder: Record<string, number> = { ' ': 0, '/': 0, '>': 1, '?': 1, 'x': 2, '-': 2 };
+
+        return [...result].sort((a, b) => {
+            if (sortBy === 'title') return a.title.localeCompare(b.title);
+            if (sortBy === 'priority') {
+                const pA = priorityMap[a.properties.priority] ?? 0;
+                const pB = priorityMap[b.properties.priority] ?? 0;
+                if (pA !== pB) return pB - pA;
+                return a.title.localeCompare(b.title);
+            }
+
+            // Default Smart Sort
+            const sA = statusOrder[a.status] ?? 3;
+            const sB = statusOrder[b.status] ?? 3;
+            if (sA !== sB) return sA - sB;
+
+            const pA = priorityMap[a.properties.priority] ?? 0;
+            const pB = priorityMap[b.properties.priority] ?? 0;
+            if (pA !== pB) return pB - pA;
+
+            return a.title.localeCompare(b.title);
+        });
+    }, [tasks, search, showCompleted, sortBy]);
 
     const tasksWithGroups = useMemo(() => {
         return filteredTasks.map((task, index) => {
@@ -204,7 +248,9 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                     onPress: async () => {
                         try {
                             await TaskService.syncTaskDeletion(vaultUri!, task);
-                            setTasks(prev => prev.filter(t => t !== task));
+                            setTasks(prev => prev.filter(t => 
+                                !(t.fileUri === task.fileUri && t.originalLine === task.originalLine)
+                            ));
                             Toast.show({ type: 'success', text1: 'Task Removed' });
                         } catch (e) {
                             Toast.show({ type: 'error', text1: 'Delete Failed' });
@@ -310,6 +356,8 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                 setShowCompleted={setShowCompleted}
                 onRemoveCompleted={handleRemoveCompleted}
                 onMergeTasks={handleMergeRequest}
+                sortBy={sortBy}
+                onToggleSort={() => setIsSortSheetVisible(true)}
             />
 
             <FlatList
@@ -464,6 +512,15 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                     }
                 }}
                 onClose={() => setIsPrioritySheetVisible(false)}
+            />
+
+            {/* Sort Picker Sheet */}
+            <SelectionSheet
+                visible={isSortSheetVisible}
+                title="Sort Tasks By"
+                options={SORT_OPTIONS}
+                onSelect={(option) => setSortBy(option.id as any)}
+                onClose={() => setIsSortSheetVisible(false)}
             />
         </View>
     );

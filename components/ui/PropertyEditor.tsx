@@ -29,17 +29,15 @@ export function PropertyEditor({
     const valueSuggestions = useMemo(() => getPropertyValuesFromCache(metadataCache, tempKey), [metadataCache, tempKey]);
 
     const filteredKeySuggestions = useMemo(() => {
-        if (!tempKey) return keySuggestions.slice(0, 5);
+        if (!tempKey) return keySuggestions;
         return keySuggestions
-            .filter(k => k.toLowerCase().includes(tempKey.toLowerCase()) && (!properties[k] || k === editingKey))
-            .slice(0, 10);
+            .filter(k => k.toLowerCase().includes(tempKey.toLowerCase()) && (!properties[k] || k === editingKey));
     }, [keySuggestions, tempKey, properties, editingKey]);
 
     const filteredValueSuggestions = useMemo(() => {
-        if (!tempValue) return valueSuggestions.slice(0, 5);
+        if (!tempValue) return valueSuggestions;
         return valueSuggestions
-            .filter(v => v.toLowerCase().includes(tempValue.toLowerCase()))
-            .slice(0, 5);
+            .filter(v => v.toLowerCase().includes(tempValue.toLowerCase()));
     }, [valueSuggestions, tempValue]);
 
     const handleAdd = () => {
@@ -105,46 +103,6 @@ export function PropertyEditor({
         </View>
     );
 
-    const suggestionsUI = (
-        <View>
-            {activeInput === 'key' && filteredKeySuggestions.length > 0 && (
-                <View>
-                    <Text className="text-slate-400 text-[10px] font-bold mb-2 uppercase tracking-tight">Key Suggestions</Text>
-                    <View className="flex-row flex-wrap gap-2">
-                        {filteredKeySuggestions.map(suggestion => (
-                            <TouchableOpacity
-                                key={suggestion}
-                                onPress={() => {
-                                    setTempKey(suggestion);
-                                    setActiveInput('value');
-                                }}
-                                className="bg-slate-800 border border-slate-700 px-2 py-1 rounded-md"
-                            >
-                                <Text className="text-slate-300 text-xs">{suggestion}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-            )}
-            {activeInput === 'value' && filteredValueSuggestions.length > 0 && (
-                <View>
-                    <Text className="text-slate-400 text-[10px] font-bold mb-2 uppercase tracking-tight">Value Suggestions</Text>
-                    <View className="flex-row flex-wrap gap-2">
-                        {filteredValueSuggestions.map(suggestion => (
-                            <TouchableOpacity
-                                key={suggestion}
-                                onPress={() => setTempValue(suggestion)}
-                                className="bg-slate-900 border border-indigo-500/30 px-2 py-1 rounded-md"
-                            >
-                                <Text className="text-indigo-300 text-xs">{suggestion}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-            )}
-        </View>
-    );
-
     return (
         <BaseEditor
             items={propertyItems}
@@ -156,7 +114,6 @@ export function PropertyEditor({
             isModalVisible={isModalVisible}
             onCloseModal={() => setIsModalVisible(false)}
             onConfirm={handleConfirm}
-            suggestions={suggestionsUI}
         >
             <View className="gap-3">
                 <View>
@@ -167,9 +124,25 @@ export function PropertyEditor({
                         onFocus={() => setActiveInput('key')}
                         placeholder="e.g., status, priority"
                         placeholderTextColor="#64748b"
-                        className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white text-sm"
+                        className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white text-sm mb-2"
                         autoCapitalize="none"
                     />
+                    {activeInput === 'key' && filteredKeySuggestions.length > 0 && (
+                        <View className="flex-row flex-wrap gap-2 px-1">
+                            {filteredKeySuggestions.map(suggestion => (
+                                <TouchableOpacity
+                                    key={suggestion}
+                                    onPress={() => {
+                                        setTempKey(suggestion);
+                                        setActiveInput('value');
+                                    }}
+                                    className="bg-slate-800 border border-slate-700 px-2 py-1 rounded-md"
+                                >
+                                    <Text className="text-slate-300 text-xs">{suggestion}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
                 </View>
                 <View>
                     <Text className="text-slate-400 text-[10px] uppercase font-bold mb-1 ml-1">Value</Text>
@@ -179,8 +152,21 @@ export function PropertyEditor({
                         onFocus={() => setActiveInput('value')}
                         placeholder="Value..."
                         placeholderTextColor="#64748b"
-                        className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white text-sm"
+                        className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white text-sm mb-2"
                     />
+                    {activeInput === 'value' && filteredValueSuggestions.length > 0 && (
+                        <View className="flex-row flex-wrap gap-2 px-1">
+                            {filteredValueSuggestions.map(suggestion => (
+                                <TouchableOpacity
+                                    key={suggestion}
+                                    onPress={() => setTempValue(suggestion)}
+                                    className="bg-slate-900 border border-indigo-500/30 px-2 py-1 rounded-md"
+                                >
+                                    <Text className="text-indigo-300 text-xs">{suggestion}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
                 </View>
             </View>
         </BaseEditor>

@@ -112,6 +112,7 @@ export function PreviewScreen({
     onTabChange,
 }: PreviewScreenProps) {
     const { timeFormat, editorType } = useSettingsStore();
+    const { metadataCache } = useVaultStore();
 
 
     // State for reminder editing
@@ -427,7 +428,7 @@ export function PreviewScreen({
                                             onUpdateFrontmatter(updates);
                                         }
                                     }}
-                                    metadataCache={useVaultStore.getState().metadataCache}
+                                    metadataCache={metadataCache}
                                 />
                             </Card>
                         )}

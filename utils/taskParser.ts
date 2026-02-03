@@ -60,11 +60,13 @@ export function parseTaskLine(line: string): RichTask | null {
  */
 export function serializeTaskLine(task: RichTask): string {
     const status = task.status;
-    let content = task.title;
+    let content = task.title.trim();
 
     // Append properties
-    Object.entries(task.properties).forEach(([key, value]) => {
-        content += ` [${key}:: ${value}]`;
+    // Sort keys to ensure deterministic order? optional but good for stability
+    const propKeys = Object.keys(task.properties).sort();
+    propKeys.forEach(key => {
+        content += ` [${key}:: ${task.properties[key]}]`;
     });
 
     // Append tags
@@ -85,22 +87,54 @@ export function findTasks(text: string): RichTask[] {
 }
 
 /**
+ * Helper to find a task line index robustly.
+ */
+function findTaskLineIndex(lines: string[], task: RichTask): number {
+    // 1. Try exact match of originalLine
+    let index = lines.findIndex(l => l === task.originalLine);
+    if (index !== -1) return index;
+
+    // 2. Try match ignoring trailing whitespace (CRLF vs LF issues)
+    const originalTrimmed = task.originalLine.trimEnd();
+    index = lines.findIndex(l => l.trimEnd() === originalTrimmed);
+    if (index !== -1) return index;
+
+    // 3. Try match by re-serializing the task (in case internal state is newer/cleaner than originalLine)
+    const serialized = serializeTaskLine(task);
+    index = lines.findIndex(l => l.trimEnd() === serialized.trimEnd());
+    if (index !== -1) return index;
+
+    // 4. Last resort: specific fuzzy match on Content + Status
+    // This risks false positives if there are duplicate tasks, but it's better than failing to delete.
+    // We match: same status AND same title (ignoring props/tags for a moment? No, include them)
+    // Actually, let's strict match the meaningful parts.
+    return lines.findIndex(l => {
+        const parsed = parseTaskLine(l);
+        if (!parsed) return false;
+        // Compare essential logic
+        return parsed.title === task.title
+            && parsed.status === task.status
+            && JSON.stringify(parsed.properties) === JSON.stringify(task.properties);
+        // Tags might order differently, but let's assume they don't for now.
+    });
+}
+
+/**
  * Replaces a specific task line in the original text with a new serialized version.
  */
 export function updateTaskInText(originalText: string, oldTask: RichTask, newTask: RichTask): string {
     const lines = originalText.split('\n');
-    const oldLine = oldTask.originalLine;
     const newLine = serializeTaskLine(newTask);
 
-    // Find the line. We use trimEnd() to avoid issues with different line endings (\r\n vs \n)
-    const oldLineTrimmed = oldLine.trimEnd();
-    const index = lines.findIndex(l => l.trimEnd() === oldLineTrimmed);
+    const index = findTaskLineIndex(lines, oldTask);
 
     if (index !== -1) {
         // preserve the original line ending style if possible
         const originalLine = lines[index];
         const hasCR = originalLine.endsWith('\r');
         lines[index] = newLine + (hasCR ? '\r' : '');
+    } else {
+        console.warn('[taskParser] Could not find task line to update:', oldTask.originalLine);
     }
 
     return lines.join('\n');
@@ -111,13 +145,12 @@ export function updateTaskInText(originalText: string, oldTask: RichTask, newTas
  */
 export function removeTaskFromText(originalText: string, task: RichTask): string {
     const lines = originalText.split('\n');
-    const oldLine = task.originalLine;
-
-    const oldLineTrimmed = oldLine.trimEnd();
-    const index = lines.findIndex(l => l.trimEnd() === oldLineTrimmed);
+    const index = findTaskLineIndex(lines, task);
 
     if (index !== -1) {
         lines.splice(index, 1);
+    } else {
+        console.warn('[taskParser] Could not find task line to remove:', task.originalLine);
     }
 
     return lines.join('\n');

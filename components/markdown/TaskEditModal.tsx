@@ -8,6 +8,7 @@ import { TagEditor } from '../ui/TagEditor';
 import { useSettingsStore } from '../../store/settings';
 import { TaskWithSource } from '../../store/tasks';
 import { useVaultStore } from '../../services/vaultService';
+import { openInObsidian } from '../../utils/obsidian';
 
 interface TaskEditModalProps {
     visible: boolean;
@@ -17,7 +18,8 @@ interface TaskEditModalProps {
 }
 
 export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModalProps) {
-    const { propertyConfig } = useSettingsStore();
+    const { propertyConfig, vaultUri } = useSettingsStore();
+    const { metadataCache } = useVaultStore();
     
     const [title, setTitle] = useState('');
     const [status, setStatus] = useState(' ');
@@ -73,10 +75,9 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
     };
 
     const handleOpenNote = () => {
-        if (!task || !task.fileUri) return;
+        if (!task || !task.fileUri || !vaultUri) return;
         onCancel(); // Close modal first
-        // Navigate to editor with parameters
-        router.push({ pathname: '/editor', params: { uri: task.fileUri } });
+        openInObsidian(vaultUri, task.fileUri);
     };
 
     return (
@@ -114,31 +115,40 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                         </View>
 
                         <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Status</Text>
-                            <View className="flex-row flex-wrap gap-2">
+                            <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Priority</Text>
+                            <View className="flex-row gap-2">
                                 {[
-                                    { id: ' ', icon: 'square-outline', label: 'Pending', color: '#94a3b8' },
-                                    { id: '/', icon: 'play-circle-outline', label: 'Doing', color: '#818cf8' },
-                                    { id: 'x', icon: 'checkbox', label: 'Done', color: '#6366f1' },
-                                    { id: '-', icon: 'close-circle-outline', label: 'Won\'t Do', color: '#94a3b8' },
-                                    { id: '?', icon: 'help-circle-outline', label: 'Planned', color: '#fbbf24' },
-                                    { id: '>', icon: 'arrow-forward-circle-outline', label: 'Delayed', color: '#6366f1' },
-                                ].map((s) => (
-                                    <TouchableOpacity
-                                        key={s.id}
-                                        onPress={() => setStatus(s.id)}
-                                        className={`flex-row items-center px-3 py-2 rounded-xl border ${status === s.id ? 'bg-indigo-600/20 border-indigo-500' : 'bg-slate-800 border-slate-700'}`}
-                                    >
-                                        <Ionicons 
-                                            name={s.icon as any} 
-                                            size={16} 
-                                            color={status === s.id ? '#818cf8' : s.color} 
-                                        />
-                                        <Text className={`ml-2 text-xs font-medium ${status === s.id ? 'text-indigo-300' : 'text-slate-400'}`}>
-                                            {s.label}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
+                                    { id: 'high', icon: 'arrow-up-circle', label: 'High', color: '#ef4444' },
+                                    { id: 'medium', icon: 'remove-circle', label: 'Medium', color: '#f59e0b' },
+                                    { id: 'low', icon: 'arrow-down-circle', label: 'Low', color: '#22c55e' },
+                                    { id: 'clear', icon: 'close-circle', label: 'None', color: '#94a3b8' },
+                                ].map((p) => {
+                                    const isSelected = p.id === 'clear' ? !properties.priority : properties.priority === p.id;
+                                    return (
+                                        <TouchableOpacity
+                                            key={p.id}
+                                            onPress={() => {
+                                                const newProps = { ...properties };
+                                                if (p.id === 'clear') {
+                                                    delete newProps.priority;
+                                                } else {
+                                                    newProps.priority = p.id;
+                                                }
+                                                setProperties(newProps);
+                                            }}
+                                            className={`flex-1 flex-row items-center justify-center py-2.5 rounded-xl border ${isSelected ? 'bg-indigo-600/20 border-indigo-500' : 'bg-slate-800 border-slate-700'}`}
+                                        >
+                                            <Ionicons 
+                                                name={p.icon as any} 
+                                                size={16} 
+                                                color={isSelected ? '#818cf8' : p.color} 
+                                            />
+                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-indigo-300' : 'text-slate-400'}`}>
+                                                {p.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
                             </View>
                         </View>
 
@@ -147,7 +157,7 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                                 label="Properties"
                                 properties={properties}
                                 onUpdate={setProperties}
-                                metadataCache={useVaultStore.getState().metadataCache}
+                                metadataCache={metadataCache}
                             />
                         </View>
 

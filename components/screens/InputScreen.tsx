@@ -96,6 +96,11 @@ export function InputScreen({
         onInputTextChange(newText);
     };
 
+    const handleUpdateTask = (oldTask: RichTask, updatedTask: RichTask) => {
+        const newText = updateTaskInText(inputText, oldTask, updatedTask);
+        onInputTextChange(newText);
+    };
+
     const handleSaveTask = (updatedTask: RichTask) => {
         if (editingTask) {
             const newText = updateTaskInText(inputText, editingTask, updatedTask);
@@ -191,6 +196,7 @@ export function InputScreen({
                                         onToggle={() => handleToggleTask(task)}
                                         onEdit={() => handleEditTask(task)}
                                         onDelete={() => handleDeleteTask(task)}
+                                        onUpdate={(updated) => handleUpdateTask(task, updated)}
                                     />
                                 </View>
                             ))}
