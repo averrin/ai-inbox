@@ -115,7 +115,6 @@ export async function registerReminderTask() {
 export async function unregisterReminderTask() {
     try {
         await BackgroundFetch.unregisterTaskAsync(REMINDER_TASK_NAME);
-        console.log('[ReminderService] Task unregistered');
     } catch (err) {
         console.error('[ReminderService] Task unregistration failed:', err);
     }
@@ -172,7 +171,6 @@ export function calculateNextRecurrence(currentDate: Date, rule: string): Date |
 export async function scanForReminders(): Promise<Reminder[]> {
     const { vaultUri, remindersScanFolder } = useSettingsStore.getState();
     if (!vaultUri) {
-        console.log('[ReminderService] No vault URI set');
         return [];
     }
 
@@ -207,9 +205,7 @@ export async function scanForReminders(): Promise<Reminder[]> {
         // This clears the thousands of duplicate alarms caused by the previous bug.
         const cleanupDone = await AsyncStorage.getItem('emergency_alarm_cleanup_v1');
         if (!cleanupDone) {
-            console.log('[ReminderService] TRIGGERING EMERGENCY ALARM WIPE...');
             await cancelAllNativeAlarms();
-            console.log('[ReminderService] EMERGENCY ALARM WIPE COMPLETE.');
             await AsyncStorage.setItem('emergency_alarm_cleanup_v1', 'true');
         }
 
@@ -242,7 +238,6 @@ export async function updateReminder(
             const oldTimeStr = oldFm[REMINDER_PROPERTY_KEY].replace(/^["']|["']$/g, '');
             const oldDate = new Date(oldTimeStr);
             if (!isNaN(oldDate.getTime())) {
-                console.log(`[ReminderService] Cancelling old native alarm for ${oldDate.toISOString()}`);
                 await stopNativeAlarm(oldDate.getTime());
             }
         }
@@ -369,7 +364,6 @@ export async function updateReminder(
         // If file not found/readable, we should still trigger a sync
         // This allows the notification for a deleted file to be cleaned up
         if (e.message?.includes('not readable') || e.message?.includes('does not exist')) {
-            console.log('[ReminderService] File missing, triggering cleanup sync...');
             await syncAllReminders();
             return; // Treated as success (cleanup)
         }
@@ -543,7 +537,6 @@ export async function syncMoodReminders() {
                     await Notifications.cancelScheduledNotificationAsync(notification.identifier);
                 }
             }
-            console.log('[MoodService] Mood reminders disabled, cleared all.');
             return;
         }
 
@@ -590,7 +583,6 @@ export async function syncMoodReminders() {
                     channelId: 'reminders-alarm',
                 }
             });
-            console.log(`[MoodService] Scheduled mood reminder for ${dateStr} at ${targetDate.format('HH:mm')}`);
         }
 
         // 3. Cleanup: Cancel any mood notification that is NOT in our new scheduled set
@@ -693,7 +685,6 @@ async function syncRangeNotifications() {
                     channelId: 'reminders-alarm'
                 }
             });
-            console.log(`[RangeService] Synced range notification for ${item.title} at ${item.date.toISOString()}`);
         }
 
     } catch (e) {
@@ -759,8 +750,7 @@ async function manageNotifications(activeReminders: Reminder[]) {
             const triggerTime = notification.date; // timestamp when it was shown
             if (now - triggerTime > intervalMs) {
                 // It's stale and ignored. Resend!
-                console.log(`[DEBUG_REMINDER] Resending persistent/missed notification for ${notification.request.content.title}`);
-
+                
                 // Cancel the old one to clear it from tray
                 await Notifications.dismissNotificationAsync(notification.request.identifier);
 
@@ -853,8 +843,7 @@ async function manageNotifications(activeReminders: Reminder[]) {
                     // It's overdue and repeating. Advance it!
                     const nextDate = calculateNextRecurrence(remDate, reminder.recurrenceRule);
                     if (nextDate && nextDate > nowTime) {
-                        console.log(`[ReminderService] Auto-advancing overdue recurring reminder: ${reminder.fileName} to ${nextDate.toISOString()}`);
-
+                        
                         // Update the file content
                         await updateReminder(reminder.fileUri, nextDate.toISOString(), reminder.recurrenceRule);
                         continue;
@@ -868,12 +857,10 @@ async function manageNotifications(activeReminders: Reminder[]) {
         // Schedule it (or update if exists)
         if (remDate > nowTime) {
             if (scheduledCount >= MAX_CONCURRENT_ALARMS) {
-                console.log(`[ReminderService] Reached alarm limit (${MAX_CONCURRENT_ALARMS}). Skipping further scheduling.`);
                 break;
             }
 
             // We pass the deterministic IDs.
-            console.log(`[DEBUG_REMINDER] Syncing future reminder: ${reminder.fileName}`);
             await scheduleNotification(reminder, false, expectedId, expectedNativeId);
             scheduledCount++;
         }
@@ -893,7 +880,6 @@ async function scheduleNotification(reminder: Reminder, immediate = false, ident
             activeNativeId
         );
         if (success) {
-            console.log(`[DEBUG_REMINDER] Scheduled NATIVE alarm for ${reminder.fileName}`);
             return;
         }
         // Fallback to standard notification if native fails (shouldn't happen on Android)
@@ -923,5 +909,4 @@ async function scheduleNotification(reminder: Reminder, immediate = false, ident
                 channelId: 'reminders-alarm'
             },
     });
-    console.log(`[DEBUG_REMINDER] Scheduled notification ${id} for ${reminder.fileName} at ${reminder.reminderTime}`);
 }

@@ -502,15 +502,30 @@ function _CalendarBody<T extends ICalendarEventBase>({
   const _renderZones = React.useCallback(
     (date: dayjs.Dayjs) => {
       return zones
-        .filter((event) => dayjs(event.start).isSame(date, 'day'))
-        .map((event, index) => (
-          <CalendarZone
-            key={`zone-${index}-${event.start}-${event.title}`}
-            event={event}
-            minHour={minHour}
-            hours={hours.length}
-          />
-        ))
+        .filter((event) => {
+          const eventStart = dayjs(event.start)
+          const eventEnd = dayjs(event.end)
+          return eventStart.isBefore(date.endOf('day')) && eventEnd.isAfter(date.startOf('day'))
+        })
+        .map((event, index) => {
+          // Adjust start/end for the current day to ensure correct top/height calculation
+          const start = dayjs(event.start).isAfter(date.startOf('day')) 
+            ? event.start 
+            : date.startOf('day').toDate()
+          const end = dayjs(event.end).isBefore(date.endOf('day')) 
+            ? event.end 
+            : date.endOf('day').toDate()
+          const adjustedEvent = { ...event, start, end }
+
+          return (
+            <CalendarZone
+              key={`zone-${index}-${event.start}-${event.title}`}
+              event={adjustedEvent}
+              minHour={minHour}
+              hours={hours.length}
+            />
+          )
+        })
     },
     [zones, minHour, hours.length],
   )

@@ -118,7 +118,9 @@ export function formatStartEnd(start: Date, end: Date, format: string) {
   return `${dayjs(start).format(format)} - ${dayjs(end).format(format)}`
 }
 
-export function isAllDayEvent(start: Date, end: Date) {
+export function isAllDayEvent(start: Date, end: Date, allDay?: boolean) {
+  if (allDay !== undefined) return allDay
+
   const _start = dayjs(start)
   const _end = dayjs(end)
 

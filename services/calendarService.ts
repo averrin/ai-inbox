@@ -7,16 +7,12 @@ export interface LocalCalendar extends Calendar.Calendar {
 }
 
 export const ensureCalendarPermissions = async () => {
-    console.log('[CalendarService] checking permissions status...');
     try {
         const { status: currentStatus } = await Calendar.getCalendarPermissionsAsync();
-        console.log('[CalendarService] current permission status:', currentStatus);
 
         if (currentStatus === 'granted') return true;
 
-        console.log('[CalendarService] requesting permissions...');
         const { status: requestStatus } = await Calendar.requestCalendarPermissionsAsync();
-        console.log('[CalendarService] request permission status:', requestStatus);
 
         return requestStatus === 'granted';
     } catch (e) {
@@ -30,68 +26,19 @@ export const getWritableCalendars = async (): Promise<Calendar.Calendar[]> => {
     if (!hasPermission) return [];
 
     const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-    console.log('[CalendarService] getWritableCalendars: found', calendars.length, 'total calendars');
 
     const now = new Date();
     const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     for (const cal of calendars) {
-        let eventCount = 'N/A';
         try {
-            const evts = await Calendar.getEventsAsync([cal.id], now, oneWeekLater);
-            eventCount = `${evts.length}`;
-
-            // Experimental Diagnostic: If 0 events found, try to create one just to test access
-            if (evts.length === 0 && cal.accessLevel === 'owner' && cal.title.includes('Alex Nabrodov')) {
-                console.log(`[CalendarService] Diagnostic: Found zero events but isPrimary=${cal.isPrimary}, isVisible=${cal.isVisible}. Attempting to FORCE isVisible: true...`);
-
-                if (!cal.isVisible) {
-                    try {
-                        await Calendar.updateCalendarAsync(cal.id, {
-                            isVisible: true
-                        });
-                        console.log(`[CalendarService] Diagnostic: updateCalendarAsync(isVisible: true) success for ${cal.id}`);
-
-                        // Check if it actually stuck
-                        const recheck = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-                        const updatedCal = recheck.find(c => c.id === cal.id);
-                        console.log(`[CalendarService] Diagnostic: Re-checked visibility for ${cal.id}: ${updatedCal?.isVisible}`);
-                    } catch (updateErr) {
-                        console.error(`[CalendarService] Diagnostic: updateCalendarAsync FAILED:`, updateErr);
-                    }
-                }
-
-                console.log(`[CalendarService] Diagnostic: Attempting to create test event in calendar ${cal.id}...`);
-                const testEventId = await Calendar.createEventAsync(cal.id, {
-                    title: 'AI Inbox Test Event',
-                    startDate: new Date(),
-                    endDate: new Date(Date.now() + 3600000), // 1 hour
-                    timeZone: 'UTC'
-                });
-                console.log(`[CalendarService] Diagnostic: Created test event with ID: ${testEventId}`);
-
-                // Log full calendar object for comparison
-                console.log(`[CalendarService] Diagnostic: Calendar Metadata for ${cal.id}:`, JSON.stringify(cal, null, 2));
-
-                // Fetch again to see if it's there
-                const retryEvts = await Calendar.getEventsAsync([cal.id], new Date(Date.now() - 3600000), new Date(Date.now() + 7200000));
-                console.log(`[CalendarService] Diagnostic: Retry fetch count: ${retryEvts.length}`);
-
-                // Cleanup
-                await Calendar.deleteEventAsync(testEventId);
-                console.log(`[CalendarService] Diagnostic: Deleted test event.`);
-            }
+            await Calendar.getEventsAsync([cal.id], now, oneWeekLater);
         } catch (e) {
-            eventCount = `ERROR: ${e}`;
+            // Ignore errors for individual calendar checks
         }
-        if (cal.id === '7') {
-            console.log(`[CalendarService] Diagnostic: Working Calendar Metadata (ID 7):`, JSON.stringify(cal, null, 2));
-        }
-        console.log(`[CalendarService]   - [${cal.id}] ${cal.title} (Source: ${cal.source?.name}, Access: ${cal.accessLevel}) -> Events (1wk): ${eventCount}`);
     }
 
     const filtered = calendars.filter(cal => cal.source?.name !== 'AI Inbox');
-    console.log('[CalendarService] count after filtering AI Inbox:', filtered.length);
     return filtered;
 };
 
@@ -105,72 +52,21 @@ export const getCalendarEvents = async (
     startDate: Date,
     endDate: Date
 ): Promise<Calendar.Event[]> => {
-    console.log('[CalendarService] getCalendarEvents: entered, IDs:', JSON.stringify(calendarIds));
     const hasPermission = await ensureCalendarPermissions();
-    console.log('[CalendarService] hasPermission:', hasPermission);
     if (!hasPermission || calendarIds.length === 0) return [];
 
-    console.log('[CalendarService] Fetching events for IDs:', calendarIds.length, 'range:', startDate, 'to', endDate);
-
-    // Diagnostic: Check visibility and try to force it for problematic IDs
-    const allCals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-    for (const id of calendarIds) {
-        const cal = allCals.find(c => c.id === id);
-        if (cal && !cal.isVisible) {
-            console.log(`[CalendarService] Diagnostic: ID ${id} (${cal.title}) is HIDDEN. Attempting to force visible...`);
-            try {
-                await Calendar.updateCalendarAsync(id, { isVisible: true });
-                console.log(`[CalendarService] Diagnostic: Force visibility success for ${id}`);
-            } catch (e) {
-                console.error(`[CalendarService] Diagnostic: Force visibility FAILED for ${id}:`, e);
-            }
-        }
-    }
-
     try {
-        // Broaden range for diagnostic - fetch +/- 30 days just to see if anything pops up
+        // Broaden range to ensure we catch events that might start before/end after the window but overlap
+        // However, the original code used a very broad range for diagnostics (30 days). 
+        // We'll stick to a reasonable buffer or the requested range.
+        // For now, I'll keep the logic but remove the logs.
         const broadStart = new Date(startDate.getTime() - 30 * 24 * 60 * 60 * 1000);
         const broadEnd = new Date(endDate.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-        console.log('[CalendarService] Diagnostic: fetching with broad range:', broadStart.toISOString(), 'to', broadEnd.toISOString());
-
         const events = await Calendar.getEventsAsync(calendarIds, broadStart, broadEnd);
-
-        console.log('[CalendarService] getEventsAsync success, count:', events.length);
-
-        // Diagnostic: If 0 events, try to create and fetch immediately
-        if (events.length === 0 && calendarIds.includes('18')) {
-            console.log('[CalendarService] Diagnostic: 0 events for work ID 18. Attempting create-and-fetch test...');
-            try {
-                const testId = await Calendar.createEventAsync('18', {
-                    title: 'DEBUG TEST EVENT',
-                    startDate: new Date(),
-                    endDate: new Date(Date.now() + 3600000),
-                    timeZone: 'UTC'
-                });
-                const retry = await Calendar.getEventsAsync(['18'], broadStart, broadEnd);
-                console.log(`[CalendarService] Diagnostic: Create success (ID: ${testId}), Retry fetch count: ${retry.length}`);
-                await Calendar.deleteEventAsync(testId);
-            } catch (e) {
-                console.error('[CalendarService] Diagnostic: Create-and-fetch FAILED:', e);
-            }
-        }
-
-        if (events.length === 0) {
-            console.log('[CalendarService] WARNING: Zero events returned even with broad range for IDs:', calendarIds);
-        } else {
-            // Log first event to see what it looks like
-            console.log('[CalendarService] Sample event:', JSON.stringify({
-                title: events[0].title,
-                start: events[0].startDate,
-                end: events[0].endDate,
-                cid: events[0].calendarId
-            }));
-        }
 
         const { defaultOpenCalendarId } = useSettingsStore.getState();
         const merged = mergeDuplicateEvents(events, defaultOpenCalendarId);
-        console.log('[CalendarService] Merged events count:', merged.length);
         return merged;
     } catch (e) {
         console.error('[CalendarService] getEventsAsync FAILED:', e);

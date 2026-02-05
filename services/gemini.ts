@@ -156,7 +156,6 @@ export async function processContent(apiKey: string, content: string, promptOver
                     if (oembedData.title) {
                         // Prepend title to content to help AI understand the video
                         processedContent = `YouTube Video: ${oembedData.title}\nURL: ${url}`;
-                        console.log('[Gemini] Enhanced YouTube content with title:', oembedData.title);
                     }
                 }
             } catch (e) {
@@ -189,12 +188,8 @@ export async function processContent(apiKey: string, content: string, promptOver
 
     try {
         const result = await genModel.generateContent(prompt);
-        console.log("[Gemini] Full result:", JSON.stringify(result, null, 2));
         const response = result.response;
         let text = response.text();
-
-        console.log("[Gemini] Raw response text:", text);
-        console.log("[Gemini] Response length:", text.length);
 
         // Clean markdown code blocks if present
         text = text.replace(/```json/g, '').replace(/```/g, '');
@@ -230,8 +225,6 @@ export async function processContent(apiKey: string, content: string, promptOver
         }
 
         if (jsonStr) {
-            console.log("[Gemini] Extracted JSON string:", jsonStr);
-
             try {
                 // Use JSON5 for robust parsing (handles trailing commas, etc.)
                 let parsed = JSON5.parse(jsonStr);
@@ -290,7 +283,6 @@ export async function transcribeAudio(apiKey: string, base64Audio: string, mimeT
         ]);
 
         const text = result.response.text();
-        console.log(`[Gemini] Transcription result: ${text.substring(0, 50)}...`);
         return text.trim();
     } catch (e) {
         console.error("[Gemini] Transcription failed:", e);
@@ -320,8 +312,6 @@ export async function rescheduleReminderWithAI(
     try {
         const result = await genModel.generateContent(prompt);
         const text = result.response.text().trim();
-
-        console.log(`[Gemini] Reschedule AI suggested: ${text}`);
 
         // Extract RFC3339
         const match = text.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);

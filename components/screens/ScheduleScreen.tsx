@@ -148,25 +148,13 @@ export default function ScheduleScreen() {
 
             const safeCalendarIds = Array.isArray(visibleCalendarIds) ? visibleCalendarIds.filter(id => !!id) : [];
 
-            console.log(`[ScheduleScreen] fetchEvents: start, IDs count: ${safeCalendarIds.length}`);
-            
             if (safeCalendarIds.length === 0) {
-                console.log('[ScheduleScreen] No visible calendars, skipping fetch.');
                 setEvents([]);
                 setIsEventsLoaded(true);
                 return;
             }
 
-            // Diagnostic: Log selected calendar names
-            const allCalsForLog = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-            const selectedCals = allCalsForLog.filter(c => safeCalendarIds.includes(c.id));
-            const selectedCalsInfo = selectedCals.map(c => `${c.title} (${c.source.name}) [ID: ${c.id}]`);
-            console.log('[ScheduleScreen] SELECTED CALENDARS:', JSON.stringify(selectedCalsInfo, null, 2));
-            console.log('[ScheduleScreen] SELECTED CALENDARS FULL METADATA:', JSON.stringify(selectedCals, null, 2));
-
-            console.log(`[ScheduleScreen] Fetching events for range: ${start.toISOString()} to ${end.toISOString()}`);
             const nativeEvents = await getCalendarEvents(safeCalendarIds, start, end);
-            console.log(`[ScheduleScreen] Received native events count: ${nativeEvents?.length || 0}`);
 
             if (!nativeEvents) {
                 console.warn('[ScheduleScreen] getCalendarEvents returned null/undefined');
@@ -175,9 +163,7 @@ export default function ScheduleScreen() {
             }
 
             // Fetch ALL calendars to get colors/names for merged events, not just writable ones
-            console.log('[ScheduleScreen] Fetching all calendars...');
             const allCalendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-            console.log(`[ScheduleScreen] Received calendars count: ${allCalendars?.length || 0}`);
             
             const calDetailsMap = (allCalendars || []).reduce((acc: any, cal) => {
                 if (cal && cal.id) {
@@ -185,10 +171,8 @@ export default function ScheduleScreen() {
                 }
                 return acc;
             }, {} as Record<string, { title: string, color: string, source: string }>);
-            console.log('[ScheduleScreen] Calendar details map built.');
 
             // Map native events to BigCalendar format
-            console.log('[ScheduleScreen] Mapping native events...');
             const mappedEvents = nativeEvents.map(evt => {
                 const assignedTypeId = assignments[evt.title];
                 const assignedType = assignedTypeId ? eventTypes.find(t => t.id === assignedTypeId) : null;
@@ -235,7 +219,8 @@ export default function ScheduleScreen() {
                     isSkippable: flags?.skippable,
                     needPrep: flags?.needPrep,
                     isRecurrent: !!evt.recurrenceRule, // Non-null means recurring
-                    hideBadges: assignedType?.hideBadges // From event type
+                    hideBadges: assignedType?.hideBadges, // From event type
+                    allDay: evt.allDay
                 };
             });
 
@@ -253,14 +238,27 @@ export default function ScheduleScreen() {
                     typeTag: 'REMINDER'
                 }));
 
-            console.log('[ScheduleScreen] Mapped reminders count:', mappedReminders.length);
-
             const combinedEvents = [...mappedEvents, ...mappedReminders];
-            console.log('[ScheduleScreen] Total combined events:', combinedEvents.length);
+            
+            // Add Zones for All-Day Events
+            const allDayZones = mappedEvents
+                .filter(e => e.allDay)
+                .map(e => ({
+                    ...e,
+                    type: 'zone',
+                    allDay: false, // Ensure they stay in daytimeEvents for grid rendering
+                    // Use very subtle color for all-day zones
+                    color: (e.color || 'rgba(79, 70, 229, 0.8)').replace(/[\d.]+\)$/, '0.03)'),
+                    start: dayjs(e.start).startOf('day').toDate(),
+                    end: dayjs(e.end).endOf('day').toDate(),
+                    title: `Zone: ${e.title}`,
+                    borderWidth: 0
+                }));
 
-            setEvents(combinedEvents);
+            const finalEvents = [...combinedEvents, ...allDayZones];
+
+            setEvents(finalEvents);
             setIsEventsLoaded(true);
-            console.log('[ScheduleScreen] Events set in state.');
         } catch (e) {
             console.error("[ScheduleScreen] Critical error in fetchEvents:", e);
             setIsEventsLoaded(true);
@@ -312,7 +310,6 @@ export default function ScheduleScreen() {
 
         // 3. Background Async Creation
         (async () => {
-            console.log('[ScheduleScreen] Starting background event creation for:', data.title);
             try {
                 // Better calendar selection logic (prioritize writable)
                 const calendars = await getWritableCalendars();
@@ -321,25 +318,21 @@ export default function ScheduleScreen() {
                 // Priority 1: User Default for Create
                 if (defaultCreateCalendarId) {
                     targetCalendar = calendars.find(c => c.id === defaultCreateCalendarId && c.allowsModifications);
-                    if (targetCalendar) console.log('[ScheduleScreen] Using default create calendar:', targetCalendar.title);
                 }
 
                 // Priority 2: Explicit Writable
                 if (!targetCalendar) {
                     targetCalendar = calendars.find(c => c.allowsModifications);
-                    if (targetCalendar) console.log('[ScheduleScreen] Using first writable calendar:', targetCalendar.title);
                 }
 
                 // Priority 3: First Visible (if writable)
                 if (!targetCalendar && visibleCalendarIds.length > 0) {
                     targetCalendar = calendars.find(c => c.id === visibleCalendarIds[0] && c.allowsModifications);
-                    if (targetCalendar) console.log('[ScheduleScreen] Using first visible calendar:', targetCalendar.title);
                 }
 
                 // Priority 4: Fallback to first available
                 if (!targetCalendar && calendars.length > 0) {
                     targetCalendar = calendars[0];
-                    console.log('[ScheduleScreen] Fallback to first available calendar:', targetCalendar.title);
                 }
 
                 if (!targetCalendar) {
@@ -354,7 +347,6 @@ export default function ScheduleScreen() {
                     // Proceeding anyway but likely to fail
                 }
 
-                console.log('[ScheduleScreen] Creating event in calendar ID:', targetCalendar.id);
                 const newEventId = await createCalendarEvent(targetCalendar.id, {
                     title: data.title,
                     startDate: data.startDate,
@@ -362,11 +354,9 @@ export default function ScheduleScreen() {
                     allDay: data.allDay,
                     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
                 });
-                console.log('[ScheduleScreen] Event created successfully! ID:', newEventId);
 
                 // 4. Re-sync to get real ID and finalized data
                 setTimeout(() => {
-                    console.log('[ScheduleScreen] Refreshing events after creation...');
                     fetchEvents();
                 }, 500); // Small delay to ensure native calendar has updated
             } catch (e) {
@@ -499,58 +489,85 @@ export default function ScheduleScreen() {
         const moodColors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
         const moodColor = moodEntry ? moodColors[moodEntry.mood - 1] : undefined;
 
+        // All Day Events for this day
+        const dailyAllDayEvents = (headerProps.allDayEvents || []).filter((e: any) =>
+            e.type !== 'zone' && // Filter out the grid zone markers from header
+            dayjs(pageDate).isBetween(dayjs(e.start), dayjs(e.end), 'day', '[]')
+        );
+
         return (
-            <View className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex-row justify-between items-center">
-                {/* Left: Mood Tracker and Weather */}
-                <View className="flex-row items-center gap-4">
-                    <TouchableOpacity
-                        onPress={() => {
-                            setMoodDate(pageDate.toDate());
-                            setMoodModalVisible(true);
-                        }}
-                        className="flex-row items-center"
-                    >
-                        {moodEntry ? (
-                            <View className="w-5 h-5 rounded-full border border-white/20" style={{ backgroundColor: moodColor }} />
-                        ) : (
-                            <Ionicons name="add-circle-outline" size={20} color="#475569" />
-                        )}
-                    </TouchableOpacity>
+            <View className="bg-slate-900 border-b border-slate-800">
+                <View className="px-4 py-2 flex-row justify-between items-center">
+                    {/* Left: Mood Tracker and Weather */}
+                    <View className="flex-row items-center gap-4">
+                        <TouchableOpacity
+                            onPress={() => {
+                                setMoodDate(pageDate.toDate());
+                                setMoodModalVisible(true);
+                            }}
+                            className="flex-row items-center"
+                        >
+                            {moodEntry ? (
+                                <View className="w-5 h-5 rounded-full border border-white/20" style={{ backgroundColor: moodColor }} />
+                            ) : (
+                                <Ionicons name="add-circle-outline" size={20} color="#475569" />
+                            )}
+                        </TouchableOpacity>
 
-                    {weather && (
-                        <View className="flex-row items-center gap-1">
-                            <Ionicons name={weather.icon as any} size={16} color="#94a3b8" />
-                            <Text className="text-slate-400 text-xs font-semibold">
-                                {Math.round(weather.maxTemp)}°C
-                            </Text>
-                        </View>
-                    )}
-                </View>
-
-                {/* Right: Stats (Clickable for details) */}
-                <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => {
-                        setSummaryData({ breakdown: dayStats, status, date: pageDate.toDate() });
-                        setSummaryModalVisible(true);
-                    }}
-                    className="flex-row items-center gap-4"
-                >
-                    <View className="flex-row items-center gap-2">
-                        <DayStatusMarker status={status} />
-                        {dayStats.deepWorkMinutes > 0 && (
-                            <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                                Deep Work: <Text className="text-emerald-400 text-sm">{deepWorkStr}</Text>
-                            </Text>
+                        {weather && (
+                            <View className="flex-row items-center gap-1">
+                                <Ionicons name={weather.icon as any} size={16} color="#94a3b8" />
+                                <Text className="text-slate-400 text-xs font-semibold">
+                                    {Math.round(weather.maxTemp)}°C
+                                </Text>
+                            </View>
                         )}
                     </View>
 
-                    <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                        Day Score: <Text className="text-indigo-400 text-sm">{Math.round(dayStats.totalScore)}</Text>
-                    </Text>
+                    {/* Right: Stats (Clickable for details) */}
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => {
+                            setSummaryData({ breakdown: dayStats, status, date: pageDate.toDate() });
+                            setSummaryModalVisible(true);
+                        }}
+                        className="flex-row items-center gap-4"
+                    >
+                        <View className="flex-row items-center gap-2">
+                            <DayStatusMarker status={status} />
+                            {dayStats.deepWorkMinutes > 0 && (
+                                <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                                    Deep Work: <Text className="text-emerald-400 text-sm">{deepWorkStr}</Text>
+                                </Text>
+                            )}
+                        </View>
 
-                    <Ionicons name="information-circle-outline" size={16} color="#64748b" />
-                </TouchableOpacity>
+                        <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                            Day Score: <Text className="text-indigo-400 text-sm">{Math.round(dayStats.totalScore)}</Text>
+                        </Text>
+
+                        <Ionicons name="information-circle-outline" size={16} color="#64748b" />
+                    </TouchableOpacity>
+                </View>
+
+                {/* All Day Events Row */}
+                {dailyAllDayEvents.length > 0 && (
+                    <View className="px-4 pb-2 flex-row flex-wrap gap-1.5">
+                        {dailyAllDayEvents.map((evt: any, idx: number) => (
+                            <TouchableOpacity
+                                key={`${idx}-${evt.title}`}
+                                onPress={() => setSelectedEvent({ ...evt })}
+                                className="px-2 py-0.5 rounded-md flex-row items-center gap-1 border border-white/10"
+                                style={{ backgroundColor: evt.color || '#4f46e5', opacity: 0.9 }}
+                            >
+                                <Ionicons name="calendar-outline" size={10} color="white" />
+                                <Text className="text-white text-[10px] font-bold" numberOfLines={1}>
+                                    {evt.title}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
             </View>
         );
     }, [changeDate, events, focusRanges, lunchDifficulties, weatherData, moods]);
@@ -604,8 +621,6 @@ export default function ScheduleScreen() {
             alert('Only reminders can be rescheduled locally.');
             return;
         }
-
-        console.log('[ScheduleScreen] Dropped reminder:', event.title, 'to', newDate);
 
         const originalReminder = event.originalEvent;
         // const oldTime = originalReminder.reminderTime;
@@ -857,7 +872,6 @@ export default function ScheduleScreen() {
                                                 data.alarm,
                                                 data.persistent
                                             );
-                                            console.log('[ScheduleScreen] Created new standalone reminder:', result);
 
                                             // Update cache with real URI and remove isNew flag immediately
                                             // This prevents "rescheduling creates new reminder" bug if user edits again before sync

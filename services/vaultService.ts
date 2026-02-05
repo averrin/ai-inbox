@@ -48,16 +48,12 @@ export const useVaultStore = create<VaultState>()(
                         }
                     }
 
-                    console.log('[VaultService] Refreshing structure with metadata cache...');
-
                     // Pass existing cache to readVaultStructure to optimize reads
                     const { structure, updatedCache } = await readVaultStructure(
                         targetUri,
                         2,
                         get().metadataCache
                     );
-
-                    console.log('[VaultService] Structure refreshed.');
 
                     set({
                         structure,
