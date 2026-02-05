@@ -3,14 +3,15 @@ import { NativeModules, Platform } from 'react-native';
 const { AlarmModule } = NativeModules;
 
 interface AlarmInterface {
-    scheduleAlarm(title: String, message: String, timestamp: number): Promise<boolean>;
+    scheduleAlarm(title: string, message: string, timestamp: number, id: number): Promise<boolean>;
     stopAlarm(id: number): Promise<boolean>;
-    getLaunchAlarmId(): Promise<number | null>;
+    getLaunchAlarmDetails(): Promise<{ id: number, title?: string, message?: string } | null>;
+    cancelAllAlarms(): Promise<boolean>;
 }
 
-export const scheduleNativeAlarm = async (title: string, message: string, timestamp: number) => {
+export const scheduleNativeAlarm = async (title: string, message: string, timestamp: number, id: number) => {
     if (Platform.OS === 'android' && AlarmModule) {
-        return await AlarmModule.scheduleAlarm(title, message, timestamp);
+        return await AlarmModule.scheduleAlarm(title, message, timestamp, id);
     }
     if (Platform.OS === 'android') {
         console.warn("AlarmModule is not linked. Rebuild the app.");
@@ -30,6 +31,13 @@ export const getLaunchAlarmDetails = async (): Promise<{ id: number, title?: str
         return await AlarmModule.getLaunchAlarmDetails();
     }
     return null;
+};
+
+export const cancelAllNativeAlarms = async () => {
+    if (Platform.OS === 'android' && AlarmModule) {
+        return await AlarmModule.cancelAllAlarms();
+    }
+    return false;
 };
 
 export const dismissNativeNotification = async (id: number) => {

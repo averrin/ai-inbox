@@ -106,6 +106,7 @@ interface RichTextEditorProps {
     // Toolbar actions
     onAttach?: () => Promise<void>;
     onReminder?: () => void;
+    onCreateReminder?: () => void;
     onCamera?: () => Promise<void>;
     onRecord?: () => void;
     recording?: boolean;
@@ -124,6 +125,7 @@ export function RichTextEditor({
     inputStyle,
     onAttach,
     onReminder,
+    onCreateReminder,
     onCamera,
     onRecord,
     recording,
@@ -291,17 +293,22 @@ export function RichTextEditor({
                 <View style={styles.toolbar}>
                     {onAttach && (
                         <TouchableOpacity onPress={onAttach} style={styles.toolbarButton}>
-                            <Ionicons name="attach" size={24} color="white" />
+                            <Ionicons name="attach" size={20} color="white" />
+                        </TouchableOpacity>
+                    )}
+                    {onCreateReminder && (
+                         <TouchableOpacity onPress={onCreateReminder} style={styles.toolbarButton}>
+                            <Ionicons name="add-circle-outline" size={20} color="white" />
                         </TouchableOpacity>
                     )}
                     {onReminder && (
                          <TouchableOpacity onPress={onReminder} style={styles.toolbarButton}>
-                            <Ionicons name="alarm-outline" size={24} color="white" />
+                            <Ionicons name="alarm-outline" size={20} color="white" />
                         </TouchableOpacity>
                     )}
                     {onCamera && (
                         <TouchableOpacity onPress={onCamera} style={styles.toolbarButton}>
-                            <Ionicons name="camera" size={24} color="white" />
+                            <Ionicons name="camera" size={20} color="white" />
                         </TouchableOpacity>
                     )}
                     {onRecord && (
@@ -309,7 +316,7 @@ export function RichTextEditor({
                             onPress={onRecord} 
                             style={[styles.toolbarButton, recording && styles.recordingButton]}
                         >
-                            <Ionicons name={recording ? "stop" : "mic"} size={24} color="white" />
+                            <Ionicons name={recording ? "stop" : "mic"} size={20} color="white" />
                         </TouchableOpacity>
                     )}
                 </View>
@@ -339,16 +346,16 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     toolbar: {
-        width: 48,
+        width: 44,
         paddingTop: 8,
         alignItems: 'center',
-        gap: 10,
+        gap: 6,
         borderLeftWidth: 1,
         borderLeftColor: '#334155', // slate-700
         backgroundColor: 'rgba(30, 41, 59, 0.5)', 
     },
     toolbarButton: {
-        padding: 8,
+        padding: 6,
         borderRadius: 8,
         backgroundColor: 'rgba(51, 65, 85, 0.5)', // slate-700/50
     },

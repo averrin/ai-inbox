@@ -5,7 +5,7 @@ import { ShareIntentProvider } from "expo-share-intent";
 import { StatusBar } from "expo-status-bar";
 import * as Notifications from 'expo-notifications';
 import { useEffect, useRef } from "react";
-import { registerReminderTask, scanForReminders, Reminder } from "../services/reminderService";
+import { registerReminderTask, scanForReminders, Reminder, getHash } from "../services/reminderService";
 import { ReminderModalProvider, useReminderModal } from "../utils/reminderModalContext";
 import { ReminderModal } from "../components/ReminderModal";
 import Toast, { BaseToast, ErrorToast, ToastConfig } from 'react-native-toast-message';
@@ -152,7 +152,7 @@ function AppContent() {
 
           // Try to find the real file first for full functionality
           const reminders = await scanForReminders();
-          const found = reminders.find(r => Math.floor(new Date(r.reminderTime).getTime() / 1000) === details.id);
+          const found = reminders.find(r => (Math.abs(getHash(r.fileUri)) % 2147483647) === details.id);
 
           if (found) {
             showReminder(found);

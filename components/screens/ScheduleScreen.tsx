@@ -10,7 +10,7 @@ import { getCalendarEvents, ensureCalendarPermissions } from '../../services/cal
 import { EventContextModal } from '../EventContextModal';
 import { DateRuler } from '../DateRuler';
 import * as Calendar from 'expo-calendar';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useFocusEffect } from '@react-navigation/native';
 import { useReminderModal } from '../../utils/reminderModalContext';
 import { ScheduleEvent } from './ScheduleEvent';
@@ -142,24 +142,53 @@ export default function ScheduleScreen() {
     };
 
     const fetchEvents = useCallback(async () => {
-        if (visibleCalendarIds.length === 0) {
-            setEvents([]);
-            return;
-        }
-
-        const start = dayjs(date).startOf('week').subtract(1, 'week').toDate();
-        const end = dayjs(date).endOf('week').add(1, 'week').toDate();
-
         try {
-            const nativeEvents = await getCalendarEvents(visibleCalendarIds, start, end);
+            const start = dayjs(date).startOf('week').subtract(1, 'week').toDate();
+            const end = dayjs(date).endOf('week').add(1, 'week').toDate();
+
+            const safeCalendarIds = Array.isArray(visibleCalendarIds) ? visibleCalendarIds.filter(id => !!id) : [];
+
+            console.log(`[ScheduleScreen] fetchEvents: start, IDs count: ${safeCalendarIds.length}`);
+            
+            if (safeCalendarIds.length === 0) {
+                console.log('[ScheduleScreen] No visible calendars, skipping fetch.');
+                setEvents([]);
+                setIsEventsLoaded(true);
+                return;
+            }
+
+            // Diagnostic: Log selected calendar names
+            const allCalsForLog = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+            const selectedCals = allCalsForLog.filter(c => safeCalendarIds.includes(c.id));
+            const selectedCalsInfo = selectedCals.map(c => `${c.title} (${c.source.name}) [ID: ${c.id}]`);
+            console.log('[ScheduleScreen] SELECTED CALENDARS:', JSON.stringify(selectedCalsInfo, null, 2));
+            console.log('[ScheduleScreen] SELECTED CALENDARS FULL METADATA:', JSON.stringify(selectedCals, null, 2));
+
+            console.log(`[ScheduleScreen] Fetching events for range: ${start.toISOString()} to ${end.toISOString()}`);
+            const nativeEvents = await getCalendarEvents(safeCalendarIds, start, end);
+            console.log(`[ScheduleScreen] Received native events count: ${nativeEvents?.length || 0}`);
+
+            if (!nativeEvents) {
+                console.warn('[ScheduleScreen] getCalendarEvents returned null/undefined');
+                setEvents([]);
+                return;
+            }
+
             // Fetch ALL calendars to get colors/names for merged events, not just writable ones
+            console.log('[ScheduleScreen] Fetching all calendars...');
             const allCalendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-            const calDetailsMap = allCalendars.reduce((acc, cal) => {
-                acc[cal.id] = { title: cal.title, color: cal.color, source: cal.source.name };
+            console.log(`[ScheduleScreen] Received calendars count: ${allCalendars?.length || 0}`);
+            
+            const calDetailsMap = (allCalendars || []).reduce((acc: any, cal) => {
+                if (cal && cal.id) {
+                    acc[cal.id] = { title: cal.title || 'Untitled', color: cal.color || '#888888', source: cal.source?.name || 'Local' };
+                }
                 return acc;
             }, {} as Record<string, { title: string, color: string, source: string }>);
+            console.log('[ScheduleScreen] Calendar details map built.');
 
             // Map native events to BigCalendar format
+            console.log('[ScheduleScreen] Mapping native events...');
             const mappedEvents = nativeEvents.map(evt => {
                 const assignedTypeId = assignments[evt.title];
                 const assignedType = assignedTypeId ? eventTypes.find(t => t.id === assignedTypeId) : null;
@@ -178,7 +207,7 @@ export default function ScheduleScreen() {
                 // Resolve merged calendars
                 const mergedIds = (evt as any).mergedCalendarIds || [evt.calendarId];
                 const sourceCalendars = mergedIds.map((id: string) => {
-                    const details = calDetailsMap[id];
+                    const details = (calDetailsMap as any)[id];
                     return {
                         id,
                         title: details?.title || 'Unknown Calendar',
@@ -197,7 +226,7 @@ export default function ScheduleScreen() {
                     originalEvent: {
                         ...evt,
                         sourceCalendars: uniqueSourceCalendars,
-                        source: { name: calDetailsMap[evt.calendarId]?.source || '' }
+                        source: { name: (calDetailsMap as any)[evt.calendarId]?.source || '' }
                     }, // Keep ref for context menu with source info
                     typeTag: assignedType ? assignedType.title : null,
                     difficulty: difficultyResult, // Use full difficulty object
@@ -214,7 +243,7 @@ export default function ScheduleScreen() {
             const mappedReminders = (cachedReminders || [])
                 .filter((r: any) => r.reminderTime) // Filter out reminders without time
                 .map((r: any) => ({
-                    title: r.title || r.fileName.replace('.md', ''), // Backup title if content logic fails
+                    title: r.title || r.fileName?.replace('.md', '') || 'Untitled Reminder', // Backup title if content logic fails
                     start: new Date(r.reminderTime),
                     end: new Date(r.reminderTime),
                     color: r.alarm ? '#ef4444' : '#f59e0b',
@@ -224,10 +253,17 @@ export default function ScheduleScreen() {
                     typeTag: 'REMINDER'
                 }));
 
-            setEvents([...mappedEvents, ...mappedReminders]);
+            console.log('[ScheduleScreen] Mapped reminders count:', mappedReminders.length);
+
+            const combinedEvents = [...mappedEvents, ...mappedReminders];
+            console.log('[ScheduleScreen] Total combined events:', combinedEvents.length);
+
+            setEvents(combinedEvents);
             setIsEventsLoaded(true);
+            console.log('[ScheduleScreen] Events set in state.');
         } catch (e) {
-            console.error("Error fetching events", e);
+            console.error("[ScheduleScreen] Critical error in fetchEvents:", e);
+            setIsEventsLoaded(true);
         }
     }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, ranges, cachedReminders, defaultOpenCalendarId]);
 
@@ -725,7 +761,7 @@ export default function ScheduleScreen() {
                     <ReminderEditModal
                         visible={!!editingReminder}
                         initialDate={new Date(editingReminder.reminderTime)}
-                        initialTitle={editingReminder.title || editingReminder.fileName.replace('.md', '')}
+                        initialTitle={editingReminder.title || editingReminder.fileName?.replace('.md', '') || 'Untitled Reminder'}
                         enableTitle={true}
                         initialRecurrence={editingReminder.recurrenceRule}
                         initialAlarm={editingReminder.alarm}

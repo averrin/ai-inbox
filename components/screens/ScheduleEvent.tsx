@@ -49,7 +49,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
     const difficultyValue = (evt.difficulty && typeof evt.difficulty === 'object') ? (evt.difficulty.total || 0) : (evt.difficulty || 0);
 
     if (evt.type === 'marker') {
-        const color = evt.color || (evt.originalEvent.alarm ? '#ef4444' : '#f59e0b');
+        const color = evt.color || (evt.originalEvent?.alarm ? '#ef4444' : '#f59e0b');
 
         return (
             <TouchableOpacity
@@ -86,12 +86,12 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
                             {dayjs(evt.start).format(timeFormatStr)} {evt.title}
                         </Text>
 
-                        {(evt.originalEvent.recurrenceRule) && (
+                        {(evt.originalEvent?.recurrenceRule) && (
                             <View className="bg-slate-800 px-1 rounded flex-row items-center" style={{ paddingVertical: 1 }}>
                                 <Ionicons name="repeat" size={8} color={color} />
                             </View>
                         )}
-                        {(!!evt.originalEvent.persistent) && (
+                        {(!!evt.originalEvent?.persistent) && (
                             <View className="bg-slate-800 px-1 rounded flex-row items-center" style={{ paddingVertical: 1 }}>
                                 <Ionicons name="alert-circle" size={8} color={color} />
                             </View>

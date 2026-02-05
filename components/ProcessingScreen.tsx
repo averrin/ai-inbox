@@ -1004,6 +1004,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                     links={links}
                     onRemoveLink={handleRemoveLink}
                     onReminder={handleReminderClick}
+                    onCreateReminder={handleReminderClick}
                     reminderData={reminderData}
                     onRemoveReminder={() => setReminderData(null)}
                 />
