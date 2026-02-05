@@ -33,6 +33,7 @@ interface InputScreenProps {
     onCancel: () => void;
     onAttach: () => Promise<void>;
     onReminder?: () => void;
+    onCreateReminder?: () => void;
     onCamera: () => Promise<void>;
     onRecord: () => void;
     recording: boolean;
@@ -62,6 +63,7 @@ export function InputScreen({
     onCancel,
     onAttach,
     onReminder,
+    onCreateReminder,
     onCamera,
     onRecord,
     recording,
@@ -136,6 +138,7 @@ export function InputScreen({
                             placeholder="Paste URL or type your thought..."
                             onAttach={onAttach}
                             onReminder={onReminder}
+                            onCreateReminder={onCreateReminder}
                             onCamera={onCamera}
                             onRecord={onRecord}
                             recording={recording}
@@ -149,6 +152,7 @@ export function InputScreen({
                             placeholder="Paste URL or type your thought..."
                             onAttach={onAttach}
                             onReminder={onReminder}
+                            onCreateReminder={onCreateReminder}
                             onCamera={onCamera}
                             onRecord={onRecord}
                             recording={recording}

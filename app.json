@@ -10,7 +10,7 @@
       "com.aiinbox.mobile"
     ],
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -28,7 +28,6 @@
       "package": "com.aiinbox.mobile",
       "permissions": [
         "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.USE_FULL_SCREEN_INTENT",
         "android.permission.VIBRATE",
         "android.permission.RECEIVE_BOOT_COMPLETED"
       ]

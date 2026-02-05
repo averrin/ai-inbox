@@ -181,7 +181,21 @@ export class TaskService {
                 }
 
                 if (updatedContent !== content) {
-                    await writeSafe(fileUri, updatedContent);
+                    // FIX: Ghost Data / Truncation Bug on Android SAF.
+                    // We use a "Super Padding" strategy to ensure we overwrite all original bytes.
+                    let contentToWrite = updatedContent;
+                    if (updatedContent.length < content.length) {
+                        const charDiff = content.length - updatedContent.length;
+                        // Multiplier 4 used because worst-case: removed 4-byte chars replaced by 1-byte chars.
+                        // We must ensure the new file size (in bytes) >= old file size (in bytes).
+                        contentToWrite += ' '.repeat(charDiff * 4);
+                    }
+
+                    try {
+                        await writeSafe(fileUri, contentToWrite);
+                    } catch (e) {
+                        console.error(`[TaskService] Bulk deletion write failed for ${fileUri}`, e);
+                    }
                 }
             } catch (e) {
                 console.error(`[TaskService] Bulk deletion failed for file ${fileUri}`, e);

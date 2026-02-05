@@ -74,8 +74,20 @@ function InnerTabNavigator({
           swipeEnabled: true,
           animationEnabled: true,
         }}
-        initialRouteName="Input"
+        initialRouteName="Schedule"
       >
+
+        <Tab.Screen
+          name="Schedule"
+          component={ScheduleScreen}
+          options={{
+            swipeEnabled: false, // CRITICAL: Disable swipe for this tab to avoid conflict with calendar gestures
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="calendar-outline" size={24} color={color} />
+            ),
+          }}
+        />
+
         <Tab.Screen
           name="Input"
           options={{
@@ -89,16 +101,6 @@ function InnerTabNavigator({
         </Tab.Screen>
 
         <Tab.Screen
-          name="Reminders"
-          component={RemindersListScreen}
-          options={{
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="alarm-outline" size={24} color={color} />
-            ),
-          }}
-        />
-
-        <Tab.Screen
           name="Tasks"
           component={TasksScreen}
           options={{
@@ -109,12 +111,11 @@ function InnerTabNavigator({
         />
 
         <Tab.Screen
-          name="Schedule"
-          component={ScheduleScreen}
+          name="Reminders"
+          component={RemindersListScreen}
           options={{
-            swipeEnabled: false, // CRITICAL: Disable swipe for this tab to avoid conflict with calendar gestures
             tabBarIcon: ({ color }) => (
-              <Ionicons name="calendar-outline" size={24} color={color} />
+              <Ionicons name="alarm-outline" size={24} color={color} />
             ),
           }}
         />

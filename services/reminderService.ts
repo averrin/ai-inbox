@@ -6,9 +6,20 @@ import { useSettingsStore } from '../store/settings';
 import { useEventTypesStore } from '../store/eventTypes';
 import { useMoodStore } from '../store/moodStore';
 import { Platform } from 'react-native';
-import { scheduleNativeAlarm, stopNativeAlarm } from './alarmModule';
+import { scheduleNativeAlarm, stopNativeAlarm, cancelAllNativeAlarms } from './alarmModule';
 import dayjs from 'dayjs';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getParentFolderUri } from '../utils/saf';
+
+export function getHash(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash;
+}
 
 const REMINDER_TASK_NAME = 'BACKGROUND_REMINDER_CHECK';
 export const REMINDER_PROPERTY_KEY = 'reminder_datetime';
@@ -17,22 +28,13 @@ export const ALARM_PROPERTY_KEY = 'reminder_alarm';
 export const PERSISTENT_PROPERTY_KEY = 'reminder_persistent';
 export const TITLE_PROPERTY_KEY = 'title';
 
+const MAX_CONCURRENT_ALARMS = 64;
+
 // Helper to formatting local ISO string (YYYY-MM-DDTHH:mm:ss)
 export function toLocalISOString(date: Date): string {
     const tzOffset = date.getTimezoneOffset() * 60000; // offset in milliseconds
     const localISOTime = (new Date(date.getTime() - tzOffset)).toISOString().slice(0, 19);
     return localISOTime;
-}
-
-// Helper to generate a simple hash for deterministic IDs
-function getHash(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
-    }
-    return Math.abs(hash).toString(16);
 }
 
 // Helper to generate unique filename
@@ -175,6 +177,8 @@ export async function scanForReminders(): Promise<Reminder[]> {
     }
 
     const reminders: Reminder[] = [];
+    let fileCount = 0;
+    const MAX_FILES_TO_SCAN = 1000; // Safeguard against massive vaults
 
     try {
         let targetUri = vaultUri;
@@ -190,7 +194,24 @@ export async function scanForReminders(): Promise<Reminder[]> {
             }
         }
 
-        await scanDirectory(targetUri, reminders);
+        await scanDirectory(targetUri, reminders, (count) => {
+            fileCount += count;
+            return fileCount < MAX_FILES_TO_SCAN;
+        });
+
+        if (fileCount >= MAX_FILES_TO_SCAN) {
+            console.warn(`[ReminderService] Scan limit reached (${MAX_FILES_TO_SCAN} files). Some reminders may be missing.`);
+        }
+
+        // Emergency Cleanup: Wipe all native alarms ONCE if we haven't yet
+        // This clears the thousands of duplicate alarms caused by the previous bug.
+        const cleanupDone = await AsyncStorage.getItem('emergency_alarm_cleanup_v1');
+        if (!cleanupDone) {
+            console.log('[ReminderService] TRIGGERING EMERGENCY ALARM WIPE...');
+            await cancelAllNativeAlarms();
+            console.log('[ReminderService] EMERGENCY ALARM WIPE COMPLETE.');
+            await AsyncStorage.setItem('emergency_alarm_cleanup_v1', 'true');
+        }
 
     } catch (e) {
         console.error('[ReminderService] Scan failed:', e);
@@ -428,11 +449,15 @@ export async function createStandaloneReminder(
     }
 }
 
-async function scanDirectory(uri: string, reminders: Reminder[]) {
+async function scanDirectory(uri: string, reminders: Reminder[], shouldContinue: (count: number) => boolean) {
+    if (!shouldContinue(0)) return;
+
     try {
         const files = await StorageAccessFramework.readDirectoryAsync(uri);
 
         for (const fileUri of files) {
+            if (!shouldContinue(1)) break;
+
             const decoded = decodeURIComponent(fileUri);
 
             // If it ends in .md, check it
@@ -440,20 +465,14 @@ async function scanDirectory(uri: string, reminders: Reminder[]) {
                 await checkFileForReminder(fileUri, reminders);
             }
             // If it has no extension, it *might* be a folder.
-            // SAF URIs for folders usually don't have extensions.
-            // However, simply calling readDirectoryAsync on a file will fail, so we try-catch it.
-            // A safer recursion check:
             else if (!decoded.split('/').pop()?.includes('.')) {
-                // Try to recurse
                 try {
-                    await scanDirectory(fileUri, reminders);
+                    await scanDirectory(fileUri, reminders, shouldContinue);
                 } catch (ignored) {
-                    // Not a directory or permission denied
                 }
             }
         }
     } catch (e) {
-        // Ignore errors (e.g. permission or not a folder)
     }
 }
 
@@ -558,7 +577,7 @@ export async function syncMoodReminders() {
             scheduledDates.add(id);
 
             // Schedule (updates if exists with same ID)
-             await Notifications.scheduleNotificationAsync({
+            await Notifications.scheduleNotificationAsync({
                 identifier: id,
                 content: {
                     title: "How was your day?",
@@ -646,7 +665,7 @@ async function syncRangeNotifications() {
                 // 2. Ranges that were deleted/disabled
                 // 3. Time changed (ID changes if time changes)
                 if (!upcomingIds.has(notification.identifier)) {
-                     await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+                    await Notifications.cancelScheduledNotificationAsync(notification.identifier);
                 }
             }
         }
@@ -776,34 +795,54 @@ async function manageNotifications(activeReminders: Reminder[]) {
     const activeReminderIds = new Set<string>();
 
     // Map active reminders to their expected IDs
-    const expectedIds = new Map<string, string>(); // fileUri -> deterministic ID
+    const expectedIds = new Map<string, string>(); // fileUri -> deterministic Notification ID
+    const expectedNativeIds = new Map<string, number>(); // fileUri -> deterministic Alarm ID
+
     activeReminders.forEach(r => {
-        // ID depends on fileUri AND time. If time changes, we want a new ID (so old one gets cancelled)
-        // Actually, let's include time in hash or just ID.
-        // If we include time, old one (with old time) is naturally cancelled.
-        // Let's use fileUri + time.
+        // Notification ID (string) depends on fileUri AND time to allow history/updates
         const id = `reminder-${getHash(r.fileUri)}-${getHash(r.reminderTime)}`;
-        activeReminderIds.add(id);
         expectedIds.set(r.fileUri, id);
+
+        // Native Alarm ID (int) depends ONLY on fileUri to prevent duplication.
+        // If the time changes, the SAME native alarm ID will be rescheduled for the new time,
+        // which automatically updates/replaces the old one in Android.
+        const nativeId = Math.abs(getHash(r.fileUri)) % 2147483647; // Stay in signed 32-bit int range
+        expectedNativeIds.set(r.fileUri, nativeId);
+
+        activeReminderIds.add(id);
     });
 
     for (const notification of scheduled) {
-        const fileUri = notification.content.data?.fileUri;
+        const fileUri = (notification.content.data as any)?.fileUri;
 
         if (!fileUri) continue; // Not a file reminder (or malformed)
 
         // Check if this notification's ID matches what we expect for this file
         // If the ID is random (legacy), or for an old time, it won't match activeReminderIds
         if (!activeReminderIds.has(notification.identifier)) {
-             await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+            await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+
+            // Also explicitly cancel the native alarm if it exists for this file
+            const nativeId = expectedNativeIds.get(fileUri) || (Math.abs(getHash(fileUri)) % 2147483647);
+            await stopNativeAlarm(nativeId);
         }
     }
 
     // 3. Schedule missing notifications
     const nowTime = new Date();
-    for (const reminder of activeReminders) {
+    const MAX_CONCURRENT_ALARMS = 64; // OS limit safety
+
+    // Sort reminders by time so we prioritize the most immediate ones
+    const sortedReminders = [...activeReminders].sort((a, b) =>
+        new Date(a.reminderTime).getTime() - new Date(b.reminderTime).getTime()
+    );
+
+    let scheduledCount = 0;
+
+    for (const reminder of sortedReminders) {
         const remDate = new Date(reminder.reminderTime);
         const expectedId = expectedIds.get(reminder.fileUri);
+        const expectedNativeId = expectedNativeIds.get(reminder.fileUri);
 
         if (remDate <= nowTime) {
             // Check if it was recent (within 15 mins) and NOT already notified
@@ -828,21 +867,30 @@ async function manageNotifications(activeReminders: Reminder[]) {
 
         // Schedule it (or update if exists)
         if (remDate > nowTime) {
-            // We pass the deterministic ID. If it exists, it updates.
+            if (scheduledCount >= MAX_CONCURRENT_ALARMS) {
+                console.log(`[ReminderService] Reached alarm limit (${MAX_CONCURRENT_ALARMS}). Skipping further scheduling.`);
+                break;
+            }
+
+            // We pass the deterministic IDs.
             console.log(`[DEBUG_REMINDER] Syncing future reminder: ${reminder.fileName}`);
-            await scheduleNotification(reminder, false, expectedId);
+            await scheduleNotification(reminder, false, expectedId, expectedNativeId);
+            scheduledCount++;
         }
     }
 }
 
-async function scheduleNotification(reminder: Reminder, immediate = false, identifier?: string) {
+async function scheduleNotification(reminder: Reminder, immediate = false, identifier?: string, nativeId?: number) {
     if (reminder.alarm) {
         // Use native alarm module for "Alarm" style reminders (blocking, looping sound)
         const timestamp = immediate ? Date.now() + 1000 : new Date(reminder.reminderTime).getTime();
+        const activeNativeId = nativeId || (Math.abs(getHash(reminder.fileUri)) % 2147483647);
+
         const success = await scheduleNativeAlarm(
             reminder.fileName.replace('.md', ''),
             reminder.content || "Alarm Reminder",
-            timestamp
+            timestamp,
+            activeNativeId
         );
         if (success) {
             console.log(`[DEBUG_REMINDER] Scheduled NATIVE alarm for ${reminder.fileName}`);

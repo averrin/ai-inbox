@@ -388,7 +388,7 @@ export function ReminderEditModal({
                     <View className="flex-row gap-3">
                         <TouchableOpacity
                             onPress={onCancel}
-                            className="flex-1 bg-slate-800 p-3 rounded-xl items-center"
+                            className="flex-1 bg-slate-800 p-3 rounded-xl items-center py-4"
                         >
                             <Text className="text-white font-semibold">Cancel</Text>
                         </TouchableOpacity>
@@ -426,7 +426,7 @@ export function ReminderEditModal({
 
                         <TouchableOpacity
                             onPress={handleSave}
-                            className="flex-1 bg-indigo-600 p-3 rounded-xl items-center"
+                            className="flex-1 bg-indigo-600 p-3 rounded-xl items-center py-4"
                         >
                             <Text className="text-white font-semibold">Save</Text>
                         </TouchableOpacity>

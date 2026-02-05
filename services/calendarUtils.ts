@@ -30,12 +30,12 @@ export const mergeDuplicateEvents = (events: Event[], priorityCalendarId?: strin
                 // Overwrite existing if current event is from the priority calendar
                 // Transfer accumulated IDs to the new event
                 (event as any).mergedCalendarIds = [...existingMergedIds, newCalId];
-                console.log(`[EventMerge] -> SWAPPING for priority calendar: ${event.title}`);
+                // console.log(`[EventMerge] -> SWAPPING for priority calendar: ${event.title}`);
                 uniqueEventsMap.set(key, event);
             } else {
                 // Keep existing, but add the new calendar ID to it
                 (existing as any).mergedCalendarIds = [...existingMergedIds, newCalId];
-                console.log(`[EventMerge] -> Keeping existing (New is not priority): ${event.title} (Existing: ${existingCalId})`);
+                // console.log(`[EventMerge] -> Keeping existing (New is not priority): ${event.title} (Existing: ${existingCalId})`);
             }
         }
     }

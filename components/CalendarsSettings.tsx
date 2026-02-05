@@ -31,11 +31,15 @@ export function CalendarsSettings() {
     };
 
     const toggleCalendar = (id: string) => {
+        console.log('[CalendarsSettings] toggleCalendar: ID =', id, 'Current visible:', JSON.stringify(visibleCalendarIds));
+        let newIds;
         if (visibleCalendarIds.includes(id)) {
-            setVisibleCalendarIds(visibleCalendarIds.filter(c => c !== id));
+            newIds = visibleCalendarIds.filter(c => c !== id);
         } else {
-            setVisibleCalendarIds([...visibleCalendarIds, id]);
+            newIds = [...visibleCalendarIds, id];
         }
+        console.log('[CalendarsSettings] toggleCalendar: New visible:', JSON.stringify(newIds));
+        setVisibleCalendarIds(newIds);
     };
 
     const renderItem = ({ item: cal }: { item: Calendar.Calendar }) => {
