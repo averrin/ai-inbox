@@ -232,3 +232,28 @@ export const getUpcomingEvents = async (days: number = 3): Promise<string> => {
     }
 };
 
+export const updateEventRSVP = async (eventId: string, status: string, currentAttendees: any[]) => {
+    const hasPermission = await ensureCalendarPermissions();
+    if (!hasPermission) throw new Error("Missing calendar permissions");
+
+    // Find current user attendee
+    const userAttendeeIndex = currentAttendees.findIndex(a => a.isCurrentUser);
+
+    if (userAttendeeIndex === -1) {
+        throw new Error("Current user is not an attendee of this event");
+    }
+
+    const updatedAttendees = [...currentAttendees];
+    updatedAttendees[userAttendeeIndex] = {
+        ...updatedAttendees[userAttendeeIndex],
+        status: status
+    };
+
+    try {
+        // @ts-ignore - 'attendees' is not in the type definition but is required for RSVP updates
+        await Calendar.updateEventAsync(eventId, { attendees: updatedAttendees } as any);
+    } catch (e) {
+        console.error("Failed to update RSVP:", e);
+        throw e;
+    }
+};

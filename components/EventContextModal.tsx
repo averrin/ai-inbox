@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, Linking, Platform } from 'react-native';
 import { useEventTypesStore } from '../store/eventTypes';
+import { updateEventRSVP } from '../services/calendarService';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { calculateEventDifficulty } from '../utils/difficultyUtils';
@@ -53,6 +54,12 @@ export function EventContextModal({ visible, onClose, event }: Props) {
     const flags = eventFlags?.[eventTitle];
     console.log(event?.originalEvent?.source?.name);
 
+    const attendees = event?.originalEvent?.attendees;
+    const currentUserAttendee = useMemo(() => {
+        if (!attendees || !Array.isArray(attendees)) return null;
+        return attendees.find((a: any) => a.isCurrentUser);
+    }, [attendees]);
+
     const handleAssign = async (typeId: string) => {
         await assignTypeToTitle(eventTitle, typeId);
         onClose();
@@ -61,6 +68,17 @@ export function EventContextModal({ visible, onClose, event }: Props) {
     const handleUnassign = async () => {
         await unassignType(eventTitle);
         onClose();
+    };
+
+    const handleRSVP = async (status: string) => {
+        if (!event?.originalEvent?.id || !attendees) return;
+        try {
+            await updateEventRSVP(event.originalEvent.id, status, attendees);
+            onClose();
+        } catch (e) {
+            console.error("RSVP failed", e);
+            alert("Failed to update RSVP");
+        }
     };
 
     return (
@@ -198,6 +216,33 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                             </View>
                         }
                     />
+
+                    {/* RSVP Section */}
+                    {currentUserAttendee && (
+                        <View className="p-4 border-t border-slate-800">
+                            <Text className="text-slate-400 text-xs font-semibold uppercase mb-2">RSVP</Text>
+                            <View className="flex-row gap-2">
+                                <TouchableOpacity
+                                    onPress={() => handleRSVP('accepted')}
+                                    className={`flex-1 py-2 rounded-lg items-center justify-center ${currentUserAttendee.status === 'accepted' ? 'bg-emerald-500/20 border border-emerald-500' : 'bg-slate-800'}`}
+                                >
+                                    <Text className={`text-sm font-semibold ${currentUserAttendee.status === 'accepted' ? 'text-emerald-400' : 'text-slate-300'}`}>Yes</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => handleRSVP('tentative')}
+                                    className={`flex-1 py-2 rounded-lg items-center justify-center ${currentUserAttendee.status === 'tentative' ? 'bg-amber-500/20 border border-amber-500' : 'bg-slate-800'}`}
+                                >
+                                    <Text className={`text-sm font-semibold ${currentUserAttendee.status === 'tentative' ? 'text-amber-400' : 'text-slate-300'}`}>Maybe</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => handleRSVP('declined')}
+                                    className={`flex-1 py-2 rounded-lg items-center justify-center ${currentUserAttendee.status === 'declined' ? 'bg-rose-500/20 border border-rose-500' : 'bg-slate-800'}`}
+                                >
+                                    <Text className={`text-sm font-semibold ${currentUserAttendee.status === 'declined' ? 'text-rose-400' : 'text-slate-300'}`}>No</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    )}
 
                     {/* Source Calendars */}
                     {event?.originalEvent?.sourceCalendars && (
