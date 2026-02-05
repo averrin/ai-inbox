@@ -1,6 +1,16 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
+
+export interface Contact {
+    id: string;
+    email: string;
+    name: string;
+    color?: string;
+    icon?: string;
+    isWife?: boolean;
+}
 
 interface SettingsState {
     apiKey: string | null;
@@ -55,6 +65,13 @@ interface SettingsState {
     propertyConfig: Record<string, MetadataConfig>;
     setTagConfig: (tag: string, config: MetadataConfig) => void;
     setPropertyConfig: (prop: string, config: MetadataConfig) => void;
+    myEmails: string[];
+    setMyEmails: (emails: string[]) => void;
+    contacts: Contact[];
+    setContacts: (contacts: Contact[]) => void;
+    addContact: (contact: Omit<Contact, 'id'>) => void;
+    updateContact: (contact: Contact) => void;
+    deleteContact: (id: string) => void;
 }
 
 export interface MetadataConfig {
@@ -121,6 +138,19 @@ export const useSettingsStore = create<SettingsState>()(
             })),
             setPropertyConfig: (prop, config) => set((state) => ({
                 propertyConfig: { ...state.propertyConfig, [prop]: config }
+            })),
+            myEmails: [],
+            setMyEmails: (emails) => set({ myEmails: emails }),
+            contacts: [],
+            setContacts: (contacts) => set({ contacts }),
+            addContact: (contact) => set((state) => ({
+                contacts: [...state.contacts, { ...contact, id: Crypto.randomUUID() }]
+            })),
+            updateContact: (contact) => set((state) => ({
+                contacts: state.contacts.map(c => c.id === contact.id ? contact : c)
+            })),
+            deleteContact: (id) => set((state) => ({
+                contacts: state.contacts.filter(c => c.id !== id)
             })),
         }),
         {
