@@ -23,6 +23,17 @@ export function toLocalISOString(date: Date): string {
     return localISOTime;
 }
 
+// Helper to generate a simple hash for deterministic IDs
+function getHash(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(16);
+}
+
 // Helper to generate unique filename
 export async function getUniqueFilename(folderUri: string, baseName: string): Promise<string> {
     const { checkFileExists } = await import('../utils/saf');
@@ -471,16 +482,20 @@ export async function syncMoodReminders() {
 
         const { moodReminderEnabled, moodReminderTime, moods } = useMoodStore.getState();
 
-        // 1. Cancel all existing mood notifications to ensure clean slate
+        // 1. Cancel legacy mood notifications (those without deterministic IDs)
         // We identify them by data.type === 'mood_daily'
         const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-        for (const notification of scheduled) {
-            if (notification.content.data?.type === 'mood_daily') {
-                await Notifications.cancelScheduledNotificationAsync(notification.identifier);
-            }
-        }
+
+        // We will track which dates we DO schedule, to ensure we don't have duplicates
+        const scheduledDates = new Set<string>();
 
         if (!moodReminderEnabled) {
+            // Cancel ALL if disabled
+            for (const notification of scheduled) {
+                if (notification.content.data?.type === 'mood_daily') {
+                    await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+                }
+            }
             console.log('[MoodService] Mood reminders disabled, cleared all.');
             return;
         }
@@ -497,6 +512,7 @@ export async function syncMoodReminders() {
                 .millisecond(0);
 
             const dateStr = targetDate.format('YYYY-MM-DD');
+            const id = `mood-daily-${dateStr}`;
 
             // If time is in the past, skip
             if (targetDate.isBefore(now)) {
@@ -505,12 +521,17 @@ export async function syncMoodReminders() {
 
             // Check if mood exists
             if (moods[dateStr]) {
-                // Already logged for this day
+                // Already logged for this day. Ensure we cancel any existing reminder for this day.
+                // We can try to cancel by ID
+                await Notifications.cancelScheduledNotificationAsync(id);
                 continue;
             }
 
-            // Schedule
+            scheduledDates.add(id);
+
+            // Schedule (updates if exists with same ID)
              await Notifications.scheduleNotificationAsync({
+                identifier: id,
                 content: {
                     title: "How was your day?",
                     body: "Take a moment to evaluate your day and add a note.",
@@ -523,6 +544,21 @@ export async function syncMoodReminders() {
                 }
             });
             console.log(`[MoodService] Scheduled mood reminder for ${dateStr} at ${targetDate.format('HH:mm')}`);
+        }
+
+        // 3. Cleanup: Cancel any mood notification that is NOT in our new scheduled set
+        // This handles removing duplicates or old dates that fell out of the window
+        for (const notification of scheduled) {
+            if (notification.content.data?.type === 'mood_daily') {
+                if (!scheduledDates.has(notification.identifier)) {
+                    // It's a mood reminder, but not one we just scheduled/verified.
+                    // This catches:
+                    // 1. Legacy reminders (random IDs)
+                    // 2. Reminders for dates > 7 days out (if any)
+                    // 3. Reminders for dates we skipped (past)
+                    await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+                }
+            }
         }
 
     } catch (e) {
@@ -559,7 +595,7 @@ async function syncRangeNotifications() {
                     // Only schedule if in future
                     if (start.isAfter(now)) {
                         upcoming.push({
-                            id: `range-${range.id}-${start.format('YYYY-MM-DD')}`,
+                            id: `range-${range.id}-${start.format('YYYYMMDDHHmm')}`, // Deterministic ID part
                             date: start.toDate(),
                             title: range.title
                         });
@@ -568,49 +604,49 @@ async function syncRangeNotifications() {
             });
         });
 
+        const upcomingIds = new Set(upcoming.map(u => u.id));
+
         // 1. Clean up stale range notifications
-        const cancelledIds = new Set<string>();
+        // We cancel anything that is a range_start but NOT in our upcoming list (by ID)
+        // This also handles cleaning up legacy notifications (which have random IDs)
         for (const notification of scheduled) {
             const data = notification.content.data as Record<string, any>;
             if (data?.type === 'range_start') {
-                const found = upcoming.find(u => u.id === data.rangeInstanceId);
-                // If not found in upcoming (deleted/disabled) OR time has changed significantly (> 1 min diff)
-                if (!found || (data.triggerDate && Math.abs(dayjs(found.date).diff(dayjs(data.triggerDate), 'minute')) > 1)) {
-                    await Notifications.cancelScheduledNotificationAsync(notification.identifier);
-                    cancelledIds.add(notification.identifier);
+                // If the notification identifier is NOT one of our expected deterministic IDs, cancel it.
+                // This covers:
+                // 1. Legacy random IDs
+                // 2. Ranges that were deleted/disabled
+                // 3. Time changed (ID changes if time changes)
+                if (!upcomingIds.has(notification.identifier)) {
+                     await Notifications.cancelScheduledNotificationAsync(notification.identifier);
                 }
             }
         }
 
-        // 2. Schedule new ones
+        // 2. Schedule new ones (or update existing)
         for (const item of upcoming) {
-            const exists = scheduled.find(n =>
-                !cancelledIds.has(n.identifier) &&
-                n.content.data?.type === 'range_start' &&
-                n.content.data?.rangeInstanceId === item.id
-            );
-
-            if (!exists) {
-                await Notifications.scheduleNotificationAsync({
-                    content: {
-                        title: item.title,
-                        body: `Starting now`,
-                        sound: true,
-                        priority: Notifications.AndroidNotificationPriority.HIGH,
-                        data: {
-                            type: 'range_start',
-                            rangeInstanceId: item.id,
-                            triggerDate: item.date.toISOString()
-                        }
-                    },
-                    trigger: {
-                        type: Notifications.SchedulableTriggerInputTypes.DATE,
-                        date: item.date,
-                        channelId: 'reminders-alarm'
+            // Using 'identifier' ensures we don't create duplicates.
+            // If it exists, it updates. If not, it creates.
+            await Notifications.scheduleNotificationAsync({
+                identifier: item.id,
+                content: {
+                    title: item.title,
+                    body: `Starting now`,
+                    sound: true,
+                    priority: Notifications.AndroidNotificationPriority.HIGH,
+                    data: {
+                        type: 'range_start',
+                        rangeInstanceId: item.id,
+                        triggerDate: item.date.toISOString()
                     }
-                });
-                console.log(`[RangeService] Scheduled range notification for ${item.title} at ${item.date.toISOString()}`);
-            }
+                },
+                trigger: {
+                    type: Notifications.SchedulableTriggerInputTypes.DATE,
+                    date: item.date,
+                    channelId: 'reminders-alarm'
+                }
+            });
+            console.log(`[RangeService] Synced range notification for ${item.title} at ${item.date.toISOString()}`);
         }
 
     } catch (e) {
@@ -705,24 +741,33 @@ async function manageNotifications(activeReminders: Reminder[]) {
         }
     }
 
-    // 2. Identify stale notifications (those that don't match any active reminder or have changed time)
+    // 2. Cleanup stale notifications
+    // We remove any notification that:
+    // a) Is a file reminder but not in activeReminders
+    // b) Has the wrong ID (legacy or time changed)
+    const activeReminderIds = new Set<string>();
+
+    // Map active reminders to their expected IDs
+    const expectedIds = new Map<string, string>(); // fileUri -> deterministic ID
+    activeReminders.forEach(r => {
+        // ID depends on fileUri AND time. If time changes, we want a new ID (so old one gets cancelled)
+        // Actually, let's include time in hash or just ID.
+        // If we include time, old one (with old time) is naturally cancelled.
+        // Let's use fileUri + time.
+        const id = `reminder-${getHash(r.fileUri)}-${getHash(r.reminderTime)}`;
+        activeReminderIds.add(id);
+        expectedIds.set(r.fileUri, id);
+    });
+
     for (const notification of scheduled) {
         const fileUri = notification.content.data?.fileUri;
-        const reminderTime = notification.content.data?.reminderTime;
 
-        if (!fileUri) continue; // Not one of ours or malformed
+        if (!fileUri) continue; // Not a file reminder (or malformed)
 
-        // Find matching active reminder
-        const match = activeReminders.find(r => r.fileUri === fileUri);
-
-        if (!match) {
-            // Reminder no longer exists (deleted)
-            // Reminder no longer exists (deleted)
-            await Notifications.cancelScheduledNotificationAsync(notification.identifier);
-        } else if (match.reminderTime !== reminderTime) {
-            // Time has changed
-            // Time has changed
-            await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+        // Check if this notification's ID matches what we expect for this file
+        // If the ID is random (legacy), or for an old time, it won't match activeReminderIds
+        if (!activeReminderIds.has(notification.identifier)) {
+             await Notifications.cancelScheduledNotificationAsync(notification.identifier);
         }
     }
 
@@ -730,18 +775,13 @@ async function manageNotifications(activeReminders: Reminder[]) {
     const nowTime = new Date();
     for (const reminder of activeReminders) {
         const remDate = new Date(reminder.reminderTime);
+        const expectedId = expectedIds.get(reminder.fileUri);
 
         if (remDate <= nowTime) {
             // Check if it was recent (within 15 mins) and NOT already notified
-            // This is tricky without local state. For now, we rely on duplicate check below.
-            // But if it's past due, we might just fire it if it's recent.
             const diff = nowTime.getTime() - remDate.getTime();
             if (diff < 15 * 60 * 1000) {
                 // It's recent.
-                // We will NOT fire it immediately to avoid duplicates in loop.
-                // The user likely missed it or it was already handled.
-                // If we want to catch up, we need state tracking which we lack.
-                // If we want to catch up, we need state tracking which we lack.
                 if (reminder.recurrenceRule) {
                     // It's overdue and repeating. Advance it!
                     const nextDate = calculateNextRecurrence(remDate, reminder.recurrenceRule);
@@ -750,39 +790,24 @@ async function manageNotifications(activeReminders: Reminder[]) {
 
                         // Update the file content
                         await updateReminder(reminder.fileUri, nextDate.toISOString(), reminder.recurrenceRule);
-
-                        // We continue here because updateReminder triggers a full sync flow
-                        // to avoid race conditions or double scheduling
                         continue;
                     }
                 }
-
                 // If not recurring or invalid recurrence, skip (stale)
                 continue;
             }
         }
 
-        // Check if a valid notification exists for this Exact time
-        const isScheduled = scheduled.some(n =>
-            n.content.data?.fileUri === reminder.fileUri &&
-            n.content.data?.reminderTime === reminder.reminderTime
-        );
-
-        if (!isScheduled) {
-            // Schedule it
-            if (remDate > nowTime) {
-                console.log(`[DEBUG_REMINDER] Scheduling future reminder: ${reminder.fileName}`);
-                await scheduleNotification(reminder);
-            } else {
-                // Recent past - Do NOT fire immediate prevents duplicate loops
-            }
-        } else {
-            // Already scheduled correctly
+        // Schedule it (or update if exists)
+        if (remDate > nowTime) {
+            // We pass the deterministic ID. If it exists, it updates.
+            console.log(`[DEBUG_REMINDER] Syncing future reminder: ${reminder.fileName}`);
+            await scheduleNotification(reminder, false, expectedId);
         }
     }
 }
 
-async function scheduleNotification(reminder: Reminder, immediate = false) {
+async function scheduleNotification(reminder: Reminder, immediate = false, identifier?: string) {
     if (reminder.alarm) {
         // Use native alarm module for "Alarm" style reminders (blocking, looping sound)
         const timestamp = immediate ? Date.now() + 1000 : new Date(reminder.reminderTime).getTime();
@@ -799,6 +824,7 @@ async function scheduleNotification(reminder: Reminder, immediate = false) {
     }
 
     const id = await Notifications.scheduleNotificationAsync({
+        identifier: identifier,
         content: {
             title: "🔔 Reminder",
             body: `${reminder.fileName}: ${reminder.content}`,
