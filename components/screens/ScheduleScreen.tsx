@@ -31,7 +31,7 @@ import { MoodEvaluationModal } from '../MoodEvaluationModal';
 
 
 export default function ScheduleScreen() {
-    const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents } = useSettingsStore();
+    const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, myEmails, contacts } = useSettingsStore();
     const { assignments, difficulties, eventTypes, eventFlags, ranges, loadConfig } = useEventTypesStore();
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
@@ -174,7 +174,53 @@ export default function ScheduleScreen() {
 
             // Map native events to BigCalendar format
             const mappedEvents = nativeEvents.map(evt => {
-                const assignedTypeId = assignments[evt.title];
+                let assignedTypeId = assignments[evt.title];
+
+                // Auto-detect type if not assigned
+                if (!assignedTypeId) {
+                    const attendees = (evt as any).attendees || [];
+                    const normalize = (e: string) => e?.toLowerCase().trim();
+                    const myEmailsSet = new Set((myEmails || []).map(normalize));
+                    const isMe = (email: string) => myEmailsSet.has(normalize(email));
+
+                    const uniqueAttendees = new Map();
+                    attendees.forEach((a: any) => {
+                        if (a.email) uniqueAttendees.set(normalize(a.email), a);
+                    });
+
+                    let hasMe = false;
+                    uniqueAttendees.forEach((_, email) => {
+                        if (isMe(email)) hasMe = true;
+                    });
+
+                    // Check if organizer is me (if not in attendees)
+                    // (Skipping complex organizer logic for now, relying on attendees list)
+
+                    const count = uniqueAttendees.size;
+
+                    if (count === 0 || (count === 1 && hasMe)) {
+                        // Only Me -> Personal
+                        const personalType = eventTypes.find(t => t.title.toLowerCase() === 'personal');
+                        if (personalType) assignedTypeId = personalType.id;
+                    } else if (count === 2) {
+                        let hasWife = false;
+                        uniqueAttendees.forEach((_, email) => {
+                            const contact = (contacts || []).find(c => normalize(c.email) === email);
+                            if (contact?.isWife) hasWife = true;
+                        });
+
+                        if (hasMe && hasWife) {
+                            // Me + Wife -> Personal
+                            const personalType = eventTypes.find(t => t.title.toLowerCase() === 'personal');
+                            if (personalType) assignedTypeId = personalType.id;
+                        } else {
+                            // 2 people -> 1-1
+                            const oneOnOneType = eventTypes.find(t => t.title === '1-1' || t.title === '1:1');
+                            if (oneOnOneType) assignedTypeId = oneOnOneType.id;
+                        }
+                    }
+                }
+
                 const assignedType = assignedTypeId ? eventTypes.find(t => t.id === assignedTypeId) : null;
                 const baseDifficulty = difficulties?.[evt.title] || 0;
                 const flags = eventFlags?.[evt.title];
@@ -292,7 +338,7 @@ export default function ScheduleScreen() {
             console.error("[ScheduleScreen] Critical error in fetchEvents:", e);
             setIsEventsLoaded(true);
         }
-    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents]);
+    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents, myEmails, contacts]);
 
     const handleRefresh = async () => {
         setRefreshing(true);

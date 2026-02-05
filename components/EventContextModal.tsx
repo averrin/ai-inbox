@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, Linking, Platform } from 'react-native';
 import { useEventTypesStore } from '../store/eventTypes';
+import { useSettingsStore } from '../store/settings';
 import { updateEventRSVP, getAttendeesForEvent } from '../services/calendarService';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
@@ -20,6 +21,7 @@ interface Props {
 export function EventContextModal({ visible, onClose, event }: Props) {
     const [fetchedAttendees, setFetchedAttendees] = useState<any[] | null>(null);
     const [showAttendeesPopup, setShowAttendeesPopup] = useState(false);
+    const { contacts } = useSettingsStore();
     const {
         eventTypes,
         assignments,
@@ -427,21 +429,47 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                             keyExtractor={(item, index) => item.email || item.name || index.toString()}
                             contentContainerStyle={{ paddingBottom: 20 }}
                             renderItem={({ item }) => {
-                                const displayName = item.name && item.name !== 'Unknown' 
+                                const contact = (contacts || []).find(c =>
+                                    c.email && item.email && c.email.toLowerCase().trim() === item.email.toLowerCase().trim()
+                                );
+
+                                const displayName = contact?.name || (item.name && item.name !== 'Unknown'
                                     ? item.name 
                                     : (item.email 
                                         ? (item.email.split('@')[0].includes('.') 
                                             ? item.email.split('@')[0].split('.').map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
                                             : item.email.split('@')[0])
-                                        : 'Unknown');
+                                        : 'Unknown'));
+
+                                const initial = displayName.charAt(0).toUpperCase();
 
                                 return (
                                     <View className="px-5 py-4 border-b border-slate-800/50 flex-row items-center gap-3">
-                                        <View className="w-11 h-11 rounded-full bg-indigo-500/10 items-center justify-center border border-indigo-500/20">
-                                            <Text className="text-indigo-400 font-bold text-lg">{displayName.charAt(0).toUpperCase()}</Text>
+                                        <View
+                                            className="w-11 h-11 rounded-full items-center justify-center border"
+                                            style={{
+                                                backgroundColor: contact?.color ? `${contact.color}20` : 'rgba(99, 102, 241, 0.1)',
+                                                borderColor: contact?.color ? `${contact.color}40` : 'rgba(99, 102, 241, 0.2)'
+                                            }}
+                                        >
+                                            {contact?.icon ? (
+                                                <Ionicons name={contact.icon as any} size={20} color={contact.color || '#818cf8'} />
+                                            ) : (
+                                                <Text
+                                                    className="font-bold text-lg"
+                                                    style={{ color: contact?.color || '#818cf8' }}
+                                                >
+                                                    {initial}
+                                                </Text>
+                                            )}
                                         </View>
                                         <View className="flex-1">
-                                            <Text className="text-white font-semibold text-base">{displayName}</Text>
+                                            <View className="flex-row items-center gap-2">
+                                                <Text className="text-white font-semibold text-base">{displayName}</Text>
+                                                {contact?.isWife && (
+                                                     <Ionicons name="heart" size={12} color="#ec4899" />
+                                                )}
+                                            </View>
                                             {item.email && <Text className="text-slate-500 text-xs mt-0.5">{item.email}</Text>}
                                         </View>
                                         {item.status && (
