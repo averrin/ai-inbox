@@ -448,10 +448,15 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                                 let displayColor = contact?.color || '#818cf8';
                                 let displayIcon = contact?.icon || null;
 
+                                const isResource = item.email && item.email.toLowerCase().endsWith('resource.calendar.google.com');
+
                                 if (isMe) {
                                     displayName = "Me";
                                     displayColor = '#8b5cf6'; // Violet-500
                                     displayIcon = 'person';
+                                } else if (isResource) {
+                                    displayColor = '#64748b'; // Slate-500 (Neutral)
+                                    displayIcon = 'business'; // Conference room/Business icon
                                 }
 
                                 const initial = displayName.charAt(0).toUpperCase();

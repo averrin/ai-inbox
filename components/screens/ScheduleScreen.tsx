@@ -185,7 +185,12 @@ export default function ScheduleScreen() {
 
                     const uniqueAttendees = new Map();
                     attendees.forEach((a: any) => {
-                        if (a.email) uniqueAttendees.set(normalize(a.email), a);
+                        if (a.email) {
+                            const email = normalize(a.email);
+                            // Ignore Google resource calendars (conference rooms)
+                            if (email.endsWith('resource.calendar.google.com')) return;
+                            uniqueAttendees.set(email, a);
+                        }
                     });
 
                     let hasMe = false;
