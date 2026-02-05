@@ -21,7 +21,7 @@ interface Props {
 export function EventContextModal({ visible, onClose, event }: Props) {
     const [fetchedAttendees, setFetchedAttendees] = useState<any[] | null>(null);
     const [showAttendeesPopup, setShowAttendeesPopup] = useState(false);
-    const { contacts } = useSettingsStore();
+    const { contacts, myEmails } = useSettingsStore();
     const {
         eventTypes,
         assignments,
@@ -429,17 +429,30 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                             keyExtractor={(item, index) => item.email || item.name || index.toString()}
                             contentContainerStyle={{ paddingBottom: 20 }}
                             renderItem={({ item }) => {
+                                const normalize = (s: string) => s?.toLowerCase().trim();
+
+                                const isMe = item.email && (myEmails || []).some(email => normalize(email) === normalize(item.email));
+
                                 const contact = (contacts || []).find(c =>
-                                    c.email && item.email && c.email.toLowerCase().trim() === item.email.toLowerCase().trim()
+                                    c.email && item.email && normalize(c.email) === normalize(item.email)
                                 );
 
-                                const displayName = contact?.name || (item.name && item.name !== 'Unknown'
+                                let displayName = contact?.name || (item.name && item.name !== 'Unknown'
                                     ? item.name 
                                     : (item.email 
                                         ? (item.email.split('@')[0].includes('.') 
                                             ? item.email.split('@')[0].split('.').map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
                                             : item.email.split('@')[0])
                                         : 'Unknown'));
+
+                                let displayColor = contact?.color || '#818cf8';
+                                let displayIcon = contact?.icon || null;
+
+                                if (isMe) {
+                                    displayName = "Me";
+                                    displayColor = '#8b5cf6'; // Violet-500
+                                    displayIcon = 'person';
+                                }
 
                                 const initial = displayName.charAt(0).toUpperCase();
 
@@ -448,16 +461,16 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                                         <View
                                             className="w-11 h-11 rounded-full items-center justify-center border"
                                             style={{
-                                                backgroundColor: contact?.color ? `${contact.color}20` : 'rgba(99, 102, 241, 0.1)',
-                                                borderColor: contact?.color ? `${contact.color}40` : 'rgba(99, 102, 241, 0.2)'
+                                                backgroundColor: `${displayColor}20`,
+                                                borderColor: `${displayColor}40`
                                             }}
                                         >
-                                            {contact?.icon ? (
-                                                <Ionicons name={contact.icon as any} size={20} color={contact.color || '#818cf8'} />
+                                            {displayIcon ? (
+                                                <Ionicons name={displayIcon as any} size={20} color={displayColor} />
                                             ) : (
                                                 <Text
                                                     className="font-bold text-lg"
-                                                    style={{ color: contact?.color || '#818cf8' }}
+                                                    style={{ color: displayColor }}
                                                 >
                                                     {initial}
                                                 </Text>
@@ -466,7 +479,7 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                                         <View className="flex-1">
                                             <View className="flex-row items-center gap-2">
                                                 <Text className="text-white font-semibold text-base">{displayName}</Text>
-                                                {contact?.isWife && (
+                                                {contact?.isWife && !isMe && (
                                                      <Ionicons name="heart" size={12} color="#ec4899" />
                                                 )}
                                             </View>
