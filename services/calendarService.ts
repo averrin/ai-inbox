@@ -67,9 +67,33 @@ export const getCalendarEvents = async (
 
         const { defaultOpenCalendarId } = useSettingsStore.getState();
         const merged = mergeDuplicateEvents(events, defaultOpenCalendarId);
+
+        // Android fix: getEventsAsync doesn't return attendees, fetch them for each merged event
+        if (Platform.OS === 'android') {
+            await Promise.all(merged.map(async (evt) => {
+                try {
+                    // Fetch attendees for the main ID. 
+                    // Since merged events are duplicates across calendars, one fetch is usually enough.
+                    const attendees = await Calendar.getAttendeesForEventAsync(evt.id);
+                    (evt as any).attendees = attendees || [];
+                } catch (e) {
+                    // Silently fail for individual events
+                }
+            }));
+        }
+
         return merged;
     } catch (e) {
         console.error('[CalendarService] getEventsAsync FAILED:', e);
+        return [];
+    }
+};
+export const getAttendeesForEvent = async (eventId: string): Promise<Calendar.Attendee[]> => {
+    if (Platform.OS !== 'android') return [];
+    try {
+        return await Calendar.getAttendeesForEventAsync(eventId);
+    } catch (e) {
+        console.error(`[CalendarService] Failed to fetch attendees for ${eventId}:`, e);
         return [];
     }
 };

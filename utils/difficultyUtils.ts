@@ -196,11 +196,9 @@ export const aggregateDayStats = (events: any[]): DayBreakdown => {
         // Deep Work Hours logic (approximate: based on difficulty > 0 or specific types?)
         // proposal says "deep work duration".
         // Usually deep work is considered events with difficulty > 0 or tracked explicitly.
-        // Let's assume all events with difficulty > 0 count towards "Load".
-        // Or strictly use the existing deep work calculation logic from ScheduleScreen.
-
         // Use logic from ScheduleScreen: if difficulty > 0, it counts.
-        if (event.difficulty && event.difficulty.total > 0) {
+        // Skip events marked as skippable (e.g. "Maybe" RSVP)
+        if (event.difficulty && event.difficulty.total > 0 && !event.isSkippable) {
             const start = dayjs(event.start);
             const end = dayjs(event.end);
             deepWorkMinutes += end.diff(start, 'minute');
