@@ -229,16 +229,16 @@ export function ContactsSettings() {
                             <View className="mb-6">
                                 <Text className="text-indigo-200 mb-2 text-sm font-semibold ml-1">Color</Text>
                                 <ColorPicker
-                                    selectedColor={cColor}
-                                    onSelectColor={setCColor}
+                                    value={cColor}
+                                    onChange={setCColor}
                                 />
                             </View>
 
                             <View className="mb-6">
                                 <Text className="text-indigo-200 mb-2 text-sm font-semibold ml-1">Icon</Text>
                                 <IconPicker
-                                    selectedIcon={cIcon}
-                                    onSelectIcon={setCIcon}
+                                    value={cIcon}
+                                    onChange={setCIcon}
                                 />
                             </View>
 
