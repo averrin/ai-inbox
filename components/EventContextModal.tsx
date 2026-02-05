@@ -31,7 +31,11 @@ export function EventContextModal({ visible, onClose, event }: Props) {
     } = useEventTypesStore();
 
     // Calculate derived difficulty
-    const currentDifficulty = difficulties?.[event?.title || ''] || 0;
+    const eventTitle = event?.title || '';
+    const currentDifficulty = difficulties?.[eventTitle] || 0;
+    const currentTypeId = assignments[eventTitle];
+    const currentType = eventTypes.find(t => t.id === currentTypeId);
+    const flags = eventFlags?.[eventTitle];
 
     const { bonus: bonusDifficulty, total: totalDifficulty, reasons } = useMemo(() => {
         if (!event || !visible) return { bonus: 0, total: currentDifficulty, reasons: [] };
@@ -40,25 +44,17 @@ export function EventContextModal({ visible, onClose, event }: Props) {
             event,
             currentDifficulty,
             ranges,
-            eventFlags?.[event.title]
+            flags
         );
-    }, [event, visible, ranges, eventFlags, currentDifficulty]);
-
-    if (!event) return null;
-    const eventTitle = event.title;
-
-    // Current assignment
-    const currentTypeId = assignments[eventTitle];
-    const difficulty = currentDifficulty;
-    const currentType = eventTypes.find(t => t.id === currentTypeId);
-    const flags = eventFlags?.[eventTitle];
-    console.log(event?.originalEvent?.source?.name);
+    }, [event, visible, ranges, flags, currentDifficulty]);
 
     const attendees = event?.originalEvent?.attendees;
     const currentUserAttendee = useMemo(() => {
         if (!attendees || !Array.isArray(attendees)) return null;
         return attendees.find((a: any) => a.isCurrentUser);
     }, [attendees]);
+
+    if (!event) return null;
 
     const handleAssign = async (typeId: string) => {
         await assignTypeToTitle(eventTitle, typeId);
@@ -106,11 +102,11 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                                     {[0, 1, 2, 3, 4, 5].map((level) => (
                                         <TouchableOpacity
                                             key={level}
-                                            onPress={() => setDifficulty(eventTitle, level === difficulty ? 0 : level)}
-                                            className={`w-8 h-8 rounded-full items-center justify-center ${level <= difficulty ? 'bg-indigo-600' : 'bg-slate-700'
+                                            onPress={() => setDifficulty(eventTitle, level === currentDifficulty ? 0 : level)}
+                                            className={`w-8 h-8 rounded-full items-center justify-center ${level <= currentDifficulty ? 'bg-indigo-600' : 'bg-slate-700'
                                                 }`}
                                         >
-                                            <Text className={`font-bold ${level <= difficulty ? 'text-white' : 'text-slate-400'}`}>
+                                            <Text className={`font-bold ${level <= currentDifficulty ? 'text-white' : 'text-slate-400'}`}>
                                                 {level}
                                             </Text>
                                         </TouchableOpacity>
@@ -171,7 +167,7 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                             {bonusDifficulty > 0 && (
                                 <View className="border-t border-slate-700 pt-2 mt-1">
                                     <View className="flex-row items-center justify-between">
-                                        <Text className="text-slate-400 text-xs">Base: {difficulty}</Text>
+                                        <Text className="text-slate-400 text-xs">Base: {currentDifficulty}</Text>
                                         <Text className="text-amber-500 text-xs font-bold">+ {bonusDifficulty} Bonus</Text>
                                         <Text className="text-white text-xs font-bold">Total: {totalDifficulty}</Text>
                                     </View>

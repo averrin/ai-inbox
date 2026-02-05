@@ -34,8 +34,8 @@ export function CalendarZone<T extends ICalendarEventBase>({
 
   // Default to semi-transparent gray if no color provided
   const color = (event as any).color || 'rgba(0,0,0,0.05)'
-
   const borderColor = (event as any).borderColor || color
+  const borderWidth = (event as any).borderWidth !== undefined ? (event as any).borderWidth : 2
 
   // Generate diagonal stripes
   const step = 0.05
@@ -58,7 +58,7 @@ export function CalendarZone<T extends ICalendarEventBase>({
           top: `${top}%`,
           height: `${relativeHeight}%`,
           borderColor: borderColor,
-          borderWidth: 2,
+          borderWidth: borderWidth,
           // borderStyle: 'dashed',
           borderRadius: 4,
           overflow: 'hidden',

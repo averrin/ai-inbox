@@ -20,6 +20,10 @@ export interface ICalendarEventBase {
    */
   overlapCount?: number
   /**
+   * Whether the event is an all-day event
+   */
+  allDay?: boolean
+  /**
    * Type of the event for advanced visualization
    */
   type?: 'marker' | 'zone' | 'range' | 'event'

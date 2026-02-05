@@ -44,8 +44,6 @@ export function LunchContextModal({ visible, onClose, event, onEventCreated }: P
         // Optimistic UI: Close immediately
         onClose();
 
-        console.log('[LunchContextModal] Starting materialization...');
-
         try {
             // Determine target calendar
             let targetCalendarId = lunchConfig?.targetCalendarId;
@@ -61,8 +59,6 @@ export function LunchContextModal({ visible, onClose, event, onEventCreated }: P
                 return; // Can't proceed
             }
 
-            console.log(`[LunchContextModal] Target Calendar ID: ${targetCalendarId}`);
-
             // Ensure dates are Date objects
             const startDate = new Date(start);
             const endDate = new Date(end);
@@ -77,7 +73,6 @@ export function LunchContextModal({ visible, onClose, event, onEventCreated }: P
 
             // Add Default Invitee if present
             if (lunchConfig?.defaultInvitee) {
-                console.log(`[LunchContextModal] Adding invitee: ${lunchConfig.defaultInvitee}`);
                 eventData.attendees = [{
                     email: lunchConfig.defaultInvitee,
                     role: 'attendee',
@@ -86,11 +81,7 @@ export function LunchContextModal({ visible, onClose, event, onEventCreated }: P
                 }];
             }
 
-            console.log('[LunchContextModal] Creating event with data:', JSON.stringify(eventData, null, 2));
-
             await createCalendarEvent(targetCalendarId, eventData);
-
-            console.log('[LunchContextModal] Event created successfully.');
 
             // Trigger refresh in parent
             if (onEventCreated) {

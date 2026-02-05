@@ -381,12 +381,8 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         analyzingRef.current = true;
         setLoading(true);
 
-        const startTime = Date.now();
-        console.log('[Profile] Analysis started');
-
         try {
             // --- 1. Audio Transcription (Pre-analysis) ---
-            const transcriptionStart = Date.now();
             let transcriptionContext = '';
             let rawTranscriptions = '';
             const { transcribeAudio } = await import('../services/gemini'); // Moved import here
@@ -415,7 +411,6 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                     }
                 }
             }
-            console.log(`[Profile] Transcription took ${Date.now() - transcriptionStart}ms`);
 
             let contentForAI = text;
             if (rawTranscriptions) {
@@ -428,12 +423,9 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             }
 
             // Process URLs in the text (Moved up to determine meaningful text)
-            const urlStart = Date.now();
             const { embeds: urlEmbeds, cleanText, metadata: urlMetadata } = await processURLsInText(text);
-            console.log(`[Profile] URL processing took ${Date.now() - urlStart}ms`);
 
             // --- Smart Scheduling Context ---
-            const scheduleStart = Date.now();
             const hasVoiceRecording = attachedFiles.some(f => f.mimeType.startsWith('audio/')); // We assume audio implies voice intent usually
             const hasMeaningfulText = cleanText && cleanText.replace(/#[\w-]+/g, '').trim().length > 0; // Text that isn't just tags or empty
 
@@ -453,19 +445,15 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 }
 
                 contentForAI += scheduleContext;
-                console.log('[Analyze] Schedule context added.');
             } else {
                 // Even if we skip schedule, current time is useful for file naming (e.g. "Meeting 2023-10...")
                 const now = new Date();
                 const currentTimeString = now.toLocaleString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
                 contentForAI += `\n\n--- CONTEXT ---\nCurrent Time: ${currentTimeString}\n`;
-                console.log('[Analyze] Schedule context skipped (no voice or meaningful text).');
             }
-            console.log(`[Profile] Schedule context took ${Date.now() - scheduleStart}ms`);
             // --------------------------------
 
             setLoadingStatus('Analyzing content...'); // Update status
-            const contextStart = Date.now();
             let vaultStructure = '';
             let rootFolderForContext = '';
             if (vaultUri) {
@@ -488,9 +476,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
 
                 vaultStructure = await useVaultStore.getState().getStructure(vaultUri, rootFolderForContext);
             }
-            console.log(`[Profile] Vault structure reading took ${Date.now() - contextStart}ms`);
 
-            const promptStart = Date.now();
             let customPrompt = null;
             if (customPromptPath && customPromptPath.trim()) {
                 try {
@@ -505,7 +491,6 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                     console.warn('[Analyze] Failed to read custom prompt file:', e);
                 }
             }
-            console.log(`[Profile] Custom prompt reading took ${Date.now() - promptStart}ms`);
 
             // Process URLs in the text - Already done above
 
@@ -513,7 +498,6 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             let urlContext = '';
             if (urlMetadata && urlMetadata.length > 0) {
                 urlContext = urlMetadata.map(m => `URL: ${m.url}\nTitle: ${m.title}\nDescription: ${m.description || ''}`).join('\n\n');
-                console.log('[Analyze] Found URLs, setting link state');
                 setLinks(prev => {
                     const existingUrls = new Set(prev.map(l => l.url));
                     const newLinks = urlMetadata.filter(l => !existingUrls.has(l.url));
@@ -550,9 +534,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 }
             }
 
-            const modelStart = Date.now();
             const result = await processContent(apiKey!, contentForAI, customPrompt, selectedModel, vaultStructure, rootFolderForContext);
-            console.log(`[Profile] Model analysis took ${Date.now() - modelStart}ms`);
 
             if (result && result.length > 0) {
                 // ... (existing code)
@@ -573,7 +555,6 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 const embeddings: string[] = [];
 
                 if (attachedFiles.length > 0) {
-                    const startCopy = Date.now();
                     const { copyFileToVault } = await import('../utils/saf');
 
                     for (const file of attachedFiles) {
@@ -582,7 +563,6 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                         const copiedUri = await copyFileToVault(file.uri, vaultUri!, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
                         if (copiedUri) embeddings.push(`![[${targetPath}]]`);
                     }
-                    console.log(`[Profile] File copying took ${Date.now() - startCopy}ms`);
 
                     // Apply embeddings/transcription to ALL generated notes
                     // Or maybe just the first one? Let's apply to all for now as context is same.
@@ -599,8 +579,6 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                         result[0].body = `${embeddings.join('\n')}\n\n${result[0].body}`;
                     }
                 }
-
-                console.log(`[Profile] Total analysis time: ${Date.now() - startTime}ms`);
 
                 setData(result);
                 setActiveNoteIndex(0);
@@ -961,7 +939,6 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         const isCleanInput = inputMode && !inputText && attachedFiles.length === 0;
 
         if (!inputMode || isCleanInput) {
-            console.log("[ProcessingScreen] Auto-triggering analysis, isCleanInput:", isCleanInput);
             if (isCleanInput) setInputMode(false);
             analyze((shareIntent?.text || shareIntent?.webUrl) ?? '');
         } else {

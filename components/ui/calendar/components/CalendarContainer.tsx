@@ -320,7 +320,7 @@ function _CalendarContainer<T extends ICalendarEventBase>({
   )
 
   const allDayEvents = React.useMemo(
-    () => events.filter((event) => isAllDayEvent(event.start, event.end)),
+    () => events.filter((event) => isAllDayEvent(event.start, event.end, event.allDay)),
     [events],
   )
 
@@ -359,7 +359,7 @@ function _CalendarContainer<T extends ICalendarEventBase>({
   }, [targetDate])
 
   const daytimeEvents = React.useMemo(
-    () => events.filter((event) => !isAllDayEvent(event.start, event.end)),
+    () => events.filter((event) => !isAllDayEvent(event.start, event.end, event.allDay)),
     [events],
   )
 

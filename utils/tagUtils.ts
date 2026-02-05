@@ -7,17 +7,13 @@ import { checkDirectoryExists } from './saf';
  */
 export async function getMostUsedTags(vaultUri: string, contextFolder: string | null | undefined): Promise<string[]> {
     try {
-        console.log('[TagScanner] Starting scan...');
-        console.log('[TagScanner] Context folder:', contextFolder);
-
         let baseUri = vaultUri;
         if (contextFolder) {
             const folderUri = await checkDirectoryExists(vaultUri, contextFolder);
             if (folderUri) {
                 baseUri = folderUri;
-                console.log('[TagScanner] Using context folder URI');
             } else {
-                console.log('[TagScanner] Context folder not found, falling back to root');
+                // Context folder not found, falling back to root
             }
         }
 
