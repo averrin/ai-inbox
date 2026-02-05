@@ -10,7 +10,8 @@ export function CalendarsSettings() {
     const {
         visibleCalendarIds, setVisibleCalendarIds,
         defaultCreateCalendarId, setDefaultCreateCalendarId,
-        defaultOpenCalendarId, setDefaultOpenCalendarId
+        defaultOpenCalendarId, setDefaultOpenCalendarId,
+        hideDeclinedEvents, setHideDeclinedEvents
     } = useSettingsStore();
     const [calendars, setCalendars] = useState<Calendar.Calendar[]>([]);
     const [loading, setLoading] = useState(true);
@@ -107,20 +108,26 @@ export function CalendarsSettings() {
         return <ActivityIndicator size="small" color="#818cf8" />;
     }
 
-    if (calendars.length === 0) {
-        return (
-            <View>
-                <Text className="text-slate-400 text-sm italic">
-                    No calendars found or permission denied.
-                </Text>
-            </View>
-        );
-    }
-
     return (
         <View className="flex-1 px-4">
             <View className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700 mb-6">
-                <Text className="text-white font-semibold mb-2">Calendar Preferences</Text>
+                <Text className="text-white font-semibold mb-4">Calendar Display</Text>
+                <View className="flex-row items-center justify-between mb-4">
+                    <View className="flex-1 mr-4">
+                        <Text className="text-white font-medium">Hide Declined Events</Text>
+                        <Text className="text-slate-400 text-xs">Don't show events where you've RSVP'd "No"</Text>
+                    </View>
+                    <Switch
+                        value={hideDeclinedEvents}
+                        onValueChange={setHideDeclinedEvents}
+                        trackColor={{ false: "#334155", true: "#818cf8" }}
+                        thumbColor={hideDeclinedEvents ? "#ffffff" : "#94a3b8"}
+                    />
+                </View>
+
+                <View className="h-[1px] bg-slate-700/50 mb-4" />
+
+                <Text className="text-slate-400 text-[10px] font-bold uppercase mb-3 tracking-wider">Default Actions</Text>
                 <View className="flex-row items-center gap-3 mb-2">
                     <Ionicons name="add-circle" size={16} color="#10b981" />
                     <Text className="text-slate-400 text-xs flex-1">
@@ -135,15 +142,21 @@ export function CalendarsSettings() {
                 </View>
             </View>
 
-            <FlatList
-                data={calendars}
-                keyExtractor={(item) => item.id}
-                renderItem={renderItem}
-                className="flex-1"
-                contentContainerStyle={{ paddingBottom: 20 }}
-                showsVerticalScrollIndicator={false}
-                scrollEnabled={false}
-            />
+            {calendars.length === 0 ? (
+                <Text className="text-slate-400 text-sm italic py-4">
+                    No calendars found or permission denied.
+                </Text>
+            ) : (
+                <FlatList
+                    data={calendars}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderItem}
+                    className="flex-1"
+                    contentContainerStyle={{ paddingBottom: 20 }}
+                    showsVerticalScrollIndicator={false}
+                    scrollEnabled={false}
+                />
+            )}
         </View>
     );
 }

@@ -19,7 +19,7 @@ export async function fetchAvailableModels(apiKey: string): Promise<string[]> {
             .map((model: any) => model.name.replace('models/', ''))
             .sort() || [];
 
-        console.log('[Models] Fetched from API:', modelNames);
+        // console.log('[Models] Fetched from API:', modelNames);
 
         if (modelNames.length > 0) {
             return modelNames;

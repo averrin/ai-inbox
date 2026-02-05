@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, Linking, Platform } from 'react-native';
 import { useEventTypesStore } from '../store/eventTypes';
-import { updateEventRSVP } from '../services/calendarService';
+import { updateEventRSVP, getAttendeesForEvent } from '../services/calendarService';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { calculateEventDifficulty } from '../utils/difficultyUtils';
@@ -18,6 +18,8 @@ interface Props {
 }
 
 export function EventContextModal({ visible, onClose, event }: Props) {
+    const [fetchedAttendees, setFetchedAttendees] = useState<any[] | null>(null);
+    const [showAttendeesPopup, setShowAttendeesPopup] = useState(false);
     const {
         eventTypes,
         assignments,
@@ -48,11 +50,80 @@ export function EventContextModal({ visible, onClose, event }: Props) {
         );
     }, [event, visible, ranges, flags, currentDifficulty]);
 
-    const attendees = event?.originalEvent?.attendees;
+    useEffect(() => {
+        const fetchMissingAttendees = async () => {
+            if (visible && event?.originalEvent?.id && (!event.originalEvent.attendees || event.originalEvent.attendees.length === 0)) {
+                const results = await getAttendeesForEvent(event.originalEvent.id);
+                if (results && results.length > 0) {
+                    setFetchedAttendees(results);
+                }
+            } else if (!visible) {
+                setFetchedAttendees(null);
+            }
+        };
+        fetchMissingAttendees();
+    }, [visible, event?.originalEvent?.id]);
+
+    const attendees = fetchedAttendees || event?.originalEvent?.attendees || [];
+    const sortedAttendees = useMemo(() => {
+        if (!attendees || !Array.isArray(attendees)) return [];
+        
+        const statusOrder: { [key: string]: number } = {
+            'accepted': 0,
+            'tentative': 1,
+            'declined': 2,
+            'needsAction': 3,
+            'unknown': 4
+        };
+
+        return [...attendees].sort((a, b) => {
+            const statusA = statusOrder[a.status] ?? 5;
+            const statusB = statusOrder[b.status] ?? 5;
+            
+            if (statusA !== statusB) return statusA - statusB;
+            
+            const getName = (item: any) => {
+                if (item.name && item.name !== 'Unknown') return item.name;
+                if (item.email) {
+                    const prefix = item.email.split('@')[0];
+                    return prefix.includes('.') 
+                        ? prefix.split('.').map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+                        : prefix;
+                }
+                return 'Unknown';
+            };
+
+            return getName(a).localeCompare(getName(b));
+        });
+    }, [attendees]);
+
+    const sourceName = event?.originalEvent?.source?.name;
+    const calendarTitle = event?.originalEvent?.sourceCalendars?.[0]?.title;
+
     const currentUserAttendee = useMemo(() => {
         if (!attendees || !Array.isArray(attendees)) return null;
-        return attendees.find((a: any) => a.isCurrentUser);
-    }, [attendees]);
+        
+        // 1. Try Native Flag
+        let match = attendees.find((a: any) => a.isCurrentUser);
+        
+        // 2. Fallback: match by email/source name
+        if (!match && sourceName) {
+             match = attendees.find((a: any) => a.email && a.email.toLowerCase() === sourceName.toLowerCase());
+        }
+
+        // 3. Fallback: match by calendar title (Name or Email)
+        if (!match && calendarTitle) {
+            match = attendees.find((a: any) => 
+                (a.name && a.name.toLowerCase() === calendarTitle.toLowerCase()) || 
+                (a.email && a.email.toLowerCase() === calendarTitle.toLowerCase())
+            );
+        }
+        
+        return match;
+    }, [attendees, sourceName, calendarTitle]);
+
+    const hasAttendees = (attendees && Array.isArray(attendees) && attendees.length > 0) || !!currentUserAttendee;
+    const currentStatus = currentUserAttendee?.status;
 
     if (!event) return null;
 
@@ -67,9 +138,28 @@ export function EventContextModal({ visible, onClose, event }: Props) {
     };
 
     const handleRSVP = async (status: string) => {
-        if (!event?.originalEvent?.id || !attendees) return;
+        if (!event?.originalEvent?.ids) return;
         try {
-            await updateEventRSVP(event.originalEvent.id, status, attendees);
+            // Ensure we have a valid attendee marked as current user
+            let targetAttendees = [...attendees];
+            
+            // If no user is identified natively, use our derived one
+            if (!attendees.find((a: any) => a.isCurrentUser) && currentUserAttendee) {
+                targetAttendees = attendees.map((a: any) => 
+                     (a.email === currentUserAttendee.email || (a.name === currentUserAttendee.name && a.name))
+                        ? { ...a, isCurrentUser: true } 
+                        : a
+                );
+            }
+            
+            // Fallback: If still no user is identified natively or by us, force the first attendee
+            if (!targetAttendees.find((a: any) => a.isCurrentUser) && targetAttendees.length > 0) {
+                 targetAttendees[0] = { ...targetAttendees[0], isCurrentUser: true };
+            }
+
+            for (const id of event.originalEvent.ids) {
+                await updateEventRSVP(id, status, targetAttendees);
+            }
             onClose();
         } catch (e) {
             console.error("RSVP failed", e);
@@ -89,7 +179,17 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                     onStartShouldSetResponder={() => true} // Catch taps
                 >
                     <View className="p-4 border-b border-slate-800">
-                        <Text className="text-white text-lg font-bold">Assign Properties</Text>
+                        <View className="flex-row items-center justify-between">
+                            <Text className="text-white text-lg font-bold">Assign Properties</Text>
+                            {attendees.length > 0 && (
+                                <TouchableOpacity
+                                    onPress={() => setShowAttendeesPopup(true)}
+                                    className="bg-slate-800 px-2 py-1 rounded-full border border-slate-700"
+                                >
+                                    <Text className="text-indigo-400 text-xs font-bold">attendees: {attendees.length}</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
                         <Text className="text-slate-400 text-sm mt-1 mb-4" numberOfLines={1}>
                             "{eventTitle}"
                         </Text>
@@ -140,11 +240,11 @@ export function EventContextModal({ visible, onClose, event }: Props) {
 
                                     <TouchableOpacity
                                         onPress={() => toggleEventFlag(eventTitle, 'skippable')}
-                                        className={`px-2 py-1 rounded-md border ${flags?.skippable ? 'bg-rose-500/20 border-rose-500' : 'bg-slate-700 border-transparent'}`}
+                                        className={`px-2 py-1 rounded-md border ${(flags?.skippable || (event as any).isSkippable) ? 'bg-rose-500/20 border-rose-500' : 'bg-slate-700 border-transparent'}`}
                                     >
                                         <View className="flex-row items-center gap-1">
-                                            <Ionicons name="return-up-forward" size={12} color={flags?.skippable ? '#fb7185' : '#94a3b8'} />
-                                            <Text className={`text-xs ${flags?.skippable ? 'text-rose-400 font-bold' : 'text-slate-400'}`}>
+                                            <Ionicons name="return-up-forward" size={12} color={(flags?.skippable || (event as any).isSkippable) ? '#fb7185' : '#94a3b8'} />
+                                            <Text className={`text-xs ${(flags?.skippable || (event as any).isSkippable) ? 'text-rose-400 font-bold' : 'text-slate-400'}`}>
                                                 Skippable
                                             </Text>
                                         </View>
@@ -214,27 +314,27 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                     />
 
                     {/* RSVP Section */}
-                    {currentUserAttendee && (
+                    {hasAttendees && (
                         <View className="p-4 border-t border-slate-800">
                             <Text className="text-slate-400 text-xs font-semibold uppercase mb-2">RSVP</Text>
                             <View className="flex-row gap-2">
                                 <TouchableOpacity
                                     onPress={() => handleRSVP('accepted')}
-                                    className={`flex-1 py-2 rounded-lg items-center justify-center ${currentUserAttendee.status === 'accepted' ? 'bg-emerald-500/20 border border-emerald-500' : 'bg-slate-800'}`}
+                                    className={`flex-1 py-2 rounded-lg items-center justify-center ${currentStatus === 'accepted' ? 'bg-emerald-500/20 border border-emerald-500' : 'bg-slate-800'}`}
                                 >
-                                    <Text className={`text-sm font-semibold ${currentUserAttendee.status === 'accepted' ? 'text-emerald-400' : 'text-slate-300'}`}>Yes</Text>
+                                    <Text className={`text-sm font-semibold ${currentStatus === 'accepted' ? 'text-emerald-400' : 'text-slate-300'}`}>Yes</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     onPress={() => handleRSVP('tentative')}
-                                    className={`flex-1 py-2 rounded-lg items-center justify-center ${currentUserAttendee.status === 'tentative' ? 'bg-amber-500/20 border border-amber-500' : 'bg-slate-800'}`}
+                                    className={`flex-1 py-2 rounded-lg items-center justify-center ${currentStatus === 'tentative' ? 'bg-amber-500/20 border border-amber-500' : 'bg-slate-800'}`}
                                 >
-                                    <Text className={`text-sm font-semibold ${currentUserAttendee.status === 'tentative' ? 'text-amber-400' : 'text-slate-300'}`}>Maybe</Text>
+                                    <Text className={`text-sm font-semibold ${currentStatus === 'tentative' ? 'text-amber-400' : 'text-slate-300'}`}>Maybe</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     onPress={() => handleRSVP('declined')}
-                                    className={`flex-1 py-2 rounded-lg items-center justify-center ${currentUserAttendee.status === 'declined' ? 'bg-rose-500/20 border border-rose-500' : 'bg-slate-800'}`}
+                                    className={`flex-1 py-2 rounded-lg items-center justify-center ${currentStatus === 'declined' ? 'bg-rose-500/20 border border-rose-500' : 'bg-slate-800'}`}
                                 >
-                                    <Text className={`text-sm font-semibold ${currentUserAttendee.status === 'declined' ? 'text-rose-400' : 'text-slate-300'}`}>No</Text>
+                                    <Text className={`text-sm font-semibold ${currentStatus === 'declined' ? 'text-rose-400' : 'text-slate-300'}`}>No</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -301,6 +401,75 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                     )}
                 </View>
             </TouchableOpacity>
+
+            {/* Attendees List Popup */}
+            <Modal visible={showAttendeesPopup} transparent animationType="slide">
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 25 }}>
+                    <TouchableOpacity
+                        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
+                        activeOpacity={1}
+                        onPress={() => setShowAttendeesPopup(false)}
+                    />
+                    <View 
+                        className="bg-slate-900 rounded-3xl overflow-hidden max-h-[70%] border border-slate-800 shadow-2xl"
+                    >
+                        <View className="p-5 border-b border-slate-800 flex-row items-center justify-between bg-slate-800/50">
+                            <Text className="text-white text-lg font-bold">Attendees ({attendees.length})</Text>
+                            <TouchableOpacity 
+                                onPress={() => setShowAttendeesPopup(false)}
+                                className="w-8 h-8 rounded-full bg-slate-700 items-center justify-center"
+                            >
+                                <Ionicons name="close" size={20} color="#94a3b8" />
+                            </TouchableOpacity>
+                        </View>
+                        <FlatList
+                            data={sortedAttendees}
+                            keyExtractor={(item, index) => item.email || item.name || index.toString()}
+                            contentContainerStyle={{ paddingBottom: 20 }}
+                            renderItem={({ item }) => {
+                                const displayName = item.name && item.name !== 'Unknown' 
+                                    ? item.name 
+                                    : (item.email 
+                                        ? (item.email.split('@')[0].includes('.') 
+                                            ? item.email.split('@')[0].split('.').map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+                                            : item.email.split('@')[0])
+                                        : 'Unknown');
+
+                                return (
+                                    <View className="px-5 py-4 border-b border-slate-800/50 flex-row items-center gap-3">
+                                        <View className="w-11 h-11 rounded-full bg-indigo-500/10 items-center justify-center border border-indigo-500/20">
+                                            <Text className="text-indigo-400 font-bold text-lg">{displayName.charAt(0).toUpperCase()}</Text>
+                                        </View>
+                                        <View className="flex-1">
+                                            <Text className="text-white font-semibold text-base">{displayName}</Text>
+                                            {item.email && <Text className="text-slate-500 text-xs mt-0.5">{item.email}</Text>}
+                                        </View>
+                                        {item.status && (
+                                            <View className={`px-2.5 py-1 rounded-md ${
+                                                item.status === 'accepted' ? 'bg-emerald-500/10 border border-emerald-500/20' : 
+                                                item.status === 'declined' ? 'bg-rose-500/10 border border-rose-500/20' : 'bg-slate-700/50'
+                                            }`}>
+                                                <Text className={`text-[10px] font-bold ${
+                                                    item.status === 'accepted' ? 'text-emerald-500' :
+                                                    item.status === 'declined' ? 'text-rose-500' : 'text-slate-400'
+                                                }`}>
+                                                    {item.status.toUpperCase()}
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                );
+                            }}
+                            ListEmptyComponent={
+                                <View className="p-12 items-center">
+                                    <Ionicons name="people-outline" size={48} color="#334155" />
+                                    <Text className="text-slate-500 mt-4 text-center">No attendee details available</Text>
+                                </View>
+                            }
+                        />
+                    </View>
+                </View>
+            </Modal>
         </Modal>
     );
 }

@@ -31,7 +31,7 @@ import { MoodEvaluationModal } from '../MoodEvaluationModal';
 
 
 export default function ScheduleScreen() {
-    const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation } = useSettingsStore();
+    const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents } = useSettingsStore();
     const { assignments, difficulties, eventTypes, eventFlags, ranges, loadConfig } = useEventTypesStore();
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
@@ -202,6 +202,29 @@ export default function ScheduleScreen() {
                 // Deduplicate by ID just in case
                 const uniqueSourceCalendars = Array.from(new Map(sourceCalendars.map((c: any) => [c.id, c])).values());
 
+                const sourceName = (calDetailsMap as any)[evt.calendarId]?.source || '';
+                const calendarTitle = (calDetailsMap as any)[evt.calendarId]?.title || '';
+                const attendees = (evt as any).attendees;
+                let currentUserRSVP = '';
+                if (Array.isArray(attendees)) {
+                    let match = attendees.find((a: any) => a.isCurrentUser);
+                    
+                    if (!match && sourceName) {
+                        match = attendees.find((a: any) => 
+                            a.email && a.email.toLowerCase() === sourceName.toLowerCase()
+                        );
+                    }
+
+                    if (!match && calendarTitle) {
+                        match = attendees.find((a: any) => 
+                            (a.name && a.name.toLowerCase() === calendarTitle.toLowerCase()) || 
+                            (a.email && a.email.toLowerCase() === calendarTitle.toLowerCase())
+                        );
+                    }
+
+                    currentUserRSVP = match?.status || '';
+                }
+
                 return {
                     title: evt.title,
                     start: new Date(evt.startDate),
@@ -209,19 +232,25 @@ export default function ScheduleScreen() {
                     color: color,
                     originalEvent: {
                         ...evt,
+                        ids: mergedIds,
                         sourceCalendars: uniqueSourceCalendars,
-                        source: { name: (calDetailsMap as any)[evt.calendarId]?.source || '' }
+                        source: { name: sourceName },
+                        currentUserRSVP // Store for filtering if needed
                     }, // Keep ref for context menu with source info
                     typeTag: assignedType ? assignedType.title : null,
                     difficulty: difficultyResult, // Use full difficulty object
                     isEnglish: flags?.isEnglish,
                     movable: flags?.movable,
-                    isSkippable: flags?.skippable,
+                    isSkippable: flags?.skippable || currentUserRSVP === 'tentative',
                     needPrep: flags?.needPrep,
                     isRecurrent: !!evt.recurrenceRule, // Non-null means recurring
+                    hasRSVPNo: currentUserRSVP === 'declined', // Add flag for easier filtering
                     hideBadges: assignedType?.hideBadges, // From event type
                     allDay: evt.allDay
                 };
+            }).filter(evt => {
+                if (hideDeclinedEvents && evt.hasRSVPNo) return false;
+                return true;
             });
 
             // Map reminders to BigCalendar format (markers)
@@ -263,7 +292,7 @@ export default function ScheduleScreen() {
             console.error("[ScheduleScreen] Critical error in fetchEvents:", e);
             setIsEventsLoaded(true);
         }
-    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, ranges, cachedReminders, defaultOpenCalendarId]);
+    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents]);
 
     const handleRefresh = async () => {
         setRefreshing(true);
@@ -591,7 +620,7 @@ export default function ScheduleScreen() {
             borderColor: '#eeeeee66',
             borderWidth: 1,
             borderRadius: 4,
-            opacity: 0.7,
+            opacity: event.isSkippable ? 0.45 : 0.7,
             marginTop: -1
         };
 

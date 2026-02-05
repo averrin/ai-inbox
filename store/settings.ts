@@ -41,6 +41,8 @@ interface SettingsState {
     setVisibleCalendarIds: (ids: string[]) => void;
     hideLunchBadges: boolean;
     setHideLunchBadges: (hide: boolean) => void;
+    hideDeclinedEvents: boolean;
+    setHideDeclinedEvents: (hide: boolean) => void;
     defaultCalendarId: string | null;
     setDefaultCalendarId: (id: string | null) => void;
     defaultCreateCalendarId: string | null;
@@ -102,6 +104,8 @@ export const useSettingsStore = create<SettingsState>()(
             setVisibleCalendarIds: (ids) => set({ visibleCalendarIds: ids }),
             hideLunchBadges: true,
             setHideLunchBadges: (hide) => set({ hideLunchBadges: hide }),
+            hideDeclinedEvents: false,
+            setHideDeclinedEvents: (hide) => set({ hideDeclinedEvents: hide }),
             defaultCalendarId: null,
             setDefaultCalendarId: (id) => set({ defaultCalendarId: id }),
             defaultCreateCalendarId: null,
