@@ -412,15 +412,19 @@ export async function createStandaloneReminder(
         const fileName = await getUniqueFilename(targetFolderUri, baseName);
 
         let frontmatter = `reminder_datetime: ${date}`;
-        if (title) frontmatter += `\n${TITLE_PROPERTY_KEY}: ${title}`;
-        if (recurrence) frontmatter += `\n${RECURRENT_PROPERTY_KEY}: ${recurrence}`;
-        if (alarm) frontmatter += `\n${ALARM_PROPERTY_KEY}: true`;
-        if (persistent !== undefined) frontmatter += `\n${PERSISTENT_PROPERTY_KEY}: ${persistent}`;
+        if (title && title.trim()) frontmatter += `\n${TITLE_PROPERTY_KEY}: ${title}`;
+        if (recurrence && recurrence.trim()) frontmatter += `\n${RECURRENT_PROPERTY_KEY}: ${recurrence}`;
+        if (alarm === true) frontmatter += `\n${ALARM_PROPERTY_KEY}: true`;
+        if (persistent !== undefined && persistent !== null && !isNaN(persistent)) frontmatter += `\n${PERSISTENT_PROPERTY_KEY}: ${persistent}`;
 
         // Add additional props
         for (const [key, value] of Object.entries(additionalProps)) {
             // Avoid duplicates if they were passed in standard args
             if ([REMINDER_PROPERTY_KEY, TITLE_PROPERTY_KEY, RECURRENT_PROPERTY_KEY, ALARM_PROPERTY_KEY, PERSISTENT_PROPERTY_KEY].includes(key)) continue;
+
+            // Skip undefined, null, or empty string values
+            if (value === undefined || value === null || value === '') continue;
+
             frontmatter += `\n${key}: ${value}`;
         }
 

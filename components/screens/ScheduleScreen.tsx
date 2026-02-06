@@ -297,6 +297,8 @@ export default function ScheduleScreen() {
                     isRecurrent: !!evt.recurrenceRule, // Non-null means recurring
                     hasRSVPNo: currentUserRSVP === 'declined', // Add flag for easier filtering
                     hideBadges: assignedType?.hideBadges, // From event type
+                    isInverted: assignedType?.isInverted, // From event type
+                    icon: assignedType?.icon, // From event type
                     allDay: evt.allDay
                 };
             }).filter(evt => {
@@ -667,8 +669,8 @@ export default function ScheduleScreen() {
 
     const eventCellStyle = useCallback((event: any) => {
         const style: any = {
-            backgroundColor: event.color || '#4f46e5',
-            borderColor: '#eeeeee66',
+            backgroundColor: event.isInverted ? '#0f172a' : (event.color || '#4f46e5'),
+            borderColor: event.isInverted ? (event.color || '#4f46e5') : '#eeeeee66',
             borderWidth: 1,
             borderRadius: 4,
             opacity: event.isSkippable ? 0.45 : 0.7,
