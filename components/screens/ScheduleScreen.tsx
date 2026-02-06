@@ -28,6 +28,7 @@ import { createCalendarEvent, getWritableCalendars } from '../../services/calend
 import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../services/weatherService';
 import { useMoodStore } from '../../store/moodStore';
 import { MoodEvaluationModal } from '../MoodEvaluationModal';
+import { WeatherForecastModal } from '../WeatherForecastModal';
 
 
 export default function ScheduleScreen() {
@@ -53,6 +54,7 @@ export default function ScheduleScreen() {
     const [editingReminder, setEditingReminder] = useState<any | null>(null);
     const [creatingEventDate, setCreatingEventDate] = useState<Date | null>(null);
     const [moodModalVisible, setMoodModalVisible] = useState(false);
+    const [weatherModalVisible, setWeatherModalVisible] = useState(false);
     const [moodDate, setMoodDate] = useState<Date>(new Date());
     const calendarRef = useRef<CalendarRef>(null);
 
@@ -597,12 +599,15 @@ export default function ScheduleScreen() {
                         </TouchableOpacity>
 
                         {weather && (
-                            <View className="flex-row items-center gap-1">
+                            <TouchableOpacity
+                                onPress={() => setWeatherModalVisible(true)}
+                                className="flex-row items-center gap-1"
+                            >
                                 <Ionicons name={weather.icon as any} size={16} color="#94a3b8" />
                                 <Text className="text-slate-400 text-xs font-semibold">
                                     {Math.round(weather.maxTemp)}°C
                                 </Text>
-                            </View>
+                            </TouchableOpacity>
                         )}
                     </View>
 
@@ -1022,6 +1027,13 @@ export default function ScheduleScreen() {
                     visible={moodModalVisible}
                     onClose={() => setMoodModalVisible(false)}
                     date={moodDate}
+                />
+
+                <WeatherForecastModal
+                    visible={weatherModalVisible}
+                    onClose={() => setWeatherModalVisible(false)}
+                    weatherData={weatherData}
+                    currentDate={date}
                 />
             </SafeAreaView>
         </View>
