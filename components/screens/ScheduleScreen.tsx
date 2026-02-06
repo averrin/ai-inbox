@@ -676,7 +676,7 @@ export default function ScheduleScreen() {
     const eventCellStyle = useCallback((event: any) => {
         const isFinishedToday = dayjs().isSame(event.start, 'day') && dayjs().isAfter(event.end);
         const style: any = {
-            backgroundColor: event.isInverted ? '#0f172a' : (event.color || '#4f46e5'),
+            backgroundColor: (event.color || '#4f46e5'),
             borderColor: event.isInverted ? (event.color || '#4f46e5') : '#eeeeee66',
             borderWidth: 1,
             borderRadius: 4,
