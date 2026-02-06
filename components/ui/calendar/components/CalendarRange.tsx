@@ -54,6 +54,7 @@ export function CalendarRange<T extends ICalendarEventBase>({
           left: hasEventOverlap ? offset * 8 : 0, // No offset when no overlap
           justifyContent: 'center',
           alignItems: 'center',
+          zIndex: 1000-offset,
         }
       ]}
     >
@@ -66,7 +67,7 @@ export function CalendarRange<T extends ICalendarEventBase>({
             width: 120, // Ensure strictly defined width for rotation stability
             textAlign: 'center',
             textShadowColor: 'black',
-            textShadowRadius: 3,
+            textShadowRadius: 8,
             textShadowOffset: { width: 0, height: 0 }, // Outline effect
             transform: [
               { rotate: '90deg' }

@@ -136,7 +136,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
             { marginLeft: leftMargin },
             isLunchSuggestion && containerStyle
         ]}>
-            <View className={`flex-row items-center ${isCompact ? 'gap-2' : ''}`}>
+            <View className={`flex-row items-center ${isCompact ? 'gap-1' : ''}`}>
                 {evt.icon && (
                     <Ionicons
                         name={evt.icon as any}
@@ -145,18 +145,18 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
                         style={{ marginRight: 4 }}
                     />
                 )}
-                <Text className="font-semibold text-xs" style={{ color: textColor }} numberOfLines={1}>
+                <Text className="font-semibold text-[13px]" style={{ color: textColor }} numberOfLines={1}>
                     {evt.title}
                 </Text>
                 {isCompact && (
-                    <Text className="text-[10px]" style={{ color: subTextColor }} numberOfLines={1}>
+                    <Text className="text-[12px]" style={{ color: subTextColor }} numberOfLines={1}>
                         {dayjs(evt.start).format(timeFormatStr)} - {dayjs(evt.end).format(timeFormatStr)}
                     </Text>
                 )}
             </View>
 
             {!isCompact && (
-                <Text className="text-[10px]" style={{ color: subTextColor }} numberOfLines={1}>
+                <Text className="text-[11px]" style={{ color: subTextColor }} numberOfLines={1}>
                     {dayjs(evt.start).format(timeFormatStr)} - {dayjs(evt.end).format(timeFormatStr)}
                 </Text>
             )}
