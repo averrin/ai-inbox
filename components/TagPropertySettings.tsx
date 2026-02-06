@@ -149,7 +149,7 @@ export function TagPropertySettings() {
     };
 
     return (
-        <View className="flex-1 px-4">
+        <View className="px-4">
              <View className="flex-row mb-4 bg-slate-800 rounded-lg p-1">
                 <TouchableOpacity 
                     onPress={() => setActiveTab('tags')}
@@ -205,12 +205,13 @@ export function TagPropertySettings() {
                 data={activeTab === 'tags' ? uniqueTags : uniqueProperties}
                 keyExtractor={item => item}
                 renderItem={renderItem}
+                scrollEnabled={false}
                 ListEmptyComponent={
                     <Text className="text-slate-500 text-center py-8">
                         No {activeTab} found in your tasks. Try syncing.
                     </Text>
                 }
-                contentContainerStyle={{ paddingBottom: 100 }}
+                contentContainerStyle={{ paddingBottom: 20 }}
             />
 
             {selectedItem && (
