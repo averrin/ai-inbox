@@ -461,7 +461,7 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                         onPress={() => setShowIconPicker(false)}
                     />
                     <View
-                        className="bg-slate-900 rounded-3xl overflow-hidden p-5 border border-slate-800 shadow-2xl w-full max-h-[80%]"
+                        className="bg-slate-900 rounded-3xl overflow-hidden p-5 border border-slate-800 shadow-2xl w-full h-[60%]"
                     >
                         <View className="flex-row items-center justify-between mb-4">
                             <Text className="text-white text-lg font-bold">Select Icon Override</Text>
