@@ -6,6 +6,7 @@ import { EventType } from '../services/eventTypeService';
 import { ActionButton } from './ui/ActionButton';
 import { SettingsListItem } from './ui/SettingsListItem';
 import { ColorPicker, PRESET_COLORS } from './ui/ColorPicker';
+import { IconPicker } from './ui/IconPicker';
 import * as Crypto from 'expo-crypto';
 
 export function EventTypesSettings() {
@@ -14,6 +15,8 @@ export function EventTypesSettings() {
     const [title, setTitle] = useState('');
     const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
     const [hideBadges, setHideBadges] = useState(false);
+    const [isInverted, setIsInverted] = useState(false);
+    const [icon, setIcon] = useState<string>('');
     const [isFormVisible, setIsFormVisible] = useState(false);
 
     const handleEdit = (type: EventType) => {
@@ -21,6 +24,8 @@ export function EventTypesSettings() {
         setTitle(type.title);
         setSelectedColor(type.color);
         setHideBadges(type.hideBadges || false);
+        setIsInverted(type.isInverted || false);
+        setIcon(type.icon || '');
         setIsFormVisible(true);
     };
 
@@ -29,6 +34,8 @@ export function EventTypesSettings() {
         setTitle('');
         setSelectedColor(PRESET_COLORS[0]);
         setHideBadges(false);
+        setIsInverted(false);
+        setIcon('');
         setIsFormVisible(true);
     };
 
@@ -37,13 +44,15 @@ export function EventTypesSettings() {
 
         try {
             if (editingType) {
-                await updateType({ ...editingType, title, color: selectedColor, hideBadges });
+                await updateType({ ...editingType, title, color: selectedColor, hideBadges, isInverted, icon });
             } else {
                 await addType({
                     id: Crypto.randomUUID(),
                     title,
                     color: selectedColor,
-                    hideBadges
+                    hideBadges,
+                    isInverted,
+                    icon
                 });
             }
         } catch (error) {
@@ -125,7 +134,20 @@ export function EventTypesSettings() {
                             style={{ marginBottom: 24 }}
                         />
 
-                        <View className="bg-slate-800 rounded-lg p-3 flex-row justify-between items-center mb-8">
+                        <View className="bg-slate-800 rounded-lg p-3 flex-row justify-between items-center mb-4">
+                            <View className="flex-1 mr-3">
+                                <Text className="text-white font-medium">Inverted Mode</Text>
+                                <Text className="text-slate-500 text-xs">Dark background with colored text/border</Text>
+                            </View>
+                            <Switch
+                                value={isInverted}
+                                onValueChange={setIsInverted}
+                                trackColor={{ false: "#334155", true: "#4f46e5" }}
+                                thumbColor={isInverted ? "#ffffff" : "#94a3b8"}
+                            />
+                        </View>
+
+                        <View className="bg-slate-800 rounded-lg p-3 flex-row justify-between items-center mb-4">
                             <View className="flex-1 mr-3">
                                 <Text className="text-white font-medium">Hide Badges</Text>
                                 <Text className="text-slate-500 text-xs">Hide corner badges for events of this type</Text>
@@ -135,6 +157,14 @@ export function EventTypesSettings() {
                                 onValueChange={setHideBadges}
                                 trackColor={{ false: "#334155", true: "#4f46e5" }}
                                 thumbColor={hideBadges ? "#ffffff" : "#94a3b8"}
+                            />
+                        </View>
+
+                        <View className="mb-6">
+                            <IconPicker
+                                value={icon}
+                                onChange={setIcon}
+                                label="Icon (Optional)"
                             />
                         </View>
 
