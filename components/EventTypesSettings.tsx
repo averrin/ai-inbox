@@ -7,6 +7,7 @@ import { ActionButton } from './ui/ActionButton';
 import { SettingsListItem } from './ui/SettingsListItem';
 import { ColorPicker, PRESET_COLORS } from './ui/ColorPicker';
 import { IconPicker } from './ui/IconPicker';
+import { EventTypeBadge } from './ui/EventTypeBadge';
 import * as Crypto from 'expo-crypto';
 
 export function EventTypesSettings() {
@@ -67,9 +68,9 @@ export function EventTypesSettings() {
     };
 
     const renderItem = ({ item }: { item: EventType }) => (
-        <SettingsListItem color={item.color}>
-            <View className="flex-1">
-                <Text className="text-white text-base font-medium">{item.title}</Text>
+        <SettingsListItem>
+            <View className="flex-1 pr-2">
+                <EventTypeBadge type={item} />
             </View>
 
             <View className="flex-row gap-2 items-center">
