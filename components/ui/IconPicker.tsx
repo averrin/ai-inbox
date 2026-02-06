@@ -44,7 +44,7 @@ export const IconPicker = ({
     );
 
     return (
-        <View className="flex-1 min-h-[300px]">
+        <View className="flex-1">
             {label && (
                 <Text className="text-indigo-200 mb-2 font-medium">{label}</Text>
             )}
@@ -60,6 +60,7 @@ export const IconPicker = ({
             
             {/* Icon Grid */}
             <FlatList
+                style={{ flex: 1 }}
                 data={filteredIcons}
                 renderItem={renderItem}
                 keyExtractor={item => item}
