@@ -7,6 +7,8 @@ export interface EventType {
     title: string;
     color: string;
     hideBadges?: boolean; // Hide corner badges for events of this type
+    isInverted?: boolean;
+    icon?: string;
 }
 
 export interface EventTypeConfig {

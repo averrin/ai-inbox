@@ -127,6 +127,9 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
         containerStyle.borderStyle = 'dashed';
     }
 
+    const textColor = evt.isInverted ? evt.color : 'white';
+    const subTextColor = evt.isInverted ? evt.color : 'rgba(255, 255, 255, 0.8)';
+
     return (
         <TouchableOpacity key={key} {...restProps} style={[
             restProps.style,
@@ -134,18 +137,26 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
             isLunchSuggestion && containerStyle
         ]}>
             <View className={`flex-row items-center ${isCompact ? 'gap-2' : ''}`}>
-                <Text className="text-white font-semibold text-xs" numberOfLines={1}>
+                {evt.icon && (
+                    <Ionicons
+                        name={evt.icon as any}
+                        size={14}
+                        color={textColor}
+                        style={{ marginRight: 4 }}
+                    />
+                )}
+                <Text className="font-semibold text-xs" style={{ color: textColor }} numberOfLines={1}>
                     {evt.title}
                 </Text>
                 {isCompact && (
-                    <Text className="text-white/80 text-[10px]" numberOfLines={1}>
+                    <Text className="text-[10px]" style={{ color: subTextColor }} numberOfLines={1}>
                         {dayjs(evt.start).format(timeFormatStr)} - {dayjs(evt.end).format(timeFormatStr)}
                     </Text>
                 )}
             </View>
 
             {!isCompact && (
-                <Text className="text-white/80 text-[10px]" numberOfLines={1}>
+                <Text className="text-[10px]" style={{ color: subTextColor }} numberOfLines={1}>
                     {dayjs(evt.start).format(timeFormatStr)} - {dayjs(evt.end).format(timeFormatStr)}
                 </Text>
             )}
