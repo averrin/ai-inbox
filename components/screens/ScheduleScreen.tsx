@@ -680,7 +680,7 @@ export default function ScheduleScreen() {
             borderColor: event.isInverted ? (event.color || '#4f46e5') : '#eeeeee66',
             borderWidth: 1,
             borderRadius: 4,
-            opacity: (event.isSkippable || isFinishedToday) ? 0.45 : 0.7,
+            opacity: event.isInverted ? 1 : ((event.isSkippable || isFinishedToday) ? 0.45 : 0.7),
             marginTop: -1
         };
 
