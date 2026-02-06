@@ -6,7 +6,6 @@ import { updateEventRSVP, getAttendeesForEvent } from '../services/calendarServi
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { calculateEventDifficulty } from '../utils/difficultyUtils';
-import { EventTypeBadge } from './ui/EventTypeBadge';
 import { IconPicker } from './ui/IconPicker';
 
 interface Props {
@@ -137,12 +136,12 @@ export function EventContextModal({ visible, onClose, event }: Props) {
 
     const handleAssign = async (typeId: string) => {
         await assignTypeToTitle(eventTitle, typeId);
-        onClose();
+        // Do NOT close modal, allowing user to refine selection
     };
 
     const handleUnassign = async () => {
         await unassignType(eventTitle);
-        onClose();
+        // Do NOT close modal
     };
 
     const handleRSVP = async (status: string) => {
@@ -175,6 +174,29 @@ export function EventContextModal({ visible, onClose, event }: Props) {
         }
     };
 
+    const handleOpenInCalendar = () => {
+        const dateMs = new Date(event.start).getTime();
+        const eventId = event.originalEvent?.id;
+
+        if (Platform.OS === 'android') {
+            if (eventId) {
+                // Try to open specific event
+                Linking.openURL(`content://com.android.calendar/events/${eventId}`);
+            } else {
+                Linking.openURL(`content://com.android.calendar/time/${dateMs}`);
+            }
+        } else {
+            if (eventId && /^\d+$/.test(eventId)) {
+                // On iOS, calshow:id works for some numeric IDs
+                Linking.openURL(`calshow:${eventId}`);
+            } else {
+                const dateSec = Math.floor(dateMs / 1000);
+                Linking.openURL(`calshow:${dateSec}`);
+            }
+        }
+        onClose();
+    };
+
     return (
         <Modal visible={visible} transparent animationType="fade">
             <TouchableOpacity
@@ -183,7 +205,7 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                 onPress={onClose}
             >
                 <View
-                    className="bg-slate-900 rounded-xl overflow-hidden max-h-[70%]"
+                    className="bg-slate-900 rounded-xl overflow-hidden max-h-[85%]"
                     onStartShouldSetResponder={() => true} // Catch taps
                 >
                     <View className="p-4 border-b border-slate-800">
@@ -305,23 +327,47 @@ export function EventContextModal({ visible, onClose, event }: Props) {
 
                     <View className="p-4 border-b border-slate-800">
                         <Text className="text-slate-400 text-xs font-semibold uppercase mb-2">Types</Text>
-                        <View className="flex-row flex-wrap gap-2">
-                            {eventTypes.map(item => (
-                                <TouchableOpacity
-                                    key={item.id}
-                                    onPress={() => handleAssign(item.id)}
-                                    className={`flex-row items-center gap-2 pl-1 pr-2 py-1 rounded-lg border ${
-                                        item.id === currentTypeId
-                                            ? 'bg-slate-800 border-indigo-500'
-                                            : 'border-transparent'
-                                    }`}
-                                >
-                                    <EventTypeBadge type={item} />
-                                    {item.id === currentTypeId && (
-                                        <Ionicons name="checkmark" size={14} color="#818cf8" />
-                                    )}
-                                </TouchableOpacity>
-                            ))}
+                        <View className="flex-row flex-wrap gap-1.5">
+                            {eventTypes.map(item => {
+                                const isSelected = item.id === currentTypeId;
+                                const isInv = item.isInverted;
+                                const textColor = isSelected ? (isInv ? item.color : 'white') : (isInv ? item.color : 'white');
+                                const bgColor = isSelected
+                                    ? (isInv ? 'transparent' : item.color)
+                                    : (isInv ? 'transparent' : `${item.color}40`); // 25% opacity for unselected
+                                const borderColor = isSelected ? '#818cf8' : 'transparent';
+                                const borderWidth = isSelected ? 2 : 0;
+
+                                return (
+                                    <TouchableOpacity
+                                        key={item.id}
+                                        onPress={() => handleAssign(item.id)}
+                                        className="flex-row items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
+                                        style={{
+                                            backgroundColor: isInv ? 'transparent' : (isSelected ? item.color : `${item.color}30`),
+                                            borderColor: isSelected ? 'white' : (isInv ? item.color : 'transparent'),
+                                            borderWidth: isInv ? 1 : (isSelected ? 2 : 0)
+                                        }}
+                                    >
+                                        {item.icon && (
+                                            <Ionicons
+                                                name={item.icon as any}
+                                                size={14}
+                                                color={isInv ? item.color : 'white'}
+                                            />
+                                        )}
+                                        <Text
+                                            style={{ color: isInv ? item.color : 'white' }}
+                                            className="font-semibold text-xs"
+                                        >
+                                            {item.title}
+                                        </Text>
+                                        {isSelected && (
+                                            <Ionicons name="checkmark" size={12} color="white" />
+                                        )}
+                                    </TouchableOpacity>
+                                );
+                            })}
                             {eventTypes.length === 0 && (
                                 <Text className="text-slate-500 text-xs italic">No types defined.</Text>
                             )}
@@ -373,47 +419,36 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                         </View>
                     )}
 
-                    {/* Google Calendar Link */}
-                    {/* {event?.originalEvent?.source?.name?.includes('Google') && ( */}
-                    <TouchableOpacity
-                        onPress={() => {
-                            const dateMs = new Date(event.start).getTime();
-                            const eventId = event.originalEvent?.id;
+                    {/* Footer Actions */}
+                    <View className="p-4 border-t border-slate-800 gap-3">
+                        <View className="flex-row gap-3">
+                            <TouchableOpacity
+                                onPress={handleOpenInCalendar}
+                                className="flex-1 py-3 flex-row items-center justify-center gap-2 rounded-xl bg-slate-800 border border-slate-700"
+                            >
+                                <Ionicons name="open-outline" size={18} color="#60a5fa" />
+                                <Text className="text-blue-400 font-medium text-sm">Open Calendar</Text>
+                            </TouchableOpacity>
 
-                            if (Platform.OS === 'android') {
-                                if (eventId) {
-                                    // Try to open specific event
-                                    Linking.openURL(`content://com.android.calendar/events/${eventId}`);
-                                } else {
-                                    Linking.openURL(`content://com.android.calendar/time/${dateMs}`);
-                                }
-                            } else {
-                                if (eventId && /^\d+$/.test(eventId)) {
-                                    // On iOS, calshow:id works for some numeric IDs
-                                    Linking.openURL(`calshow:${eventId}`);
-                                } else {
-                                    const dateSec = Math.floor(dateMs / 1000);
-                                    Linking.openURL(`calshow:${dateSec}`);
-                                }
-                            }
-                            onClose();
-                        }}
-                        className="p-4 flex-row items-center justify-center gap-2 border-t border-slate-800 bg-slate-800/30"
-                    >
-                        <Ionicons name="open-outline" size={20} color="#60a5fa" />
-                        <Text className="text-blue-400 font-medium">Open in Calendar</Text>
-                    </TouchableOpacity>
-                    {/* )} */}
+                            {currentType && (
+                                <TouchableOpacity
+                                    onPress={handleUnassign}
+                                    className="flex-1 py-3 flex-row items-center justify-center gap-2 rounded-xl bg-slate-800 border border-slate-700"
+                                >
+                                    <Ionicons name="close-circle-outline" size={18} color="#ef4444" />
+                                    <Text className="text-red-500 font-medium text-sm">Unassign</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
 
-                    {currentType && (
                         <TouchableOpacity
-                            onPress={handleUnassign}
-                            className="p-4 flex-row items-center justify-center gap-2 border-t border-slate-800 bg-slate-800/50"
+                            onPress={onClose}
+                            className="w-full py-3 items-center justify-center rounded-xl bg-slate-800"
                         >
-                            <Ionicons name="close-circle-outline" size={20} color="#ef4444" />
-                            <Text className="text-red-500 font-medium">Remove Assignment</Text>
+                            <Text className="text-slate-400 font-medium">Close</Text>
                         </TouchableOpacity>
-                    )}
+                    </View>
+
                 </View>
             </TouchableOpacity>
 
