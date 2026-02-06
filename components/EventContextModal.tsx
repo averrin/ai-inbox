@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { calculateEventDifficulty } from '../utils/difficultyUtils';
 import { EventTypeBadge } from './ui/EventTypeBadge';
+import { IconPicker } from './ui/IconPicker';
 
 interface Props {
     visible: boolean;
@@ -22,6 +23,7 @@ interface Props {
 export function EventContextModal({ visible, onClose, event }: Props) {
     const [fetchedAttendees, setFetchedAttendees] = useState<any[] | null>(null);
     const [showAttendeesPopup, setShowAttendeesPopup] = useState(false);
+    const [showIconPicker, setShowIconPicker] = useState(false);
     const { contacts, myEmails } = useSettingsStore();
     const {
         eventTypes,
@@ -29,10 +31,12 @@ export function EventContextModal({ visible, onClose, event }: Props) {
         difficulties,
         ranges,
         eventFlags,
+        eventIcons,
         assignTypeToTitle,
         unassignType,
         setDifficulty,
-        toggleEventFlag
+        toggleEventFlag,
+        setEventIcon
     } = useEventTypesStore();
 
     // Calculate derived difficulty
@@ -41,6 +45,7 @@ export function EventContextModal({ visible, onClose, event }: Props) {
     const currentTypeId = assignments[eventTitle];
     const currentType = eventTypes.find(t => t.id === currentTypeId);
     const flags = eventFlags?.[eventTitle];
+    const currentIcon = eventIcons?.[eventTitle] || currentType?.icon;
 
     const { bonus: bonusDifficulty, total: totalDifficulty, reasons } = useMemo(() => {
         if (!event || !visible) return { bonus: 0, total: currentDifficulty, reasons: [] };
@@ -184,14 +189,26 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                     <View className="p-4 border-b border-slate-800">
                         <View className="flex-row items-center justify-between">
                             <Text className="text-white text-lg font-bold">Assign Properties</Text>
-                            {attendees.length > 0 && (
+                            <View className="flex-row gap-2">
                                 <TouchableOpacity
-                                    onPress={() => setShowAttendeesPopup(true)}
-                                    className="bg-slate-800 px-2 py-1 rounded-full border border-slate-700"
+                                    onPress={() => setShowIconPicker(true)}
+                                    className={`w-8 h-8 rounded-full items-center justify-center border ${currentIcon ? 'bg-indigo-500/20 border-indigo-500' : 'bg-slate-800 border-slate-700'}`}
                                 >
-                                    <Text className="text-indigo-400 text-xs font-bold">attendees: {attendees.length}</Text>
+                                    {currentIcon ? (
+                                        <Ionicons name={currentIcon as any} size={16} color={currentIcon ? '#818cf8' : '#64748b'} />
+                                    ) : (
+                                        <Ionicons name="happy-outline" size={16} color="#475569" />
+                                    )}
                                 </TouchableOpacity>
-                            )}
+                                {attendees.length > 0 && (
+                                    <TouchableOpacity
+                                        onPress={() => setShowAttendeesPopup(true)}
+                                        className="bg-slate-800 px-2 py-1 rounded-full border border-slate-700 h-8 justify-center"
+                                    >
+                                        <Text className="text-indigo-400 text-xs font-bold">attendees: {attendees.length}</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
                         </View>
                         <Text className="text-slate-400 text-sm mt-1 mb-4" numberOfLines={1}>
                             "{eventTitle}"
@@ -286,29 +303,30 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                         </View>
                     </View>
 
-                    <FlatList
-                        data={eventTypes}
-                        keyExtractor={item => item.id}
-                        renderItem={({ item }) => (
-                            <TouchableOpacity
-                                onPress={() => handleAssign(item.id)}
-                                className="flex-row items-center justify-between p-4 border-b border-slate-800 active:bg-slate-800"
-                            >
-                                <View className="flex-row items-center gap-3 flex-1">
+                    <View className="p-4 border-b border-slate-800">
+                        <Text className="text-slate-400 text-xs font-semibold uppercase mb-2">Types</Text>
+                        <View className="flex-row flex-wrap gap-2">
+                            {eventTypes.map(item => (
+                                <TouchableOpacity
+                                    key={item.id}
+                                    onPress={() => handleAssign(item.id)}
+                                    className={`flex-row items-center gap-2 pl-1 pr-2 py-1 rounded-lg border ${
+                                        item.id === currentTypeId
+                                            ? 'bg-slate-800 border-indigo-500'
+                                            : 'border-transparent'
+                                    }`}
+                                >
                                     <EventTypeBadge type={item} />
-                                </View>
-                                {item.id === currentTypeId && (
-                                    <Ionicons name="checkmark" size={20} color="#818cf8" />
-                                )}
-                            </TouchableOpacity>
-                        )}
-                        ListEmptyComponent={
-                            <View className="p-6 items-center">
-                                <Text className="text-slate-500 text-center">No types defined yet.</Text>
-                                <Text className="text-slate-600 text-xs text-center mt-2">Go to Schedule Settings to create types.</Text>
-                            </View>
-                        }
-                    />
+                                    {item.id === currentTypeId && (
+                                        <Ionicons name="checkmark" size={14} color="#818cf8" />
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                            {eventTypes.length === 0 && (
+                                <Text className="text-slate-500 text-xs italic">No types defined.</Text>
+                            )}
+                        </View>
+                    </View>
 
                     {/* RSVP Section */}
                     {hasAttendees && (
@@ -398,6 +416,51 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                     )}
                 </View>
             </TouchableOpacity>
+
+            {/* Icon Picker Popup */}
+            <Modal visible={showIconPicker} transparent animationType="slide">
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 25 }}>
+                    <TouchableOpacity
+                        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
+                        activeOpacity={1}
+                        onPress={() => setShowIconPicker(false)}
+                    />
+                    <View
+                        className="bg-slate-900 rounded-3xl overflow-hidden p-5 border border-slate-800 shadow-2xl"
+                    >
+                        <View className="flex-row items-center justify-between mb-4">
+                            <Text className="text-white text-lg font-bold">Select Icon Override</Text>
+                            <TouchableOpacity
+                                onPress={() => setShowIconPicker(false)}
+                                className="w-8 h-8 rounded-full bg-slate-800 items-center justify-center"
+                            >
+                                <Ionicons name="close" size={20} color="#94a3b8" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {currentIcon && (
+                             <TouchableOpacity
+                                onPress={() => {
+                                    setEventIcon(eventTitle, '');
+                                    setShowIconPicker(false);
+                                }}
+                                className="flex-row items-center justify-center gap-2 p-3 bg-rose-500/10 rounded-xl border border-rose-500/20 mb-4"
+                            >
+                                <Ionicons name="trash-outline" size={18} color="#fb7185" />
+                                <Text className="text-rose-400 font-semibold">Clear Icon Override</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        <IconPicker
+                            value={currentIcon || ''}
+                            onChange={(icon) => {
+                                setEventIcon(eventTitle, icon);
+                                setShowIconPicker(false);
+                            }}
+                        />
+                    </View>
+                </View>
+            </Modal>
 
             {/* Attendees List Popup */}
             <Modal visible={showAttendeesPopup} transparent animationType="slide">
