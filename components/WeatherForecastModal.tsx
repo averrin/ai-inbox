@@ -12,11 +12,11 @@ interface Props {
 }
 
 export function WeatherForecastModal({ visible, onClose, weatherData, currentDate }: Props) {
-    // Calculate the week to display (matching ScheduleScreen logic: start of week)
-    const startOfWeek = dayjs(currentDate).startOf('week');
+    // Calculate the range to display: Selected Day + 6 days
+    const startDate = dayjs(currentDate);
 
     const weekDays = Array.from({ length: 7 }, (_, i) => {
-        const d = startOfWeek.add(i, 'day');
+        const d = startDate.add(i, 'day');
         const dateStr = d.format('YYYY-MM-DD');
         return {
             date: d,
@@ -39,7 +39,7 @@ export function WeatherForecastModal({ visible, onClose, weatherData, currentDat
                     <View className="p-4 border-b border-slate-800 flex-row items-center justify-between">
                         <View>
                             <Text className="text-white text-lg font-bold">Weather Forecast</Text>
-                            <Text className="text-slate-400 text-xs">{startOfWeek.format('MMM D')} - {startOfWeek.add(6, 'day').format('MMM D, YYYY')}</Text>
+                            <Text className="text-slate-400 text-xs">{startDate.format('MMM D')} - {startDate.add(6, 'day').format('MMM D, YYYY')}</Text>
                         </View>
                         <TouchableOpacity onPress={onClose} className="p-2 bg-slate-800 rounded-full">
                             <Ionicons name="close" size={20} color="#94a3b8" />
