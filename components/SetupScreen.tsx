@@ -16,7 +16,6 @@ import { RemindersSettings } from './RemindersSettings';
 import { CalendarsSettings } from './CalendarsSettings';
 import { EventTypesSettings } from './EventTypesSettings';
 import { TimeRangesSettings } from './TimeRangesSettings';
-import { LunchSettings } from './LunchSettings';
 import { WeatherSettings } from './WeatherSettings';
 import { MoodSettings } from './MoodSettings';
 import { HabitSettings } from './HabitSettings';
@@ -28,7 +27,7 @@ import { useEventTypesStore } from '../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../utils/debugUtils';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'habits' | 'google-calendar' | 'reminders' | 'tasks' | 'tag-property' | 'contacts' | 'weather' | 'mood' | 'advanced';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'google-calendar' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -43,7 +42,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const [showModelPicker, setShowModelPicker] = useState(false);
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [promptFileStatus, setPromptFileStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
-    const [showLunchSettings, setShowLunchSettings] = useState(false);
     const [isGeneratingSnapshot, setIsGeneratingSnapshot] = useState(false);
 
     // Navigation state for settings mode
@@ -518,22 +516,10 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "Recurring calendar blocks"
             )}
             {renderMenuButton(
-                "Lunch Settings",
-                "restaurant-outline",
-                () => setShowLunchSettings(true),
-                "Lunch scheduling & defaults"
-            )}
-            {renderMenuButton(
-                "Checks",
-                "checkmark-circle-outline",
-                () => setActiveSection('habits'),
-                "Tracking daily habits"
-            )}
-            {renderMenuButton(
-                "Mood Tracker",
+                "Checks & Mood Tracker",
                 "happy-outline",
-                () => setActiveSection('mood'),
-                "Daily evaluation & reflections"
+                () => setActiveSection('checks-mood'),
+                "Daily habits & reflections"
             )}
             {renderMenuButton(
                 "Google Integration",
@@ -542,16 +528,10 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "Client IDs & Account"
             )}
             {renderMenuButton(
-                "Tasks Dashboard",
+                "Tasks & Tags",
                 "list-outline",
-                () => setActiveSection('tasks'),
-                "Configure task aggregation"
-            )}
-            {renderMenuButton(
-                "Tags & Properties",
-                "pricetags-outline",
-                () => setActiveSection('tag-property'),
-                "Visibility & Colors"
+                () => setActiveSection('tasks-tags'),
+                "Dashboard & Properties"
             )}
             {renderMenuButton(
                 "Contacts & Attendees",
@@ -730,10 +710,13 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                 <View className="px-0"><TimeRangesSettings /></View>
                             </>
                         )}
-                        {activeSection === 'habits' && (
+                        {activeSection === 'checks-mood' && (
                             <>
-                                {renderHeader("Checks", () => setActiveSection('root'))}
-                                <View className="px-0"><HabitSettings /></View>
+                                {renderHeader("Checks & Mood", () => setActiveSection('root'))}
+                                <View className="px-0">
+                                    <View className="mb-6"><HabitSettings /></View>
+                                    <View><MoodSettings /></View>
+                                </View>
                             </>
                         )}
                         {activeSection === 'google-calendar' && (
@@ -742,16 +725,13 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                 <View className="px-0">{renderGoogleCalendarSettings()}</View>
                             </>
                         )}
-                        {activeSection === 'tasks' && (
+                        {activeSection === 'tasks-tags' && (
                             <>
-                                {renderHeader("Tasks Configuration", () => setActiveSection('root'))}
-                                <View className="px-0"><TasksSettings /></View>
-                            </>
-                        )}
-                        {activeSection === 'tag-property' && (
-                            <>
-                                {renderHeader("Tags & Properties", () => setActiveSection('root'))}
-                                <View className="px-0"><TagPropertySettings /></View>
+                                {renderHeader("Tasks & Tags", () => setActiveSection('root'))}
+                                <View className="px-0">
+                                    <View className="mb-6"><TasksSettings /></View>
+                                    <View><TagPropertySettings /></View>
+                                </View>
                             </>
                         )}
                         {activeSection === 'contacts' && (
@@ -770,12 +750,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("Weather", () => setActiveSection('root'))}
                                 <View className="px-0"><WeatherSettings /></View>
-                            </>
-                        )}
-                        {activeSection === 'mood' && (
-                            <>
-                                {renderHeader("Mood Tracker", () => setActiveSection('root'))}
-                                <View className="px-0"><MoodSettings /></View>
                             </>
                         )}
                         {activeSection === 'advanced' && (
@@ -817,7 +791,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 </View>
             </Modal>
 
-            <LunchSettings visible={showLunchSettings} onClose={() => setShowLunchSettings(false)} />
         </Layout>
     );
 }

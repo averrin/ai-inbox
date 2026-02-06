@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
-import { useEventTypesStore } from '../store/eventTypes';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -20,8 +19,7 @@ interface Props {
 }
 
 export function LunchContextModal({ visible, onClose, event, onEventCreated }: Props) {
-    const { lunchConfig } = useEventTypesStore();
-    const { visibleCalendarIds, timeFormat } = useSettingsStore(); // Added timeFormat
+    const { visibleCalendarIds, timeFormat, defaultCreateCalendarId, myEmails } = useSettingsStore(); // Added timeFormat
     const timeFormatStr = timeFormat === '24h' ? 'HH:mm' : 'h:mm A'; // Derived format
 
     // Internal state for edits
@@ -46,7 +44,7 @@ export function LunchContextModal({ visible, onClose, event, onEventCreated }: P
 
         try {
             // Determine target calendar
-            let targetCalendarId = lunchConfig?.targetCalendarId;
+            let targetCalendarId = defaultCreateCalendarId;
 
             // Fallback to first visible calendar if not configured
             if (!targetCalendarId && visibleCalendarIds.length > 0) {
@@ -55,7 +53,7 @@ export function LunchContextModal({ visible, onClose, event, onEventCreated }: P
 
             if (!targetCalendarId) {
                 console.error('[LunchContextModal] No target calendar found.');
-                alert('Please select a target calendar in Lunch settings or enable at least one calendar.');
+                alert('Please set a "Default to create" calendar in Calendars settings or enable at least one calendar.');
                 return; // Can't proceed
             }
 
@@ -72,13 +70,13 @@ export function LunchContextModal({ visible, onClose, event, onEventCreated }: P
             };
 
             // Add Default Invitee if present
-            if (lunchConfig?.defaultInvitee) {
-                eventData.attendees = [{
-                    email: lunchConfig.defaultInvitee,
+            if (myEmails && myEmails.length > 0) {
+                eventData.attendees = myEmails.map(email => ({
+                    email: email,
                     role: 'attendee',
                     status: 'pending',
                     type: 'person'
-                }];
+                }));
             }
 
             await createCalendarEvent(targetCalendarId, eventData);
@@ -223,7 +221,7 @@ export function LunchContextModal({ visible, onClose, event, onEventCreated }: P
                     </View>
 
                     <Text className="text-slate-500 text-center mt-4 text-xs">
-                        Creates event in {lunchConfig?.targetCalendarId ? 'selected calendar' : 'default calendar'}
+                        Creates event in {defaultCreateCalendarId ? 'default create calendar' : 'default calendar'}
                     </Text>
 
                 </TouchableOpacity>
