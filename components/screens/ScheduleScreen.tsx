@@ -33,7 +33,7 @@ import { WeatherForecastModal } from '../WeatherForecastModal';
 
 export default function ScheduleScreen() {
     const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, myEmails, contacts } = useSettingsStore();
-    const { assignments, difficulties, eventTypes, eventFlags, ranges, loadConfig } = useEventTypesStore();
+    const { assignments, difficulties, eventTypes, eventFlags, eventIcons, ranges, loadConfig } = useEventTypesStore();
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
     const { height: windowHeight } = useWindowDimensions();
@@ -231,6 +231,7 @@ export default function ScheduleScreen() {
                 const assignedType = assignedTypeId ? eventTypes.find(t => t.id === assignedTypeId) : null;
                 const baseDifficulty = difficulties?.[evt.title] || 0;
                 const flags = eventFlags?.[evt.title];
+                const iconOverride = eventIcons?.[evt.title];
                 const color = assignedType ? assignedType.color : (evt.calendarId ? 'rgba(79, 70, 229, 0.8)' : undefined);
 
                 // Calculate total difficulty
@@ -300,7 +301,7 @@ export default function ScheduleScreen() {
                     hasRSVPNo: currentUserRSVP === 'declined', // Add flag for easier filtering
                     hideBadges: assignedType?.hideBadges, // From event type
                     isInverted: assignedType?.isInverted, // From event type
-                    icon: assignedType?.icon, // From event type
+                    icon: iconOverride || assignedType?.icon, // Override or From event type
                     allDay: evt.allDay
                 };
             }).filter(evt => {
@@ -347,7 +348,7 @@ export default function ScheduleScreen() {
             console.error("[ScheduleScreen] Critical error in fetchEvents:", e);
             setIsEventsLoaded(true);
         }
-    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents, myEmails, contacts]);
+    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, eventIcons, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents, myEmails, contacts]);
 
     const handleRefresh = async () => {
         setRefreshing(true);

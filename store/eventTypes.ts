@@ -12,6 +12,7 @@ interface EventTypesState {
     difficulties: Record<string, number>; // Event Title -> Difficulty
     ranges: TimeRangeDefinition[];
     eventFlags: Record<string, { isEnglish?: boolean; movable?: boolean; skippable?: boolean; needPrep?: boolean }>; // Event Title -> Flags
+    eventIcons: Record<string, string>; // Event Title -> Icon Name
     lunchConfig: { targetCalendarId?: string; defaultInvitee?: string };
     isLoaded: boolean;
     loadConfig: () => Promise<void>;
@@ -21,6 +22,7 @@ interface EventTypesState {
     assignTypeToTitle: (title: string, typeId: string) => Promise<void>;
     unassignType: (title: string) => Promise<void>;
     setDifficulty: (title: string, level: number) => Promise<void>;
+    setEventIcon: (title: string, icon: string) => Promise<void>;
     addRange: (range: Omit<TimeRangeDefinition, 'id' | 'isEnabled'>) => Promise<void>;
     updateRange: (id: string, updates: Partial<Omit<TimeRangeDefinition, 'id'>>) => Promise<void>;
     deleteRange: (id: string) => Promise<void>;
@@ -37,6 +39,7 @@ export const useEventTypesStore = create<EventTypesState>()(
             difficulties: {},
             ranges: [],
             eventFlags: {},
+            eventIcons: {},
             lunchConfig: {},
             isLoaded: false,
 
@@ -52,6 +55,7 @@ export const useEventTypesStore = create<EventTypesState>()(
                         difficulties: config.difficulties || {},
                         ranges: config.ranges || [],
                         eventFlags: config.eventFlags || {},
+                        eventIcons: config.eventIcons || {},
                         lunchConfig: config.lunchConfig || {},
                         isLoaded: true
                     });
@@ -70,6 +74,7 @@ export const useEventTypesStore = create<EventTypesState>()(
                     difficulties: state.difficulties,
                     ranges: state.ranges,
                     eventFlags: state.eventFlags,
+                    eventIcons: state.eventIcons,
                     lunchConfig: state.lunchConfig
                 };
 
@@ -92,6 +97,7 @@ export const useEventTypesStore = create<EventTypesState>()(
                     difficulties: state.difficulties,
                     ranges: state.ranges,
                     eventFlags: state.eventFlags,
+                    eventIcons: state.eventIcons,
                     lunchConfig: state.lunchConfig
                 };
 
@@ -121,6 +127,7 @@ export const useEventTypesStore = create<EventTypesState>()(
                     difficulties: state.difficulties,
                     ranges: state.ranges,
                     eventFlags: state.eventFlags,
+                    eventIcons: state.eventIcons,
                     lunchConfig: state.lunchConfig
                 };
 
@@ -145,6 +152,7 @@ export const useEventTypesStore = create<EventTypesState>()(
                     difficulties: state.difficulties,
                     ranges: state.ranges,
                     eventFlags: state.eventFlags,
+                    eventIcons: state.eventIcons,
                     lunchConfig: state.lunchConfig
                 };
 
@@ -167,6 +175,7 @@ export const useEventTypesStore = create<EventTypesState>()(
                     difficulties: state.difficulties,
                     ranges: state.ranges,
                     eventFlags: state.eventFlags,
+                    eventIcons: state.eventIcons,
                     lunchConfig: state.lunchConfig
                 };
 
@@ -191,10 +200,36 @@ export const useEventTypesStore = create<EventTypesState>()(
                     difficulties: newDifficulties,
                     ranges: state.ranges,
                     eventFlags: state.eventFlags,
+                    eventIcons: state.eventIcons,
                     lunchConfig: state.lunchConfig
                 };
 
                 set({ difficulties: newDifficulties });
+
+                const vaultUri = useSettingsStore.getState().vaultUri;
+                if (vaultUri) {
+                    await saveEventTypesToVault(newConfig, vaultUri);
+                }
+            },
+
+            setEventIcon: async (title, icon) => {
+                const state = get();
+                const newEventIcons = {
+                    ...state.eventIcons,
+                    [title]: icon
+                };
+
+                const newConfig: EventTypeConfig = {
+                    types: state.eventTypes,
+                    assignments: state.assignments,
+                    difficulties: state.difficulties,
+                    ranges: state.ranges,
+                    eventFlags: state.eventFlags,
+                    eventIcons: newEventIcons,
+                    lunchConfig: state.lunchConfig
+                };
+
+                set({ eventIcons: newEventIcons });
 
                 const vaultUri = useSettingsStore.getState().vaultUri;
                 if (vaultUri) {
@@ -216,6 +251,7 @@ export const useEventTypesStore = create<EventTypesState>()(
                     difficulties: state.difficulties,
                     ranges: newRanges,
                     eventFlags: state.eventFlags,
+                    eventIcons: state.eventIcons,
                     lunchConfig: state.lunchConfig
                 };
 
@@ -238,6 +274,7 @@ export const useEventTypesStore = create<EventTypesState>()(
                     difficulties: state.difficulties,
                     ranges: newRanges,
                     eventFlags: state.eventFlags,
+                    eventIcons: state.eventIcons,
                     lunchConfig: state.lunchConfig
                 };
 
@@ -258,6 +295,7 @@ export const useEventTypesStore = create<EventTypesState>()(
                     difficulties: state.difficulties,
                     ranges: newRanges,
                     eventFlags: state.eventFlags,
+                    eventIcons: state.eventIcons,
                     lunchConfig: state.lunchConfig
                 };
 
@@ -280,6 +318,7 @@ export const useEventTypesStore = create<EventTypesState>()(
                     difficulties: state.difficulties,
                     ranges: newRanges,
                     eventFlags: state.eventFlags,
+                    eventIcons: state.eventIcons,
                     lunchConfig: state.lunchConfig
                 };
 
@@ -308,6 +347,7 @@ export const useEventTypesStore = create<EventTypesState>()(
                     difficulties: state.difficulties,
                     ranges: state.ranges,
                     eventFlags: newFlags,
+                    eventIcons: state.eventIcons,
                     lunchConfig: state.lunchConfig
                 };
 
@@ -327,6 +367,7 @@ export const useEventTypesStore = create<EventTypesState>()(
                     difficulties: state.difficulties,
                     ranges: state.ranges,
                     eventFlags: state.eventFlags,
+                    eventIcons: state.eventIcons,
                     lunchConfig: { ...state.lunchConfig, ...config }
                 };
 
@@ -347,6 +388,7 @@ export const useEventTypesStore = create<EventTypesState>()(
                 difficulties: state.difficulties,
                 ranges: state.ranges,
                 eventFlags: state.eventFlags,
+                eventIcons: state.eventIcons,
                 lunchConfig: state.lunchConfig
             }), // Don't persist isLoaded
         }
