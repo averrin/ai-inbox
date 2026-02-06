@@ -1,30 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-// Expanded icon library organized by category
-export const PRESET_ICONS = [
-    // Activity
-    'barbell', 'walk', 'bicycle', 'fitness', 'golf', 'trophy', 'ribbon', 'medal',
-    // Health
-    'heart', 'medkit', 'nutrition', 'water', 'bed', 'body', 'pulse', 'bandage',
-    // Media
-    'musical-notes', 'videocam', 'camera', 'film', 'mic', 'headset', 'radio', 'tv',
-    // Nature
-    'leaf', 'flower', 'sunny', 'moon', 'cloudy', 'rainy', 'snow', 'thunderstorm',
-    // Tech
-    'desktop', 'laptop', 'phone-portrait', 'code', 'terminal', 'game-controller', 'wifi', 'bluetooth',
-    // Finance
-    'wallet', 'card', 'cash', 'pricetag', 'cart', 'bag', 'gift', 'receipt',
-    // Social
-    'people', 'person', 'chatbubble', 'mail', 'call', 'share', 'globe', 'earth',
-    // Objects
-    'book', 'brush', 'pencil', 'key', 'home', 'business', 'briefcase', 'school',
-    // Symbols
-    'star', 'flag', 'bookmark', 'checkbox', 'time', 'calendar', 'alarm', 'hourglass',
-    // Misc
-    'pizza', 'cafe', 'beer', 'wine', 'restaurant', 'fast-food', 'ice-cream', 'airplane',
-];
+// Get all available icons from the glyph map
+const ALL_ICONS = Object.keys(Ionicons.glyphMap) as string[];
 
 interface IconPickerProps {
     value: string;
@@ -37,7 +16,7 @@ export const IconPicker = ({
     value,
     onChange,
     label,
-    icons = PRESET_ICONS,
+    icons = ALL_ICONS,
 }: IconPickerProps) => {
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -47,8 +26,25 @@ export const IconPicker = ({
         return icons.filter(icon => icon.toLowerCase().includes(query));
     }, [icons, searchQuery]);
 
+    const renderItem = ({ item }: { item: string }) => (
+        <TouchableOpacity
+            onPress={() => onChange(item)}
+            className={`flex-1 m-1 aspect-square items-center justify-center rounded-xl border-2 ${
+                value === item
+                    ? 'bg-slate-800 border-indigo-500'
+                    : 'bg-slate-800/50 border-transparent'
+            }`}
+        >
+            <Ionicons
+                name={item as any}
+                size={24}
+                color={value === item ? '#818cf8' : '#64748b'}
+            />
+        </TouchableOpacity>
+    );
+
     return (
-        <View>
+        <View className="flex-1 min-h-[300px]">
             {label && (
                 <Text className="text-indigo-200 mb-2 font-medium">{label}</Text>
             )}
@@ -63,37 +59,23 @@ export const IconPicker = ({
             />
             
             {/* Icon Grid */}
-            <ScrollView 
-                style={{ maxHeight: 200 }}
+            <FlatList
+                data={filteredIcons}
+                renderItem={renderItem}
+                keyExtractor={item => item}
+                numColumns={6}
+                contentContainerStyle={{ paddingBottom: 20 }}
                 showsVerticalScrollIndicator={false}
-            >
-                <View className="flex-row flex-wrap gap-2">
-                    {filteredIcons.map(icon => (
-                        <TouchableOpacity
-                            key={icon}
-                            onPress={() => onChange(icon)}
-                            className={`w-11 h-11 rounded-xl items-center justify-center border-2 ${
-                                value === icon 
-                                    ? 'bg-slate-800 border-indigo-500' 
-                                    : 'bg-slate-800/50 border-transparent'
-                            }`}
-                        >
-                            <Ionicons 
-                                name={icon as any} 
-                                size={22} 
-                                color={value === icon ? '#818cf8' : '#64748b'} 
-                            />
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            </ScrollView>
-            
-            {/* Empty State */}
-            {filteredIcons.length === 0 && (
-                <Text className="text-slate-500 text-center py-4">
-                    No icons match "{searchQuery}"
-                </Text>
-            )}
+                initialNumToRender={24}
+                maxToRenderPerBatch={24}
+                windowSize={5}
+                columnWrapperStyle={{ gap: 4 }}
+                ListEmptyComponent={
+                    <Text className="text-slate-500 text-center py-4">
+                        No icons match "{searchQuery}"
+                    </Text>
+                }
+            />
         </View>
     );
 };
