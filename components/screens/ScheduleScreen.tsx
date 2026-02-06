@@ -668,12 +668,13 @@ export default function ScheduleScreen() {
     }, [events, timeRangeEvents, focusRanges, freeTimeZones, lunchEvents]);
 
     const eventCellStyle = useCallback((event: any) => {
+        const isFinishedToday = dayjs().isSame(event.start, 'day') && dayjs().isAfter(event.end);
         const style: any = {
             backgroundColor: event.isInverted ? '#0f172a' : (event.color || '#4f46e5'),
             borderColor: event.isInverted ? (event.color || '#4f46e5') : '#eeeeee66',
             borderWidth: 1,
             borderRadius: 4,
-            opacity: event.isSkippable ? 0.45 : 0.7,
+            opacity: (event.isSkippable || isFinishedToday) ? 0.45 : 0.7,
             marginTop: -1
         };
 
@@ -796,7 +797,7 @@ export default function ScheduleScreen() {
                                         fontWeight: '500',
                                     },
                                     sm: {
-                                        fontSize: 16,
+                                        fontSize: 17,
                                         fontWeight: '600',
                                     },
                                     xl: {
