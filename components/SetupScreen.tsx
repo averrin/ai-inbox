@@ -22,12 +22,13 @@ import { MoodSettings } from './MoodSettings';
 import { HabitSettings } from './HabitSettings';
 import { TasksSettings } from './TasksSettings';
 import { TagPropertySettings } from './TagPropertySettings';
+import { ContactsSettings } from './ContactsSettings';
 import { scanForReminders } from '../services/reminderService';
 import { useEventTypesStore } from '../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../utils/debugUtils';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'habits' | 'google-calendar' | 'reminders' | 'tasks' | 'tag-property' | 'weather' | 'mood' | 'advanced';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'habits' | 'google-calendar' | 'reminders' | 'tasks' | 'tag-property' | 'contacts' | 'weather' | 'mood' | 'advanced';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -553,6 +554,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "Visibility & Colors"
             )}
             {renderMenuButton(
+                "Contacts & Attendees",
+                "people-outline",
+                () => setActiveSection('contacts'),
+                "My emails, contacts, auto-typing"
+            )}
+            {renderMenuButton(
                 "Reminders",
                 "alarm-outline",
                 () => setActiveSection('reminders'),
@@ -745,6 +752,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("Tags & Properties", () => setActiveSection('root'))}
                                 <View className="px-0"><TagPropertySettings /></View>
+                            </>
+                        )}
+                        {activeSection === 'contacts' && (
+                            <>
+                                {renderHeader("Contacts & Attendees", () => setActiveSection('root'))}
+                                <View className="px-0"><ContactsSettings /></View>
                             </>
                         )}
                         {activeSection === 'reminders' && (
