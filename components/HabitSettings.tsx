@@ -41,7 +41,7 @@ export function HabitSettings() {
     };
 
     return (
-        <View className="flex-1">
+        <View>
             <Card>
                 <View className="flex-row justify-between items-center mb-4">
                     <Text className="text-indigo-200 font-semibold">Checks</Text>
