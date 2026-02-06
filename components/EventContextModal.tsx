@@ -6,6 +6,7 @@ import { updateEventRSVP, getAttendeesForEvent } from '../services/calendarServi
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { calculateEventDifficulty } from '../utils/difficultyUtils';
+import { EventTypeBadge } from './ui/EventTypeBadge';
 
 interface Props {
     visible: boolean;
@@ -293,14 +294,8 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                                 onPress={() => handleAssign(item.id)}
                                 className="flex-row items-center justify-between p-4 border-b border-slate-800 active:bg-slate-800"
                             >
-                                <View className="flex-row items-center gap-3">
-                                    <View
-                                        className="w-4 h-4 rounded-full"
-                                        style={{ backgroundColor: item.color }}
-                                    />
-                                    <Text className={`text-base font-medium ${item.id === currentTypeId ? 'text-white' : 'text-slate-300'}`}>
-                                        {item.title}
-                                    </Text>
+                                <View className="flex-row items-center gap-3 flex-1">
+                                    <EventTypeBadge type={item} />
                                 </View>
                                 {item.id === currentTypeId && (
                                     <Ionicons name="checkmark" size={20} color="#818cf8" />
