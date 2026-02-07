@@ -58,3 +58,51 @@ export const mergeDuplicateEvents = (events: Event[], priorityCalendarId?: strin
 
     return Array.from(uniqueEventsMap.values());
 };
+
+/**
+ * Parses an iCalendar RRULE string into an expo-calendar RecurrenceRule object.
+ * Format: RRULE:FREQ=WEEKLY;BYDAY=MO,TU;INTERVAL=1;UNTIL=20231231T235959Z
+ */
+export const parseRRule = (rruleString: string): any => {
+    if (!rruleString || !rruleString.startsWith('RRULE:')) return undefined;
+
+    const parts = rruleString.substring(6).split(';');
+    const rule: any = {};
+
+    parts.forEach(part => {
+        const [key, value] = part.split('=');
+        if (!key || !value) return;
+
+        switch (key.toUpperCase()) {
+            case 'FREQ':
+                const freqMap: Record<string, string> = {
+                    'DAILY': 'daily',
+                    'WEEKLY': 'weekly',
+                    'MONTHLY': 'monthly',
+                    'YEARLY': 'yearly'
+                };
+                rule.frequency = freqMap[value.toUpperCase()];
+                break;
+            case 'INTERVAL':
+                rule.interval = parseInt(value, 10);
+                break;
+            case 'UNTIL':
+                // Simple date parsing for UNTIL (YYYYMMDDTHHMMSSZ)
+                const y = value.substring(0, 4);
+                const m = value.substring(4, 6);
+                const d = value.substring(6, 8);
+                const h = value.substring(9, 11);
+                const min = value.substring(11, 13);
+                const s = value.substring(13, 15);
+                rule.endDate = new Date(`${y}-${m}-${d}T${h || '00'}:${min || '00'}:${s || '00'}Z`);
+                break;
+            case 'COUNT':
+                rule.occurrence = parseInt(value, 10);
+                break;
+            // Native expo-calendar doesn't support BYDAY/BYMONTH/etc easily in the same way, 
+            // but for simple cases it's enough.
+        }
+    });
+
+    return rule.frequency ? rule : undefined;
+};

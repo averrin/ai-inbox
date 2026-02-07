@@ -1,5 +1,6 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, ViewStyle } from 'react-native'
+import { ColorPickerModal } from './color-picker/ColorPickerModal'
 
 // Extended color palette with modern, harmonious colors
 // Organized in color groups for better visual scanning
@@ -52,6 +53,8 @@ export const ColorPicker = ({
     columns = 8,
     style,
 }: ColorPickerProps) => {
+    const [showCustomPicker, setShowCustomPicker] = React.useState(false);
+
     return (
         <View style={style}>
             {label && (
@@ -72,7 +75,31 @@ export const ColorPicker = ({
                         accessibilityState={{ selected: value === color }}
                     />
                 ))}
+
+                <TouchableOpacity
+                    onPress={() => setShowCustomPicker(true)}
+                    className={`w-8 h-8 rounded-full border-2 ${!colors.includes(value) ? 'border-white' : 'border-slate-600'} items-center justify-center`}
+                    style={{ backgroundColor: !colors.includes(value) ? value : '#1e293b' }}
+                    accessibilityLabel="Custom color"
+                    accessibilityRole="button"
+                >
+                    {!colors.includes(value) ? null : (
+                        <View className="w-4 h-4 rounded-full bg-gradient-to-tr from-red-500 via-green-500 to-blue-500" style={{ opacity: 0.8 }}>
+                            <Text style={{ fontSize: 10, color: 'white', textAlign: 'center', lineHeight: 16 }}>+</Text>
+                        </View>
+                    )}
+                </TouchableOpacity>
             </View>
+
+            <ColorPickerModal
+                visible={showCustomPicker}
+                initialColor={value}
+                onClose={() => setShowCustomPicker(false)}
+                onSelect={(color) => {
+                    onChange(color);
+                    setShowCustomPicker(false);
+                }}
+            />
         </View>
     )
 }
