@@ -251,10 +251,10 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
             // So lowercase string should be fine IF it matches the enum value.
             // Let's ensure it maps to what expo-calendar expects.
             const freqMap: Record<string, string> = {
-                'daily': Calendar.Frequency.DAILY,
-                'weekly': Calendar.Frequency.WEEKLY,
-                'monthly': Calendar.Frequency.MONTHLY,
-                'yearly': Calendar.Frequency.YEARLY
+                'daily': 'daily',
+                'weekly': 'weekly',
+                'monthly': 'monthly',
+                'yearly': 'yearly'
             };
             if (freqMap[rule.frequency]) {
                 rule.frequency = freqMap[rule.frequency];
