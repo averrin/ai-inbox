@@ -293,9 +293,11 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
             }
 
             if (Platform.OS === 'android') {
-                if (eventData.editScope === 'future' || eventData.editScope === 'all') {
+                if (eventData.editScope === 'future') {
                     options.futureEvents = true;
                 }
+                // For 'all', we pass NO options, which defaults to updating the series (or master) on Android
+                // (replicating behavior before recurrence editing was added)
             } else if (Platform.OS === 'ios') {
                 if (eventData.editScope === 'future') options.span = Calendar.EventSpan.FutureEvents;
                 // For 'all', best effort on instance is FutureEvents (from this point forward)
@@ -304,7 +306,9 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
             }
         }
 
-        await Calendar.updateEventAsync(eventId, nativeEventData, options);
+        // Pass undefined if options is empty to ensure default behavior
+        const finalOptions = Object.keys(options).length > 0 ? options : undefined;
+        await Calendar.updateEventAsync(eventId, nativeEventData, finalOptions);
     } catch (e) {
         console.error(`[CalendarService] updateCalendarEvent FAILED for event ${eventId}:`, e);
         throw e;
