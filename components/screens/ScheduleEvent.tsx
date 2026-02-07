@@ -127,8 +127,8 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
         containerStyle.borderStyle = 'dashed';
     }
 
-    const textColor = evt.isInverted ? evt.color : 'white';
-    const subTextColor = evt.isInverted ? evt.color : 'rgba(255, 255, 255, 0.8)';
+    const textColor = 'white';
+    const subTextColor = 'rgba(255, 255, 255, 0.8)';
 
     return (
         <TouchableOpacity key={key} {...restProps} style={[

@@ -1,6 +1,6 @@
 import dayjs from 'dayjs'
 import React from 'react'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet, View, Text } from 'react-native'
 import type { ICalendarEventBase } from '../interfaces'
 import { getRelativeTopInDay, DAY_MINUTES } from '../utils/datetime'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -11,6 +11,28 @@ const styles = StyleSheet.create({
     width: '100%',
     zIndex: 0, // Behind events
   },
+  badge: {
+    position: 'absolute',
+    top: '50%',
+    right: 3,
+    transform: [{ translateY: '-50%' }],
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    backgroundColor: '#0f172a', // slate-900
+    zIndex: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 1,
+    elevation: 2,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
+  }
 })
 
 interface CalendarZoneProps<T extends ICalendarEventBase> {
@@ -72,6 +94,13 @@ export function CalendarZone<T extends ICalendarEventBase>({
         end={{ x: 1, y: 1 }}
         style={{ flex: 1 }}
       />
+
+      {/* Duration Badge */}
+      <View style={[styles.badge, { borderColor: color }]}>
+        <Text style={[styles.badgeText, { color: color }]}>
+            {durationInMinutes}m
+        </Text>
+      </View>
     </View>
   )
 }
