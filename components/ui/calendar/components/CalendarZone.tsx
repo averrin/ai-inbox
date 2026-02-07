@@ -1,6 +1,6 @@
 import dayjs from 'dayjs'
-import React, { useState } from 'react'
-import { StyleSheet, View, Text, LayoutChangeEvent } from 'react-native'
+import React from 'react'
+import { StyleSheet, View, Text } from 'react-native'
 import type { ICalendarEventBase } from '../interfaces'
 import { getRelativeTopInDay, DAY_MINUTES } from '../utils/datetime'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -55,75 +55,24 @@ export function CalendarZone<T extends ICalendarEventBase>({
   const relativeHeight = 100 * (1 / totalMinutesInRange) * durationInMinutes
 
   // Default to semi-transparent gray if no color provided
-  const baseColor = (event as any).color || 'rgba(100,116,139, 0.5)' // slate-500 equivalent default
-  const borderColor = (event as any).borderColor || baseColor
+  const color = (event as any).color || 'rgba(0,0,0,0.05)'
+  const borderColor = (event as any).borderColor || color
   const borderWidth = (event as any).borderWidth !== undefined ? (event as any).borderWidth : 2
 
-  const [layout, setLayout] = useState<{width: number, height: number} | null>(null)
+  // Generate diagonal stripes
+  const step = 0.05
+  const stripeColors: string[] = []
+  const stripeLocations: number[] = []
 
-  const onLayout = (e: LayoutChangeEvent) => {
-    const { width, height } = e.nativeEvent.layout
-    if (width > 0 && height > 0) {
-      setLayout({ width, height })
-    }
-  }
-
-  // Generate fixed-angle stripes
-  let gradientElement = null
-  if (layout) {
-    const { width, height } = layout
-    const STRIPE_WIDTH = 10 // px
-    // We want the pattern to cover the box with 45 degree stripes.
-    // The gradient line (perpendicular to stripes) should be -45 or 45 degrees.
-    // Let's produce stripes running Bottom-Left to Top-Right (/).
-    // The gradient line runs Top-Left to Bottom-Right (\).
-    // Vector (1, 1).
-    // To ensure we cover the whole rectangle (w, h), we need the gradient vector
-    // to extend far enough to project the furthest corner (w, h) onto it.
-    // A vector (w+h, w+h) covers it.
-
-    const L = width + height
-    const end = { x: L / width, y: L / height }
-
-    const diagonalLen = Math.sqrt(L * L + L * L) // L * sqrt(2)
-    const step = (STRIPE_WIDTH * 2) / diagonalLen // *2 for period (color + gap)
-
-    const colors: string[] = []
-    const locations: number[] = []
-
-    let t = 0
-    while (t < 1) {
-      const tStart = t
-      const tMid = Math.min(t + step * 0.5, 1)
-      const tEnd = Math.min(t + step, 1)
-
-      // Color Band
-      colors.push(baseColor, baseColor)
-      locations.push(tStart, tMid)
-
-      // Transparent Band
-      if (tMid < 1) {
-        colors.push('transparent', 'transparent')
-        locations.push(tMid, tEnd)
-      }
-
-      t += step
-    }
-
-    gradientElement = (
-      <LinearGradient
-        colors={colors}
-        locations={locations}
-        start={{ x: 0, y: 0 }}
-        end={end}
-        style={{ flex: 1 }}
-      />
-    )
+  for (let i = 0; i < 20; i++) {
+    const isColor = i % 2 === 1
+    const c = isColor ? color : 'transparent'
+    stripeColors.push(c, c)
+    stripeLocations.push(i * step, (i + 1) * step)
   }
 
   return (
     <View
-      onLayout={onLayout}
       pointerEvents="none"
       style={[
         styles.container,
@@ -132,17 +81,23 @@ export function CalendarZone<T extends ICalendarEventBase>({
           height: `${relativeHeight}%`,
           borderColor: borderColor,
           borderWidth: borderWidth,
-          borderRadius: 6,
+          // borderStyle: 'dashed',
+          borderRadius: 4,
           overflow: 'hidden',
-          backgroundColor: 'rgba(15, 23, 42, 0.2)', // Slight tint (slate-900 alpha)
         }
       ]}
     >
-      {gradientElement}
+      <LinearGradient
+        colors={stripeColors as any}
+        locations={stripeLocations as any}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ flex: 1 }}
+      />
 
       {/* Duration Badge */}
-      <View style={[styles.badge, { borderColor: baseColor }]}>
-        <Text style={[styles.badgeText, { color: baseColor }]}>
+      <View style={[styles.badge, { borderColor: color }]}>
+        <Text style={[styles.badgeText, { color: color }]}>
             {durationInMinutes}m
         </Text>
       </View>
