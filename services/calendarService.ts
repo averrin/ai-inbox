@@ -197,12 +197,25 @@ export const createCalendarEvent = async (calendarId: string, eventData: Partial
     }
 };
 
-export const updateCalendarEvent = async (eventId: string, eventData: Partial<Calendar.Event>) => {
+export const updateCalendarEvent = async (eventId: string, eventData: Partial<Calendar.Event> & { editScope?: 'this' | 'future' | 'all', isWork?: boolean }) => {
     const hasPermission = await ensureCalendarPermissions();
     if (!hasPermission) throw new Error("Missing calendar permissions");
 
     // Cast to any to access extra fields
     const data = eventData as any;
+    const { workAccountId } = useSettingsStore.getState();
+
+    // Auto-invite work account logic (similar to create)
+    if (data.isWork && workAccountId) {
+        // We can't easily check existing attendees without fetching, so we skip duplication check for now
+        // or rely on native calendar to dedupe.
+        // Note: updating attendees usually requires passing the full list.
+        // Since we don't have the full list here, this might overwrite or fail if strict.
+        // For safety, we only append if 'attendees' is already in data (rare in this flow) or skip.
+        // Ideally we would fetch -> merge -> update.
+        // For now, we will SKIP modifying attendees during simple update to avoid data loss.
+        // TODO: Implement full attendee sync for updates.
+    }
 
     // Prepare data for native call
     const nativeEventData: Partial<Calendar.Event> = {
@@ -217,28 +230,47 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
 
     // Ensure dates are valid if provided
     if (nativeEventData.startDate && isNaN(nativeEventData.startDate.getTime())) {
-         delete nativeEventData.startDate;
+        delete nativeEventData.startDate;
     }
     if (nativeEventData.endDate && isNaN(nativeEventData.endDate.getTime())) {
-         delete nativeEventData.endDate;
+        delete nativeEventData.endDate;
     }
 
     // Handle recurrence
-    if (data.recurrenceRule) {
+    if (data.recurrenceRule === null) {
+        // Explicitly clear recurrence
+        nativeEventData.recurrenceRule = null as any;
+    } else if (data.recurrenceRule) {
         nativeEventData.recurrenceRule = data.recurrenceRule;
     } else if (data.recurrence) {
         // ... (Parsing logic similar to create)
         if (Array.isArray(data.recurrence)) {
-             const rule = parseRRule(data.recurrence[0]);
-             if (rule) nativeEventData.recurrenceRule = rule;
+            const rule = parseRRule(data.recurrence[0]);
+            if (rule) nativeEventData.recurrenceRule = rule;
         } else if (typeof data.recurrence === 'string') {
-             const rule = parseRRule(data.recurrence);
-             if (rule) nativeEventData.recurrenceRule = rule;
+            const rule = parseRRule(data.recurrence);
+            if (rule) nativeEventData.recurrenceRule = rule;
         }
     }
 
     try {
-        await Calendar.updateEventAsync(eventId, nativeEventData);
+        const options: any = {};
+        if (eventData.editScope) {
+            if (eventData.editScope === 'this') {
+                // Do not update recurrence rule for single instance exception
+                delete nativeEventData.recurrenceRule;
+            }
+
+            if (Platform.OS === 'android') {
+                if (eventData.editScope === 'future') options.futureEvents = true;
+                // 'this' is default (futureEvents: false)
+            } else if (Platform.OS === 'ios') {
+                if (eventData.editScope === 'future') options.span = Calendar.EventSpan.FutureEvents;
+                if (eventData.editScope === 'this') options.span = Calendar.EventSpan.ThisEvent;
+            }
+        }
+
+        await Calendar.updateEventAsync(eventId, nativeEventData, options);
     } catch (e) {
         console.error(`[CalendarService] updateCalendarEvent FAILED for event ${eventId}:`, e);
         throw e;
