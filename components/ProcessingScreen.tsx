@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Alert, Modal } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { ShareIntent } from 'expo-share-intent';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -830,31 +831,57 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
 
         // Execute Actions
         if (targetData?.actions && targetData.actions.length > 0) {
-            const { accessToken } = useGoogleStore.getState();
+            const { defaultCreateCalendarId } = useSettingsStore.getState();
+            let targetCalendarId = defaultCreateCalendarId;
 
-            if (accessToken) {
-                const { GoogleCalendarService } = await import('../services/googleCalendarService');
+            // If no default create calendar, try to find a writable one
+            if (!targetCalendarId) {
+                const writableCalendars = await CalendarService.getWritableCalendars();
+                if (writableCalendars.length > 0) {
+                    targetCalendarId = writableCalendars[0].id;
+                }
+            }
+
+            if (targetCalendarId) {
                 let createdCount = 0;
+                let errorOccurred = false;
+
                 for (const action of targetData.actions) {
                     if (action.type === 'create_event') {
                         try {
-                            await GoogleCalendarService.createEvent(accessToken, {
+                            const startTime = action.startTime ? new Date(action.startTime) : new Date();
+                            const durationMinutes = action.durationMinutes || 30;
+                            const endTime = new Date(startTime.getTime() + durationMinutes * 60000);
+
+                            await CalendarService.createCalendarEvent(targetCalendarId, {
                                 title: action.title,
                                 description: action.description,
-                                startTime: action.startTime || new Date().toISOString(),
-                                durationMinutes: action.durationMinutes || 30,
+                                startDate: startTime as any, // calendarService handles conversion too but better safe
+                                endDate: endTime as any,
                                 recurrence: action.recurrence
-                            });
+                            } as any);
                             createdCount++;
                         } catch (e) {
                             console.error('Failed to create event:', e);
-                            Alert.alert('Event Creation Failed', `Error: ${e instanceof Error ? e.message : String(e)}`);
+                            errorOccurred = true;
                         }
                     }
                 }
+
+                if (createdCount > 0) {
+                    Toast.show({
+                        type: 'success',
+                        text1: 'Events Created',
+                        text2: `Successfully added ${createdCount} events to your calendar.`
+                    });
+                }
+
+                if (errorOccurred) {
+                    Alert.alert('Some Events Failed', 'One or more events could not be added to your calendar. Please check the logs.');
+                }
             } else {
-                console.warn('Skipping event creation: No Google Access Token.');
-                Alert.alert('Scheduling Skipped', 'No Google Access Token found. Please connect in settings.');
+                console.warn('Skipping event creation: No target calendar found.');
+                Alert.alert('Scheduling Skipped', 'No writable calendar found. Please check your calendar permissions and settings.');
             }
         }
 

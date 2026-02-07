@@ -11,10 +11,7 @@ import { ColorPicker } from './ui/ColorPicker';
 import { IconPicker } from './ui/IconPicker';
 
 export function ContactsSettings() {
-    const { myEmails, setMyEmails, contacts, addContact, updateContact, deleteContact } = useSettingsStore();
-    const { email: googleEmail } = useGoogleStore();
-
-    const [newEmail, setNewEmail] = useState('');
+    const { contacts, addContact, updateContact, deleteContact } = useSettingsStore();
 
     // Contact Modal State
     const [modalVisible, setModalVisible] = useState(false);
@@ -24,30 +21,6 @@ export function ContactsSettings() {
     const [cColor, setCColor] = useState('#818cf8');
     const [cIcon, setCIcon] = useState('person');
     const [cIsWife, setCIsWife] = useState(false);
-
-    const handleAddMyEmail = () => {
-        if (!newEmail.trim()) return;
-        if (myEmails.includes(newEmail.trim())) {
-            Alert.alert('Duplicate', 'This email is already in your list.');
-            return;
-        }
-        setMyEmails([...myEmails, newEmail.trim()]);
-        setNewEmail('');
-    };
-
-    const handleRemoveMyEmail = (email: string) => {
-        setMyEmails(myEmails.filter(e => e !== email));
-    };
-
-    const handleSyncGoogle = () => {
-        if (googleEmail && !myEmails.includes(googleEmail)) {
-            setMyEmails([...myEmails, googleEmail]);
-        } else if (!googleEmail) {
-            Alert.alert('No Account', 'No Google account connected.');
-        } else {
-            Alert.alert('Info', 'Email already added.');
-        }
-    };
 
     const openContactModal = (contact?: Contact) => {
         if (contact) {
@@ -102,10 +75,12 @@ export function ContactsSettings() {
                 "Are you sure?",
                 [
                     { text: "Cancel", style: "cancel" },
-                    { text: "Delete", style: "destructive", onPress: () => {
-                        deleteContact(editingId);
-                        setModalVisible(false);
-                    }}
+                    {
+                        text: "Delete", style: "destructive", onPress: () => {
+                            deleteContact(editingId);
+                            setModalVisible(false);
+                        }
+                    }
                 ]
             );
         }
@@ -113,46 +88,6 @@ export function ContactsSettings() {
 
     return (
         <View className="flex-1">
-            <Card>
-                <Text className="text-indigo-200 mb-2 font-semibold">My Email Addresses</Text>
-                <Text className="text-slate-400 text-xs mb-4">
-                    Used to identify "Me" in calendar events for auto-categorization.
-                </Text>
-
-                {myEmails.map((email) => (
-                    <View key={email} className="flex-row items-center justify-between bg-slate-800 p-3 rounded-lg mb-2 border border-slate-700">
-                        <Text className="text-white">{email}</Text>
-                        <TouchableOpacity onPress={() => handleRemoveMyEmail(email)}>
-                            <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                        </TouchableOpacity>
-                    </View>
-                ))}
-
-                <View className="flex-row gap-2 mt-2">
-                    <View className="flex-1">
-                        <Input
-                            value={newEmail}
-                            onChangeText={setNewEmail}
-                            placeholder="Add email address..."
-                            autoCapitalize="none"
-                        />
-                    </View>
-                    <TouchableOpacity
-                        onPress={handleAddMyEmail}
-                        className="bg-indigo-600 justify-center px-4 rounded-lg h-[50px] mt-1"
-                    >
-                        <Ionicons name="add" size={24} color="white" />
-                    </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                    onPress={handleSyncGoogle}
-                    className="flex-row items-center justify-center mt-4 bg-slate-800 py-3 rounded-lg border border-slate-700"
-                >
-                    <Ionicons name="logo-google" size={18} color="#94a3b8" />
-                    <Text className="text-slate-300 ml-2 font-medium">Auto-fill from Google Auth</Text>
-                </TouchableOpacity>
-            </Card>
 
             <Card>
                 <View className="flex-row items-center justify-between mb-4">

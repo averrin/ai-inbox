@@ -32,7 +32,7 @@ import { WeatherForecastModal } from '../WeatherForecastModal';
 
 
 export default function ScheduleScreen() {
-    const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, myEmails, contacts } = useSettingsStore();
+    const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes, personalCalendarIds, workCalendarIds } = useSettingsStore();
     const { assignments, difficulties, eventTypes, eventFlags, eventIcons, ranges, loadConfig } = useEventTypesStore();
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
@@ -156,6 +156,8 @@ export default function ScheduleScreen() {
                 return;
             }
 
+            console.log('[ScheduleScreen] Fetching events for calendars:', safeCalendarIds);
+
             const nativeEvents = await getCalendarEvents(safeCalendarIds, start, end);
 
             if (!nativeEvents) {
@@ -178,12 +180,20 @@ export default function ScheduleScreen() {
             const mappedEvents = nativeEvents.map(evt => {
                 let assignedTypeId = assignments[evt.title];
 
+                // Check calendar default if not assigned by title
+                if (!assignedTypeId && calendarDefaultEventTypes && calendarDefaultEventTypes[evt.calendarId]) {
+                    assignedTypeId = calendarDefaultEventTypes[evt.calendarId];
+                }
+
                 // Auto-detect type if not assigned
                 if (!assignedTypeId) {
                     const attendees = (evt as any).attendees || [];
                     const normalize = (e: string) => e?.toLowerCase().trim();
-                    const myEmailsSet = new Set((myEmails || []).map(normalize));
-                    const isMe = (email: string) => myEmailsSet.has(normalize(email));
+                    const meSet = new Set();
+                    if (personalAccountId) meSet.add(normalize(personalAccountId));
+                    if (workAccountId) meSet.add(normalize(workAccountId));
+
+                    const isMe = (email: string) => meSet.has(normalize(email));
 
                     const uniqueAttendees = new Map();
                     attendees.forEach((a: any) => {
@@ -348,7 +358,7 @@ export default function ScheduleScreen() {
             console.error("[ScheduleScreen] Critical error in fetchEvents:", e);
             setIsEventsLoaded(true);
         }
-    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, eventIcons, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents, myEmails, contacts]);
+    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, eventIcons, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes]);
 
     const handleRefresh = async () => {
         setRefreshing(true);
@@ -432,18 +442,9 @@ export default function ScheduleScreen() {
                     startDate: data.startDate,
                     endDate: data.endDate,
                     allDay: data.allDay,
-                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    isWork: data.isWork // calendarService will use this for auto-invites
                 };
-
-                // Add attendees if it's a work event
-                if (data.isWork && myEmails && myEmails.length > 0) {
-                    eventPayload.attendees = myEmails.map(email => ({
-                        email: email,
-                        role: 'attendee',
-                        status: 'pending',
-                        type: 'person'
-                    }));
-                }
 
                 const newEventId = await createCalendarEvent(targetCalendar.id, eventPayload);
 

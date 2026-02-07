@@ -23,7 +23,7 @@ export function EventContextModal({ visible, onClose, event }: Props) {
     const [fetchedAttendees, setFetchedAttendees] = useState<any[] | null>(null);
     const [showAttendeesPopup, setShowAttendeesPopup] = useState(false);
     const [showIconPicker, setShowIconPicker] = useState(false);
-    const { contacts, myEmails } = useSettingsStore();
+    const { contacts, personalAccountId, workAccountId } = useSettingsStore();
     const {
         eventTypes,
         assignments,
@@ -74,7 +74,7 @@ export function EventContextModal({ visible, onClose, event }: Props) {
     const attendees = fetchedAttendees || event?.originalEvent?.attendees || [];
     const sortedAttendees = useMemo(() => {
         if (!attendees || !Array.isArray(attendees)) return [];
-        
+
         const statusOrder: { [key: string]: number } = {
             'accepted': 0,
             'tentative': 1,
@@ -86,14 +86,14 @@ export function EventContextModal({ visible, onClose, event }: Props) {
         return [...attendees].sort((a, b) => {
             const statusA = statusOrder[a.status] ?? 5;
             const statusB = statusOrder[b.status] ?? 5;
-            
+
             if (statusA !== statusB) return statusA - statusB;
-            
+
             const getName = (item: any) => {
                 if (item.name && item.name !== 'Unknown') return item.name;
                 if (item.email) {
                     const prefix = item.email.split('@')[0];
-                    return prefix.includes('.') 
+                    return prefix.includes('.')
                         ? prefix.split('.').map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
                         : prefix;
                 }
@@ -109,23 +109,23 @@ export function EventContextModal({ visible, onClose, event }: Props) {
 
     const currentUserAttendee = useMemo(() => {
         if (!attendees || !Array.isArray(attendees)) return null;
-        
+
         // 1. Try Native Flag
         let match = attendees.find((a: any) => a.isCurrentUser);
-        
+
         // 2. Fallback: match by email/source name
         if (!match && sourceName) {
-             match = attendees.find((a: any) => a.email && a.email.toLowerCase() === sourceName.toLowerCase());
+            match = attendees.find((a: any) => a.email && a.email.toLowerCase() === sourceName.toLowerCase());
         }
 
         // 3. Fallback: match by calendar title (Name or Email)
         if (!match && calendarTitle) {
-            match = attendees.find((a: any) => 
-                (a.name && a.name.toLowerCase() === calendarTitle.toLowerCase()) || 
+            match = attendees.find((a: any) =>
+                (a.name && a.name.toLowerCase() === calendarTitle.toLowerCase()) ||
                 (a.email && a.email.toLowerCase() === calendarTitle.toLowerCase())
             );
         }
-        
+
         return match;
     }, [attendees, sourceName, calendarTitle]);
 
@@ -149,19 +149,19 @@ export function EventContextModal({ visible, onClose, event }: Props) {
         try {
             // Ensure we have a valid attendee marked as current user
             let targetAttendees = [...attendees];
-            
+
             // If no user is identified natively, use our derived one
             if (!attendees.find((a: any) => a.isCurrentUser) && currentUserAttendee) {
-                targetAttendees = attendees.map((a: any) => 
-                     (a.email === currentUserAttendee.email || (a.name === currentUserAttendee.name && a.name))
-                        ? { ...a, isCurrentUser: true } 
+                targetAttendees = attendees.map((a: any) =>
+                    (a.email === currentUserAttendee.email || (a.name === currentUserAttendee.name && a.name))
+                        ? { ...a, isCurrentUser: true }
                         : a
                 );
             }
-            
+
             // Fallback: If still no user is identified natively or by us, force the first attendee
             if (!targetAttendees.find((a: any) => a.isCurrentUser) && targetAttendees.length > 0) {
-                 targetAttendees[0] = { ...targetAttendees[0], isCurrentUser: true };
+                targetAttendees[0] = { ...targetAttendees[0], isCurrentUser: true };
             }
 
             for (const id of event.originalEvent.ids) {
@@ -375,7 +375,7 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                     </View>
 
                     {/* RSVP Section */}
-                    {hasAttendees && (
+                    {hasAttendees && currentUserAttendee && (
                         <View className="p-4 border-t border-slate-800">
                             <Text className="text-slate-400 text-xs font-semibold uppercase mb-2">RSVP</Text>
                             <View className="flex-row gap-2">
@@ -474,7 +474,7 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                         </View>
 
                         {currentIcon && (
-                             <TouchableOpacity
+                            <TouchableOpacity
                                 onPress={() => {
                                     setEventIcon(eventTitle, '');
                                     setShowIconPicker(false);
@@ -505,12 +505,12 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                         activeOpacity={1}
                         onPress={() => setShowAttendeesPopup(false)}
                     />
-                    <View 
+                    <View
                         className="bg-slate-900 rounded-3xl overflow-hidden max-h-[70%] border border-slate-800 shadow-2xl"
                     >
                         <View className="p-5 border-b border-slate-800 flex-row items-center justify-between bg-slate-800/50">
                             <Text className="text-white text-lg font-bold">Attendees ({attendees.length})</Text>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 onPress={() => setShowAttendeesPopup(false)}
                                 className="w-8 h-8 rounded-full bg-slate-700 items-center justify-center"
                             >
@@ -524,16 +524,19 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                             renderItem={({ item }) => {
                                 const normalize = (s: string) => s?.toLowerCase().trim();
 
-                                const isMe = item.email && (myEmails || []).some(email => normalize(email) === normalize(item.email));
+                                const isMe = item.email && (
+                                    (personalAccountId && normalize(personalAccountId) === normalize(item.email)) ||
+                                    (workAccountId && normalize(workAccountId) === normalize(item.email))
+                                );
 
                                 const contact = (contacts || []).find(c =>
                                     c.email && item.email && normalize(c.email) === normalize(item.email)
                                 );
 
                                 let displayName = contact?.name || (item.name && item.name !== 'Unknown'
-                                    ? item.name 
-                                    : (item.email 
-                                        ? (item.email.split('@')[0].includes('.') 
+                                    ? item.name
+                                    : (item.email
+                                        ? (item.email.split('@')[0].includes('.')
                                             ? item.email.split('@')[0].split('.').map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
                                             : item.email.split('@')[0])
                                         : 'Unknown'));
@@ -578,20 +581,18 @@ export function EventContextModal({ visible, onClose, event }: Props) {
                                             <View className="flex-row items-center gap-2">
                                                 <Text className="text-white font-semibold text-base">{displayName}</Text>
                                                 {contact?.isWife && !isMe && (
-                                                     <Ionicons name="heart" size={12} color="#ec4899" />
+                                                    <Ionicons name="heart" size={12} color="#ec4899" />
                                                 )}
                                             </View>
                                             {item.email && <Text className="text-slate-500 text-xs mt-0.5">{item.email}</Text>}
                                         </View>
                                         {item.status && (
-                                            <View className={`px-2.5 py-1 rounded-md ${
-                                                item.status === 'accepted' ? 'bg-emerald-500/10 border border-emerald-500/20' : 
+                                            <View className={`px-2.5 py-1 rounded-md ${item.status === 'accepted' ? 'bg-emerald-500/10 border border-emerald-500/20' :
                                                 item.status === 'declined' ? 'bg-rose-500/10 border border-rose-500/20' : 'bg-slate-700/50'
-                                            }`}>
-                                                <Text className={`text-[10px] font-bold ${
-                                                    item.status === 'accepted' ? 'text-emerald-500' :
-                                                    item.status === 'declined' ? 'text-rose-500' : 'text-slate-400'
                                                 }`}>
+                                                <Text className={`text-[10px] font-bold ${item.status === 'accepted' ? 'text-emerald-500' :
+                                                    item.status === 'declined' ? 'text-rose-500' : 'text-slate-400'
+                                                    }`}>
                                                     {item.status.toUpperCase()}
                                                 </Text>
                                             </View>
