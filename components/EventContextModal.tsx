@@ -11,6 +11,7 @@ import { IconPicker } from './ui/IconPicker';
 interface Props {
     visible: boolean;
     onClose: () => void;
+    onEdit?: () => void;
     event: {
         title: string;
         start: Date;
@@ -19,7 +20,7 @@ interface Props {
     } | null;
 }
 
-export function EventContextModal({ visible, onClose, event }: Props) {
+export function EventContextModal({ visible, onClose, onEdit, event }: Props) {
     const [fetchedAttendees, setFetchedAttendees] = useState<any[] | null>(null);
     const [showAttendeesPopup, setShowAttendeesPopup] = useState(false);
     const [showIconPicker, setShowIconPicker] = useState(false);
@@ -421,6 +422,14 @@ export function EventContextModal({ visible, onClose, event }: Props) {
 
                     {/* Footer Actions */}
                     <View className="p-4 border-t border-slate-800 gap-3">
+                        <TouchableOpacity
+                            onPress={() => { onClose(); onEdit?.(); }}
+                            className="w-full py-3 flex-row items-center justify-center gap-2 rounded-xl bg-slate-800 border border-slate-700"
+                        >
+                            <Ionicons name="create-outline" size={18} color="#f59e0b" />
+                            <Text className="text-amber-500 font-medium text-sm">Edit Event</Text>
+                        </TouchableOpacity>
+
                         <View className="flex-row gap-3">
                             <TouchableOpacity
                                 onPress={handleOpenInCalendar}
