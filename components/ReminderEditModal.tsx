@@ -259,6 +259,7 @@ export function ReminderEditModal({
                                 value={editDate}
                                 mode="date"
                                 display="default"
+                                firstDayOfWeek={1}
                                 onChange={(event, selectedDate) => {
                                     setShowDatePicker(false);
                                     if (selectedDate) {
