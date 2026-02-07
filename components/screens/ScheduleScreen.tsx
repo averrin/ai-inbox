@@ -390,6 +390,15 @@ export default function ScheduleScreen() {
 
         // 2. Handle Edit
         if (editingEvent) {
+            const originalId = editingEvent.originalEvent?.id;
+
+            // Prevent editing optimistic events without an ID
+            if (!originalId) {
+                alert("This event is still syncing. Please try again in a moment.");
+                fetchEvents();
+                return;
+            }
+
             // Optimistic Update (Simple replace in events array for immediate feedback)
             const updatedEvent = {
                 ...editingEvent,
@@ -402,20 +411,19 @@ export default function ScheduleScreen() {
             // Note: complex optimistic update for recurrence/merges is hard, better to rely on fetch
             // But we can update the single event item in state
             setEvents(prev => prev.map(e =>
-                (e.originalEvent?.id === editingEvent.originalEvent?.id) ? updatedEvent : e
+                (e.originalEvent?.id === originalId) ? updatedEvent : e
             ));
 
             (async () => {
                 try {
-                    const originalId = editingEvent.originalEvent?.id;
-                    if (!originalId) throw new Error("No event ID found");
-
                     await updateCalendarEvent(originalId, {
                        title: data.title,
                        startDate: data.startDate,
                        endDate: data.endDate,
                        allDay: data.allDay,
-                       recurrenceRule: data.recurrenceRule
+                       isWork: data.isWork,
+                       recurrenceRule: data.recurrenceRule,
+                       editScope: data.editScope
                     });
 
                     // Re-sync
