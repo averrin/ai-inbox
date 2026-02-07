@@ -56,24 +56,25 @@ export const getCalendarEvents = async (
     if (!hasPermission || calendarIds.length === 0) return [];
 
     try {
-        // Broaden range to ensure we catch events that might start before/end after the window but overlap
-        // However, the original code used a very broad range for diagnostics (30 days). 
-        // We'll stick to a reasonable buffer or the requested range.
-        // For now, I'll keep the logic but remove the logs.
-        const broadStart = new Date(startDate.getTime() - 30 * 24 * 60 * 60 * 1000);
-        const broadEnd = new Date(endDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-        const events = await Calendar.getEventsAsync(calendarIds, broadStart, broadEnd);
+        // Use exact dates for fetching
+        const events = await Calendar.getEventsAsync(calendarIds, startDate, endDate);
 
         const { defaultOpenCalendarId } = useSettingsStore.getState();
         const merged = mergeDuplicateEvents(events, defaultOpenCalendarId);
 
+        // Filter events strictly to the requested window (getEventsAsync sometimes returns overlapping ones)
+        const filtered = merged.filter(evt => {
+            const evStart = new Date(evt.startDate).getTime();
+            const evEnd = new Date(evt.endDate).getTime();
+            const winStart = startDate.getTime();
+            const winEnd = endDate.getTime();
+            return (evStart < winEnd && evEnd > winStart);
+        });
+
         // Android fix: getEventsAsync doesn't return attendees, fetch them for each merged event
         if (Platform.OS === 'android') {
-            await Promise.all(merged.map(async (evt) => {
+            await Promise.all(filtered.map(async (evt) => {
                 try {
-                    // Fetch attendees for the main ID. 
-                    // Since merged events are duplicates across calendars, one fetch is usually enough.
                     const attendees = await Calendar.getAttendeesForEventAsync(evt.id);
                     (evt as any).attendees = attendees || [];
                 } catch (e) {
@@ -82,7 +83,7 @@ export const getCalendarEvents = async (
             }));
         }
 
-        return merged;
+        return filtered;
     } catch (e) {
         console.error('[CalendarService] getEventsAsync FAILED:', e);
         return [];
