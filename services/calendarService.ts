@@ -160,7 +160,10 @@ export const createCalendarEvent = async (calendarId: string, eventData: Partial
     }
 
     // Handle recurrence
-    if (data.recurrence) {
+    if (data.recurrenceRule) {
+        // Direct object passed
+        nativeEventData.recurrenceRule = data.recurrenceRule;
+    } else if (data.recurrence) {
         if (Array.isArray(data.recurrence)) {
             // Google format is array of strings
             const rule = parseRRule(data.recurrence[0]);
@@ -193,6 +196,54 @@ export const createCalendarEvent = async (calendarId: string, eventData: Partial
         throw e;
     }
 };
+
+export const updateCalendarEvent = async (eventId: string, eventData: Partial<Calendar.Event>) => {
+    const hasPermission = await ensureCalendarPermissions();
+    if (!hasPermission) throw new Error("Missing calendar permissions");
+
+    // Cast to any to access extra fields
+    const data = eventData as any;
+
+    // Prepare data for native call
+    const nativeEventData: Partial<Calendar.Event> = {
+        title: eventData.title,
+        startDate: eventData.startDate ? new Date(eventData.startDate) : undefined,
+        endDate: eventData.endDate ? new Date(eventData.endDate) : undefined,
+        notes: (eventData as any).description || (eventData as any).notes,
+        allDay: eventData.allDay,
+        location: eventData.location,
+        alarms: eventData.alarms,
+    };
+
+    // Ensure dates are valid if provided
+    if (nativeEventData.startDate && isNaN(nativeEventData.startDate.getTime())) {
+         delete nativeEventData.startDate;
+    }
+    if (nativeEventData.endDate && isNaN(nativeEventData.endDate.getTime())) {
+         delete nativeEventData.endDate;
+    }
+
+    // Handle recurrence
+    if (data.recurrenceRule) {
+        nativeEventData.recurrenceRule = data.recurrenceRule;
+    } else if (data.recurrence) {
+        // ... (Parsing logic similar to create)
+        if (Array.isArray(data.recurrence)) {
+             const rule = parseRRule(data.recurrence[0]);
+             if (rule) nativeEventData.recurrenceRule = rule;
+        } else if (typeof data.recurrence === 'string') {
+             const rule = parseRRule(data.recurrence);
+             if (rule) nativeEventData.recurrenceRule = rule;
+        }
+    }
+
+    try {
+        await Calendar.updateEventAsync(eventId, nativeEventData);
+    } catch (e) {
+        console.error(`[CalendarService] updateCalendarEvent FAILED for event ${eventId}:`, e);
+        throw e;
+    }
+}
 
 export const getUpcomingEvents = async (days: number = 3): Promise<string> => {
     try {
