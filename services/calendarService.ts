@@ -163,6 +163,10 @@ export const createCalendarEvent = async (calendarId: string, eventData: Partial
     if (data.recurrenceRule) {
         // Direct object passed
         nativeEventData.recurrenceRule = data.recurrenceRule;
+        // Safety: Avoid infinite recurrence on Android (causes crashes on some devices)
+        if (Platform.OS === 'android' && !nativeEventData.recurrenceRule.endDate && !nativeEventData.recurrenceRule.occurrence) {
+            nativeEventData.recurrenceRule.occurrence = 365;
+        }
     } else if (data.recurrence) {
         if (Array.isArray(data.recurrence)) {
             // Google format is array of strings
@@ -171,6 +175,10 @@ export const createCalendarEvent = async (calendarId: string, eventData: Partial
         } else if (typeof data.recurrence === 'string') {
             const rule = parseRRule(data.recurrence);
             if (rule) nativeEventData.recurrenceRule = rule;
+        }
+        // Safety: Avoid infinite recurrence on Android
+        if (Platform.OS === 'android' && nativeEventData.recurrenceRule && !nativeEventData.recurrenceRule.endDate && !nativeEventData.recurrenceRule.occurrence) {
+            nativeEventData.recurrenceRule.occurrence = 365;
         }
     }
 
@@ -244,12 +252,6 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
         // Map string frequency to expo-calendar Frequency enum (or compliant string)
         const rule = { ...data.recurrenceRule };
         if (typeof rule.frequency === 'string') {
-            // Ensure uppercase keys for expo-calendar compatibility if it expects Calendar.Frequency
-            // Calendar.Frequency values are typically 'daily', 'weekly', 'monthly', 'yearly' strings on modern versions,
-            // but let's be safe. The user input is 'daily', 'weekly' etc.
-            // Some versions of expo-calendar expect Calendar.Frequency.DAILY which maps to 'daily'.
-            // So lowercase string should be fine IF it matches the enum value.
-            // Let's ensure it maps to what expo-calendar expects.
             const freqMap: Record<string, string> = {
                 'daily': 'daily',
                 'weekly': 'weekly',
@@ -261,6 +263,11 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
             }
         }
         nativeEventData.recurrenceRule = rule;
+
+        // Safety: Avoid infinite recurrence on Android
+        if (Platform.OS === 'android' && !nativeEventData.recurrenceRule.endDate && !nativeEventData.recurrenceRule.occurrence) {
+            nativeEventData.recurrenceRule.occurrence = 365;
+        }
     } else if (data.recurrence) {
         // ... (Parsing logic similar to create)
         if (Array.isArray(data.recurrence)) {
@@ -269,6 +276,11 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
         } else if (typeof data.recurrence === 'string') {
             const rule = parseRRule(data.recurrence);
             if (rule) nativeEventData.recurrenceRule = rule;
+        }
+
+        // Safety: Avoid infinite recurrence on Android
+        if (Platform.OS === 'android' && nativeEventData.recurrenceRule && !nativeEventData.recurrenceRule.endDate && !nativeEventData.recurrenceRule.occurrence) {
+            nativeEventData.recurrenceRule.occurrence = 365;
         }
     }
 
@@ -281,10 +293,13 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
             }
 
             if (Platform.OS === 'android') {
-                if (eventData.editScope === 'future') options.futureEvents = true;
-                // 'this' is default (futureEvents: false)
+                if (eventData.editScope === 'future' || eventData.editScope === 'all') {
+                    options.futureEvents = true;
+                }
             } else if (Platform.OS === 'ios') {
                 if (eventData.editScope === 'future') options.span = Calendar.EventSpan.FutureEvents;
+                // For 'all', best effort on instance is FutureEvents (from this point forward)
+                if (eventData.editScope === 'all') options.span = Calendar.EventSpan.FutureEvents;
                 if (eventData.editScope === 'this') options.span = Calendar.EventSpan.ThisEvent;
             }
         }
