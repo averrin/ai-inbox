@@ -117,7 +117,8 @@ export function EventFormModal({
 
     const handlePreSave = () => {
         // If editing a recurring event, ask for scope
-        if (initialEvent && initialEvent.isRecurrent) {
+        const isRecurrent = initialEvent?.originalEvent?.recurrenceRule || initialEvent?.recurrenceRule || initialEvent?.isRecurrent;
+        if (initialEvent && isRecurrent) {
             setShowScopeSelector(true);
         } else {
             triggerSave();

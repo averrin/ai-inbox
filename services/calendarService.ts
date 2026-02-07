@@ -241,7 +241,26 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
         // Explicitly clear recurrence
         nativeEventData.recurrenceRule = null as any;
     } else if (data.recurrenceRule) {
-        nativeEventData.recurrenceRule = data.recurrenceRule;
+        // Map string frequency to expo-calendar Frequency enum (or compliant string)
+        const rule = { ...data.recurrenceRule };
+        if (typeof rule.frequency === 'string') {
+            // Ensure uppercase keys for expo-calendar compatibility if it expects Calendar.Frequency
+            // Calendar.Frequency values are typically 'daily', 'weekly', 'monthly', 'yearly' strings on modern versions,
+            // but let's be safe. The user input is 'daily', 'weekly' etc.
+            // Some versions of expo-calendar expect Calendar.Frequency.DAILY which maps to 'daily'.
+            // So lowercase string should be fine IF it matches the enum value.
+            // Let's ensure it maps to what expo-calendar expects.
+            const freqMap: Record<string, string> = {
+                'daily': Calendar.Frequency.DAILY,
+                'weekly': Calendar.Frequency.WEEKLY,
+                'monthly': Calendar.Frequency.MONTHLY,
+                'yearly': Calendar.Frequency.YEARLY
+            };
+            if (freqMap[rule.frequency]) {
+                rule.frequency = freqMap[rule.frequency];
+            }
+        }
+        nativeEventData.recurrenceRule = rule;
     } else if (data.recurrence) {
         // ... (Parsing logic similar to create)
         if (Array.isArray(data.recurrence)) {
