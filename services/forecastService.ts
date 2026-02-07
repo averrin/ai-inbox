@@ -24,15 +24,7 @@ Keep it concise, actionable, and personalized.
 Forecast for TODAY (1-2 sentences):
 `;
 
-export async function generateDayForecast(date: Date): Promise<string> {
-    const { apiKey, selectedModel, visibleCalendarIds } = useSettingsStore.getState();
-    if (!apiKey) throw new Error("API Key is missing. Please set it in Settings.");
-
-    const dateStr = dayjs(date).format('YYYY-MM-DD');
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const modelName = selectedModel || "gemini-2.0-flash-exp";
-    const genModel = genAI.getGenerativeModel({ model: modelName });
-
+export async function buildDayForecastPrompt(date: Date): Promise<string> {
     // 1. Gather Recent context (Moods & Habits)
     let contextText = "";
     const moodStore = useMoodStore.getState();
@@ -54,47 +46,64 @@ export async function generateDayForecast(date: Date): Promise<string> {
 
     if (!contextText) contextText = "No data for the last 14 days.";
 
-    // 2. Gather Schedule Data
-    // Fallback to all calendars if none selected
+    // 2. Gather Schedule Data (BATCH FETCH)
+    const { visibleCalendarIds } = useSettingsStore.getState();
     let calsToFetch = visibleCalendarIds;
     if (calsToFetch.length === 0) {
         const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
         calsToFetch = calendars.map(c => c.id);
     }
 
+    const rangeStart = dayjs(date).subtract(14, 'days').startOf('day').toDate();
+    const rangeEnd = dayjs(date).endOf('week').toDate();
+    const allEvents = await getCalendarEvents(calsToFetch, rangeStart, rangeEnd);
+
     const { eventFlags, difficulties, ranges, assignments, eventTypes } = useEventTypesStore.getState();
 
-    // Helper function to format events for a given day
-    const formatEventsForDay = async (dayDate: dayjs.Dayjs, label: string): Promise<string> => {
-        const start = dayDate.startOf('day').toDate();
-        const end = dayDate.endOf('day').toDate();
-        const dayEvents = await getCalendarEvents(calsToFetch, start, end);
+    // Pre-process events with metadata
+    const processedEvents = allEvents.map(e => {
+        const flags = eventFlags?.[e.title];
+        const baseDifficulty = difficulties?.[e.title] ?? 1;
+        const diffResult = calculateEventDifficulty(
+            { title: e.title, start: new Date(e.startDate), end: new Date(e.endDate) },
+            baseDifficulty,
+            ranges,
+            flags
+        );
+
+        const typeId = assignments?.[e.title];
+        const eventType = typeId ? eventTypes.find(t => t.id === typeId) : null;
+
+        let meta: string[] = [];
+        if (eventType) meta.push(`Type: ${eventType.title}`);
+        if (diffResult.total > 0) meta.push(`Difficulty: ${diffResult.total}`);
+        if (flags?.isEnglish) meta.push('English');
+        if (flags?.movable) meta.push('Movable');
+        if (flags?.skippable) meta.push('Skippable');
+        if (flags?.needPrep) meta.push('Prep Needed');
+
+        return {
+            title: e.title,
+            start: dayjs(e.startDate),
+            end: dayjs(e.endDate),
+            metaText: meta.length > 0 ? ' [' + meta.join(', ') + ']' : ''
+        };
+    });
+
+    // Helper to format events for a given day using cached data
+    const formatDayEvents = (dayDate: dayjs.Dayjs, label: string): string => {
+        const dayStart = dayDate.startOf('day');
+        const dayEnd = dayDate.endOf('day');
+
+        const dayEvents = processedEvents.filter(e =>
+            e.start.isBefore(dayEnd) && e.end.isAfter(dayStart)
+        );
 
         if (dayEvents.length === 0) return `### ${label}\nNo events.`;
 
         const formatted = dayEvents.map(e => {
-            const time = dayjs(e.startDate).format('HH:mm');
-            const flags = eventFlags?.[e.title];
-            const baseDifficulty = difficulties?.[e.title] ?? 1;
-            const diffResult = calculateEventDifficulty(
-                { title: e.title, start: new Date(e.startDate), end: new Date(e.endDate) },
-                baseDifficulty,
-                ranges,
-                flags
-            );
-
-            const typeId = assignments?.[e.title];
-            const eventType = typeId ? eventTypes.find(t => t.id === typeId) : null;
-
-            let meta: string[] = [];
-            if (eventType) meta.push(`Type: ${eventType.title}`);
-            if (diffResult.total > 0) meta.push(`Difficulty: ${diffResult.total}`);
-            if (flags?.isEnglish) meta.push('English');
-            if (flags?.movable) meta.push('Movable');
-            if (flags?.skippable) meta.push('Skippable');
-            if (flags?.needPrep) meta.push('Prep Needed');
-
-            return `- ${e.title} (${time})${meta.length > 0 ? ' [' + meta.join(', ') + ']' : ''}`;
+            const time = e.start.format('HH:mm');
+            return `- ${e.title} (${time})${e.metaText}`;
         }).join('\n');
 
         return `### ${label}\n${formatted}`;
@@ -102,31 +111,38 @@ export async function generateDayForecast(date: Date): Promise<string> {
 
     let scheduleText = "";
 
-    // 2a. Past 14 days schedule (context)
+    // 2a. Past 14 days
     for (let i = 14; i >= 1; i--) {
         const pastDay = dayjs(date).subtract(i, 'day');
-        const dayLabel = `Day -${i} (${pastDay.format('ddd, MMM D')})`;
-        scheduleText += await formatEventsForDay(pastDay, dayLabel) + '\n\n';
+        scheduleText += formatDayEvents(pastDay, `Day -${i} (${pastDay.format('ddd, MMM D')})`) + '\n\n';
     }
 
     // 2b. Today
-    scheduleText += await formatEventsForDay(dayjs(date), `TODAY (${dayjs(date).format('ddd, MMM D')})`) + '\n\n';
+    scheduleText += formatDayEvents(dayjs(date), `TODAY (${dayjs(date).format('ddd, MMM D')})`) + '\n\n';
 
-    // 2c. Upcoming days until end of week (Sunday)
-    const endOfWeek = dayjs(date).endOf('week'); // Sunday
+    // 2c. Upcoming days
+    const endOfWeek = dayjs(date).endOf('week');
     let nextDay = dayjs(date).add(1, 'day');
     while (nextDay.isBefore(endOfWeek) || nextDay.isSame(endOfWeek, 'day')) {
         const daysAhead = nextDay.diff(dayjs(date), 'day');
-        const dayLabel = `Day +${daysAhead} (${nextDay.format('ddd, MMM D')})`;
-        scheduleText += await formatEventsForDay(nextDay, dayLabel) + '\n\n';
+        scheduleText += formatDayEvents(nextDay, `Day +${daysAhead} (${nextDay.format('ddd, MMM D')})`) + '\n\n';
         nextDay = nextDay.add(1, 'day');
     }
 
-
-    // 3. Build Prompt & Call Gemini
-    const finalPrompt = FORECAST_PROMPT
+    return FORECAST_PROMPT
         .replace('{{context}}', contextText)
         .replace('{{schedule}}', scheduleText);
+}
+
+export async function generateDayForecast(date: Date): Promise<string> {
+    const { apiKey, selectedModel } = useSettingsStore.getState();
+    if (!apiKey) throw new Error("API Key is missing. Please set it in Settings.");
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const modelName = selectedModel || "gemini-2.0-flash-exp";
+    const genModel = genAI.getGenerativeModel({ model: modelName });
+
+    const finalPrompt = await buildDayForecastPrompt(date);
 
     try {
         const result = await genModel.generateContent(finalPrompt);
