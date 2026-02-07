@@ -1,6 +1,6 @@
 import dayjs from 'dayjs'
 import React from 'react'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet, View, Text } from 'react-native'
 import type { ICalendarEventBase } from '../interfaces'
 import { getRelativeTopInDay, DAY_MINUTES } from '../utils/datetime'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -49,6 +49,12 @@ export function CalendarZone<T extends ICalendarEventBase>({
     stripeLocations.push(i * step, (i + 1) * step)
   }
 
+  const durationStr = (() => {
+    const h = Math.floor(durationInMinutes / 60)
+    const m = durationInMinutes % 60
+    return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`
+  })()
+
   return (
     <View
       pointerEvents="none"
@@ -62,6 +68,7 @@ export function CalendarZone<T extends ICalendarEventBase>({
           // borderStyle: 'dashed',
           borderRadius: 4,
           overflow: 'hidden',
+          justifyContent: 'center',
         }
       ]}
     >
@@ -70,8 +77,32 @@ export function CalendarZone<T extends ICalendarEventBase>({
         locations={stripeLocations as any}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={{ flex: 1 }}
+        style={StyleSheet.absoluteFill}
       />
+
+      {/* Duration Badge */}
+      <View
+        style={{
+          position: 'absolute',
+          right: 4,
+          backgroundColor: '#0f172a',
+          borderColor: borderColor || '#334155',
+          borderWidth: 1,
+          paddingHorizontal: 6,
+          paddingVertical: 2,
+          borderRadius: 4,
+          zIndex: 10000,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.3,
+          shadowRadius: 2,
+          elevation: 4,
+        }}
+      >
+        <Text style={{ color: borderColor || 'white', fontSize: 10, fontWeight: 'bold' }}>
+          {durationStr}
+        </Text>
+      </View>
     </View>
   )
 }

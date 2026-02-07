@@ -80,7 +80,7 @@ export default function ScheduleScreen() {
 
     const handleDeleteReminderWithNote = async (reminder: Reminder) => {
         const targetUri = reminder.fileUri;
-        
+
         // Optimistic Delete
         setCachedReminders(cachedReminders.filter((r: any) => r.fileUri !== targetUri));
         setEvents(prev => prev.filter(e => e.originalEvent?.fileUri !== targetUri));
@@ -166,7 +166,7 @@ export default function ScheduleScreen() {
 
             // Fetch ALL calendars to get colors/names for merged events, not just writable ones
             const allCalendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-            
+
             const calDetailsMap = (allCalendars || []).reduce((acc: any, cal) => {
                 if (cal && cal.id) {
                     acc[cal.id] = { title: cal.title || 'Untitled', color: cal.color || '#888888', source: cal.source?.name || 'Local' };
@@ -262,16 +262,16 @@ export default function ScheduleScreen() {
                 let currentUserRSVP = '';
                 if (Array.isArray(attendees)) {
                     let match = attendees.find((a: any) => a.isCurrentUser);
-                    
+
                     if (!match && sourceName) {
-                        match = attendees.find((a: any) => 
+                        match = attendees.find((a: any) =>
                             a.email && a.email.toLowerCase() === sourceName.toLowerCase()
                         );
                     }
 
                     if (!match && calendarTitle) {
-                        match = attendees.find((a: any) => 
-                            (a.name && a.name.toLowerCase() === calendarTitle.toLowerCase()) || 
+                        match = attendees.find((a: any) =>
+                            (a.name && a.name.toLowerCase() === calendarTitle.toLowerCase()) ||
                             (a.email && a.email.toLowerCase() === calendarTitle.toLowerCase())
                         );
                     }
@@ -324,7 +324,7 @@ export default function ScheduleScreen() {
                 }));
 
             const combinedEvents = [...mappedEvents, ...mappedReminders];
-            
+
             // Add Zones for All-Day Events
             const allDayZones = mappedEvents
                 .filter(e => e.allDay)
@@ -427,18 +427,25 @@ export default function ScheduleScreen() {
                     return;
                 }
 
-                if (!targetCalendar.allowsModifications) {
-                    console.warn('[ScheduleScreen] Selected calendar does not allow modifications:', targetCalendar.title);
-                    // Proceeding anyway but likely to fail
-                }
-
-                const newEventId = await createCalendarEvent(targetCalendar.id, {
+                const eventPayload: any = {
                     title: data.title,
                     startDate: data.startDate,
                     endDate: data.endDate,
                     allDay: data.allDay,
                     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-                });
+                };
+
+                // Add attendees if it's a work event
+                if (data.isWork && myEmails && myEmails.length > 0) {
+                    eventPayload.attendees = myEmails.map(email => ({
+                        email: email,
+                        role: 'attendee',
+                        status: 'pending',
+                        type: 'person'
+                    }));
+                }
+
+                const newEventId = await createCalendarEvent(targetCalendar.id, eventPayload);
 
                 // 4. Re-sync to get real ID and finalized data
                 setTimeout(() => {
@@ -680,7 +687,7 @@ export default function ScheduleScreen() {
             borderColor: event.isInverted ? (event.color || '#4f46e5') : '#eeeeee66',
             borderWidth: 1,
             borderRadius: 4,
-            opacity: (event.isSkippable || isFinishedToday) ? 0.45 : 0.7,
+            opacity: (event.isSkippable || isFinishedToday) ? 0.45 : (event.isInverted ? 0.95 : 0.7),
             marginTop: -1
         };
 

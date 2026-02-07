@@ -9,6 +9,7 @@ export interface EventSaveData {
     startDate: Date;
     endDate: Date;
     allDay: boolean;
+    isWork: boolean;
 }
 
 interface EventCreateModalProps {
@@ -30,6 +31,7 @@ export function EventCreateModal({
     const [startDate, setStartDate] = useState<Date>(new Date());
     const [durationMinutes, setDurationMinutes] = useState(60);
     const [allDay, setAllDay] = useState(false);
+    const [isWork, setIsWork] = useState(false);
 
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
@@ -40,6 +42,7 @@ export function EventCreateModal({
             setTitle('');
             setDurationMinutes(60);
             setAllDay(false);
+            setIsWork(false);
         }
     }, [visible, initialDate]);
 
@@ -51,7 +54,8 @@ export function EventCreateModal({
             title,
             startDate,
             endDate,
-            allDay: false // Force false as removed from UI
+            allDay: false, // Force false as removed from UI
+            isWork
         });
     };
 
@@ -128,12 +132,27 @@ export function EventCreateModal({
                         )}
 
 
+                        <View className="flex-row justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 mb-3">
+                            <View className="flex-row items-center gap-3">
+                                <Ionicons name="briefcase-outline" size={20} color="#818cf8" />
+                                <Text className="text-white font-medium">Is Work</Text>
+                            </View>
+                            <Switch
+                                value={isWork}
+                                onValueChange={setIsWork}
+                                trackColor={{ false: '#334155', true: '#4f46e5' }}
+                                thumbColor={isWork ? '#818cf8' : '#94a3b8'}
+                            />
+                        </View>
+
+
 
                         {showDatePicker && (
                             <DateTimePicker
                                 value={startDate}
                                 mode="date"
                                 display="default"
+                                firstDayOfWeek={1}
                                 onChange={(event, selectedDate) => {
                                     setShowDatePicker(false);
                                     if (selectedDate) {

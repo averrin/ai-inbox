@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+export ADB_PATH="/home/averrin/Android/Sdk/platform-tools/adb"
+
 # Adb path can be set via env or assumed in PATH
 ADB=${ADB_PATH:-adb}
 
