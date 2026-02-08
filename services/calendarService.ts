@@ -42,9 +42,9 @@ export const getWritableCalendars = async (): Promise<Calendar.Calendar[]> => {
     return filtered;
 };
 
-import { mergeDuplicateEvents } from './calendarUtils';
+import { mergeDuplicateEvents, parseRRule } from './calendarUtils';
 
-export { mergeDuplicateEvents };
+export { mergeDuplicateEvents, parseRRule };
 
 // ... existing export
 export const getCalendarEvents = async (
@@ -56,24 +56,45 @@ export const getCalendarEvents = async (
     if (!hasPermission || calendarIds.length === 0) return [];
 
     try {
-        // Broaden range to ensure we catch events that might start before/end after the window but overlap
-        // However, the original code used a very broad range for diagnostics (30 days). 
-        // We'll stick to a reasonable buffer or the requested range.
-        // For now, I'll keep the logic but remove the logs.
-        const broadStart = new Date(startDate.getTime() - 30 * 24 * 60 * 60 * 1000);
-        const broadEnd = new Date(endDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+        // Debug: Check calendar metadata to see if it's synced
+        if (Platform.OS === 'android') {
+            const allCals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+            const targetCals = allCals.filter(c => calendarIds.includes(c.id));
+            // console.log('[CalendarService] Target Calendars Metadata:', JSON.stringify(targetCals.map(c => ({
+            //     id: c.id,
+            //     title: c.title,
+            //     isSynced: (c as any).isSynced,
+            //     isVisible: c.isVisible,
+            //     accessLevel: c.accessLevel,
+            //     source: c.source
+            // })), null, 2));
+        }
 
-        const events = await Calendar.getEventsAsync(calendarIds, broadStart, broadEnd);
+        // Use exact dates for fetching
+        const events = await Calendar.getEventsAsync(calendarIds, startDate, endDate);
+        // console.log(`[CalendarService] Raw fetch returned ${events.length} events for IDs: ${calendarIds}`);
+        const eventCounts = events.reduce((acc: any, e) => {
+            acc[e.calendarId] = (acc[e.calendarId] || 0) + 1;
+            return acc;
+        }, {});
+        // console.log('[CalendarService] Events per calendar:', JSON.stringify(eventCounts));
 
         const { defaultOpenCalendarId } = useSettingsStore.getState();
         const merged = mergeDuplicateEvents(events, defaultOpenCalendarId);
 
+        // Filter events strictly to the requested window (getEventsAsync sometimes returns overlapping ones)
+        const filtered = merged.filter(evt => {
+            const evStart = new Date(evt.startDate).getTime();
+            const evEnd = new Date(evt.endDate).getTime();
+            const winStart = startDate.getTime();
+            const winEnd = endDate.getTime();
+            return (evStart < winEnd && evEnd > winStart);
+        });
+
         // Android fix: getEventsAsync doesn't return attendees, fetch them for each merged event
         if (Platform.OS === 'android') {
-            await Promise.all(merged.map(async (evt) => {
+            await Promise.all(filtered.map(async (evt) => {
                 try {
-                    // Fetch attendees for the main ID. 
-                    // Since merged events are duplicates across calendars, one fetch is usually enough.
                     const attendees = await Calendar.getAttendeesForEventAsync(evt.id);
                     (evt as any).attendees = attendees || [];
                 } catch (e) {
@@ -82,7 +103,7 @@ export const getCalendarEvents = async (
             }));
         }
 
-        return merged;
+        return filtered;
     } catch (e) {
         console.error('[CalendarService] getEventsAsync FAILED:', e);
         return [];
@@ -102,27 +123,75 @@ export const createCalendarEvent = async (calendarId: string, eventData: Partial
     const hasPermission = await ensureCalendarPermissions();
     if (!hasPermission) throw new Error("Missing calendar permissions");
 
-    // Cast to any to access attendees which might not be in the strict creation type but are passed
+    // Cast to any to access extra fields (attendees, recurrence)
     const data = eventData as any;
+    const { workAccountId } = useSettingsStore.getState();
 
-    if (Platform.OS === 'android' && data.attendees && data.attendees.length > 0) {
-        // Android requires separate attendee creation
-        const { attendees, ...dataWithoutAttendees } = data;
-        const newEventId = await Calendar.createEventAsync(calendarId, dataWithoutAttendees);
-
-        // Add attendees separately
-        // We iterate sequentially to ensure they are added
-        for (const attendee of attendees) {
-            try {
-                await Calendar.createAttendeeAsync(newEventId, attendee);
-            } catch (e) {
-                console.warn(`Failed to add attendee ${attendee.email || 'unknown'}`, e);
-            }
+    // Auto-invite work account for work/lunch events
+    if ((data.isWork || data.tags?.includes('lunch')) && workAccountId) {
+        if (!data.attendees) data.attendees = [];
+        const alreadyAdded = data.attendees.some((a: any) => a.email?.toLowerCase() === workAccountId.toLowerCase());
+        if (!alreadyAdded) {
+            data.attendees.push({
+                email: workAccountId,
+                role: 'attendee',
+                status: 'pending',
+                type: 'person'
+            });
         }
-        return newEventId;
     }
 
-    return await Calendar.createEventAsync(calendarId, eventData);
+    // Prepare data for native call - ensure dates are Date objects
+    const nativeEventData: Partial<Calendar.Event> = {
+        title: eventData.title,
+        startDate: eventData.startDate ? new Date(eventData.startDate) : new Date(),
+        endDate: eventData.endDate ? new Date(eventData.endDate) : new Date(),
+        notes: (eventData as any).description || (eventData as any).notes,
+        allDay: eventData.allDay,
+        location: eventData.location,
+        alarms: eventData.alarms,
+    };
+
+    const sDate = new Date(nativeEventData.startDate!);
+    const eDate = new Date(nativeEventData.endDate!);
+
+    if (isNaN(sDate.getTime()) || isNaN(eDate.getTime())) {
+        throw new Error("Invalid event dates");
+    }
+
+    // Handle recurrence
+    if (data.recurrence) {
+        if (Array.isArray(data.recurrence)) {
+            // Google format is array of strings
+            const rule = parseRRule(data.recurrence[0]);
+            if (rule) nativeEventData.recurrenceRule = rule;
+        } else if (typeof data.recurrence === 'string') {
+            const rule = parseRRule(data.recurrence);
+            if (rule) nativeEventData.recurrenceRule = rule;
+        }
+    }
+
+    try {
+        if (Platform.OS === 'android' && data.attendees && data.attendees.length > 0) {
+            // Android requires separate attendee creation
+            const newEventId = await Calendar.createEventAsync(calendarId, nativeEventData);
+
+            // Add attendees separately
+            for (const attendee of data.attendees) {
+                try {
+                    await Calendar.createAttendeeAsync(newEventId, attendee);
+                } catch (e) {
+                    console.warn(`Failed to add attendee ${attendee.email || 'unknown'}`, e);
+                }
+            }
+            return newEventId;
+        }
+
+        return await Calendar.createEventAsync(calendarId, nativeEventData);
+    } catch (e) {
+        console.error(`[CalendarService] createEventAsync FAILED for calendar ${calendarId}:`, e);
+        throw e;
+    }
 };
 
 export const getUpcomingEvents = async (days: number = 3): Promise<string> => {

@@ -117,6 +117,36 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
         );
     }
 
+    if (evt.type === 'zone') {
+        const duration = dayjs(evt.end).diff(dayjs(evt.start), 'minute');
+        const hours = Math.floor(duration / 60);
+        const mins = duration % 60;
+        const durationStr = hours > 0 ? `${hours}h ${mins > 0 ? `${mins}m` : ''}` : `${mins}m`;
+
+        return (
+            <TouchableOpacity
+                key={key}
+                {...restProps}
+                style={[
+                    restProps.style,
+                    {
+                        marginLeft: leftMargin,
+                        backgroundColor: evt.color || 'rgba(200, 255, 200, 0.3)',
+                        borderColor: evt.borderColor || 'rgba(100, 200, 100, 0.5)',
+                        borderWidth: 1,
+                        justifyContent: 'center',
+                    }
+                ]}
+            >
+                <View className="flex-row items-center px-2">
+                    <Text className="font-bold text-[12px] uppercase tracking-wider" style={{ color: evt.borderColor || '#1e293b', opacity: 0.8 }}>
+                        {evt.title}
+                    </Text>
+                </View>
+            </TouchableOpacity>
+        );
+    }
+
     const duration = dayjs(evt.end).diff(dayjs(evt.start), 'minute');
     const isCompact = duration <= 30;
 

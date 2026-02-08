@@ -13,7 +13,8 @@ import { FileInput } from './ui/FileInput';
 import { openInObsidian } from '../utils/obsidian';
 import { GoogleSettings } from './GoogleSettings';
 import { RemindersSettings } from './RemindersSettings';
-import { CalendarsSettings } from './CalendarsSettings';
+import { CalendarsMainSettings } from './CalendarsMainSettings';
+import { AdditionalCalendars } from './AdditionalCalendars';
 import { EventTypesSettings } from './EventTypesSettings';
 import { TimeRangesSettings } from './TimeRangesSettings';
 import { WeatherSettings } from './WeatherSettings';
@@ -27,7 +28,7 @@ import { useEventTypesStore } from '../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../utils/debugUtils';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'google-calendar' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -303,7 +304,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                         title="📝 Open Prompt File in Obsidian"
                         onPress={async () => {
                             if (!promptPathInput || !vaultUri) return;
-                            
+
                             // Determine full file URI
                             const { findFile, findSubdirectory } = await import('../utils/saf');
                             let baseUri = vaultUri;
@@ -311,7 +312,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                 const contextUri = await findSubdirectory(vaultUri, rootFolderInput.trim());
                                 if (contextUri) baseUri = contextUri;
                             }
-                            
+
                             // Reresolve parts if nesting
                             let targetDirUri = baseUri;
                             let filename = promptPathInput;
@@ -383,30 +384,10 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         </Card>
     );
 
-    const renderGoogleCalendarSettings = () => (
-        <Card>
-            <View className="mb-4">
-                <Text className="text-indigo-200 mb-2 font-semibold">Configuration</Text>
-                <Input
-                    label="Android Client ID"
-                    value={androidIdInput}
-                    onChangeText={setAndroidIdInput}
-                    placeholder="...apps.googleusercontent.com"
-                />
-            </View>
-
-            <View className="border-t border-slate-700 pt-4">
-                <Text className="text-indigo-200 mb-2 font-semibold">Account Status</Text>
-                <GoogleSettings
-                    androidClientId={androidIdInput}
-                />
-            </View>
-        </Card>
-    );
 
     const renderAdvancedSettings = () => (
         <Card>
-             <View className="mb-4">
+            <View className="mb-4">
                 <Text className="text-indigo-200 mb-2 font-semibold">Data Management</Text>
                 <Text className="text-slate-400 text-sm mb-4">
                     Clear locally cached data (reminders, event types). This does not delete any files from your vault, but forces a reload from disk.
@@ -467,6 +448,25 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                         variant="secondary"
                     />
                 </View>
+
+                {/* Legacy Google Integration */}
+                <View className="mt-6 pt-4 border-t border-slate-700">
+                    <Text className="text-indigo-200 mb-2 font-semibold">Legacy Google Integration</Text>
+                    <Text className="text-slate-400 text-sm mb-4">
+                        Google Calendar REST API configuration. Currently bypassed by native services.
+                    </Text>
+                    <Input
+                        label="Android Client ID"
+                        value={androidIdInput}
+                        onChangeText={setAndroidIdInput}
+                        placeholder="...apps.googleusercontent.com"
+                    />
+                    <View className="mt-2">
+                        <GoogleSettings
+                            androidClientId={androidIdInput}
+                        />
+                    </View>
+                </View>
             </View>
         </Card>
     );
@@ -501,7 +501,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "Calendars",
                 "calendar-outline",
                 () => setActiveSection('calendars'),
-                "Manage connected calendars"
+                "Personal, Work & Additional"
             )}
             {renderMenuButton(
                 "Event Types",
@@ -520,12 +520,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "happy-outline",
                 () => setActiveSection('checks-mood'),
                 "Daily habits & reflections"
-            )}
-            {renderMenuButton(
-                "Google Integration",
-                "logo-google",
-                () => setActiveSection('google-calendar'),
-                "Client IDs & Account"
             )}
             {renderMenuButton(
                 "Tasks & Tags",
@@ -551,7 +545,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 () => setActiveSection('weather'),
                 "Location & Preferences"
             )}
-             {renderMenuButton(
+            {renderMenuButton(
                 "Advanced",
                 "construct-outline",
                 () => setActiveSection('advanced'),
@@ -568,11 +562,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 <Text className="text-indigo-200 text-center">Setup your AI Inbox</Text>
             </View>
             {renderGeneralSettings()}
-            <View className="h-4" />
-            <View className="px-4">
-                <Text className="text-xl font-bold text-white mb-2">Integrations</Text>
-            </View>
-            {renderGoogleCalendarSettings()}
 
             <View className="mt-8 mb-8 px-4">
                 <Button title="Save & Continue" onPress={handleSave} disabled={!keyInput || !vaultUri} />
@@ -694,8 +683,9 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                         )}
                         {activeSection === 'calendars' && (
                             <>
-                                {renderHeader("Calendars", () => setActiveSection('root'))}
-                                <View className="px-0"><CalendarsSettings /></View>
+                                {renderHeader("Calendar Settings", () => setActiveSection('root'))}
+                                {/* Calendars Config */}
+                                <View className="px-0"><CalendarsMainSettings /></View>
                             </>
                         )}
                         {activeSection === 'event-types' && (
@@ -717,12 +707,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                     <View className="mb-6"><HabitSettings /></View>
                                     <View><MoodSettings /></View>
                                 </View>
-                            </>
-                        )}
-                        {activeSection === 'google-calendar' && (
-                            <>
-                                {renderHeader("Google Integration", () => setActiveSection('root'))}
-                                <View className="px-0">{renderGoogleCalendarSettings()}</View>
                             </>
                         )}
                         {activeSection === 'tasks-tags' && (
