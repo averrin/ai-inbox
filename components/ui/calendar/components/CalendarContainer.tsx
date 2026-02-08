@@ -182,6 +182,7 @@ export interface CalendarContainerProps<T extends ICalendarEventBase> {
   onEventDrop?: (event: T, newDate: Date) => void
   refreshing?: boolean
   onRefresh?: () => void
+  onHourRowHeightChange?: (height: number) => void
 }
 
 function _CalendarContainer<T extends ICalendarEventBase>({
@@ -262,6 +263,7 @@ function _CalendarContainer<T extends ICalendarEventBase>({
   onEventDrop,
   refreshing,
   onRefresh,
+  onHourRowHeightChange,
 }: CalendarContainerProps<T>) {
   // To ensure we have proper effect callback, use string to date comparision.
   const dateString = date?.toString()
@@ -607,6 +609,7 @@ function _CalendarContainer<T extends ICalendarEventBase>({
           onRefresh={onRefresh}
           onQuickAction={onQuickAction}
           onEventDrop={onEventDrop}
+          onHourRowHeightChange={onHourRowHeightChange}
         />
       </React.Fragment>
     ),
@@ -652,6 +655,7 @@ function _CalendarContainer<T extends ICalendarEventBase>({
       onRefresh,
       onQuickAction,
       onEventDrop,
+      onHourRowHeightChange,
     ],
   )
 

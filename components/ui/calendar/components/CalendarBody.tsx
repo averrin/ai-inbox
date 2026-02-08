@@ -101,6 +101,7 @@ interface CalendarBodyProps<T extends ICalendarEventBase> {
   onEventDrop?: (event: T, newDate: Date) => void
   refreshing?: boolean
   onRefresh?: () => void
+  onHourRowHeightChange?: (height: number) => void
 }
 
 function _CalendarBody<T extends ICalendarEventBase>({
@@ -143,6 +144,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
   onEventDrop,
   refreshing,
   onRefresh,
+  onHourRowHeightChange,
 }: CalendarBodyProps<T> & { refreshControl?: React.ReactElement<RefreshControlProps> }) {
   const scrollView = React.useRef<ScrollView>(null)
   const [hasScrolled, setHasScrolled] = React.useState(false)
@@ -169,6 +171,12 @@ function _CalendarBody<T extends ICalendarEventBase>({
   const gestureActive = useSharedValue(false)
   const touchY = useSharedValue(0)
   const touchX = useSharedValue(0)
+  const startHeight = useSharedValue(50)
+  const cellHeightSV = useSharedValue(cellHeight)
+
+  React.useEffect(() => {
+    cellHeightSV.value = cellHeight
+  }, [cellHeight])
 
   // Menu state - kept in JS state because it needs to mount/unmount content
   const [menuVisible, setMenuVisible] = React.useState(false)
@@ -252,6 +260,19 @@ function _CalendarBody<T extends ICalendarEventBase>({
         runOnJS(handleGestureEnd)(touchY.value, touchX.value)
       })
   }, [gestureActive, touchY, touchX, handleLongPressStart, handleGestureEnd])
+
+  const pinch = React.useMemo(() => Gesture.Pinch()
+    .onStart(() => {
+        startHeight.value = cellHeightSV.value;
+    })
+    .onUpdate((e) => {
+        if (onHourRowHeightChange) {
+            const newHeight = startHeight.value * e.scale;
+            runOnJS(onHourRowHeightChange)(Math.max(25, Math.min(newHeight, 200)));
+        }
+    }), [onHourRowHeightChange]);
+
+  const composedGesture = React.useMemo(() => Gesture.Simultaneous(gesture, pinch), [gesture, pinch])
 
   const handleMenuAction = (action: 'event' | 'reminder') => {
     setMenuVisible(false)
@@ -640,10 +661,12 @@ function _CalendarBody<T extends ICalendarEventBase>({
   return (
     <React.Fragment>
       {headerComponent != null ? <View style={headerComponentStyle}>{headerComponent}</View> : null}
+      <GestureDetector gesture={composedGesture}>
       <ScrollView
         style={[
           {
-            height: containerHeight - cellHeight * 3,
+            flex: 1,
+            // height: containerHeight - cellHeight * 3, // Removed explicit height calculation causing gap
           },
           style,
         ]}
@@ -683,7 +706,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
 
           {dateRange.map((date) => (
             <View style={[u['flex-1'], { overflow: 'visible' }]} key={date.toString()}>
-              <GestureDetector gesture={gesture}>
+              {/* Internal gesture detector for long press (retained logic inside composed gesture) */}
                 <View style={StyleSheet.absoluteFill}>
                   {hours.map((hour, index) => (
                     <HourGuideCell
@@ -700,7 +723,6 @@ function _CalendarBody<T extends ICalendarEventBase>({
                     />
                   ))}
                 </View>
-              </GestureDetector>
               {_renderZones(date)}
               {_renderRanges(date)}
               {_renderEvents(date)}
@@ -741,6 +763,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
 
         </View>
       </ScrollView>
+      </GestureDetector>
     </React.Fragment>
   )
 }

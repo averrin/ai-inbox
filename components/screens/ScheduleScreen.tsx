@@ -63,8 +63,8 @@ export default function ScheduleScreen() {
 
     // Zoom State
     const [hourHeight, setHourHeight] = useState(50);
-    const hourHeightSV = useSharedValue(50);
-    const startHeight = useSharedValue(50);
+    // const hourHeightSV = useSharedValue(50); // Moved to CalendarBody
+    // const startHeight = useSharedValue(50);  // Moved to CalendarBody
 
     const handleDeleteReminder = async (reminder: Reminder) => {
         // Optimistic Delete
@@ -104,23 +104,9 @@ export default function ScheduleScreen() {
         }
     };
 
-    // Sync shared value with state
-    useEffect(() => {
-        hourHeightSV.value = hourHeight;
-    }, [hourHeight]);
-
     const handleZoomIn = () => setHourHeight(h => Math.min(h + 10, 200));
     const handleZoomOut = () => setHourHeight(h => Math.max(h - 10, 25));
     const handleResetZoom = () => setHourHeight(50);
-
-    const pinch = useMemo(() => Gesture.Pinch()
-        .onStart(() => {
-            startHeight.value = hourHeightSV.value;
-        })
-        .onUpdate((e) => {
-            const newHeight = startHeight.value * e.scale;
-            runOnJS(setHourHeight)(Math.max(25, Math.min(newHeight, 200)));
-        }), []);
 
     // Fetch Weather Effect
     useEffect(() => {
@@ -910,77 +896,74 @@ export default function ScheduleScreen() {
                     </View>
                 ) : (
                     <View className="flex-1 overflow-hidden">
-                        <GestureDetector gesture={pinch}>
-                            <View style={{ flex: 1 }}>
-                                {/* @ts-ignore - onScroll is monkey-patched */}
-                                <BigCalendar
-                                    imperativeRef={calendarRef}
-                                    renderHeader={renderHeader}
-                                    events={allEvents}
-                                    height={height}
-                                    hourRowHeight={hourHeight}
-                                    date={date}
-                                    mode={viewMode}
-                                    onEventDrop={handleEventDrop}
-                                    onSwipeEnd={(d) => {
-                                        if (dayjs(d).isSame(date, 'day')) return;
-                                        setDate(d);
-                                    }}
-                                    scrollOffsetMinutes={scrollOffset.current}
-                                    // onScroll={handleScroll}
-                                    theme={{
-                                        palette: {
-                                            primary: {
-                                                main: '#818cf8',
-                                                contrastText: '#fff',
-                                            },
-                                            gray: {
-                                                100: '#334155',
-                                                200: '#1e293b',
-                                                300: '#94a3b8',
-                                                500: '#cbd5e1',
-                                                800: '#f8fafc',
-                                            },
-                                        },
-                                        typography: {
-                                            xs: {
-                                                fontSize: 14,
-                                                fontWeight: '500',
-                                            },
-                                            sm: {
-                                                fontSize: 17,
-                                                fontWeight: '600',
-                                            },
-                                            xl: {
-                                                fontSize: 26,
-                                                fontWeight: 'bold',
-                                            },
-                                        }
-                                    }}
-                                    eventCellStyle={eventCellStyle}
-                                    onPressEvent={(evt) => {
-                                        const event = evt as any;
-                                        if (event.type === 'marker') {
-                                            setEditingReminder(event.originalEvent);
-                                        } else {
-                                            setSelectedEvent({ title: event.title, start: event.start, end: event.end, ...event }); // Spread all props to include color/typeTag
-                                        }
-                                    }}
-                                    calendarCellStyle={{ borderColor: '#334155', backgroundColor: '#0f172a' }}
-                                    bodyContainerStyle={{ backgroundColor: '#0f172a' }}
-                                    renderEvent={(evt, touchableOpacityProps) => (
-                                        <ScheduleEvent
-                                            event={evt}
-                                            touchableOpacityProps={touchableOpacityProps}
-                                            timeFormat={timeFormat}
-                                        />
-                                    )}
-                                    // refreshing={refreshing}
-                                    // onRefresh={handleRefresh}
-                                    onQuickAction={handleQuickAction}
+                        {/* @ts-ignore - onScroll is monkey-patched */}
+                        <BigCalendar
+                            imperativeRef={calendarRef}
+                            renderHeader={renderHeader}
+                            events={allEvents}
+                            height={height}
+                            hourRowHeight={hourHeight}
+                            date={date}
+                            mode={viewMode}
+                            onEventDrop={handleEventDrop}
+                            onSwipeEnd={(d) => {
+                                if (dayjs(d).isSame(date, 'day')) return;
+                                setDate(d);
+                            }}
+                            scrollOffsetMinutes={scrollOffset.current}
+                            // onScroll={handleScroll}
+                            theme={{
+                                palette: {
+                                    primary: {
+                                        main: '#818cf8',
+                                        contrastText: '#fff',
+                                    },
+                                    gray: {
+                                        100: '#334155',
+                                        200: '#1e293b',
+                                        300: '#94a3b8',
+                                        500: '#cbd5e1',
+                                        800: '#f8fafc',
+                                    },
+                                },
+                                typography: {
+                                    xs: {
+                                        fontSize: 14,
+                                        fontWeight: '500',
+                                    },
+                                    sm: {
+                                        fontSize: 17,
+                                        fontWeight: '600',
+                                    },
+                                    xl: {
+                                        fontSize: 26,
+                                        fontWeight: 'bold',
+                                    },
+                                }
+                            }}
+                            eventCellStyle={eventCellStyle}
+                            onPressEvent={(evt) => {
+                                const event = evt as any;
+                                if (event.type === 'marker') {
+                                    setEditingReminder(event.originalEvent);
+                                } else {
+                                    setSelectedEvent({ title: event.title, start: event.start, end: event.end, ...event }); // Spread all props to include color/typeTag
+                                }
+                            }}
+                            calendarCellStyle={{ borderColor: '#334155', backgroundColor: '#0f172a' }}
+                            bodyContainerStyle={{ backgroundColor: '#0f172a' }}
+                            renderEvent={(evt, touchableOpacityProps) => (
+                                <ScheduleEvent
+                                    event={evt}
+                                    touchableOpacityProps={touchableOpacityProps}
+                                    timeFormat={timeFormat}
                                 />
-                            </View>
-                        </GestureDetector>
+                            )}
+                            // refreshing={refreshing}
+                            // onRefresh={handleRefresh}
+                            onQuickAction={handleQuickAction}
+                            onHourRowHeightChange={setHourHeight}
+                        />
 
                         {/* Zoom Controls */}
                         <View className="absolute bottom-6 right-4 flex-col gap-2 bg-slate-800/90 p-1.5 rounded-lg border border-slate-700 shadow-xl z-50">
