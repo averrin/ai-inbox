@@ -9,6 +9,7 @@ interface ScheduleEventProps {
     event: any;
     touchableOpacityProps: any;
     timeFormat: string;
+    cellHeight?: number;
 }
 
 // Helper function to get difficulty color based on value (0-5+)
@@ -29,13 +30,23 @@ const getDifficultyColor = (difficulty: number): string => {
     return difficultyColors[index];
 };
 
-export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }: ScheduleEventProps) => {
+export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, cellHeight = 50 }: ScheduleEventProps) => {
     const theme = useTheme();
     const isNow = (evt as any).isNow || false;
-    // touchableOpacityProps includes key, style, onPress, etc.
     const { key, ...restProps } = touchableOpacityProps;
     const timeFormatStr = timeFormat === '24h' ? 'HH:mm' : 'h:mm A';
     const difficultyValue = (evt.difficulty && typeof evt.difficulty === 'object') ? (evt.difficulty.total || 0) : (evt.difficulty || 0);
+
+    // Calculate dynamic scaling based on cellHeight (default 50)
+    // We clamp the scale to avoid text becoming unreadable or too large
+    const scale = Math.max(0.7, Math.min(cellHeight / 50, 1.5));
+
+    // Dynamic styles
+    const titleSize = Math.max(10, 13 * scale);
+    const subtitleSize = Math.max(9, 11 * scale);
+    const iconSize = Math.max(12, 14 * scale);
+    const padding = Math.max(2, 4 * scale);
+    const badgeScale = Math.max(0.7, scale * 0.9);
 
     if (evt.type === 'marker') {
         const color = evt.color || (evt.originalEvent?.alarm ? '#ef4444' : '#f59e0b');
@@ -148,7 +159,6 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
     const subTextColor = evt.isInverted ? evt.color : 'rgba(255, 255, 255, 0.8)';
 
     let glowColor = evt.color || theme.palette.primary.main;
-    // glowColor = '#22c55e';
     const nowStyle = isNow ? {
         zIndex: 1000,
         shadowColor: glowColor,
@@ -164,36 +174,37 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
         <TouchableOpacity key={key} {...restProps} style={[
             restProps.style,
             isLunchSuggestion && containerStyle,
-            nowStyle
+            nowStyle,
+            { padding: padding }
         ]}>
             <View className={`flex-row items-center ${isCompact ? 'gap-1' : ''}`}>
                 {evt.icon && (
                     <Ionicons
                         name={evt.icon as any}
-                        size={14}
+                        size={iconSize}
                         color={textColor}
-                        style={{ marginRight: 4 }}
+                        style={{ marginRight: 4 * scale }}
                     />
                 )}
-                <Text className="font-semibold text-[13px]" style={{ color: textColor }} numberOfLines={1}>
+                <Text className="font-semibold" style={{ color: textColor, fontSize: titleSize }} numberOfLines={1}>
                     {evt.title}
                 </Text>
                 {isCompact && (
-                    <Text className="text-[12px]" style={{ color: subTextColor }} numberOfLines={1}>
+                    <Text style={{ color: subTextColor, fontSize: subtitleSize }} numberOfLines={1}>
                         {dayjs(evt.start).format(timeFormatStr)} - {dayjs(evt.end).format(timeFormatStr)}
                     </Text>
                 )}
             </View>
 
             {!isCompact && (
-                <Text className="text-[11px]" style={{ color: subTextColor }} numberOfLines={1}>
+                <Text style={{ color: subTextColor, fontSize: subtitleSize }} numberOfLines={1}>
                     {dayjs(evt.start).format(timeFormatStr)} - {dayjs(evt.end).format(timeFormatStr)}
                 </Text>
             )}
 
             {/* Hide badges if event type has hideBadges enabled */}
             {!evt.hideBadges && (
-                <View className="absolute top-1 right-1 flex-row gap-1 items-center">
+                <View className="absolute top-1 right-1 flex-row gap-1 items-center" style={{ transform: [{ scale: badgeScale }] }}>
                     {evt.movable && (
                         <View className="bg-emerald-500/80 px-1 py-0.5 rounded">
                             <Ionicons name="move" size={10} color="white" />

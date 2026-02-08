@@ -120,7 +120,7 @@ function _CalendarEvent<T extends ICalendarEventBase>({
   }, [eventCount, palettes])
 
   const content = renderEvent
-    ? renderEvent(event, touchableOpacityProps)
+    ? renderEvent(event, { ...touchableOpacityProps, cellHeight } as any) // Pass cellHeight to custom renderer
     : (
       <DefaultCalendarEventRenderer
         event={event}
