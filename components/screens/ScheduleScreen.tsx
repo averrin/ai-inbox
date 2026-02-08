@@ -416,7 +416,16 @@ export default function ScheduleScreen() {
 
             (async () => {
                 try {
-                    await updateCalendarEvent(originalId, {
+                    // On Android, to update a specific instance, we often need the Master ID and the instance start date.
+                    // If 'originalId' is present (meaning this is an instance of a recurring event), use it.
+                    // Otherwise fall back to 'id'.
+                    const targetId = editingEvent.originalEvent?.originalId || originalId;
+
+                    // Ensure instanceStartDate is a Date object for correct formatting
+                    const rawStartDate = editingEvent.originalEvent?.startDate;
+                    const instanceStartDate = rawStartDate ? new Date(rawStartDate) : undefined;
+
+                    await updateCalendarEvent(targetId, {
                        title: data.title,
                        startDate: data.startDate,
                        endDate: data.endDate,
@@ -424,7 +433,7 @@ export default function ScheduleScreen() {
                        isWork: data.isWork,
                        recurrenceRule: data.recurrenceRule,
                        editScope: data.editScope,
-                       instanceStartDate: editingEvent.originalEvent?.startDate // Required for updating instances on Android
+                       instanceStartDate: instanceStartDate
                     });
 
                     // Re-sync
