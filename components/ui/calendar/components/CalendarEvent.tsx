@@ -82,7 +82,7 @@ function _CalendarEvent<T extends ICalendarEventBase>({
     const isRightMost = eventOrder === (eventCount - 1)
 
     const left = isLeftMost ? (rangeOverlapCount > 0 ? 2 + rangeOverlapCount * 8 : 8) : 1
-    const right = -4
+    const right = 0
     return { leftMargin: left, rightMargin: right }
   }, [event, eventOrder, eventCount])
 
@@ -98,7 +98,6 @@ function _CalendarEvent<T extends ICalendarEventBase>({
         layoutOnlyOverlapStyles,
         marginStyles,
         u.absolute,
-        u['mt-2'],
       ]
   }, [mode, layoutOnlyOverlapStyles, event.start, event.end, minHour, hours, leftMargin, rightMargin])
 
