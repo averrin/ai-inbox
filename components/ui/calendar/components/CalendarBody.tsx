@@ -21,6 +21,9 @@ import Animated, {
 } from 'react-native-reanimated'
 import { u } from '../commonStyles'
 import { useNow } from '../hooks/useNow'
+import isBetween from 'dayjs/plugin/isBetween'
+
+dayjs.extend(isBetween)
 import type {
   CalendarCellStyle,
   EventCellStyle,
@@ -433,9 +436,15 @@ function _CalendarBody<T extends ICalendarEventBase>({
       const maxRangeIndex = getMaxOverlappingRangeIndex(event, ranges, rangeOffsetsByEvent)
       const rangeOverlapCount = maxRangeIndex + 1
 
+      const start = dayjs(event.start)
+      const end = dayjs(event.end)
+      const isNow = dayjs(now).isBetween(start, end, null, '[)') || 
+                    ((dayjs(now).isAfter(start) || dayjs(now).isSame(start)) && dayjs(now).isBefore(end))
+
       const enrichedEvent = {
         ...event,
         rangeOverlapCount,
+        isNow,
       }
 
       return (
@@ -671,7 +680,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
           )}
 
           {dateRange.map((date) => (
-            <View style={[u['flex-1'], u['overflow-hidden']]} key={date.toString()}>
+            <View style={[u['flex-1'], { overflow: 'visible' }]} key={date.toString()}>
               <GestureDetector gesture={gesture}>
                 <View style={StyleSheet.absoluteFill}>
                   {hours.map((hour, index) => (

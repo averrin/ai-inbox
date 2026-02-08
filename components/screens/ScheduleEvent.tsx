@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import dayjs from 'dayjs';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../ui/calendar/theme/ThemeContext';
 
 
 interface ScheduleEventProps {
@@ -29,6 +30,8 @@ const getDifficultyColor = (difficulty: number): string => {
 };
 
 export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }: ScheduleEventProps) => {
+    const theme = useTheme();
+    const isNow = (evt as any).isNow || false;
     // Fix for "key prop being spread" error is handled by caller or ignored here if we spread all props
     // touchableOpacityProps includes key, style, onPress, etc.
     const { key, ...restProps } = touchableOpacityProps;
@@ -130,11 +133,25 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
     const textColor = evt.isInverted ? evt.color : 'white';
     const subTextColor = evt.isInverted ? evt.color : 'rgba(255, 255, 255, 0.8)';
 
+    let glowColor = evt.color || theme.palette.primary.main;
+    // glowColor = '#22c55e';
+    const nowStyle = isNow ? {
+        zIndex: 1000,
+        shadowColor: glowColor,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.9,
+        shadowRadius: 6,
+        // borderWidth: 4,
+        borderColor: glowColor,
+        boxShadow: `0 4px 32px ${glowColor}88`,
+    } : {};
+
     return (
         <TouchableOpacity key={key} {...restProps} style={[
             restProps.style,
             { marginLeft: leftMargin },
-            isLunchSuggestion && containerStyle
+            isLunchSuggestion && containerStyle,
+            nowStyle
         ]}>
             <View className={`flex-row items-center ${isCompact ? 'gap-1' : ''}`}>
                 {evt.icon && (
