@@ -9,6 +9,8 @@ import { DAY_MINUTES, getRelativeTopInDay, getStyleForOverlappingEvent } from '.
 import { typedMemo } from '../utils/react'
 import { DefaultCalendarEventRenderer } from './DefaultCalendarEventRenderer'
 
+import { DraggableEventWrapper } from './DraggableEventWrapper'
+
 const getEventCellPositionStyle = (start: Date, end: Date, minHour: number, hours: number) => {
   const totalMinutesInRange = (DAY_MINUTES / 24) * hours
   const durationInMinutes = dayjs(end).diff(start, 'minute')
@@ -38,6 +40,8 @@ interface CalendarEventProps<T extends ICalendarEventBase> {
   minHour?: number
   hours?: number
   isNow?: boolean
+  cellHeight?: number
+  onEventDrop?: (event: T, newDate: Date) => void
 }
 
 function _CalendarEvent<T extends ICalendarEventBase>({
@@ -56,6 +60,8 @@ function _CalendarEvent<T extends ICalendarEventBase>({
   minHour = 0,
   hours = 24,
   isNow,
+  cellHeight = 50,
+  onEventDrop,
 }: CalendarEventProps<T>) {
   const theme = useTheme()
 
@@ -64,39 +70,69 @@ function _CalendarEvent<T extends ICalendarEventBase>({
     [theme],
   )
 
+  const overlapStyles = React.useMemo(() => {
+    return getStyleForOverlappingEvent(eventOrder, overlapOffset, palettes, eventCount)
+  }, [eventOrder, overlapOffset, palettes, eventCount])
+
+  const { backgroundColor: overlapBackgroundColor, ...layoutOnlyOverlapStyles } = (overlapStyles as any)
+
+  const layoutStyles = React.useMemo(() => {
+    return mode === 'schedule'
+      ? [layoutOnlyOverlapStyles]
+      : [
+        getEventCellPositionStyle(event.start, event.end, minHour, hours),
+        layoutOnlyOverlapStyles,
+        u.absolute,
+        u['mt-2'],
+      ]
+  }, [mode, layoutOnlyOverlapStyles, event.start, event.end, minHour, hours])
+
+  const isMovable = (event as any).movable
+  const canDrag = isMovable && !!onEventDrop && mode !== 'schedule'
+
   const touchableOpacityProps = useCalendarTouchableOpacityProps({
     event,
     eventCellStyle,
     eventCellAccessibilityProps,
     onPressEvent,
-    injectedStyles:
-      mode === 'schedule'
-        ? [getStyleForOverlappingEvent(eventOrder, overlapOffset, palettes, eventCount)]
-        : [
-          getEventCellPositionStyle(event.start, event.end, minHour, hours),
-          getStyleForOverlappingEvent(eventOrder, overlapOffset, palettes, eventCount),
-          u.absolute,
-          u['mt-2'],
-        ],
+    injectedStyles: canDrag 
+      ? [u.absolute, { width: '100%', height: '100%' }] 
+      : [{ backgroundColor: overlapBackgroundColor }, ...layoutStyles],
   })
 
   const textColor = React.useMemo(() => {
     const fgColors = palettes.map((p) => p.contrastText)
     return fgColors[eventCount % fgColors.length] || fgColors[0]
   }, [eventCount, palettes])
-  if (renderEvent) {
-    return renderEvent(event, touchableOpacityProps)
+
+  const content = renderEvent
+    ? renderEvent(event, touchableOpacityProps)
+    : (
+      <DefaultCalendarEventRenderer
+        event={event}
+        showTime={showTime}
+        ampm={ampm}
+        touchableOpacityProps={touchableOpacityProps}
+        textColor={eventCellTextColor || textColor}
+        isNow={event.isNow || isNow}
+      />
+    )
+
+  if (!canDrag) {
+    return content
   }
 
   return (
-    <DefaultCalendarEventRenderer
-      event={event}
-      showTime={showTime}
-      ampm={ampm}
-      touchableOpacityProps={touchableOpacityProps}
-      textColor={eventCellTextColor || textColor}
-      isNow={event.isNow || isNow}
-    />
+    <DraggableEventWrapper
+      eventStart={dayjs(event.start).toDate()}
+      minHour={minHour}
+      cellHeight={cellHeight}
+      onDrop={(newDate) => onEventDrop?.(event, newDate)}
+      enabled={true}
+      style={layoutStyles}
+    >
+      {content}
+    </DraggableEventWrapper>
   )
 }
 
