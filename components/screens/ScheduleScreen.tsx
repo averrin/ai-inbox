@@ -709,7 +709,9 @@ export default function ScheduleScreen() {
     }, [events, timeRangeEvents, focusRanges, freeTimeZones, lunchEvents]);
 
     const eventCellStyle = useCallback((event: any) => {
-        const isFinishedToday = dayjs().isSame(event.start, 'day') && dayjs().isAfter(event.end);
+        const now = dayjs();
+        const eventEnd = dayjs(event.end);
+        const isFinishedToday = now.isSame(event.start, 'day') && now.isAfter(eventEnd);
         const style: any = {
             backgroundColor: event.isInverted ? '#0f172a' : (event.color || '#4f46e5'),
             borderColor: event.isInverted ? (event.color || '#4f46e5') : '#eeeeee66',
