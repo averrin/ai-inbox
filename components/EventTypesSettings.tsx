@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, FlatList, TextInput, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, FlatList, TextInput, Switch, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEventTypesStore } from '../store/eventTypes';
 import { EventType } from '../services/eventTypeService';
@@ -113,76 +113,78 @@ export function EventTypesSettings() {
             {/* Edit/Create Form Modal */}
             <Modal visible={isFormVisible} transparent animationType="fade">
                 <View className="flex-1 bg-black/80 justify-center p-4">
-                    <View className="bg-slate-900 rounded-xl p-6">
-                        <Text className="text-white text-lg font-bold mb-4">
-                            {editingType ? 'Edit Type' : 'New Type'}
-                        </Text>
+                    <View className="bg-slate-900 rounded-xl p-6 max-h-[90%]">
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            <Text className="text-white text-lg font-bold mb-4">
+                                {editingType ? 'Edit Type' : 'New Type'}
+                            </Text>
 
-                        <Text className="text-slate-400 mb-2 text-sm">Title</Text>
-                        <TextInput
-                            className="bg-slate-800 text-white p-3 rounded-lg mb-6"
-                            placeholder="e.g. Work, Gym"
-                            placeholderTextColor="#64748b"
-                            value={title}
-                            onChangeText={setTitle}
-                            autoFocus
-                        />
+                            <Text className="text-slate-400 mb-2 text-sm">Title</Text>
+                            <TextInput
+                                className="bg-slate-800 text-white p-3 rounded-lg mb-6"
+                                placeholder="e.g. Work, Gym"
+                                placeholderTextColor="#64748b"
+                                value={title}
+                                onChangeText={setTitle}
+                                autoFocus={!editingType}
+                            />
 
-                        <ColorPicker
-                            value={selectedColor}
-                            onChange={setSelectedColor}
-                            label="Color"
-                            style={{ marginBottom: 24 }}
-                        />
+                            <ColorPicker
+                                value={selectedColor}
+                                onChange={setSelectedColor}
+                                label="Color"
+                                style={{ marginBottom: 24 }}
+                            />
 
-                        <View className="bg-slate-800 rounded-lg p-3 flex-row justify-between items-center mb-4">
-                            <View className="flex-1 mr-3">
-                                <Text className="text-white font-medium">Inverted Mode</Text>
-                                <Text className="text-slate-500 text-xs">Dark background with colored text/border</Text>
+                            <View className="bg-slate-800 rounded-lg p-3 flex-row justify-between items-center mb-4">
+                                <View className="flex-1 mr-3">
+                                    <Text className="text-white font-medium">Inverted Mode</Text>
+                                    <Text className="text-slate-500 text-xs">Dark background with colored text/border</Text>
+                                </View>
+                                <Switch
+                                    value={isInverted}
+                                    onValueChange={setIsInverted}
+                                    trackColor={{ false: "#334155", true: "#4f46e5" }}
+                                    thumbColor={isInverted ? "#ffffff" : "#94a3b8"}
+                                />
                             </View>
-                            <Switch
-                                value={isInverted}
-                                onValueChange={setIsInverted}
-                                trackColor={{ false: "#334155", true: "#4f46e5" }}
-                                thumbColor={isInverted ? "#ffffff" : "#94a3b8"}
-                            />
-                        </View>
 
-                        <View className="bg-slate-800 rounded-lg p-3 flex-row justify-between items-center mb-4">
-                            <View className="flex-1 mr-3">
-                                <Text className="text-white font-medium">Hide Badges</Text>
-                                <Text className="text-slate-500 text-xs">Hide corner badges for events of this type</Text>
+                            <View className="bg-slate-800 rounded-lg p-3 flex-row justify-between items-center mb-4">
+                                <View className="flex-1 mr-3">
+                                    <Text className="text-white font-medium">Hide Badges</Text>
+                                    <Text className="text-slate-500 text-xs">Hide corner badges for events of this type</Text>
+                                </View>
+                                <Switch
+                                    value={hideBadges}
+                                    onValueChange={setHideBadges}
+                                    trackColor={{ false: "#334155", true: "#4f46e5" }}
+                                    thumbColor={hideBadges ? "#ffffff" : "#94a3b8"}
+                                />
                             </View>
-                            <Switch
-                                value={hideBadges}
-                                onValueChange={setHideBadges}
-                                trackColor={{ false: "#334155", true: "#4f46e5" }}
-                                thumbColor={hideBadges ? "#ffffff" : "#94a3b8"}
-                            />
-                        </View>
 
-                        <View className="mb-6">
-                            <IconPicker
-                                value={icon}
-                                onChange={setIcon}
-                                label="Icon (Optional)"
-                            />
-                        </View>
+                            <View className="mb-6 h-64">
+                                <IconPicker
+                                    value={icon}
+                                    onChange={setIcon}
+                                    label="Icon (Optional)"
+                                />
+                            </View>
 
-                        <View className="flex-row gap-3">
-                            <TouchableOpacity
-                                className="flex-1 bg-slate-800 p-3 rounded-lg items-center"
-                                onPress={() => setIsFormVisible(false)}
-                            >
-                                <Text className="text-slate-300 font-semibold">Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                className="flex-1 bg-indigo-600 p-3 rounded-lg items-center"
-                                onPress={handleSave}
-                            >
-                                <Text className="text-white font-semibold">Save</Text>
-                            </TouchableOpacity>
-                        </View>
+                            <View className="flex-row gap-3">
+                                <TouchableOpacity
+                                    className="flex-1 bg-slate-800 p-3 rounded-lg items-center"
+                                    onPress={() => setIsFormVisible(false)}
+                                >
+                                    <Text className="text-slate-300 font-semibold">Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    className="flex-1 bg-indigo-600 p-3 rounded-lg items-center"
+                                    onPress={handleSave}
+                                >
+                                    <Text className="text-white font-semibold">Save</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </ScrollView>
                     </View>
                 </View>
             </Modal>

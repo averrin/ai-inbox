@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
+import * as Clipboard from 'expo-clipboard';
+import Toast from 'react-native-toast-message';
 import { useForecastStore } from '../store/forecastStore';
-import { generateDayForecast } from '../services/forecastService';
+import { generateDayForecast, buildDayForecastPrompt } from '../services/forecastService';
+import { MarkdownView } from './ui/MarkdownView';
 
 interface ForecastSectionProps {
     date: Date;
@@ -23,12 +26,30 @@ export function ForecastSection({ date }: ForecastSectionProps) {
         setLoading(true);
         setError(null);
         try {
-            const text = await generateDayForecast(date);
-            setForecast(dateStr, text);
+            const forecast = await generateDayForecast(date);
+            setForecast(dateStr, forecast);
         } catch (e: any) {
             setError(e.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleCopy = async () => {
+        try {
+            const prompt = await buildDayForecastPrompt(date);
+            await Clipboard.setStringAsync(prompt);
+            Toast.show({
+                type: 'success',
+                text1: 'Prompt context built and copied',
+                visibilityTime: 2000,
+            });
+        } catch (e) {
+            console.error('[ForecastSection] Failed to build prompt:', e);
+            Toast.show({
+                type: 'error',
+                text1: 'Failed to build prompt context',
+            });
         }
     };
 
@@ -73,16 +94,27 @@ export function ForecastSection({ date }: ForecastSectionProps) {
                     </View>
                     <Text className="text-indigo-300 font-bold text-xs uppercase tracking-wider">Day Forecast</Text>
                 </View>
-                <TouchableOpacity 
-                    onPress={() => handleGenerate(true)}
-                    className="p-1"
-                >
-                    <Ionicons name="refresh" size={16} color="#818cf8" />
-                </TouchableOpacity>
+                <View className="flex-row items-center gap-1">
+                    <TouchableOpacity
+                        onPress={handleCopy}
+                        className="p-1"
+                    >
+                        <Ionicons name="copy-outline" size={16} color="#818cf8" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => handleGenerate(true)}
+                        className="p-1"
+                    >
+                        <Ionicons name="refresh" size={16} color="#818cf8" />
+                    </TouchableOpacity>
+                </View>
             </View>
-            <Text className="text-white italic text-base leading-snug">
-                "{forecastData.forecast}"
-            </Text>
+            <MarkdownView
+                text={forecastData.forecast}
+                baseFontSize={16}
+                baseColor="white"
+                style={{ marginTop: 4, fontStyle: 'italic' }}
+            />
         </View>
     );
 }

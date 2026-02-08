@@ -59,14 +59,22 @@ interface SettingsState {
     setDefaultCreateCalendarId: (id: string | null) => void;
     defaultOpenCalendarId: string | null;
     setDefaultOpenCalendarId: (id: string | null) => void;
+    personalCalendarIds: string[];
+    setPersonalCalendarIds: (ids: string[]) => void;
+    workCalendarIds: string[];
+    setWorkCalendarIds: (ids: string[]) => void;
+    workAccountId: string | null;
+    setWorkAccountId: (id: string | null) => void;
+    personalAccountId: string | null;
+    setPersonalAccountId: (id: string | null) => void;
+    calendarDefaultEventTypes: Record<string, string>;
+    setCalendarDefaultEventTypes: (types: Record<string, string>) => void;
     weatherLocation: { lat: number, lon: number };
     setWeatherLocation: (location: { lat: number, lon: number }) => void;
     tagConfig: Record<string, MetadataConfig>;
     propertyConfig: Record<string, MetadataConfig>;
     setTagConfig: (tag: string, config: MetadataConfig) => void;
     setPropertyConfig: (prop: string, config: MetadataConfig) => void;
-    myEmails: string[];
-    setMyEmails: (emails: string[]) => void;
     contacts: Contact[];
     setContacts: (contacts: Contact[]) => void;
     addContact: (contact: Omit<Contact, 'id'>) => void;
@@ -129,6 +137,16 @@ export const useSettingsStore = create<SettingsState>()(
             setDefaultCreateCalendarId: (id) => set({ defaultCreateCalendarId: id }),
             defaultOpenCalendarId: null,
             setDefaultOpenCalendarId: (id) => set({ defaultOpenCalendarId: id }),
+            personalCalendarIds: [],
+            setPersonalCalendarIds: (ids: string[]) => set({ personalCalendarIds: ids }),
+            workCalendarIds: [],
+            setWorkCalendarIds: (ids: string[]) => set({ workCalendarIds: ids }),
+            workAccountId: null,
+            setWorkAccountId: (id) => set({ workAccountId: id }),
+            personalAccountId: null,
+            setPersonalAccountId: (id) => set({ personalAccountId: id }),
+            calendarDefaultEventTypes: {},
+            setCalendarDefaultEventTypes: (types) => set({ calendarDefaultEventTypes: types }),
             weatherLocation: { lat: 37.7749, lon: -122.4194 },
             setWeatherLocation: (location) => set({ weatherLocation: location }),
             tagConfig: {},
@@ -139,8 +157,6 @@ export const useSettingsStore = create<SettingsState>()(
             setPropertyConfig: (prop, config) => set((state) => ({
                 propertyConfig: { ...state.propertyConfig, [prop]: config }
             })),
-            myEmails: [],
-            setMyEmails: (emails) => set({ myEmails: emails }),
             contacts: [],
             setContacts: (contacts) => set({ contacts }),
             addContact: (contact) => set((state) => ({
@@ -156,16 +172,35 @@ export const useSettingsStore = create<SettingsState>()(
         {
             name: 'ai-inbox-settings',
             storage: createJSONStorage(() => AsyncStorage),
-            version: 1,
+            version: 4,
             migrate: (persistedState: any, version: number) => {
                 if (version === 0) {
-                    // Migration from version 0 to 1
                     if (persistedState.defaultCalendarId && !persistedState.defaultCreateCalendarId) {
                         persistedState.defaultCreateCalendarId = persistedState.defaultCalendarId;
                     }
                     if (persistedState.defaultCalendarId && !persistedState.defaultOpenCalendarId) {
                         persistedState.defaultOpenCalendarId = persistedState.defaultCalendarId;
                     }
+                }
+                if (version < 2) {
+                    persistedState.personalCalendarIds = persistedState.personalCalendarIds || [];
+                    persistedState.workCalendarIds = persistedState.workCalendarIds || [];
+                    persistedState.workAccountId = persistedState.workAccountId || null;
+                    persistedState.calendarDefaultEventTypes = persistedState.calendarDefaultEventTypes || {};
+                }
+                if (version < 4) {
+                    // Set personalAccountId from myEmails if available
+                    if (persistedState.myEmails && persistedState.myEmails.length > 0) {
+                        if (!persistedState.personalAccountId) {
+                            persistedState.personalAccountId = persistedState.myEmails[0];
+                        }
+                        // If there is a second email and work account is not set, use it
+                        if (persistedState.myEmails.length > 1 && !persistedState.workAccountId) {
+                            persistedState.workAccountId = persistedState.myEmails[1];
+                        }
+                    }
+                    // Do NOT delete myEmails yet in case something goes wrong, or delete it later
+                    // delete persistedState.myEmails; 
                 }
                 return persistedState;
             },

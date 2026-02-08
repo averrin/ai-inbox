@@ -28,11 +28,12 @@ import { createCalendarEvent, getWritableCalendars } from '../../services/calend
 import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../services/weatherService';
 import { useMoodStore } from '../../store/moodStore';
 import { MoodEvaluationModal } from '../MoodEvaluationModal';
+import { WeatherForecastModal } from '../WeatherForecastModal';
 
 
 export default function ScheduleScreen() {
-    const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, myEmails, contacts } = useSettingsStore();
-    const { assignments, difficulties, eventTypes, eventFlags, ranges, loadConfig } = useEventTypesStore();
+    const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes, personalCalendarIds, workCalendarIds } = useSettingsStore();
+    const { assignments, difficulties, eventTypes, eventFlags, eventIcons, ranges, loadConfig } = useEventTypesStore();
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
     const { height: windowHeight } = useWindowDimensions();
@@ -53,6 +54,7 @@ export default function ScheduleScreen() {
     const [editingReminder, setEditingReminder] = useState<any | null>(null);
     const [creatingEventDate, setCreatingEventDate] = useState<Date | null>(null);
     const [moodModalVisible, setMoodModalVisible] = useState(false);
+    const [weatherModalVisible, setWeatherModalVisible] = useState(false);
     const [moodDate, setMoodDate] = useState<Date>(new Date());
     const calendarRef = useRef<CalendarRef>(null);
 
@@ -78,7 +80,7 @@ export default function ScheduleScreen() {
 
     const handleDeleteReminderWithNote = async (reminder: Reminder) => {
         const targetUri = reminder.fileUri;
-        
+
         // Optimistic Delete
         setCachedReminders(cachedReminders.filter((r: any) => r.fileUri !== targetUri));
         setEvents(prev => prev.filter(e => e.originalEvent?.fileUri !== targetUri));
@@ -154,6 +156,8 @@ export default function ScheduleScreen() {
                 return;
             }
 
+            console.log('[ScheduleScreen] Fetching events for calendars:', safeCalendarIds);
+
             const nativeEvents = await getCalendarEvents(safeCalendarIds, start, end);
 
             if (!nativeEvents) {
@@ -164,7 +168,7 @@ export default function ScheduleScreen() {
 
             // Fetch ALL calendars to get colors/names for merged events, not just writable ones
             const allCalendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-            
+
             const calDetailsMap = (allCalendars || []).reduce((acc: any, cal) => {
                 if (cal && cal.id) {
                     acc[cal.id] = { title: cal.title || 'Untitled', color: cal.color || '#888888', source: cal.source?.name || 'Local' };
@@ -176,12 +180,20 @@ export default function ScheduleScreen() {
             const mappedEvents = nativeEvents.map(evt => {
                 let assignedTypeId = assignments[evt.title];
 
+                // Check calendar default if not assigned by title
+                if (!assignedTypeId && calendarDefaultEventTypes && calendarDefaultEventTypes[evt.calendarId]) {
+                    assignedTypeId = calendarDefaultEventTypes[evt.calendarId];
+                }
+
                 // Auto-detect type if not assigned
                 if (!assignedTypeId) {
                     const attendees = (evt as any).attendees || [];
                     const normalize = (e: string) => e?.toLowerCase().trim();
-                    const myEmailsSet = new Set((myEmails || []).map(normalize));
-                    const isMe = (email: string) => myEmailsSet.has(normalize(email));
+                    const meSet = new Set();
+                    if (personalAccountId) meSet.add(normalize(personalAccountId));
+                    if (workAccountId) meSet.add(normalize(workAccountId));
+
+                    const isMe = (email: string) => meSet.has(normalize(email));
 
                     const uniqueAttendees = new Map();
                     attendees.forEach((a: any) => {
@@ -229,6 +241,7 @@ export default function ScheduleScreen() {
                 const assignedType = assignedTypeId ? eventTypes.find(t => t.id === assignedTypeId) : null;
                 const baseDifficulty = difficulties?.[evt.title] || 0;
                 const flags = eventFlags?.[evt.title];
+                const iconOverride = eventIcons?.[evt.title];
                 const color = assignedType ? assignedType.color : (evt.calendarId ? 'rgba(79, 70, 229, 0.8)' : undefined);
 
                 // Calculate total difficulty
@@ -259,16 +272,16 @@ export default function ScheduleScreen() {
                 let currentUserRSVP = '';
                 if (Array.isArray(attendees)) {
                     let match = attendees.find((a: any) => a.isCurrentUser);
-                    
+
                     if (!match && sourceName) {
-                        match = attendees.find((a: any) => 
+                        match = attendees.find((a: any) =>
                             a.email && a.email.toLowerCase() === sourceName.toLowerCase()
                         );
                     }
 
                     if (!match && calendarTitle) {
-                        match = attendees.find((a: any) => 
-                            (a.name && a.name.toLowerCase() === calendarTitle.toLowerCase()) || 
+                        match = attendees.find((a: any) =>
+                            (a.name && a.name.toLowerCase() === calendarTitle.toLowerCase()) ||
                             (a.email && a.email.toLowerCase() === calendarTitle.toLowerCase())
                         );
                     }
@@ -298,7 +311,7 @@ export default function ScheduleScreen() {
                     hasRSVPNo: currentUserRSVP === 'declined', // Add flag for easier filtering
                     hideBadges: assignedType?.hideBadges, // From event type
                     isInverted: assignedType?.isInverted, // From event type
-                    icon: assignedType?.icon, // From event type
+                    icon: iconOverride || assignedType?.icon, // Override or From event type
                     allDay: evt.allDay
                 };
             }).filter(evt => {
@@ -321,7 +334,7 @@ export default function ScheduleScreen() {
                 }));
 
             const combinedEvents = [...mappedEvents, ...mappedReminders];
-            
+
             // Add Zones for All-Day Events
             const allDayZones = mappedEvents
                 .filter(e => e.allDay)
@@ -345,7 +358,7 @@ export default function ScheduleScreen() {
             console.error("[ScheduleScreen] Critical error in fetchEvents:", e);
             setIsEventsLoaded(true);
         }
-    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents, myEmails, contacts]);
+    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, eventIcons, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes]);
 
     const handleRefresh = async () => {
         setRefreshing(true);
@@ -424,18 +437,16 @@ export default function ScheduleScreen() {
                     return;
                 }
 
-                if (!targetCalendar.allowsModifications) {
-                    console.warn('[ScheduleScreen] Selected calendar does not allow modifications:', targetCalendar.title);
-                    // Proceeding anyway but likely to fail
-                }
-
-                const newEventId = await createCalendarEvent(targetCalendar.id, {
+                const eventPayload: any = {
                     title: data.title,
                     startDate: data.startDate,
                     endDate: data.endDate,
                     allDay: data.allDay,
-                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-                });
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    isWork: data.isWork // calendarService will use this for auto-invites
+                };
+
+                const newEventId = await createCalendarEvent(targetCalendar.id, eventPayload);
 
                 // 4. Re-sync to get real ID and finalized data
                 setTimeout(() => {
@@ -597,12 +608,15 @@ export default function ScheduleScreen() {
                         </TouchableOpacity>
 
                         {weather && (
-                            <View className="flex-row items-center gap-1">
+                            <TouchableOpacity
+                                onPress={() => setWeatherModalVisible(true)}
+                                className="flex-row items-center gap-1"
+                            >
                                 <Ionicons name={weather.icon as any} size={16} color="#94a3b8" />
                                 <Text className="text-slate-400 text-xs font-semibold">
                                     {Math.round(weather.maxTemp)}°C
                                 </Text>
-                            </View>
+                            </TouchableOpacity>
                         )}
                     </View>
 
@@ -674,7 +688,7 @@ export default function ScheduleScreen() {
             borderColor: event.isInverted ? (event.color || '#4f46e5') : '#eeeeee66',
             borderWidth: 1,
             borderRadius: 4,
-            opacity: (event.isSkippable || isFinishedToday) ? 0.45 : 0.7,
+            opacity: (event.isSkippable || isFinishedToday) ? 0.45 : (event.isInverted ? 0.95 : 0.7),
             marginTop: -1
         };
 
@@ -1022,6 +1036,13 @@ export default function ScheduleScreen() {
                     visible={moodModalVisible}
                     onClose={() => setMoodModalVisible(false)}
                     date={moodDate}
+                />
+
+                <WeatherForecastModal
+                    visible={weatherModalVisible}
+                    onClose={() => setWeatherModalVisible(false)}
+                    weatherData={weatherData}
+                    currentDate={date}
                 />
             </SafeAreaView>
         </View>
