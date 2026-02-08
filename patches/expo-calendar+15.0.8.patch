@@ -1,0 +1,25 @@
+diff --git a/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/EventRecurrenceUtils.kt b/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/EventRecurrenceUtils.kt
+index 8df7420..9671fe8 100644
+--- a/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/EventRecurrenceUtils.kt
++++ b/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/EventRecurrenceUtils.kt
+@@ -55,7 +55,7 @@ object EventRecurrenceUtils {
+
+   fun createRecurrenceRule(opts: Recurrence): String {
+     val (frequency, interval, endDate, occurrence) = opts
+-    var rrule: String = when (frequency) {
++    var rrule: String = when (frequency.lowercase()) {
+       "daily" -> "FREQ=DAILY"
+       "weekly" -> "FREQ=WEEKLY"
+       "monthly" -> "FREQ=MONTHLY"
+@@ -69,6 +69,11 @@ object EventRecurrenceUtils {
+       rrule += ";UNTIL=$endDate"
+     } else if (occurrence != null) {
+       rrule += ";COUNT=$occurrence"
++    } else {
++        // Workaround for Android/Samsung infinite recurrence crash
++        // If no end date or count is specified, default to a safe limit (e.g., 365 occurrences)
++        // This prevents native crashes in the Calendar Provider.
++        rrule += ";COUNT=365"
+     }
+     return rrule
+   }

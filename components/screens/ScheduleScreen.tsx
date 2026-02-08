@@ -22,8 +22,8 @@ import { calculateDayStatus, aggregateDayStats, DayBreakdown, DayStatusLevel } f
 import { DayStatusMarker } from '../DayStatusMarker'; import { DaySummaryModal } from '../DaySummaryModal';
 import { ReminderEditModal, ReminderSaveData } from '../ReminderEditModal';
 import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder } from '../../services/reminderService';
-import { EventCreateModal, EventSaveData } from '../EventCreateModal';
-import { createCalendarEvent, getWritableCalendars } from '../../services/calendarService';
+import { EventFormModal, EventSaveData } from '../EventFormModal';
+import { createCalendarEvent, getWritableCalendars, updateCalendarEvent } from '../../services/calendarService';
 
 import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../services/weatherService';
 import { useMoodStore } from '../../store/moodStore';
@@ -53,6 +53,7 @@ export default function ScheduleScreen() {
     const [summaryData, setSummaryData] = useState<{ breakdown: DayBreakdown, status: any, date: Date } | null>(null);
     const [editingReminder, setEditingReminder] = useState<any | null>(null);
     const [creatingEventDate, setCreatingEventDate] = useState<Date | null>(null);
+    const [editingEvent, setEditingEvent] = useState<any | null>(null);
     const [moodModalVisible, setMoodModalVisible] = useState(false);
     const [weatherModalVisible, setWeatherModalVisible] = useState(false);
     const [moodDate, setMoodDate] = useState<Date>(new Date());
@@ -382,11 +383,74 @@ export default function ScheduleScreen() {
         }
     }, [setEditingReminder, setCreatingEventDate]);
 
-    const handleCreateEvent = (data: EventSaveData) => {
+    const handleSaveEvent = (data: EventSaveData) => {
         // 1. Close modal immediately
         setCreatingEventDate(null);
+        setEditingEvent(null);
 
-        // 2. Optimistic Update
+        // 2. Handle Edit
+        if (editingEvent) {
+            const originalId = editingEvent.originalEvent?.id;
+
+            // Prevent editing optimistic events without an ID
+            if (!originalId) {
+                alert("This event is still syncing. Please try again in a moment.");
+                fetchEvents();
+                return;
+            }
+
+            // Optimistic Update (Simple replace in events array for immediate feedback)
+            const updatedEvent = {
+                ...editingEvent,
+                title: data.title,
+                start: data.startDate,
+                end: data.endDate,
+                // recurrence logic for visual?
+            };
+
+            // Note: complex optimistic update for recurrence/merges is hard, better to rely on fetch
+            // But we can update the single event item in state
+            setEvents(prev => prev.map(e =>
+                (e.originalEvent?.id === originalId) ? updatedEvent : e
+            ));
+
+            (async () => {
+                try {
+                    // On Android, to update a specific instance, we often need the Master ID and the instance start date.
+                    // If 'originalId' is present (meaning this is an instance of a recurring event), use it.
+                    // Otherwise fall back to 'id'.
+                    const targetId = editingEvent.originalEvent?.originalId || originalId;
+
+                    // Ensure instanceStartDate is a Date object for correct formatting
+                    const rawStartDate = editingEvent.originalEvent?.startDate;
+                    const instanceStartDate = rawStartDate ? new Date(rawStartDate) : undefined;
+
+                    await updateCalendarEvent(targetId, {
+                       title: data.title,
+                       startDate: data.startDate,
+                       endDate: data.endDate,
+                       allDay: data.allDay,
+                       isWork: data.isWork,
+                       recurrenceRule: data.recurrenceRule,
+                       editScope: data.editScope,
+                       instanceStartDate: instanceStartDate
+                    });
+
+                    // Re-sync
+                   setTimeout(() => {
+                       fetchEvents();
+                   }, 500);
+                } catch (e) {
+                    console.error("Failed to update event", e);
+                    alert('Failed to update event');
+                    fetchEvents(); // Revert
+                }
+            })();
+            return;
+        }
+
+        // 3. Handle Create
+        // Optimistic Update
         const tempEvent = {
             title: data.title,
             start: data.startDate,
@@ -403,7 +467,7 @@ export default function ScheduleScreen() {
         // Add to local state immediately
         setEvents(prev => [...prev, tempEvent]);
 
-        // 3. Background Async Creation
+        // Background Async Creation
         (async () => {
             try {
                 // Better calendar selection logic (prioritize writable)
@@ -443,7 +507,8 @@ export default function ScheduleScreen() {
                     endDate: data.endDate,
                     allDay: data.allDay,
                     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    isWork: data.isWork // calendarService will use this for auto-invites
+                    isWork: data.isWork, // calendarService will use this for auto-invites
+                    recurrenceRule: data.recurrenceRule
                 };
 
                 const newEventId = await createCalendarEvent(targetCalendar.id, eventPayload);
@@ -851,6 +916,7 @@ export default function ScheduleScreen() {
                 <EventContextModal
                     visible={!!selectedEvent && !selectedEvent?.typeTag?.includes('LUNCH_SUGGESTION')}
                     onClose={() => setSelectedEvent(null)}
+                    onEdit={() => setEditingEvent(selectedEvent)}
                     event={selectedEvent}
                 />
 
@@ -1022,13 +1088,17 @@ export default function ScheduleScreen() {
                     />
                 )}
 
-                {creatingEventDate && (
-                    <EventCreateModal
-                        visible={!!creatingEventDate}
-                        initialDate={creatingEventDate}
+                {(creatingEventDate || editingEvent) && (
+                    <EventFormModal
+                        visible={!!creatingEventDate || !!editingEvent}
+                        initialDate={creatingEventDate || undefined}
+                        initialEvent={editingEvent}
                         timeFormat={timeFormat}
-                        onCancel={() => setCreatingEventDate(null)}
-                        onSave={handleCreateEvent}
+                        onCancel={() => {
+                            setCreatingEventDate(null);
+                            setEditingEvent(null);
+                        }}
+                        onSave={handleSaveEvent}
                     />
                 )}
 
