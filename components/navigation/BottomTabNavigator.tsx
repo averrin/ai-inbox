@@ -1,10 +1,11 @@
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import ProcessingScreen from '../ProcessingScreen';
+import ProcessingScreen from '../screens/ProcessingScreen';
 import RemindersListScreen from '../screens/RemindersListScreen';
 import TasksScreen from '../screens/TasksScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
-import SetupScreen from '../SetupScreen';
+import SetupScreen from '../screens/SetupScreen';
+import DumpScreen from '../screens/DumpScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect } from 'react';
 import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
@@ -109,6 +110,16 @@ function InnerTabNavigator({
             ),
           }}
         />
+
+        {/* <Tab.Screen
+          name="Dump"
+          component={DumpScreen}
+          options={{
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="journal-outline" size={24} color={color} />
+            ),
+          }}
+        /> */}
 
         <Tab.Screen
           name="Reminders"
