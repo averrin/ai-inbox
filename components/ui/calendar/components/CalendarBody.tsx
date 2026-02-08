@@ -7,6 +7,7 @@ import {
   type TextStyle,
   TouchableOpacity,
   View,
+  Text,
   type ViewStyle,
   type RefreshControlProps,
   RefreshControl,
@@ -21,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { u } from '../commonStyles'
 import { useNow } from '../hooks/useNow'
+import { getNowIndicatorInfo } from '../utils/nowIndicator'
 import isBetween from 'dayjs/plugin/isBetween'
 
 dayjs.extend(isBetween)
@@ -709,12 +711,42 @@ function _CalendarBody<T extends ICalendarEventBase>({
                 <View
                   style={[
                     styles.nowIndicator,
-                    { backgroundColor: theme.palette.nowIndicator },
                     {
+                      backgroundColor: theme.palette.nowIndicator,
                       top: `${getRelativeTopInDay(now, minHour, hours.length)}%`,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      overflow: 'visible',
                     },
                   ]}
-                />
+                >
+                  <View
+                    style={{
+                      backgroundColor: theme.palette.nowIndicator,
+                      paddingHorizontal: 8,
+                      paddingVertical: 2,
+                      borderRadius: 12,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: theme.palette.primary.contrastText || 'white',
+                        fontSize: 10,
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      {getNowIndicatorInfo(
+                        now,
+                        standardEvents.find((e) => {
+                          const s = dayjs(e.start)
+                          const d = dayjs(e.end)
+                          return now.isBetween(s, d, null, '[)')
+                        }),
+                        ampm,
+                      )}
+                    </Text>
+                  </View>
+                </View>
               )}
             </View>
           ))}
