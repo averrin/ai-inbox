@@ -160,7 +160,10 @@ export const createCalendarEvent = async (calendarId: string, eventData: Partial
     }
 
     // Handle recurrence
-    if (data.recurrence) {
+    if (data.recurrenceRule) {
+        // Direct object passed
+        nativeEventData.recurrenceRule = data.recurrenceRule;
+    } else if (data.recurrence) {
         if (Array.isArray(data.recurrence)) {
             // Google format is array of strings
             const rule = parseRRule(data.recurrence[0]);
@@ -193,6 +196,112 @@ export const createCalendarEvent = async (calendarId: string, eventData: Partial
         throw e;
     }
 };
+
+export const updateCalendarEvent = async (eventId: string, eventData: Partial<Calendar.Event> & { editScope?: 'this' | 'future' | 'all', isWork?: boolean, instanceStartDate?: string | Date }) => {
+    const hasPermission = await ensureCalendarPermissions();
+    if (!hasPermission) throw new Error("Missing calendar permissions");
+
+    // Cast to any to access extra fields
+    const data = eventData as any;
+    const { workAccountId } = useSettingsStore.getState();
+
+    // Auto-invite work account logic (similar to create)
+    if (data.isWork && workAccountId) {
+        // We can't easily check existing attendees without fetching, so we skip duplication check for now
+        // or rely on native calendar to dedupe.
+        // Note: updating attendees usually requires passing the full list.
+        // Since we don't have the full list here, this might overwrite or fail if strict.
+        // For safety, we only append if 'attendees' is already in data (rare in this flow) or skip.
+        // Ideally we would fetch -> merge -> update.
+        // For now, we will SKIP modifying attendees during simple update to avoid data loss.
+        // TODO: Implement full attendee sync for updates.
+    }
+
+    // Prepare data for native call
+    const nativeEventData: Partial<Calendar.Event> = {
+        title: eventData.title,
+        startDate: eventData.startDate ? new Date(eventData.startDate) : undefined,
+        endDate: eventData.endDate ? new Date(eventData.endDate) : undefined,
+        notes: (eventData as any).description || (eventData as any).notes,
+        allDay: eventData.allDay,
+        location: eventData.location,
+        alarms: eventData.alarms,
+    };
+
+    // Ensure dates are valid if provided
+    if (nativeEventData.startDate && isNaN(nativeEventData.startDate.getTime())) {
+        delete nativeEventData.startDate;
+    }
+    if (nativeEventData.endDate && isNaN(nativeEventData.endDate.getTime())) {
+        delete nativeEventData.endDate;
+    }
+
+    // Handle recurrence
+    if (data.recurrenceRule === null) {
+        // Explicitly clear recurrence
+        nativeEventData.recurrenceRule = null as any;
+    } else if (data.recurrenceRule) {
+        // Map string frequency to expo-calendar Frequency enum (or compliant string)
+        const rule = { ...data.recurrenceRule };
+        if (typeof rule.frequency === 'string') {
+            const freqMap: Record<string, string> = {
+                'daily': 'daily',
+                'weekly': 'weekly',
+                'monthly': 'monthly',
+                'yearly': 'yearly'
+            };
+            if (freqMap[rule.frequency]) {
+                rule.frequency = freqMap[rule.frequency];
+            }
+        }
+        nativeEventData.recurrenceRule = rule;
+    } else if (data.recurrence) {
+        // ... (Parsing logic similar to create)
+        if (Array.isArray(data.recurrence)) {
+            const rule = parseRRule(data.recurrence[0]);
+            if (rule) nativeEventData.recurrenceRule = rule;
+        } else if (typeof data.recurrence === 'string') {
+            const rule = parseRRule(data.recurrence);
+            if (rule) nativeEventData.recurrenceRule = rule;
+        }
+    }
+
+    try {
+        const options: any = {};
+        if (eventData.editScope) {
+            if (eventData.editScope === 'this') {
+                // Do not update recurrence rule for single instance exception
+                delete nativeEventData.recurrenceRule;
+                // For Android, instanceStartDate is required to identify the instance to update
+                if (Platform.OS === 'android' && eventData.instanceStartDate) {
+                    options.instanceStartDate = eventData.instanceStartDate;
+                }
+            }
+
+            if (Platform.OS === 'android') {
+                if (eventData.editScope === 'future') {
+                    options.futureEvents = true;
+                    // Also requires instanceStartDate usually
+                    if (eventData.instanceStartDate) options.instanceStartDate = eventData.instanceStartDate;
+                }
+                // For 'all', we pass NO options, which defaults to updating the series (or master) on Android
+                // (replicating behavior before recurrence editing was added)
+            } else if (Platform.OS === 'ios') {
+                if (eventData.editScope === 'future') options.span = Calendar.EventSpan.FutureEvents;
+                // For 'all', best effort on instance is FutureEvents (from this point forward)
+                if (eventData.editScope === 'all') options.span = Calendar.EventSpan.FutureEvents;
+                if (eventData.editScope === 'this') options.span = Calendar.EventSpan.ThisEvent;
+            }
+        }
+
+        // Pass undefined if options is empty to ensure default behavior
+        const finalOptions = Object.keys(options).length > 0 ? options : undefined;
+        await Calendar.updateEventAsync(eventId, nativeEventData, finalOptions);
+    } catch (e) {
+        console.error(`[CalendarService] updateCalendarEvent FAILED for event ${eventId}:`, e);
+        throw e;
+    }
+}
 
 export const getUpcomingEvents = async (days: number = 3): Promise<string> => {
     try {
