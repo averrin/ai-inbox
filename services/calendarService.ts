@@ -229,10 +229,10 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
     };
 
     // Ensure dates are valid if provided
-    if (nativeEventData.startDate && isNaN(nativeEventData.startDate.getTime())) {
+    if (nativeEventData.startDate && (nativeEventData.startDate as Date).getTime && isNaN((nativeEventData.startDate as Date).getTime())) {
         delete nativeEventData.startDate;
     }
-    if (nativeEventData.endDate && isNaN(nativeEventData.endDate.getTime())) {
+    if (nativeEventData.endDate && (nativeEventData.endDate as Date).getTime && isNaN((nativeEventData.endDate as Date).getTime())) {
         delete nativeEventData.endDate;
     }
 
@@ -273,30 +273,41 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
                 // Do not update recurrence rule for single instance exception
                 delete nativeEventData.recurrenceRule;
                 // For Android, instanceStartDate is required to identify the instance to update
-                if (Platform.OS === 'android' && eventData.instanceStartDate) {
-                    options.instanceStartDate = eventData.instanceStartDate;
+                // For iOS, instanceStartDate is also required via options
+                if (eventData.instanceStartDate) {
+                    options.instanceStartDate = typeof eventData.instanceStartDate === 'string'
+                        ? eventData.instanceStartDate
+                        : eventData.instanceStartDate.toISOString();
                 }
-            }
-
-            if (Platform.OS === 'android') {
-                if (eventData.editScope === 'future') {
-                    options.futureEvents = true;
-                    // Also requires instanceStartDate usually
-                    if (eventData.instanceStartDate) options.instanceStartDate = eventData.instanceStartDate;
+                options.futureEvents = false;
+            } else if (eventData.editScope === 'future') {
+                options.futureEvents = true;
+                if (eventData.instanceStartDate) {
+                    options.instanceStartDate = typeof eventData.instanceStartDate === 'string'
+                        ? eventData.instanceStartDate
+                        : eventData.instanceStartDate.toISOString();
                 }
-                // For 'all', we pass NO options, which defaults to updating the series (or master) on Android
-                // (replicating behavior before recurrence editing was added)
-            } else if (Platform.OS === 'ios') {
-                if (eventData.editScope === 'future') options.span = Calendar.EventSpan.FutureEvents;
-                // For 'all', best effort on instance is FutureEvents (from this point forward)
-                if (eventData.editScope === 'all') options.span = Calendar.EventSpan.FutureEvents;
-                if (eventData.editScope === 'this') options.span = Calendar.EventSpan.ThisEvent;
+            } else if (eventData.editScope === 'all') {
+                // For 'all', we pass NO options (default), updating the master/series.
+                if (Platform.OS === 'ios') {
+                    // Best effort for 'all' on iOS if we only have instance context: FutureEvents logic shouldn't apply here?
+                    // Usually 'all' updates the base event.
+                    // No need to set options.futureEvents = true unless we confirm behavior.
+                    // Leaving options blank implies standard update.
+                }
             }
         }
 
         // Pass undefined if options is empty to ensure default behavior
         const finalOptions = Object.keys(options).length > 0 ? options : undefined;
+
+        console.log('[CalendarService] Updating event:', eventId);
+        console.log('[CalendarService] Native Data:', JSON.stringify(nativeEventData, null, 2));
+        console.log('[CalendarService] Options:', JSON.stringify(finalOptions, null, 2));
+        console.log('[CalendarService] CALLING NATIVE updateEventAsync NOW...');
+
         await Calendar.updateEventAsync(eventId, nativeEventData, finalOptions);
+        console.log('[CalendarService] NATIVE updateEventAsync RETURNED successfully');
     } catch (e) {
         console.error(`[CalendarService] updateCalendarEvent FAILED for event ${eventId}:`, e);
         throw e;

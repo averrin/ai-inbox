@@ -1,9 +1,82 @@
+diff --git a/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarModule.kt b/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarModule.kt
+index 5579727..1a55f9b 100644
+--- a/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarModule.kt
++++ b/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarModule.kt
+@@ -134,11 +134,12 @@ class CalendarModule : Module() {
+       }
+     }
+ 
+-    AsyncFunction("saveEventAsync") { details: ReadableArguments, _: ReadableArguments?, promise: Promise ->
++    AsyncFunction("saveEventAsync") { details: ReadableArguments, options: ReadableArguments?, promise: Promise ->
++      Log.e(TAG, "saveEventAsync called with options: $options")
+       withPermissions(promise) {
+         launchAsyncWithModuleScope(promise) {
+           try {
+-            val eventID = saveEvent(details)
++            val eventID = saveEvent(details, options)
+             promise.resolve(eventID.toString())
+           } catch (e: ParseException) {
+             promise.reject("E_EVENT_NOT_SAVED", "Event could not be saved", e)
+@@ -146,6 +147,9 @@ class CalendarModule : Module() {
+             promise.reject("E_EVENT_NOT_SAVED", "Event could not be saved", e)
+           } catch (e: InvalidArgumentException) {
+             promise.reject("E_EVENT_NOT_SAVED", "Event could not be saved", e)
++          } catch (e: Throwable) {
++            Log.e(TAG, "Unexpected error in saveEventAsync", e)
++            promise.reject("E_EVENT_NOT_SAVED", "Unexpected error: ${e.message}", Exception(e))
+           }
+         }
+       }
+@@ -428,7 +432,8 @@ class CalendarModule : Module() {
+   }
+ 
+   @Throws(EventNotSavedException::class, ParseException::class, SecurityException::class, InvalidArgumentException::class)
+-  private fun saveEvent(details: ReadableArguments): Int {
++  private fun saveEvent(details: ReadableArguments, options: ReadableArguments?): Int {
++    Log.e(TAG, "saveEvent called. InstanceStartDate present: ${details.containsKey("instanceStartDate")}")
+     val calendarEventBuilder = CalendarEventBuilder(details)
+     if (details.containsKey("startDate")) {
+       val startCal = Calendar.getInstance()
+@@ -514,6 +519,33 @@ class CalendarModule : Module() {
+ 
+     return if (details.containsKey("id")) {
+       val eventID = details.getString("id").toInt()
++
++      // Handle "This event only" update by creating an exception
++      if (details.containsKey("instanceStartDate")) {
++        val instanceStartDate = details["instanceStartDate"]
++        var originalInstanceTime: Long? = null
++        try {
++          if (instanceStartDate is String) {
++            val parsedDate = sdf.parse(instanceStartDate)
++            if (parsedDate != null) originalInstanceTime = parsedDate.time
++          } else if (instanceStartDate is Number) {
++            originalInstanceTime = instanceStartDate.toLong()
++          }
++        } catch (e: Exception) {
++          Log.e(TAG, "Error parsing instanceStartDate", e)
++        }
++
++        if (originalInstanceTime != null) {
++            val cv = calendarEventBuilder.build()
++            cv.put(CalendarContract.Events.ORIGINAL_ID, eventID.toString())
++            cv.put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, originalInstanceTime)
++            cv.put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CONFIRMED)
++            
++            val uri = contentResolver.insert(CalendarContract.Events.CONTENT_URI, cv) ?: throw EventNotSavedException()
++            return uri.lastPathSegment!!.toInt()
++        }
++      }
++
+       val updateUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventID.toLong())
+       contentResolver.update(updateUri, calendarEventBuilder.build(), null, null)
+       removeRemindersForEvent(eventID)
 diff --git a/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/EventRecurrenceUtils.kt b/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/EventRecurrenceUtils.kt
 index 8df7420..9671fe8 100644
 --- a/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/EventRecurrenceUtils.kt
 +++ b/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/EventRecurrenceUtils.kt
 @@ -55,7 +55,7 @@ object EventRecurrenceUtils {
-
+ 
    fun createRecurrenceRule(opts: Recurrence): String {
      val (frequency, interval, endDate, occurrence) = opts
 -    var rrule: String = when (frequency) {

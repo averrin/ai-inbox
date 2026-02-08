@@ -13,7 +13,7 @@ import * as Calendar from 'expo-calendar';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useFocusEffect } from '@react-navigation/native';
 import { useReminderModal } from '../../utils/reminderModalContext';
-import { ScheduleEvent } from './ScheduleEvent';
+import { ScheduleEvent } from '../ui/calendar/components/ScheduleEvent';
 import { useTimeRangeEvents } from '../ui/calendar/hooks/useTimeRangeEvents';
 import { calculateEventDifficulty } from '../../utils/difficultyUtils';
 import { useLunchSuggestion } from '../ui/calendar/hooks/useLunchSuggestion';
@@ -431,7 +431,10 @@ export default function ScheduleScreen() {
                        endDate: data.endDate,
                        allDay: data.allDay,
                        isWork: data.isWork,
-                       recurrenceRule: data.recurrenceRule,
+                       recurrenceRule: data.recurrenceRule ? {
+                           ...data.recurrenceRule,
+                           frequency: (data.recurrenceRule.frequency as any)
+                       } : undefined,
                        editScope: data.editScope,
                        instanceStartDate: instanceStartDate
                     });
