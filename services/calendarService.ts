@@ -163,10 +163,6 @@ export const createCalendarEvent = async (calendarId: string, eventData: Partial
     if (data.recurrenceRule) {
         // Direct object passed
         nativeEventData.recurrenceRule = data.recurrenceRule;
-        // Safety: Avoid infinite recurrence on Android (causes crashes on some devices)
-        if (Platform.OS === 'android' && !nativeEventData.recurrenceRule.endDate && !nativeEventData.recurrenceRule.occurrence) {
-            nativeEventData.recurrenceRule.occurrence = 365;
-        }
     } else if (data.recurrence) {
         if (Array.isArray(data.recurrence)) {
             // Google format is array of strings
@@ -175,10 +171,6 @@ export const createCalendarEvent = async (calendarId: string, eventData: Partial
         } else if (typeof data.recurrence === 'string') {
             const rule = parseRRule(data.recurrence);
             if (rule) nativeEventData.recurrenceRule = rule;
-        }
-        // Safety: Avoid infinite recurrence on Android
-        if (Platform.OS === 'android' && nativeEventData.recurrenceRule && !nativeEventData.recurrenceRule.endDate && !nativeEventData.recurrenceRule.occurrence) {
-            nativeEventData.recurrenceRule.occurrence = 365;
         }
     }
 
@@ -263,11 +255,6 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
             }
         }
         nativeEventData.recurrenceRule = rule;
-
-        // Safety: Avoid infinite recurrence on Android
-        if (Platform.OS === 'android' && !nativeEventData.recurrenceRule.endDate && !nativeEventData.recurrenceRule.occurrence) {
-            nativeEventData.recurrenceRule.occurrence = 365;
-        }
     } else if (data.recurrence) {
         // ... (Parsing logic similar to create)
         if (Array.isArray(data.recurrence)) {
@@ -276,11 +263,6 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
         } else if (typeof data.recurrence === 'string') {
             const rule = parseRRule(data.recurrence);
             if (rule) nativeEventData.recurrenceRule = rule;
-        }
-
-        // Safety: Avoid infinite recurrence on Android
-        if (Platform.OS === 'android' && nativeEventData.recurrenceRule && !nativeEventData.recurrenceRule.endDate && !nativeEventData.recurrenceRule.occurrence) {
-            nativeEventData.recurrenceRule.occurrence = 365;
         }
     }
 
