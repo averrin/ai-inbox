@@ -76,16 +76,31 @@ function _CalendarEvent<T extends ICalendarEventBase>({
 
   const { backgroundColor: overlapBackgroundColor, ...layoutOnlyOverlapStyles } = (overlapStyles as any)
 
+  const { leftMargin, rightMargin } = React.useMemo(() => {
+    const rangeOverlapCount = (event as any).rangeOverlapCount || 0
+    const isLeftMost = eventOrder === 0
+    const isRightMost = eventOrder === (eventCount - 1)
+
+    const left = isLeftMost ? (rangeOverlapCount > 0 ? 2 + rangeOverlapCount * 8 : 8) : 1
+    const right = -4
+    return { leftMargin: left, rightMargin: right }
+  }, [event, eventOrder, eventCount])
+
   const layoutStyles = React.useMemo(() => {
+    const marginStyles = {
+      marginLeft: leftMargin,
+      marginRight: rightMargin,
+    }
     return mode === 'schedule'
-      ? [layoutOnlyOverlapStyles]
+      ? [layoutOnlyOverlapStyles, marginStyles]
       : [
         getEventCellPositionStyle(event.start, event.end, minHour, hours),
         layoutOnlyOverlapStyles,
+        marginStyles,
         u.absolute,
         u['mt-2'],
       ]
-  }, [mode, layoutOnlyOverlapStyles, event.start, event.end, minHour, hours])
+  }, [mode, layoutOnlyOverlapStyles, event.start, event.end, minHour, hours, leftMargin, rightMargin])
 
   const isMovable = (event as any).movable
   const canDrag = isMovable && !!onEventDrop && mode !== 'schedule'
