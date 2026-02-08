@@ -464,6 +464,8 @@ function _CalendarBody<T extends ICalendarEventBase>({
           maxHour={maxHour}
           minHour={minHour}
           hours={hours.length}
+          cellHeight={cellHeight}
+          onEventDrop={onEventDrop}
         />
       )
     },

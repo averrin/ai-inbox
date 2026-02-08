@@ -218,42 +218,33 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
     }
 
     // Prepare data for native call
-    const nativeEventData: Partial<Calendar.Event> = {
+    const isAndroid = Platform.OS === 'android';
+    const nativeEventData: any = {
         title: eventData.title,
-        startDate: eventData.startDate ? new Date(eventData.startDate) : undefined,
-        endDate: eventData.endDate ? new Date(eventData.endDate) : undefined,
         notes: (eventData as any).description || (eventData as any).notes,
         allDay: eventData.allDay,
         location: eventData.location,
         alarms: eventData.alarms,
     };
 
-    // Ensure dates are valid if provided
-    if (nativeEventData.startDate && (nativeEventData.startDate as Date).getTime && isNaN((nativeEventData.startDate as Date).getTime())) {
-        delete nativeEventData.startDate;
+    if (eventData.startDate) {
+        const sDate = new Date(eventData.startDate);
+        if (!isNaN(sDate.getTime())) {
+            nativeEventData.startDate = isAndroid ? sDate.getTime() : sDate.toISOString();
+        }
     }
-    if (nativeEventData.endDate && (nativeEventData.endDate as Date).getTime && isNaN((nativeEventData.endDate as Date).getTime())) {
-        delete nativeEventData.endDate;
+    if (eventData.endDate) {
+        const eDate = new Date(eventData.endDate);
+        if (!isNaN(eDate.getTime())) {
+            nativeEventData.endDate = isAndroid ? eDate.getTime() : eDate.toISOString();
+        }
     }
 
     // Handle recurrence
     if (data.recurrenceRule === null) {
-        // Explicitly clear recurrence
-        nativeEventData.recurrenceRule = null as any;
+        nativeEventData.recurrenceRule = null;
     } else if (data.recurrenceRule) {
-        // Map string frequency to expo-calendar Frequency enum (or compliant string)
         const rule = { ...data.recurrenceRule };
-        if (typeof rule.frequency === 'string') {
-            const freqMap: Record<string, string> = {
-                'daily': 'daily',
-                'weekly': 'weekly',
-                'monthly': 'monthly',
-                'yearly': 'yearly'
-            };
-            if (freqMap[rule.frequency]) {
-                rule.frequency = freqMap[rule.frequency];
-            }
-        }
         nativeEventData.recurrenceRule = rule;
     } else if (data.recurrence) {
         // ... (Parsing logic similar to create)
@@ -270,22 +261,17 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
         const options: any = {};
         if (eventData.editScope) {
             if (eventData.editScope === 'this') {
-                // Do not update recurrence rule for single instance exception
                 delete nativeEventData.recurrenceRule;
-                // For Android, instanceStartDate is required to identify the instance to update
-                // For iOS, instanceStartDate is also required via options
                 if (eventData.instanceStartDate) {
-                    options.instanceStartDate = typeof eventData.instanceStartDate === 'string'
-                        ? eventData.instanceStartDate
-                        : eventData.instanceStartDate.toISOString();
+                    const instDate = new Date(eventData.instanceStartDate);
+                    options.instanceStartDate = isAndroid ? instDate.getTime() : instDate.toISOString();
                 }
                 options.futureEvents = false;
             } else if (eventData.editScope === 'future') {
                 options.futureEvents = true;
                 if (eventData.instanceStartDate) {
-                    options.instanceStartDate = typeof eventData.instanceStartDate === 'string'
-                        ? eventData.instanceStartDate
-                        : eventData.instanceStartDate.toISOString();
+                    const instDate = new Date(eventData.instanceStartDate);
+                    options.instanceStartDate = isAndroid ? instDate.getTime() : instDate.toISOString();
                 }
             } else if (eventData.editScope === 'all') {
                 // For 'all', we pass NO options (default), updating the master/series.
@@ -298,14 +284,9 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
             }
         }
 
-        // Pass undefined if options is empty to ensure default behavior
         const finalOptions = Object.keys(options).length > 0 ? options : undefined;
 
-        console.log('[CalendarService] Updating event:', eventId);
-        console.log('[CalendarService] Native Data:', JSON.stringify(nativeEventData, null, 2));
-        console.log('[CalendarService] Options:', JSON.stringify(finalOptions, null, 2));
-        console.log('[CalendarService] CALLING NATIVE updateEventAsync NOW...');
-
+        console.log('[CalendarService] Updating event robustly:', eventId, { nativeEventData, finalOptions });
         await Calendar.updateEventAsync(eventId, nativeEventData, finalOptions);
         console.log('[CalendarService] NATIVE updateEventAsync RETURNED successfully');
     } catch (e) {

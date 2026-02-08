@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, RefreshControl, Platform, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Calendar as BigCalendar, CalendarRef } from '../ui/calendar';
 import dayjs from 'dayjs';
@@ -146,8 +146,8 @@ export default function ScheduleScreen() {
 
     const fetchEvents = useCallback(async () => {
         try {
-            const start = dayjs(date).startOf('week').subtract(1, 'week').toDate();
-            const end = dayjs(date).endOf('week').add(1, 'week').toDate();
+            const startDate = dayjs(date).startOf(viewMode === 'week' ? 'week' : 'day').subtract(7, 'day').toDate();
+            const endDate = dayjs(date).endOf(viewMode === 'week' ? 'week' : 'day').add(7, 'day').toDate();
 
             const safeCalendarIds = Array.isArray(visibleCalendarIds) ? visibleCalendarIds.filter(id => !!id) : [];
 
@@ -159,7 +159,7 @@ export default function ScheduleScreen() {
 
             console.log('[ScheduleScreen] Fetching events for calendars:', safeCalendarIds);
 
-            const nativeEvents = await getCalendarEvents(safeCalendarIds, start, end);
+            const nativeEvents = await getCalendarEvents(safeCalendarIds, startDate, endDate);
 
             if (!nativeEvents) {
                 console.warn('[ScheduleScreen] getCalendarEvents returned null/undefined');
@@ -167,57 +167,51 @@ export default function ScheduleScreen() {
                 return;
             }
 
-            // Fetch ALL calendars to get colors/names for merged events, not just writable ones
-            const allCalendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-
-            const calDetailsMap = (allCalendars || []).reduce((acc: any, cal) => {
-                if (cal && cal.id) {
-                    acc[cal.id] = { title: cal.title || 'Untitled', color: cal.color || '#888888', source: cal.source?.name || 'Local' };
-                }
+            // Get calendar metadata for source checking
+            const allCals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+            const calDetailsMap = allCals.reduce((acc: any, c) => {
+                acc[c.id] = { title: c.title, color: c.color, source: c.source?.name || c.source?.type };
                 return acc;
-            }, {} as Record<string, { title: string, color: string, source: string }>);
+            }, {});
 
             // Map native events to BigCalendar format
             const mappedEvents = nativeEvents.map(evt => {
-                let assignedTypeId = assignments[evt.title];
+                const attendees = (evt as any).attendees || [];
+                const normalize = (e: string) => e?.toLowerCase().trim();
+                const meEmails = [];
+                if (personalAccountId) meEmails.push(personalAccountId);
+                if (workAccountId) meEmails.push(workAccountId);
+                
+                const meSet = new Set(meEmails.map(normalize));
+                const isMe = (email: string) => meSet.has(normalize(email));
 
-                // Check calendar default if not assigned by title
+                const uniqueAttendees = new Map();
+                attendees.forEach((a: any) => {
+                    if (a.email) {
+                        const email = normalize(a.email);
+                        // Ignore Google resource calendars (conference rooms)
+                        if (email.endsWith('resource.calendar.google.com')) return;
+                        uniqueAttendees.set(email, a);
+                    }
+                });
+
+                const isPersonal = uniqueAttendees.size === 0 || Array.from(uniqueAttendees.keys()).every(email => isMe(email as string));
+
+                let hasMe = false;
+                uniqueAttendees.forEach((_, email) => {
+                    if (isMe(email)) hasMe = true;
+                });
+
+                const currentUserRSVP = attendees.find((a: any) => isMe(a.email))?.status || 'accepted';
+
+                let assignedTypeId = assignments[evt.title];
                 if (!assignedTypeId && calendarDefaultEventTypes && calendarDefaultEventTypes[evt.calendarId]) {
                     assignedTypeId = calendarDefaultEventTypes[evt.calendarId];
                 }
 
-                // Auto-detect type if not assigned
                 if (!assignedTypeId) {
-                    const attendees = (evt as any).attendees || [];
-                    const normalize = (e: string) => e?.toLowerCase().trim();
-                    const meSet = new Set();
-                    if (personalAccountId) meSet.add(normalize(personalAccountId));
-                    if (workAccountId) meSet.add(normalize(workAccountId));
-
-                    const isMe = (email: string) => meSet.has(normalize(email));
-
-                    const uniqueAttendees = new Map();
-                    attendees.forEach((a: any) => {
-                        if (a.email) {
-                            const email = normalize(a.email);
-                            // Ignore Google resource calendars (conference rooms)
-                            if (email.endsWith('resource.calendar.google.com')) return;
-                            uniqueAttendees.set(email, a);
-                        }
-                    });
-
-                    let hasMe = false;
-                    uniqueAttendees.forEach((_, email) => {
-                        if (isMe(email)) hasMe = true;
-                    });
-
-                    // Check if organizer is me (if not in attendees)
-                    // (Skipping complex organizer logic for now, relying on attendees list)
-
                     const count = uniqueAttendees.size;
-
                     if (count === 0 || (count === 1 && hasMe)) {
-                        // Only Me -> Personal
                         const personalType = eventTypes.find(t => t.title.toLowerCase() === 'personal');
                         if (personalType) assignedTypeId = personalType.id;
                     } else if (count === 2) {
@@ -228,11 +222,9 @@ export default function ScheduleScreen() {
                         });
 
                         if (hasMe && hasWife) {
-                            // Me + Wife -> Personal
                             const personalType = eventTypes.find(t => t.title.toLowerCase() === 'personal');
                             if (personalType) assignedTypeId = personalType.id;
                         } else {
-                            // 2 people -> 1-1
                             const oneOnOneType = eventTypes.find(t => t.title === '1-1' || t.title === '1:1');
                             if (oneOnOneType) assignedTypeId = oneOnOneType.id;
                         }
@@ -243,9 +235,8 @@ export default function ScheduleScreen() {
                 const baseDifficulty = difficulties?.[evt.title] || 0;
                 const flags = eventFlags?.[evt.title];
                 const iconOverride = eventIcons?.[evt.title];
-                const color = assignedType ? assignedType.color : (evt.calendarId ? 'rgba(79, 70, 229, 0.8)' : undefined);
+                const color = assignedType ? assignedType.color : ((evt as any).color || (evt as any).displayColor || 'rgba(79, 70, 229, 0.8)');
 
-                // Calculate total difficulty
                 const difficultyResult = calculateEventDifficulty(
                     { title: evt.title, start: new Date(evt.startDate), end: new Date(evt.endDate) },
                     baseDifficulty,
@@ -253,42 +244,10 @@ export default function ScheduleScreen() {
                     flags
                 );
 
-                // Resolve merged calendars
-                const mergedIds = (evt as any).mergedCalendarIds || [evt.calendarId];
-                const sourceCalendars = mergedIds.map((id: string) => {
-                    const details = (calDetailsMap as any)[id];
-                    return {
-                        id,
-                        title: details?.title || 'Unknown Calendar',
-                        color: details?.color || '#888888',
-                        source: details?.source || ''
-                    };
-                });
-                // Deduplicate by ID just in case
-                const uniqueSourceCalendars = Array.from(new Map(sourceCalendars.map((c: any) => [c.id, c])).values());
-
-                const sourceName = (calDetailsMap as any)[evt.calendarId]?.source || '';
-                const calendarTitle = (calDetailsMap as any)[evt.calendarId]?.title || '';
-                const attendees = (evt as any).attendees;
-                let currentUserRSVP = '';
-                if (Array.isArray(attendees)) {
-                    let match = attendees.find((a: any) => a.isCurrentUser);
-
-                    if (!match && sourceName) {
-                        match = attendees.find((a: any) =>
-                            a.email && a.email.toLowerCase() === sourceName.toLowerCase()
-                        );
-                    }
-
-                    if (!match && calendarTitle) {
-                        match = attendees.find((a: any) =>
-                            (a.name && a.name.toLowerCase() === calendarTitle.toLowerCase()) ||
-                            (a.email && a.email.toLowerCase() === calendarTitle.toLowerCase())
-                        );
-                    }
-
-                    currentUserRSVP = match?.status || '';
-                }
+                const mergedIds = (evt as any).ids || [evt.id];
+                const calendarTitle = calDetailsMap[evt.calendarId]?.title || '';
+                const sourceName = calDetailsMap[evt.calendarId]?.source || '';
+                const uniqueSourceCalendars = Array.from(new Set([(evt as any).calendarTitle || evt.calendarId])).filter(Boolean);
 
                 return {
                     title: evt.title,
@@ -298,21 +257,21 @@ export default function ScheduleScreen() {
                     originalEvent: {
                         ...evt,
                         ids: mergedIds,
-                        sourceCalendars: uniqueSourceCalendars,
                         source: { name: sourceName },
-                        currentUserRSVP // Store for filtering if needed
-                    }, // Keep ref for context menu with source info
+                        currentUserRSVP
+                    },
                     typeTag: assignedType ? assignedType.title : null,
-                    difficulty: difficultyResult, // Use full difficulty object
+                    difficulty: difficultyResult,
                     isEnglish: flags?.isEnglish,
-                    movable: flags?.movable,
+                    movable: flags?.movable || isPersonal,
+                    isPersonal,
                     isSkippable: flags?.skippable || currentUserRSVP === 'tentative',
                     needPrep: flags?.needPrep,
-                    isRecurrent: !!evt.recurrenceRule, // Non-null means recurring
-                    hasRSVPNo: currentUserRSVP === 'declined', // Add flag for easier filtering
-                    hideBadges: assignedType?.hideBadges, // From event type
-                    isInverted: assignedType?.isInverted, // From event type
-                    icon: iconOverride || assignedType?.icon, // Override or From event type
+                    isRecurrent: !!evt.recurrenceRule,
+                    hasRSVPNo: currentUserRSVP === 'declined',
+                    hideBadges: assignedType?.hideBadges,
+                    isInverted: assignedType?.isInverted,
+                    icon: iconOverride || assignedType?.icon,
                     allDay: evt.allDay
                 };
             }).filter(evt => {
@@ -322,16 +281,17 @@ export default function ScheduleScreen() {
 
             // Map reminders to BigCalendar format (markers)
             const mappedReminders = (cachedReminders || [])
-                .filter((r: any) => r.reminderTime) // Filter out reminders without time
+                .filter((r: any) => r.reminderTime)
                 .map((r: any) => ({
-                    title: r.title || r.fileName?.replace('.md', '') || 'Untitled Reminder', // Backup title if content logic fails
+                    title: r.title || r.fileName?.replace('.md', '') || 'Untitled Reminder',
                     start: new Date(r.reminderTime),
                     end: new Date(r.reminderTime),
                     color: r.alarm ? '#ef4444' : '#f59e0b',
                     originalEvent: r,
                     type: 'marker' as const,
                     difficulty: undefined,
-                    typeTag: 'REMINDER'
+                    typeTag: 'REMINDER',
+                    movable: true
                 }));
 
             const combinedEvents = [...mappedEvents, ...mappedReminders];
@@ -342,8 +302,7 @@ export default function ScheduleScreen() {
                 .map(e => ({
                     ...e,
                     type: 'zone',
-                    allDay: false, // Ensure they stay in daytimeEvents for grid rendering
-                    // Use very subtle color for all-day zones
+                    allDay: false,
                     color: (e.color || 'rgba(79, 70, 229, 0.8)').replace(/[\d.]+\)$/, '0.03)'),
                     start: dayjs(e.start).startOf('day').toDate(),
                     end: dayjs(e.end).endOf('day').toDate(),
@@ -359,7 +318,7 @@ export default function ScheduleScreen() {
             console.error("[ScheduleScreen] Critical error in fetchEvents:", e);
             setIsEventsLoaded(true);
         }
-    }, [visibleCalendarIds, date, assignments, eventTypes, difficulties, eventFlags, eventIcons, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes]);
+    }, [visibleCalendarIds, date, viewMode, assignments, eventTypes, difficulties, eventFlags, eventIcons, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes]);
 
     const handleRefresh = async () => {
         setRefreshing(true);
@@ -781,38 +740,118 @@ export default function ScheduleScreen() {
     }, [workRanges]);
 
     const handleEventDrop = async (event: any, newDate: Date) => {
-        // Only allow dropping reminders for now
-        if (event.typeTag !== 'REMINDER' && !event.originalEvent?.fileUri) {
-            alert('Only reminders can be rescheduled locally.');
+        console.log('[ScheduleScreen] handleEventDrop initiated', { title: event.title, newDate });
+        // Only allow dropping reminders or personal events
+        const isReminder = event.typeTag === 'REMINDER' || !!event.originalEvent?.fileUri;
+        const isPersonalEvent = event.isPersonal && event.originalEvent?.id;
+
+        if (!isReminder && !isPersonalEvent) {
+            alert('Only reminders and personal events can be rescheduled.');
             return;
         }
 
-        const originalReminder = event.originalEvent;
-        // const oldTime = originalReminder.reminderTime;
-        const newTimeStr = toLocalISOString(newDate);
+        if (isReminder) {
+            const originalReminder = event.originalEvent;
+            const newTimeStr = toLocalISOString(newDate);
 
-        // Optimistic Update
-        const updatedReminders = cachedReminders.map((r: any) => {
-            if (r.fileUri === originalReminder.fileUri) {
-                return { ...r, reminderTime: newTimeStr };
+            // Optimistic Update
+            const updatedReminders = cachedReminders.map((r: any) => {
+                if (r.fileUri === originalReminder.fileUri) {
+                    return { ...r, reminderTime: newTimeStr };
+                }
+                return r;
+            });
+            setCachedReminders(updatedReminders);
+
+            // Persist
+            try {
+                await updateReminder(
+                    originalReminder.fileUri,
+                    newTimeStr
+                );
+            } catch (e) {
+                console.error('[ScheduleScreen] Failed to update reminder drop', e);
+                alert('Failed to reschedule reminder.');
+                fetchEvents();
             }
-            return r;
-        });
-        setCachedReminders(updatedReminders);
+        } else {
+            try {
+                const duration = dayjs(event.end).diff(dayjs(event.start), 'millisecond');
+                const newStart = newDate;
+                const newEnd = new Date(newStart.getTime() + duration);
 
-        // Persist
-        try {
-            await updateReminder(
-                originalReminder.fileUri,
-                newTimeStr
-            );
-        } catch (e) {
-            console.error('[ScheduleScreen] Failed to update reminder drop', e);
-            alert('Failed to reschedule reminder.');
-            // Revert (fetchEvents will likely handle this on mount/focus, but manual revert is better)
-            // For now relying on store state which might be stale if we don't revert explicitly.
-            // But we didn't save old cachedReminders locally in this scop.
-            // Use setCachedReminders((prev) => ...) pattern if needed.
+                // Optimistic Update in events list
+                setEvents(prev => prev.map(e => {
+                    const match = e.originalEvent?.id === event.originalEvent?.id && 
+                                 (!e.start || new Date(e.start).getTime() === new Date(event.start).getTime());
+                    if (match) {
+                        return { ...e, start: newStart, end: newEnd };
+                    }
+                    return e;
+                }));
+
+                const rawIds = event.originalEvent?.ids || [event.originalEvent?.id];
+                const ids = rawIds.filter((id: any) => id && (rawIds.length === 1 || String(id) !== String(event.originalEvent?.calendarId)));
+                
+                const executeUpdate = async (options: any = {}) => {
+                    const isAndroid = Platform.OS === 'android';
+                    
+                    for (const id of ids) {
+                        try {
+                            let targetId = id;
+                            let finalOptions = { ...options };
+
+                            if (isAndroid && options.futureEvents) {
+                                targetId = String(id).split(':')[0];
+                                delete finalOptions.futureEvents;
+                            }
+
+                            await updateCalendarEvent(targetId, {
+                                startDate: newStart,
+                                endDate: newEnd,
+                                title: event.title || event.originalEvent?.title || 'Event',
+                                calendarId: event.originalEvent?.calendarId,
+                                ...finalOptions
+                            });
+                        } catch (err) {
+                            console.warn(`[ScheduleScreen] Failed to update event ID ${id}:`, err);
+                        }
+                    }
+                    setTimeout(() => {
+                        fetchEvents();
+                    }, 500);
+                };
+
+                if (event.isRecurrent) {
+                    Alert.alert(
+                        "Recurring Event",
+                        "Do you want to update only this instance or the whole series?",
+                        [
+                            { 
+                                text: "Cancel", 
+                                onPress: () => {
+                                    fetchEvents();
+                                }, 
+                                style: "cancel" 
+                            },
+                            { 
+                                text: "This Instance", 
+                                onPress: () => setTimeout(() => executeUpdate({ editScope: 'this', instanceStartDate: new Date(event.start) }), 50)
+                            },
+                            { 
+                                text: "Whole Series", 
+                                onPress: () => setTimeout(() => executeUpdate({ editScope: 'future', instanceStartDate: new Date(event.start) }), 50)
+                            }
+                        ]
+                    );
+                } else {
+                    executeUpdate();
+                }
+            } catch (e) {
+                console.error('[ScheduleScreen] Error in handleEventDrop Personal Path', e);
+                alert('Failed to reschedule event.');
+                fetchEvents();
+            }
         }
     };
 
