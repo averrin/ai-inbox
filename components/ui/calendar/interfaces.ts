@@ -27,6 +27,7 @@ export interface ICalendarEventBase {
    * Type of the event for advanced visualization
    */
   type?: 'marker' | 'zone' | 'range' | 'event'
+  isNow?: boolean
 }
 
 export interface TimeRangeDefinition {

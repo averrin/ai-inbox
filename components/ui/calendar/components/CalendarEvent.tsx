@@ -37,6 +37,7 @@ interface CalendarEventProps<T extends ICalendarEventBase> {
   maxHour?: number
   minHour?: number
   hours?: number
+  isNow?: boolean
 }
 
 function _CalendarEvent<T extends ICalendarEventBase>({
@@ -54,6 +55,7 @@ function _CalendarEvent<T extends ICalendarEventBase>({
   mode,
   minHour = 0,
   hours = 24,
+  isNow,
 }: CalendarEventProps<T>) {
   const theme = useTheme()
 
@@ -93,6 +95,7 @@ function _CalendarEvent<T extends ICalendarEventBase>({
       ampm={ampm}
       touchableOpacityProps={touchableOpacityProps}
       textColor={eventCellTextColor || textColor}
+      isNow={event.isNow || isNow}
     />
   )
 }
