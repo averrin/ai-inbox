@@ -265,7 +265,7 @@ export default function ScheduleScreen() {
                     isEnglish: flags?.isEnglish,
                     movable: flags?.movable || isPersonal,
                     isPersonal,
-                    isSkippable: flags?.skippable || currentUserRSVP === 'tentative',
+                    isSkippable: flags?.skippable !== undefined ? flags.skippable : currentUserRSVP === 'tentative',
                     needPrep: flags?.needPrep,
                     isRecurrent: !!evt.recurrenceRule,
                     hasRSVPNo: currentUserRSVP === 'declined',

@@ -388,11 +388,13 @@ export function getStyleForOverlappingEvent(
 
   // Side-by-side layout
   // Width is 100% divided by count (minus some padding)
+  const gapBetweenEvents = overlapCount > 1 ? 0.5 : 0
+  const totalGaps = (overlapCount - 1) * gapBetweenEvents
   const rightMargin = 1
-  const availableWidth = 100 - OVERLAP_PADDING - rightMargin
+  const availableWidth = 100 - OVERLAP_PADDING - rightMargin - totalGaps
   const widthPerEvent = availableWidth / overlapCount
 
-  const start = (eventPosition * widthPerEvent) + OVERLAP_PADDING / 2
+  const start = (eventPosition * (widthPerEvent + gapBetweenEvents)) + OVERLAP_PADDING / 2
   const end = 100 - (start + widthPerEvent)
 
   const zIndex = 100 + eventPosition
