@@ -197,7 +197,7 @@ export const createCalendarEvent = async (calendarId: string, eventData: Partial
     }
 };
 
-export const updateCalendarEvent = async (eventId: string, eventData: Partial<Calendar.Event> & { editScope?: 'this' | 'future' | 'all', isWork?: boolean }) => {
+export const updateCalendarEvent = async (eventId: string, eventData: Partial<Calendar.Event> & { editScope?: 'this' | 'future' | 'all', isWork?: boolean, instanceStartDate?: string | Date }) => {
     const hasPermission = await ensureCalendarPermissions();
     if (!hasPermission) throw new Error("Missing calendar permissions");
 
@@ -272,11 +272,17 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
             if (eventData.editScope === 'this') {
                 // Do not update recurrence rule for single instance exception
                 delete nativeEventData.recurrenceRule;
+                // For Android, instanceStartDate is required to identify the instance to update
+                if (Platform.OS === 'android' && eventData.instanceStartDate) {
+                    options.instanceStartDate = eventData.instanceStartDate;
+                }
             }
 
             if (Platform.OS === 'android') {
                 if (eventData.editScope === 'future') {
                     options.futureEvents = true;
+                    // Also requires instanceStartDate usually
+                    if (eventData.instanceStartDate) options.instanceStartDate = eventData.instanceStartDate;
                 }
                 // For 'all', we pass NO options, which defaults to updating the series (or master) on Android
                 // (replicating behavior before recurrence editing was added)

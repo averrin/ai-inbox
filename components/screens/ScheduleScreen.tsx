@@ -423,7 +423,8 @@ export default function ScheduleScreen() {
                        allDay: data.allDay,
                        isWork: data.isWork,
                        recurrenceRule: data.recurrenceRule,
-                       editScope: data.editScope
+                       editScope: data.editScope,
+                       instanceStartDate: editingEvent.originalEvent?.startDate // Required for updating instances on Android
                     });
 
                     // Re-sync
