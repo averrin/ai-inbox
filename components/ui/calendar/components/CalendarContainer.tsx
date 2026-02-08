@@ -662,6 +662,8 @@ function _CalendarContainer<T extends ICalendarEventBase>({
   return (
     <InfinitePager
       ref={calendarRef}
+      style={{ flex: 1 }}
+      pageWrapperStyle={{ flex: 1 }}
       renderPage={renderPage}
       onPageChange={handlePageChange}
       pageBuffer={2}
