@@ -111,7 +111,7 @@ function InnerTabNavigator({
           }}
         />
 
-        {/* <Tab.Screen
+        <Tab.Screen
           name="Dump"
           component={DumpScreen}
           options={{
@@ -119,7 +119,7 @@ function InnerTabNavigator({
               <Ionicons name="journal-outline" size={24} color={color} />
             ),
           }}
-        /> */}
+        />
 
         <Tab.Screen
           name="Reminders"

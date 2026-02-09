@@ -1,0 +1,48 @@
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: react-dom@18.3.1
+npm warn Found: react@19.1.0
+npm warn node_modules/react
+npm warn   react@"19.1.0" from the root project
+npm warn   77 more (@10play/tentap-editor, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer react@"^18.3.1" from react-dom@18.3.1
+npm warn node_modules/@10play/tentap-editor/node_modules/react-dom
+npm warn   react-dom@"^18.2.0" from @10play/tentap-editor@1.0.1
+npm warn   node_modules/@10play/tentap-editor
+npm warn
+npm warn Conflicting peer dependency: react@18.3.1
+npm warn node_modules/react
+npm warn   peer react@"^18.3.1" from react-dom@18.3.1
+npm warn   node_modules/@10play/tentap-editor/node_modules/react-dom
+npm warn     react-dom@"^18.2.0" from @10play/tentap-editor@1.0.1
+npm warn     node_modules/@10play/tentap-editor
+npm warn skipping integrity check for git dependency ssh://git@github.com/Expensify/simply-deferred.git
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated @types/marked@6.0.0: This is a stub types definition. marked provides its own type definitions, so you do not need this installed.
+npm warn gitignore-fallback No .npmignore file found, using .gitignore for file exclusion. Consider creating a .npmignore file to explicitly control published files.
+
+> mobile@1.0.0 postinstall
+> patch-package
+
+patch-package 8.0.1
+Applying patches...
+expo-calendar@15.0.8 ✔
+html-entities@2.5.3 ✔
+
+added 1019 packages, and audited 1020 packages in 33s
+
+142 packages are looking for funding
+  run `npm fund` for details
+
+4 vulnerabilities (2 moderate, 2 high)
+
+To address all issues, run:
+  npm audit fix
+
+Run `npm audit` for details.
