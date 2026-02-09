@@ -444,6 +444,9 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                     <View className="p-4 border-t border-slate-800">
                         <View className="flex-row items-center justify-between mb-2">
                              <Text className="text-slate-400 text-xs font-semibold uppercase">Linked Tasks</Text>
+                             <TouchableOpacity onPress={() => setShowTaskPicker(true)} className="p-1">
+                                <Ionicons name="add-circle-outline" size={20} color="#94a3b8" />
+                             </TouchableOpacity>
                         </View>
                         <View className="gap-2">
                             {linkedTasks.map((task, i) => (
