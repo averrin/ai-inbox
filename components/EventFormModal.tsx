@@ -71,10 +71,11 @@ export function EventFormModal({
 
     // UI State
     const [showDatePicker, setShowDatePicker] = useState(false);
-    const [showTimePicker, setShowTimePicker] = useState(false);
+    const [showTimePicker, setShowTimePicker] = useState<null | 'start' | 'end'>(null);
     const [showScopeSelector, setShowScopeSelector] = useState(false);
     const [scopeAction, setScopeAction] = useState<'save' | 'delete'>('save');
     const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+    const [isCustomDuration, setIsCustomDuration] = useState(false);
 
     // AI State
     const [isRescheduling, setIsRescheduling] = useState<null | 'later' | 'tomorrow'>(null);
@@ -158,6 +159,7 @@ export function EventFormModal({
                 setRecurrenceFreq('none');
                 setRecurrenceInterval('1');
                 setPersistent('');
+                setIsCustomDuration(false);
             }
         }
     }, [visible, initialDate, initialEvent, initialType]);
@@ -375,8 +377,8 @@ export function EventFormModal({
                                     {(!allDay || !isEvent) && (
                                         <View className="flex-row gap-3 mb-3">
                                             <TouchableOpacity
-                                                onPress={() => setShowTimePicker(true)}
-                                                className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row justify-between items-center"
+                                                onPress={() => setShowTimePicker('start')}
+                                                className="flex-1 bg-slate-800 p-3 rounded-xl border border-slate-700 flex-row justify-between items-center"
                                             >
                                                 <View className="flex-row items-center">
                                                     <Ionicons name="time-outline" size={20} color="#818cf8" />
@@ -392,20 +394,65 @@ export function EventFormModal({
 
                                             {/* Duration presets (Event only) */}
                                             {isEvent && (
-                                                <View className="flex-1 bg-slate-800 p-2 rounded-xl border border-slate-700 justify-center">
-                                                    <View className="flex-row justify-around">
-                                                        {[15, 30, 60, 90].map(mins => (
+                                                <View className="flex-1 bg-slate-800 p-1.5 rounded-xl border border-slate-700 justify-center">
+                                                    {!isCustomDuration ? (
+                                                        <View className="flex-row justify-between items-center gap-x-1">
+                                                            {[15, 30, 60, 90].map(mins => (
+                                                                <TouchableOpacity
+                                                                    key={mins}
+                                                                    onPress={() => setDurationMinutes(mins)}
+                                                                    className={`p-1.5 rounded-lg ${durationMinutes === mins ? 'bg-indigo-600' : 'bg-slate-700'}`}
+                                                                >
+                                                                    <Text className="text-white text-[10px] font-bold">{mins}m</Text>
+                                                                </TouchableOpacity>
+                                                            ))}
                                                             <TouchableOpacity
-                                                                key={mins}
-                                                                onPress={() => setDurationMinutes(mins)}
-                                                                className={`p-2 rounded-lg ${durationMinutes === mins ? 'bg-indigo-600' : 'bg-slate-700'}`}
+                                                                onPress={() => {
+                                                                    setIsCustomDuration(true);
+                                                                    // Default custom end time: +60 min
+                                                                    setDurationMinutes(60);
+                                                                }}
+                                                                className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 items-center justify-center"
                                                             >
-                                                                <Text className="text-white text-xs font-bold">{mins}m</Text>
+                                                                <Ionicons name="options-outline" size={14} color="#818cf8" />
                                                             </TouchableOpacity>
-                                                        ))}
-                                                    </View>
+                                                        </View>
+                                                    ) : (
+                                                        <TouchableOpacity
+                                                            onPress={() => setIsCustomDuration(false)}
+                                                            className="flex-row items-center justify-center gap-2"
+                                                        >
+                                                            <Text className="text-indigo-400 text-[10px] font-bold uppercase tracking-wider">Presets</Text>
+                                                            <Ionicons name="apps-outline" size={14} color="#818cf8" />
+                                                        </TouchableOpacity>
+                                                    )}
                                                 </View>
                                             )}
+                                        </View>
+                                    )}
+
+                                    {/* Custom End Time Picker Row */}
+                                    {isEvent && isCustomDuration && (
+                                        <View className="mb-3">
+                                            <TouchableOpacity
+                                                onPress={() => setShowTimePicker('end')}
+                                                className="bg-slate-800 p-3 rounded-xl border border-indigo-500/30 flex-row justify-between items-center"
+                                            >
+                                                <View className="flex-row items-center">
+                                                    <Ionicons name="flag-outline" size={20} color="#f43f5e" />
+                                                    <View className="ml-3">
+                                                        <Text className="text-slate-400 text-[10px] uppercase font-bold">End Time</Text>
+                                                        <Text className="text-white font-bold text-lg">
+                                                            {new Date(startDate.getTime() + durationMinutes * 60000).toLocaleTimeString([], {
+                                                                hour12: timeFormat === '12h',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            })}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                                <Ionicons name="chevron-forward" size={16} color="#64748b" />
+                                            </TouchableOpacity>
                                         </View>
                                     )}
 
@@ -542,17 +589,26 @@ export function EventFormModal({
 
                                     {showTimePicker && (
                                         <DateTimePicker
-                                            value={startDate}
+                                            value={showTimePicker === 'start' ? startDate : new Date(startDate.getTime() + durationMinutes * 60000)}
                                             mode="time"
                                             display="default"
                                             is24Hour={timeFormat === '24h'}
                                             onChange={(event, selectedDate) => {
-                                                setShowTimePicker(false);
+                                                const pickerMode = showTimePicker;
+                                                setShowTimePicker(null);
                                                 if (selectedDate) {
-                                                    const newDate = new Date(startDate);
-                                                    newDate.setHours(selectedDate.getHours());
-                                                    newDate.setMinutes(selectedDate.getMinutes());
-                                                    setStartDate(newDate);
+                                                    if (pickerMode === 'start') {
+                                                         const newDate = new Date(startDate);
+                                                         newDate.setHours(selectedDate.getHours());
+                                                         newDate.setMinutes(selectedDate.getMinutes());
+                                                         setStartDate(newDate);
+                                                    } else {
+                                                         // Selecting End Time
+                                                         const end = new Date(selectedDate);
+                                                         // Calculate duration in minutes
+                                                         const diff = Math.round((end.getTime() - startDate.getTime()) / 60000);
+                                                         setDurationMinutes(diff > 0 ? diff : durationMinutes);
+                                                    }
                                                 }
                                             }}
                                         />
