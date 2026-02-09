@@ -58,8 +58,9 @@ const styles = StyleSheet.create({
   nowIndicator: {
     position: 'absolute',
     zIndex: 10000,
-    height: 2,
     width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 })
 
@@ -712,14 +713,20 @@ function _CalendarBody<T extends ICalendarEventBase>({
                   style={[
                     styles.nowIndicator,
                     {
-                      backgroundColor: theme.palette.nowIndicator,
                       top: `${getRelativeTopInDay(now, minHour, hours.length)}%`,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      overflow: 'visible',
                     },
                   ]}
                 >
+                  {/* Line */}
+                  <View
+                    style={{
+                      width: '100%',
+                      height: 2,
+                      backgroundColor: theme.palette.nowIndicator,
+                      position: 'absolute',
+                    }}
+                  />
+                  {/* Badge */}
                   <View
                     style={{
                       backgroundColor: theme.palette.nowIndicator,
