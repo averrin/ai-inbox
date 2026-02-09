@@ -23,6 +23,8 @@ import { DayStatusMarker } from '../DayStatusMarker';
 import { DaySummaryModal } from '../DaySummaryModal';
 import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder } from '../../services/reminderService';
 import { EventFormModal, EventSaveData, DeleteOptions } from '../EventFormModal';
+import { TaskEditModal } from '../markdown/TaskEditModal';
+import { TaskWithSource } from '../../store/tasks';
 import { createCalendarEvent, getWritableCalendars, updateCalendarEvent, deleteCalendarEvent } from '../../services/calendarService';
 
 import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../services/weatherService';
@@ -33,7 +35,7 @@ import { RecurrenceScopeModal } from '../RecurrenceScopeModal';
 
 
 export default function ScheduleScreen() {
-    const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes, personalCalendarIds, workCalendarIds } = useSettingsStore();
+    const { vaultUri, visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes, personalCalendarIds, workCalendarIds } = useSettingsStore();
     const { assignments, difficulties, eventTypes, eventFlags, eventIcons, ranges, loadConfig, completedEvents, toggleCompleted } = useEventTypesStore();
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
@@ -55,6 +57,7 @@ export default function ScheduleScreen() {
     const [creatingEventDate, setCreatingEventDate] = useState<Date | null>(null);
     const [creatingEventType, setCreatingEventType] = useState<'event' | 'reminder' | 'alarm'>('event');
     const [editingEvent, setEditingEvent] = useState<any | null>(null);
+    const [editingTask, setEditingTask] = useState<TaskWithSource | null>(null);
     const [moodModalVisible, setMoodModalVisible] = useState(false);
     const [weatherModalVisible, setWeatherModalVisible] = useState(false);
     const [moodDate, setMoodDate] = useState<Date>(new Date());
@@ -1244,6 +1247,41 @@ export default function ScheduleScreen() {
                         }}
                         onSave={handleSaveEvent}
                         onDelete={handleDeleteEvent}
+                        onOpenTask={(task) => {
+                            // Close event modal first
+                            setEditingEvent(null);
+                            setCreatingEventDate(null);
+                            
+                            // Navigation to task view
+                            // In ScheduleScreen, we don't have TaskEditModal directly.
+                            // However, we can use the reminder context or just alert for now 
+                            // if we can't easily jump to the other screen's state.
+                            // BUT wait, we can just open the task edit modal IF we add it here.
+                            setEditingTask(task);
+                        }}
+                    />
+                )}
+
+                {editingTask && (
+                    <TaskEditModal
+                        visible={!!editingTask}
+                        task={editingTask}
+                        onSave={async (updatedTask) => {
+                            const { TaskService } = await import('../../services/taskService');
+                            if (vaultUri) {
+                                await TaskService.syncTaskUpdate(vaultUri, editingTask, updatedTask);
+                                setEditingTask(null);
+                                fetchEvents(); // Refresh to catch changes
+                            }
+                        }}
+                        onCancel={() => setEditingTask(null)}
+                        onOpenEvent={(id) => {
+                            setEditingTask(null);
+                            // Calendar event editing is already handled by setEditingEvent
+                            Calendar.getEventAsync(id).then(evt => {
+                                if (evt) setEditingEvent(evt);
+                            });
+                        }}
                     />
                 )}
 

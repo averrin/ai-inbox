@@ -113,9 +113,9 @@ export class RelationService {
 
     /**
      * Links a list of tasks to an event.
-     * Appends [event_id:: <eventId>] to the tasks.
+     * Appends [event_id:: <eventId>] and [event_title:: <eventTitle>] to the tasks.
      */
-    static async linkTasksToEvent(vaultUri: string, eventId: string, tasks: TaskWithSource[]) {
+    static async linkTasksToEvent(vaultUri: string, eventId: string, eventTitle: string, tasks: TaskWithSource[]) {
         for (const task of tasks) {
             try {
                 const currentIds = task.properties['event_id']
@@ -125,7 +125,11 @@ export class RelationService {
                 if (!currentIds.includes(eventId)) {
                     currentIds.push(eventId);
 
-                    const newProps = { ...task.properties, event_id: currentIds.join(', ') };
+                    const newProps = {
+                        ...task.properties,
+                        event_id: currentIds.join(', '),
+                        event_title: eventTitle
+                    };
                     const updatedTask: RichTask = { ...task, properties: newProps };
 
                     await TaskService.syncTaskUpdate(vaultUri, task, updatedTask);

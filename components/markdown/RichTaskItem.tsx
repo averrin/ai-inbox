@@ -20,6 +20,8 @@ interface RichTaskItemProps {
     showGuide?: boolean;
     isFirstInFile?: boolean;
     isLastInFile?: boolean;
+    selectionMode?: boolean;
+    isSelected?: boolean;
 }
 
 export function RichTaskItem({ 
@@ -34,7 +36,9 @@ export function RichTaskItem({
     subtitle,
     showGuide,
     isFirstInFile,
-    isLastInFile
+    isLastInFile,
+    selectionMode,
+    isSelected
 }: RichTaskItemProps) {
     const { tagConfig, propertyConfig } = useSettingsStore();
 
@@ -92,7 +96,7 @@ export function RichTaskItem({
             onPress={onToggle}
             onLongPress={handleStatusLongPress}
             delayLongPress={500}
-            className="w-full h-full items-center justify-center"
+            className="items-center justify-center p-2"
         >
             <Ionicons 
                 name={statusConfig.icon} 
@@ -109,7 +113,19 @@ export function RichTaskItem({
                     <Ionicons name="alarm" size={14} color="#fbbf24" />
                 </View>
             )}
+            {task.properties.event_id && (
+                <View 
+                    className="bg-indigo-900/30 px-1.5 py-0.5 rounded border border-indigo-500/30 flex-row items-center"
+                    style={{ backgroundColor: '#818cf833', borderColor: '#818cf866' }}
+                >
+                    <Ionicons name="calendar-outline" size={10} color="#818cf8" style={{ marginRight: 4 }} />
+                    <Text className="text-indigo-300 text-[10px] font-medium" style={{ color: '#818cf8' }} numberOfLines={1}>
+                        {task.properties.event_title || 'Event'}
+                    </Text>
+                </View>
+            )}
             {Object.entries(task.properties).map(([key, value]) => {
+                if (key === 'event_id' || key === 'event_title') return null;
                 const config = propertyConfig[key];
                 if (config?.hidden) return null;
 
@@ -126,12 +142,18 @@ export function RichTaskItem({
 
                 return (
                     <View 
-                        key={key} 
+                        key={`prop-${key}`} 
                         className="bg-slate-700/50 px-1.5 py-0.5 rounded border border-slate-600/50 flex-row"
                         style={customStyle}
                     >
-                        <Text className="text-slate-400 text-[10px] mr-1" style={textStyle}>{key}:</Text>
-                        <Text className="text-slate-200 text-[10px]" style={textStyle}>{value}</Text>
+                        {key === 'context' ? (
+                            <Text className="text-slate-200 text-[10px]" style={textStyle}>@{value}</Text>
+                        ) : (
+                            <>
+                                <Text className="text-slate-400 text-[10px] mr-1" style={textStyle}>{key}:</Text>
+                                <Text className="text-slate-200 text-[10px]" style={textStyle}>{value}</Text>
+                            </>
+                        )}
                     </View>
                 );
             })}
@@ -147,7 +169,7 @@ export function RichTaskItem({
 
                 return (
                     <View 
-                        key={tag} 
+                        key={`tag-${tag}`} 
                         className="bg-indigo-900/30 px-1.5 py-0.5 rounded border border-indigo-500/30"
                         style={customStyle}
                     >
@@ -165,33 +187,44 @@ export function RichTaskItem({
         </>
     ) : null;
 
+    const selectionComponent = selectionMode ? (
+        <View className="pl-1">
+            <Ionicons
+                name={isSelected ? "checkbox" : "square-outline"}
+                size={22}
+                color={isSelected ? "#818cf8" : "#64748b"}
+            />
+        </View>
+    ) : null;
+
     return (
-        <View className="relative">
+        <View className="flex-row items-start relative">
             {showGuide && (
                 <View 
-                    style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 20 }}
+                    style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 40, alignItems: 'center', justifyContent: 'center' }}
                     pointerEvents="none"
                 >
                     <View 
-                        className={`absolute left-[-10px] w-0.5 bg-indigo-500/50 ${isFirstInFile ? 'top-6' : 'top-0'} ${isLastInFile ? 'bottom-6' : 'bottom-0'}`}
+                        className={`absolute w-0.5 bg-indigo-500/30 ${isFirstInFile ? 'top-6' : 'top-0'} ${isLastInFile ? 'bottom-6' : 'bottom-0'}`}
+                        style={{ left: 19 }}
                     />
 
                     {isFirstInFile && fileName && (
                         <View 
                             style={{ 
                                 position: 'absolute',
-                                top: 94,
-                                left: -84,
-                                width: 160,
+                                top: '50%',
+                                left: -40,
+                                width: 120,
                                 height: 20,
-                                transform: [{ rotate: '90deg' }],
+                                transform: [{ translateY: -10 }, { rotate: '90deg' }],
                                 zIndex: 10,
                                 alignItems: 'center', 
-                                flexDirection: 'row', 
+                                justifyContent: 'center',
                             }}
                         >
                             <Text 
-                                className="text-slate-500 text-[10px] font-bold uppercase tracking-widest text-left w-full pl-2"
+                                className="text-slate-500 text-[8px] font-bold uppercase tracking-[2px] text-center"
                                 numberOfLines={1}
                             >
                                 {fileName}
@@ -200,22 +233,26 @@ export function RichTaskItem({
                     )}
                 </View>
             )}
-            <BaseListItem
-                leftIcon={leftIcon}
-                title={
-                    <Text 
-                        className={`text-sm font-medium ${task.status === 'x' || task.status === '-' ? 'text-slate-500 line-through' : 'text-white'}`}
-                        numberOfLines={1}
-                    >
-                        {task.title}
-                    </Text>
-                }
-                subtitle={subtitle || (Object.keys(task.properties).length > 0 || task.tags.length > 0 ? metadataSubtitle : undefined)}
-                onPress={onEdit}
-                onLongPress={handleBodyLongPress}
-                rightActions={rightActions}
-                containerStyle={task.status === 'x' || task.status === '-' ? { opacity: 0.8 } : undefined}
-            />
+            <View className={`flex-1 ${showGuide ? 'pl-10' : ''}`}>
+                <BaseListItem
+                    leftIcon={leftIcon}
+                    selectionComponent={selectionComponent}
+                    hideIconBackground={true}
+                    title={
+                        <Text 
+                            className={`text-sm font-medium ${task.status === 'x' || task.status === '-' ? 'text-slate-500 line-through' : 'text-white'}`}
+                            numberOfLines={1}
+                        >
+                            {task.title}
+                        </Text>
+                    }
+                    subtitle={subtitle || (Object.keys(task.properties).length > 0 || task.tags.length > 0 ? metadataSubtitle : undefined)}
+                    onPress={selectionMode ? onToggle : onEdit}
+                    onLongPress={handleBodyLongPress}
+                    rightActions={rightActions}
+                    containerStyle={task.status === 'x' || task.status === '-' ? { opacity: 0.8 } : undefined}
+                />
+            </View>
         </View>
     );
 }

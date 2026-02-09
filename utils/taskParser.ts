@@ -34,10 +34,15 @@ export function parseTaskLine(line: string): RichTask | null {
         title = title.replace(m[0], '');
     }
 
-    // Extract tags #tag
+    // Extract tags #tag (deduplicated)
     const tagMatches = Array.from(fullContent.matchAll(TAG_REGEX));
+    const seenTags = new Set<string>();
     for (const m of tagMatches) {
-        tags.push(m[1]);
+        const tag = m[1];
+        if (!seenTags.has(tag)) {
+            tags.push(tag);
+            seenTags.add(tag);
+        }
         title = title.replace(m[0], '');
     }
 

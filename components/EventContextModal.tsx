@@ -217,7 +217,7 @@ export function EventContextModal({ visible, onClose, onEdit, event }: Props) {
         const removed = linkedTasks.filter(t => !newIds.includes(t.fileUri + t.originalLine));
 
         if (added.length > 0) {
-            await RelationService.linkTasksToEvent(vaultUri, event.originalEvent.id, added);
+            await RelationService.linkTasksToEvent(vaultUri, event.originalEvent.id, eventTitle, added);
         }
         if (removed.length > 0) {
             await RelationService.unlinkTasksFromEvent(vaultUri, event.originalEvent.id, removed);
