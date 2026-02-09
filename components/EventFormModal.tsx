@@ -8,6 +8,7 @@ import { useEventTypesStore } from '../store/eventTypes';
 import { getCalendarEvents } from '../services/calendarService';
 import { rescheduleReminderWithAI, AIRescheduleContext } from '../services/gemini';
 import dayjs from 'dayjs';
+import { RecurrenceScopeModal } from './RecurrenceScopeModal';
 
 export interface EventSaveData {
     type: 'event' | 'reminder' | 'alarm';
@@ -577,45 +578,12 @@ export function EventFormModal({
                             </View>
                         </>
                     ) : (
-                        /* Scope Selector View */
-                        <View className="py-4">
-                            <Text className="text-slate-300 text-center mb-6">
-                                This is a recurring event. How would you like to apply your {scopeAction === 'delete' ? 'deletion' : 'changes'}?
-                            </Text>
-
-                            <View className="gap-3">
-                                <TouchableOpacity
-                                    onPress={() => handleScopeSelect('this')}
-                                    className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
-                                >
-                                    <Text className="text-white font-semibold">This event only</Text>
-                                    <Ionicons name="calendar-outline" size={20} color="#94a3b8" />
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    onPress={() => handleScopeSelect('future')}
-                                    className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
-                                >
-                                    <Text className="text-white font-semibold">This and following events</Text>
-                                    <Ionicons name="albums-outline" size={20} color="#94a3b8" />
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    onPress={() => handleScopeSelect('all')}
-                                    className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
-                                >
-                                    <Text className="text-white font-semibold">All events in series</Text>
-                                    <Ionicons name="infinite-outline" size={20} color="#94a3b8" />
-                                </TouchableOpacity>
-                            </View>
-
-                            <TouchableOpacity
-                                onPress={() => setShowScopeSelector(false)}
-                                className="mt-6 p-4 rounded-xl items-center"
-                            >
-                                <Text className="text-slate-500 font-semibold">Back</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <RecurrenceScopeModal
+                            visible={showScopeSelector}
+                            onClose={() => setShowScopeSelector(false)}
+                            onSelect={handleScopeSelect}
+                            actionType={scopeAction}
+                        />
                     )}
                 </View>
             </View>

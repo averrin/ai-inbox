@@ -29,11 +29,12 @@ import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../services/
 import { useMoodStore } from '../../store/moodStore';
 import { MoodEvaluationModal } from '../MoodEvaluationModal';
 import { WeatherForecastModal } from '../WeatherForecastModal';
+import { RecurrenceScopeModal } from '../RecurrenceScopeModal';
 
 
 export default function ScheduleScreen() {
     const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes, personalCalendarIds, workCalendarIds } = useSettingsStore();
-    const { assignments, difficulties, eventTypes, eventFlags, eventIcons, ranges, loadConfig } = useEventTypesStore();
+    const { assignments, difficulties, eventTypes, eventFlags, eventIcons, ranges, loadConfig, completedEvents, toggleCompleted } = useEventTypesStore();
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
     const { height: windowHeight } = useWindowDimensions();
@@ -58,6 +59,11 @@ export default function ScheduleScreen() {
     const [moodModalVisible, setMoodModalVisible] = useState(false);
     const [weatherModalVisible, setWeatherModalVisible] = useState(false);
     const [moodDate, setMoodDate] = useState<Date>(new Date());
+    
+    // Recurrence Scope Modal State
+    const [recurrenceModalVisible, setRecurrenceModalVisible] = useState(false);
+    const [pendingEventDrop, setPendingEventDrop] = useState<{ event: any, newDate: Date, executeUpdate: (options?: any) => Promise<void> } | null>(null);
+
     const calendarRef = useRef<CalendarRef>(null);
 
     const handleDeleteReminder = async (reminder: Reminder) => {
@@ -268,6 +274,7 @@ export default function ScheduleScreen() {
                     isPersonal,
                     isSkippable: flags?.skippable !== undefined ? flags.skippable : currentUserRSVP === 'tentative',
                     needPrep: flags?.needPrep,
+                    completable: !!flags?.completable,
                     isRecurrent: !!evt.recurrenceRule,
                     hasRSVPNo: currentUserRSVP === 'declined',
                     hideBadges: assignedType?.hideBadges,
@@ -805,6 +812,324 @@ export default function ScheduleScreen() {
         return map;
     }, [events, lunchDifficulties, focusRanges]);
 
+    const renderHeader = useCallback((headerProps: any) => {
+        // headerProps.dateRange is an array of dayjs objects for the current view (page)
+        // We use the first date in the range to represent the page's date in the DateRuler
+        const pageDate = headerProps.dateRange[0];
+        const pageDay = dayjs(pageDate);
+
+        // Calculate score for this pageDate
+        const dailyEvents = events.filter(e =>
+            dayjs(e.start).isSame(pageDay, 'day') &&
+            e.type !== 'marker'
+        );
+
+        // Calculate Day Stats using helper
+        const dayStats = aggregateDayStats(dailyEvents);
+
+        // Add Lunch Difficulty penalties (which come from hook, not events array directly yet)
+        const dayStr = pageDay.format('YYYY-MM-DD');
+        const lunchPenalty = lunchDifficulties[dayStr] || 0;
+
+        if (lunchPenalty > 0) {
+            dayStats.totalScore += lunchPenalty;
+            dayStats.penalties.push({ reason: 'Lunch Issues', points: lunchPenalty, count: 1 });
+        }
+
+        // Calculate Focus Range Bonus (existing logic added length to score)
+        // We should add this to stats
+        const dailyFocus = focusRanges.filter(f =>
+            dayjs(f.start).isSame(pageDay, 'day')
+        );
+        if (dailyFocus.length > 0) {
+            dayStats.totalScore += dailyFocus.length;
+            dayStats.penalties.push({ reason: 'Focus Range Bonus', points: dailyFocus.length, count: dailyFocus.length });
+        }
+
+        const status = calculateDayStatus(dayStats.totalScore, dayStats.deepWorkMinutes / 60);
+
+        const hours = Math.floor(dayStats.deepWorkMinutes / 60);
+        const mins = dayStats.deepWorkMinutes % 60;
+        const deepWorkStr = `${hours}h ${mins}m`;
+
+        const weather = weatherData[dayStr];
+
+        // Mood Logic
+        // Display mood and weather in the header
+        const moodEntry = moods[dayStr];
+        const moodColors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
+        const moodColor = moodEntry ? moodColors[moodEntry.mood - 1] : undefined;
+
+        // All Day Events for this day
+        const dailyAllDayEvents = (headerProps.allDayEvents || []).filter((e: any) =>
+            e.type !== 'zone' && // Filter out the grid zone markers from header
+            dayjs(pageDate).isBetween(dayjs(e.start), dayjs(e.end), 'day', '[]')
+        );
+
+        return (
+            <View className="bg-slate-900 border-b border-slate-800">
+                <View className="px-4 py-2 flex-row justify-between items-center">
+                    {/* Left: Mood Tracker and Weather */}
+                    <View className="flex-row items-center gap-4">
+                        <TouchableOpacity
+                            onPress={() => {
+                                setMoodDate(pageDate.toDate());
+                                setMoodModalVisible(true);
+                            }}
+                            className="flex-row items-center"
+                        >
+                            {moodEntry ? (
+                                <View className="w-5 h-5 rounded-full border border-white/20" style={{ backgroundColor: moodColor }} />
+                            ) : (
+                                <Ionicons name="add-circle-outline" size={20} color="#475569" />
+                            )}
+                        </TouchableOpacity>
+
+                        {weather && (
+                            <TouchableOpacity
+                                onPress={() => setWeatherModalVisible(true)}
+                                className="flex-row items-center gap-1"
+                            >
+                                <Ionicons name={weather.icon as any} size={16} color="#94a3b8" />
+                                <Text className="text-slate-400 text-xs font-semibold">
+                                    {Math.round(weather.maxTemp)}°C
+                                </Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {/* Right: Stats (Clickable for details) */}
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => {
+                            setSummaryData({ breakdown: dayStats, status, date: pageDate.toDate() });
+                            setSummaryModalVisible(true);
+                        }}
+                        className="flex-row items-center gap-4"
+                    >
+                        <View className="flex-row items-center gap-2">
+                            <DayStatusMarker status={status} />
+                            {dayStats.deepWorkMinutes > 0 && (
+                                <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                                    Deep Work: <Text className="text-emerald-400 text-sm">{deepWorkStr}</Text>
+                                </Text>
+                            )}
+                        </View>
+
+                        <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                            Day Score: <Text className="text-indigo-400 text-sm">{Math.round(dayStats.totalScore)}</Text>
+                        </Text>
+
+                        <Ionicons name="information-circle-outline" size={16} color="#64748b" />
+                    </TouchableOpacity>
+                </View>
+
+                {/* All Day Events Row */}
+                {dailyAllDayEvents.length > 0 && (
+                    <View className="px-4 pb-2 flex-row flex-wrap gap-1.5">
+                        {dailyAllDayEvents.map((evt: any, idx: number) => (
+                            <TouchableOpacity
+                                key={`${idx}-${evt.title}`}
+                                onPress={() => setSelectedEvent({ ...evt })}
+                                className="px-2 py-0.5 rounded-md flex-row items-center gap-1 border border-white/10"
+                                style={{ backgroundColor: evt.color || '#4f46e5', opacity: 0.9 }}
+                            >
+                                <Ionicons name="calendar-outline" size={10} color="white" />
+                                <Text className="text-white text-[10px] font-bold" numberOfLines={1}>
+                                    {evt.title}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
+            </View>
+        );
+    }, [changeDate, events, focusRanges, lunchDifficulties, weatherData, moods]);
+
+    const workRanges = useMemo(() => timeRangeEvents.filter((e: any) => e.isWork), [timeRangeEvents]);
+
+    const freeTimeZones = useMemo(() => {
+        if (!isEventsLoaded) return [];
+        return detectFreeTimeZones(events, workRanges);
+    }, [events, workRanges, isEventsLoaded]);
+
+
+
+    const allEvents = useMemo(() => {
+        return [...events, ...timeRangeEvents, ...focusRanges, ...freeTimeZones, ...lunchEvents];
+    }, [events, timeRangeEvents, focusRanges, freeTimeZones, lunchEvents]);
+
+    const eventCellStyle = useCallback((event: any) => {
+        const now = dayjs();
+        const eventEnd = dayjs(event.end);
+        const isFinishedToday = now.isSame(event.start, 'day') && now.isAfter(eventEnd);
+
+        // Compute isCompleted from store at render time
+        const completedKey = `${event.title}::${dayjs(event.start).format('YYYY-MM-DD')}`;
+        const isEventCompleted = event.completable && !!completedEvents[completedKey];
+
+        // Completable: overdue (past today, not completed) => full opacity, red border + glow
+        const isOverdueCompletable = event.completable && !isEventCompleted && isFinishedToday;
+        // Completable: completed => dimmed
+        const isCompletedEvent = isEventCompleted;
+
+        const style: any = {
+            backgroundColor: event.isInverted ? '#0f172a' : (event.color || '#4f46e5'),
+            borderColor: event.isInverted ? (event.color || '#4f46e5') : '#eeeeee66',
+            borderWidth: 1,
+            borderRadius: 4,
+            opacity: isCompletedEvent ? 0.35 : isOverdueCompletable ? 0.9 : (event.isSkippable || isFinishedToday) ? 0.45 : (event.isInverted ? 0.95 : 0.7),
+            marginTop: -1
+        };
+
+        if (isOverdueCompletable) {
+            style.borderColor = '#ef4444';
+            style.borderWidth = 2;
+            style.shadowColor = '#ef4444';
+            style.shadowOffset = { width: 0, height: 4 };
+            style.shadowOpacity = 0.8;
+            style.shadowRadius = 12;
+            style.elevation = 10;
+            style.boxShadow = '0 4px 24px #ef444488';
+        }
+
+        // Highlight events outside work hours (red dashed border)
+        if (!isOverdueCompletable && workRanges.length > 0 && !event.type && (event.difficulty?.total || 0) > 0) {
+            const evtStart = dayjs(event.start);
+            const evtEnd = dayjs(event.end);
+
+            const isDuringWork = workRanges.some((range: any) => {
+                const rangeStart = dayjs(range.start);
+                const rangeEnd = dayjs(range.end);
+                return evtStart.isBefore(rangeEnd) && evtEnd.isAfter(rangeStart);
+            });
+
+            if (!isDuringWork) {
+                style.borderColor = 'red';
+                style.borderWidth = 2;
+                style.borderStyle = 'dashed';
+            }
+        }
+        return style;
+    }, [workRanges, completedEvents]);
+
+    const handleEventDrop = async (event: any, newDate: Date) => {
+        console.log('[ScheduleScreen] handleEventDrop initiated', { title: event.title, newDate });
+        // Only allow dropping reminders or personal events
+        const isReminder = event.typeTag === 'REMINDER' || !!event.originalEvent?.fileUri;
+        const isPersonalEvent = event.isPersonal && event.originalEvent?.id;
+
+        if (!isReminder && !isPersonalEvent) {
+            alert('Only reminders and personal events can be rescheduled.');
+            return;
+        }
+
+        if (isReminder) {
+            const originalReminder = event.originalEvent;
+            const newTimeStr = toLocalISOString(newDate);
+
+            // Optimistic Update
+            const updatedReminders = cachedReminders.map((r: any) => {
+                if (r.fileUri === originalReminder.fileUri) {
+                    return { ...r, reminderTime: newTimeStr };
+                }
+                return r;
+            });
+            setCachedReminders(updatedReminders);
+
+            // Persist
+            try {
+                await updateReminder(
+                    originalReminder.fileUri,
+                    newTimeStr
+                );
+            } catch (e) {
+                console.error('[ScheduleScreen] Failed to update reminder drop', e);
+                alert('Failed to reschedule reminder.');
+                fetchEvents();
+            }
+        } else {
+            try {
+                const duration = dayjs(event.end).diff(dayjs(event.start), 'millisecond');
+                const newStart = newDate;
+                const newEnd = new Date(newStart.getTime() + duration);
+
+                // Optimistic Update in events list
+                setEvents(prev => prev.map(e => {
+                    const match = e.originalEvent?.id === event.originalEvent?.id && 
+                                 (!e.start || new Date(e.start).getTime() === new Date(event.start).getTime());
+                    if (match) {
+                        return { ...e, start: newStart, end: newEnd };
+                    }
+                    return e;
+                }));
+
+                const rawIds = event.originalEvent?.ids || [event.originalEvent?.id];
+                const ids = rawIds.filter((id: any) => id && (rawIds.length === 1 || String(id) !== String(event.originalEvent?.calendarId)));
+                
+                const executeUpdate = async (options: any = {}) => {
+                    const isAndroid = Platform.OS === 'android';
+                    
+                    for (const id of ids) {
+                        try {
+                            const originalId = event.originalEvent?.originalId || String(id).split(':')[0];
+                            const isSeriesUpdate = options.editScope === 'all' || options.editScope === 'future';
+                            
+                            // For a series update on Android, we should target the master ID.
+                            // For 'all', we target master directly. For 'future', expo-calendar handles splitting.
+                            let targetId = (isSeriesUpdate && originalId) ? originalId : id;
+                            let finalOptions = { ...options };
+
+                            // Android specific adjustment for 'future' updates if we have an instance ID
+                            if (isAndroid && options.editScope === 'future' && String(targetId).includes(':')) {
+                                targetId = String(targetId).split(':')[0];
+                                // We don't need to delete anything from finalOptions here because calendarService 
+                                // will process editScope into the correct native options.
+                            }
+
+                            await updateCalendarEvent(targetId, {
+                                startDate: newStart,
+                                endDate: newEnd,
+                                title: event.title || event.originalEvent?.title || 'Event',
+                                calendarId: event.originalEvent?.calendarId,
+                                ...finalOptions
+                            });
+                        } catch (err) {
+                            console.warn(`[ScheduleScreen] Failed to update event ID ${id}:`, err);
+                        }
+                    }
+                    setTimeout(() => {
+                        fetchEvents();
+                    }, 500);
+                };
+
+                const isRecurrent = event.isRecurrent || !!event.originalEvent?.recurrenceRule || !!event.originalEvent?.originalId || !!event.originalEvent?.instanceStartDate;
+                console.log('[ScheduleScreen] handleEventDrop detected recurrence:', isRecurrent, { 
+                    isRecurrentField: event.isRecurrent,
+                    hasRule: !!event.originalEvent?.recurrenceRule,
+                    hasOriginalId: !!event.originalEvent?.originalId,
+                    hasInstanceStart: !!event.originalEvent?.instanceStartDate
+                });
+
+                if (isRecurrent) {
+                    setPendingEventDrop({ 
+                        event, 
+                        newDate, 
+                        executeUpdate: (opts) => executeUpdate({ ...opts, instanceStartDate: new Date(event.start) }) 
+                    });
+                    setRecurrenceModalVisible(true);
+                } else {
+                    executeUpdate();
+                }
+            } catch (e) {
+                console.error('[ScheduleScreen] Error in handleEventDrop Personal Path', e);
+                alert('Failed to reschedule event.');
+                fetchEvents();
+            }
+        }
+    };
+
+>>>>>>> master
 
     return (
         <View className="flex-1 bg-slate-950">
@@ -893,6 +1218,7 @@ export default function ScheduleScreen() {
                                     event={evt}
                                     touchableOpacityProps={touchableOpacityProps}
                                     timeFormat={timeFormat}
+                                    onToggleCompleted={toggleCompleted}
                                 />
                             )}
                             // refreshing={refreshing}
@@ -926,6 +1252,24 @@ export default function ScheduleScreen() {
                     status={summaryData?.status || 'healthy'}
                     date={summaryData?.date || new Date()}
                 />
+
+                <RecurrenceScopeModal
+                    visible={recurrenceModalVisible}
+                    onClose={() => {
+                        setRecurrenceModalVisible(false);
+                        setPendingEventDrop(null);
+                        fetchEvents(); // Revert optimistic move
+                    }}
+                    onSelect={(scope) => {
+                        if (pendingEventDrop) {
+                            pendingEventDrop.executeUpdate({ editScope: scope });
+                            setRecurrenceModalVisible(false);
+                            setPendingEventDrop(null);
+                        }
+                    }}
+                    actionType="reschedule"
+                />
+
 
                 {(creatingEventDate || editingEvent) && (
                     <EventFormModal
