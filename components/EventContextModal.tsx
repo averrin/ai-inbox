@@ -7,6 +7,10 @@ import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { calculateEventDifficulty } from '../utils/difficultyUtils';
 import { IconPicker } from './ui/IconPicker';
+import { useRelationsStore } from '../store/relations';
+import { RelationService } from '../services/relationService';
+import { TaskPicker } from './ui/TaskPicker';
+import { TaskWithSource } from '../store/tasks';
 
 interface Props {
     visible: boolean;
@@ -24,7 +28,8 @@ export function EventContextModal({ visible, onClose, onEdit, event }: Props) {
     const [fetchedAttendees, setFetchedAttendees] = useState<any[] | null>(null);
     const [showAttendeesPopup, setShowAttendeesPopup] = useState(false);
     const [showIconPicker, setShowIconPicker] = useState(false);
-    const { contacts, personalAccountId, workAccountId } = useSettingsStore();
+    const [showTaskPicker, setShowTaskPicker] = useState(false);
+    const { contacts, personalAccountId, workAccountId, vaultUri } = useSettingsStore();
     const {
         eventTypes,
         assignments,
@@ -133,6 +138,10 @@ export function EventContextModal({ visible, onClose, onEdit, event }: Props) {
     const hasAttendees = (attendees && Array.isArray(attendees) && attendees.length > 0) || !!currentUserAttendee;
     const currentStatus = currentUserAttendee?.status;
 
+    // Relations
+    const relations = useRelationsStore(s => event?.originalEvent?.id ? s.relations[event.originalEvent.id] : undefined);
+    const linkedTasks = relations?.tasks || [];
+
     if (!event) return null;
 
     const handleAssign = async (typeId: string) => {
@@ -196,6 +205,25 @@ export function EventContextModal({ visible, onClose, onEdit, event }: Props) {
             }
         }
         onClose();
+    };
+
+    const handleTaskSelect = async (selected: TaskWithSource[]) => {
+        if (!event?.originalEvent?.id || !vaultUri) return;
+
+        const currentIds = linkedTasks.map(t => t.fileUri + t.originalLine);
+        const newIds = selected.map(t => t.fileUri + t.originalLine);
+
+        const added = selected.filter(t => !currentIds.includes(t.fileUri + t.originalLine));
+        const removed = linkedTasks.filter(t => !newIds.includes(t.fileUri + t.originalLine));
+
+        if (added.length > 0) {
+            await RelationService.linkTasksToEvent(vaultUri, event.originalEvent.id, added);
+        }
+        if (removed.length > 0) {
+            await RelationService.unlinkTasksFromEvent(vaultUri, event.originalEvent.id, removed);
+        }
+
+        setShowTaskPicker(false);
     };
 
     return (
@@ -411,6 +439,26 @@ export function EventContextModal({ visible, onClose, onEdit, event }: Props) {
                         </View>
                     </View>
 
+                    {/* Linked Items */}
+                    <View className="p-4 border-t border-slate-800">
+                        <View className="flex-row items-center justify-between mb-2">
+                             <Text className="text-slate-400 text-xs font-semibold uppercase">Linked Tasks</Text>
+                             <TouchableOpacity onPress={() => setShowTaskPicker(true)} className="bg-slate-800 px-2 py-1 rounded border border-slate-700">
+                                 <Text className="text-indigo-400 text-xs font-bold">+ Link Task</Text>
+                             </TouchableOpacity>
+                        </View>
+                        <View className="gap-2">
+                            {linkedTasks.map((task, i) => (
+                                <View key={i} className="flex-row items-center gap-2 bg-slate-800/50 p-2 rounded-lg border border-slate-700/50">
+                                    <Ionicons name={task.completed ? "checkbox" : "square-outline"} size={14} color={task.completed ? "#22c55e" : "#94a3b8"} />
+                                    <Text className="text-slate-300 text-xs flex-1" numberOfLines={1}>{task.title}</Text>
+                                </View>
+                            ))}
+                            {linkedTasks.length === 0 && (
+                                <Text className="text-slate-500 text-xs italic">No linked tasks.</Text>
+                            )}
+                        </View>
+                    </View>
 
                     {/* Source Calendars */}
                     {event?.originalEvent?.sourceCalendars && (
@@ -515,6 +563,13 @@ export function EventContextModal({ visible, onClose, onEdit, event }: Props) {
                     </View>
                 </View>
             </Modal>
+
+            <TaskPicker
+                visible={showTaskPicker}
+                initialSelectedTasks={linkedTasks}
+                onSelect={handleTaskSelect}
+                onCancel={() => setShowTaskPicker(false)}
+            />
 
             {/* Attendees List Popup */}
             <Modal visible={showAttendeesPopup} transparent animationType="slide">

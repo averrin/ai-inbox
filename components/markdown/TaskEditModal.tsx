@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as Calendar from 'expo-calendar';
+import dayjs from 'dayjs';
 import { RichTask } from '../../utils/taskParser';
 import { PropertyEditor } from '../ui/PropertyEditor';
 import { TagEditor } from '../ui/TagEditor';
@@ -37,6 +39,7 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
     const [properties, setProperties] = useState<Record<string, any>>({});
     const [tags, setTags] = useState<string[]>([]);
     const [showReminderModal, setShowReminderModal] = useState(false);
+    const [linkedEvents, setLinkedEvents] = useState<{ id: string, title: string, date: Date }[]>([]);
     
     // Derived from settings for autocomplete
     const keySuggestions = Object.keys(propertyConfig);
@@ -55,6 +58,31 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                 setTags([]);
             }
         }
+    }, [task, visible]);
+
+    useEffect(() => {
+        const loadLinkedEvents = async () => {
+            if (task && task.properties['event_id']) {
+                const ids = task.properties['event_id'].split(',').map(s => s.trim());
+                const events: any[] = [];
+                for (const id of ids) {
+                    if (!id) continue;
+                    try {
+                        const evt = await Calendar.getEventAsync(id);
+                        if (evt) {
+                            events.push({ id: evt.id, title: evt.title, date: new Date(evt.startDate) });
+                        }
+                    } catch (e) {
+                        // console.warn(`Failed to load event ${id}`, e);
+                        events.push({ id, title: 'Unknown Event', date: new Date() });
+                    }
+                }
+                setLinkedEvents(events);
+            } else {
+                setLinkedEvents([]);
+            }
+        };
+        if (visible) loadLinkedEvents();
     }, [task, visible]);
 
     const handleAddTag = (tag: string) => {
@@ -291,6 +319,23 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                             />
                         </View>
 
+                        {linkedEvents.length > 0 && (
+                            <View className="mb-4">
+                                <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Linked Events</Text>
+                                <View className="gap-2">
+                                    {linkedEvents.map((evt, i) => (
+                                        <View key={i} className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex-row items-center gap-2">
+                                            <Ionicons name="calendar-outline" size={16} color="#818cf8" />
+                                            <View className="flex-1">
+                                                <Text className="text-white font-medium" numberOfLines={1}>{evt.title}</Text>
+                                                {/* <Text className="text-slate-500 text-xs">{dayjs(evt.date).format('MMM D, h:mm A')}</Text> */}
+                                            </View>
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
+                        )}
+
                         <View className="mb-4">
                             <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Priority</Text>
                             <View className="flex-row gap-2">
@@ -364,8 +409,11 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                         <View className="mb-4">
                             <PropertyEditor
                                 label="Properties"
-                                properties={properties}
-                                onUpdate={setProperties}
+                                properties={(() => {
+                                    const { event_id, ...rest } = properties;
+                                    return rest;
+                                })()}
+                                onUpdate={(newProps) => setProperties(prev => ({ ...prev, ...newProps, event_id: prev.event_id }))}
                                 metadataCache={metadataCache}
                             />
                         </View>
