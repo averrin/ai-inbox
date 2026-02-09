@@ -18,7 +18,7 @@ import { LongPressButton } from '../ui/LongPressButton';
 import { LinkAttachment } from '../ui/LinkAttachment';
 import { ReminderItem } from '../ui/ReminderItem';
 import { EventInfo } from '../ui/EventInfo';
-import { ReminderEditModal } from '../ReminderEditModal';
+import { EventFormModal, EventSaveData } from '../EventFormModal';
 import { EventEditModal } from '../EventEditModal';
 import { TimeSyncPanel } from '../ui/TimeSyncPanel';
 import { Action } from '../../services/gemini';
@@ -151,10 +151,6 @@ export function PreviewScreen({
     const handleToggleSync = (value: boolean) => {
         setIsTimeSynced(value);
         if (value) {
-            // Logic: when enabling, copy Reminder -> Events as default "sync" direction? 
-            // Or just leave them as is until next edit? 
-            // Prompt says: "if enabled: set last set time and date to both items"
-            // We don't track "last set". Let's assume Reminder is master if enabling.
             handleCopyReminderToEvents();
         }
     };
@@ -185,8 +181,31 @@ export function PreviewScreen({
         setIsEditingReminder(true);
     };
 
-    const handleSaveReminder = ({ date, recurrence, alarm, persistent }: { date: Date, recurrence: string, alarm: boolean, persistent?: number }) => {
-        const isoDate = date.toISOString();
+    const formatRecurrenceForReminder = (rule: any): string | undefined => {
+      if (!rule || !rule.frequency || rule.frequency === 'none') return undefined;
+      const freq = rule.frequency.toLowerCase();
+      const interval = rule.interval || 1;
+
+      if (interval === 1) {
+          return freq; // 'daily', 'weekly', etc.
+      }
+
+      let unit = '';
+      if (freq === 'daily') unit = 'days';
+      else if (freq === 'weekly') unit = 'weeks';
+      else if (freq === 'monthly') unit = 'months';
+      else if (freq === 'yearly') unit = 'years';
+
+      if (unit) return `${interval} ${unit}`;
+      return undefined;
+    };
+
+    const handleSaveReminder = (eventData: EventSaveData) => {
+        const isoDate = eventData.startDate.toISOString();
+        const recurrence = formatRecurrenceForReminder(eventData.recurrenceRule) || '';
+        const alarm = eventData.alarm;
+        const persistent = eventData.persistent;
+
         if (onUpdateFrontmatter) {
             const updates: Record<string, any> = {
                 reminder_datetime: isoDate
@@ -282,6 +301,22 @@ export function PreviewScreen({
         const newText = updateTaskInText(body, originalTask, updatedTask);
         onBodyChange(newText);
     };
+
+    // Mock event for EventFormModal
+    const mockReminderEvent = isEditingReminder ? {
+        typeTag: 'REMINDER',
+        originalEvent: {
+            title: title || 'Reminder',
+            fileUri: 'preview', // dummy
+            alarm: editAlarm,
+            persistent: editPersistent,
+            recurrenceRule: editRecurrence
+        },
+        title: title || 'Reminder',
+        start: editDate,
+        end: editDate,
+        reminderTime: editDate.toISOString()
+    } : null;
 
     return (
         <Layout>
@@ -624,16 +659,11 @@ export function PreviewScreen({
                 </View>
             </KeyboardAvoidingView>
 
-            {/* Removed inline Tag Input Modal - now handled by TagEditor */}
-
-            <ReminderEditModal
+            <EventFormModal
                 visible={isEditingReminder}
+                initialEvent={mockReminderEvent}
+                initialType={editAlarm ? 'alarm' : 'reminder'}
                 initialDate={editDate}
-                initialRecurrence={editRecurrence}
-                initialAlarm={editAlarm}
-                initialPersistent={editPersistent}
-                initialTitle={title}
-                initialContent={body}
                 onSave={handleSaveReminder}
                 onCancel={() => setIsEditingReminder(false)}
                 timeFormat={timeFormat}

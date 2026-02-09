@@ -12,7 +12,6 @@ import Toast from 'react-native-toast-message';
 import { useReminderModal } from '../../utils/reminderModalContext';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import { ReminderItem } from '../ui/ReminderItem';
-import { ReminderEditModal } from '../ReminderEditModal';
 
 export function RemindersSettings() {
     const { showReminder } = useReminderModal();
@@ -37,14 +36,6 @@ export function RemindersSettings() {
     } = useSettingsStore();
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [defaultFolderStatus, setDefaultFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
-
-    // Edit state
-    // Edit state
-    const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
-    const [editDate, setEditDate] = useState<Date>(new Date());
-    const [editRecurrence, setEditRecurrence] = useState<string>('');
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [showTimePicker, setShowTimePicker] = useState(false);
 
     useEffect(() => {
         checkPermissions();
@@ -293,12 +284,6 @@ Ensure the app is in background to test the notification, or foreground to test 
                 </TouchableOpacity>
 
             </View>
-
-
-
-            {/* Reminder Edit and Active List Removed */}
         </Card>
     );
 }
-
-

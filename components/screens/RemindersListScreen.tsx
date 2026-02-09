@@ -7,7 +7,7 @@ import { useSettingsStore } from '../../store/settings';
 import Toast from 'react-native-toast-message';
 import { useReminderModal } from '../../utils/reminderModalContext';
 import { ReminderItem } from '../ui/ReminderItem';
-import { ReminderEditModal } from '../ReminderEditModal';
+import { EventFormModal, EventSaveData, DeleteOptions } from '../EventFormModal';
 import { useOptimisticReminders } from '../../hooks/useOptimisticReminders';
 
 export default function RemindersListScreen() {
@@ -17,10 +17,6 @@ export default function RemindersListScreen() {
   // Edit Modal State
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-  const [editDate, setEditDate] = useState(new Date());
-  const [editRecurrence, setEditRecurrence] = useState('');
-  const [editAlarm, setEditAlarm] = useState(false);
-  const [editPersistent, setEditPersistent] = useState<number | undefined>(undefined);
 
   const {
     vaultUri,
@@ -45,38 +41,47 @@ export default function RemindersListScreen() {
     setLoading(false);
   };
 
-  const handleCreateReminder = ({ title, date, recurrence, alarm, persistent }: { title?: string, date: Date, recurrence: string, alarm: boolean, persistent?: number }) => {
-    addReminder(title || 'New Reminder', date, recurrence, alarm, persistent);
+  const formatRecurrenceForReminder = (rule: any): string | undefined => {
+      if (!rule || !rule.frequency || rule.frequency === 'none') return undefined;
+      const freq = rule.frequency.toLowerCase();
+      const interval = rule.interval || 1;
+
+      if (interval === 1) {
+          return freq; // 'daily', 'weekly', etc.
+      }
+
+      let unit = '';
+      if (freq === 'daily') unit = 'days';
+      else if (freq === 'weekly') unit = 'weeks';
+      else if (freq === 'monthly') unit = 'months';
+      else if (freq === 'yearly') unit = 'years';
+
+      if (unit) return `${interval} ${unit}`;
+      return undefined;
+  };
+
+  const handleCreateReminder = (data: EventSaveData) => {
+    const recurrence = formatRecurrenceForReminder(data.recurrenceRule) || '';
+    addReminder(data.title || 'New Reminder', data.startDate, recurrence, !!data.alarm, data.persistent);
     setIsCreateModalVisible(false);
   };
 
-  const handleDeleteReminderOnly = async (reminder: Reminder) => {
-    // Long press: delete reminder only, keep note
-    await deleteReminder(reminder, false);
-    setIsEditModalVisible(false);
-    setEditingReminder(null);
-  };
-
-  const handleDeleteReminderWithNote = async (reminder: Reminder) => {
-    // Default tap: delete reminder AND note
-    await deleteReminder(reminder, true);
-    setIsEditModalVisible(false);
-    setEditingReminder(null);
+  const handleDeleteReminder = async (options: DeleteOptions) => {
+      if (!editingReminder) return;
+      await deleteReminder(editingReminder, !!options.deleteFile);
+      setIsEditModalVisible(false);
+      setEditingReminder(null);
   };
 
   const handleEditReminder = (reminder: Reminder) => {
     setEditingReminder(reminder);
-    setEditDate(new Date(reminder.reminderTime));
-    setEditRecurrence(reminder.recurrenceRule || '');
-    setEditAlarm(reminder.alarm || false);
-    setEditPersistent(reminder.persistent);
     setIsEditModalVisible(true);
   };
 
-  const handleSaveEdit = ({ date, recurrence, alarm, persistent }: { date: Date, recurrence: string, alarm: boolean, persistent?: number }) => {
+  const handleSaveEdit = (data: EventSaveData) => {
     if (!editingReminder) return;
-
-    editReminder(editingReminder, date, recurrence, alarm, persistent);
+    const recurrence = formatRecurrenceForReminder(data.recurrenceRule) || '';
+    editReminder(editingReminder, data.startDate, recurrence, !!data.alarm, data.persistent);
 
     setIsEditModalVisible(false);
     setEditingReminder(null);
@@ -98,6 +103,15 @@ export default function RemindersListScreen() {
     if (Math.abs(diffHr) < 24) return diffHr > 0 ? `in ${diffHr} hr` : `${Math.abs(diffHr)} hr ago`;
     return diffDay > 0 ? `in ${diffDay} days` : `${Math.abs(diffDay)} days ago`;
   };
+
+  // Wrap reminder for EventFormModal
+  const editingEvent = editingReminder ? {
+      originalEvent: editingReminder,
+      typeTag: 'REMINDER',
+      title: editingReminder.title,
+      start: new Date(editingReminder.reminderTime),
+      end: new Date(editingReminder.reminderTime)
+  } : null;
 
   return (
     <Layout>
@@ -139,7 +153,12 @@ export default function RemindersListScreen() {
                       reminder={reminder}
                       relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
                       onEdit={() => handleEditReminder(reminder)}
-                      onDelete={() => handleDeleteReminderWithNote(reminder)}
+                      onDelete={() => handleDeleteReminder( { deleteFile: true })} // Default to full delete for list view item swipe/press? Wait, ReminderItem calls onDelete.
+                      // Actually ReminderItem usually has an edit button which opens the modal. The onDelete prop on ReminderItem might be for direct deletion.
+                      // Let's check ReminderItem. But here I passed `handleDeleteReminderWithNote` before.
+                      // I should pass a function that calls `deleteReminder(reminder, true)`.
+                      // The modal `onDelete` is handled by `handleDeleteReminder`.
+                      // But the list item also has actions.
                       onShow={() => showReminder(reminder)}
                       timeFormat={timeFormat}
                     />
@@ -158,7 +177,10 @@ export default function RemindersListScreen() {
                       reminder={reminder}
                       relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
                       onEdit={() => handleEditReminder(reminder)}
-                      onDelete={() => handleDeleteReminderWithNote(reminder)}
+                      onDelete={() => {
+                          // Direct delete from list item (trash icon)
+                          deleteReminder(reminder, true);
+                      }}
                       onShow={() => showReminder(reminder)}
                       timeFormat={timeFormat}
                     />
@@ -185,44 +207,27 @@ export default function RemindersListScreen() {
         <Ionicons name="add" size={32} color="white" />
       </TouchableOpacity>
 
-      <ReminderEditModal
-        visible={isEditModalVisible}
-        initialDate={editDate}
-        initialRecurrence={editRecurrence}
-        initialAlarm={editAlarm}
-        initialPersistent={editPersistent}
-        initialContent={editingReminder?.content}
-        initialFileUri={editingReminder?.fileUri}
-        onSave={handleSaveEdit}
-        onCancel={() => {
-          setIsEditModalVisible(false);
-          setEditingReminder(null);
-        }}
-        onDelete={() => {
-            if (editingReminder) {
-                handleDeleteReminderOnly(editingReminder);
-            }
-        }}
-        onDeleteWithNote={() => {
-            if (editingReminder) {
-                handleDeleteReminderWithNote(editingReminder);
-            }
-        }}
-        onShow={() => {
-            if (editingReminder) {
-                showReminder(editingReminder);
-            }
-        }}
-        timeFormat={timeFormat}
-      />
+      {/* Edit Modal */}
+      {editingReminder && (
+          <EventFormModal
+            visible={isEditModalVisible}
+            initialEvent={editingEvent}
+            initialType={editingReminder.alarm ? 'alarm' : 'reminder'}
+            onSave={handleSaveEdit}
+            onCancel={() => {
+              setIsEditModalVisible(false);
+              setEditingReminder(null);
+            }}
+            onDelete={handleDeleteReminder}
+            timeFormat={timeFormat}
+          />
+      )}
 
-      {/* Creation Modal (using Unified Edit Modal) */}
-      <ReminderEditModal
+      {/* Creation Modal */}
+      <EventFormModal
         visible={isCreateModalVisible}
         initialDate={new Date(new Date().setHours(new Date().getHours() + 1, 0, 0, 0))} // Default +1h
-        initialRecurrence=""
-        initialAlarm={false}
-        enableTitle={true}
+        initialType="reminder"
         onSave={handleCreateReminder}
         onCancel={() => setIsCreateModalVisible(false)}
         timeFormat={timeFormat}
