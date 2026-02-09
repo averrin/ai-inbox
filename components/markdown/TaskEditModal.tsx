@@ -28,9 +28,10 @@ interface TaskEditModalProps {
     task: (RichTask & { fileUri?: string }) | null;
     onSave: (task: RichTask) => void;
     onCancel: () => void;
+    onOpenEvent?: (id: string) => void;
 }
 
-export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModalProps) {
+export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: TaskEditModalProps) {
     const { propertyConfig, vaultUri, timeFormat } = useSettingsStore();
     const { metadataCache } = useVaultStore();
     
@@ -70,11 +71,19 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                     try {
                         const evt = await Calendar.getEventAsync(id);
                         if (evt) {
-                            events.push({ id: evt.id, title: evt.title, date: new Date(evt.startDate) });
+                            events.push({ 
+                                id: evt.id, 
+                                title: task.properties.event_title || evt.title, 
+                                date: new Date(evt.startDate) 
+                            });
                         }
                     } catch (e) {
                         // console.warn(`Failed to load event ${id}`, e);
-                        events.push({ id, title: 'Unknown Event', date: new Date() });
+                        events.push({ 
+                            id, 
+                            title: task.properties.event_title || 'Unknown Event', 
+                            date: new Date() 
+                        });
                     }
                 }
                 setLinkedEvents(events);
@@ -324,13 +333,20 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                                 <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Linked Events</Text>
                                 <View className="gap-2">
                                     {linkedEvents.map((evt, i) => (
-                                        <View key={i} className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex-row items-center gap-2">
+                                        <TouchableOpacity 
+                                            key={i} 
+                                            onPress={() => onOpenEvent && onOpenEvent(evt.id)}
+                                            className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex-row items-center gap-2"
+                                        >
                                             <Ionicons name="calendar-outline" size={16} color="#818cf8" />
                                             <View className="flex-1">
                                                 <Text className="text-white font-medium" numberOfLines={1}>{evt.title}</Text>
-                                                {/* <Text className="text-slate-500 text-xs">{dayjs(evt.date).format('MMM D, h:mm A')}</Text> */}
+                                                <Text className="text-slate-500 text-xs">{dayjs(evt.date).format('dddd, MMM D, h:mm A')}</Text>
                                             </View>
-                                        </View>
+                                            {onOpenEvent && (
+                                                <Ionicons name="chevron-forward" size={16} color="#475569" />
+                                            )}
+                                        </TouchableOpacity>
                                     ))}
                                 </View>
                             </View>

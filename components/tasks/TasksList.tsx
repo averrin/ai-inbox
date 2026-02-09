@@ -108,45 +108,31 @@ export function TasksList({
                     const isSelected = selectedIds.includes(uniqueId);
 
                     return (
-                        <View className="flex-row items-center">
-                            {selectionMode && (
-                                <TouchableOpacity
-                                    onPress={() => onToggleSelection?.(item)}
-                                    className="pl-4 pr-2 justify-center h-full"
-                                >
-                                    <Ionicons
-                                        name={isSelected ? "checkbox" : "square-outline"}
-                                        size={24}
-                                        color={isSelected ? "#818cf8" : "#64748b"}
-                                    />
-                                </TouchableOpacity>
-                            )}
-                            <View className="flex-1">
-                                <RichTaskItem
-                                    task={item}
-                                    onToggle={() => selectionMode ? onToggleSelection?.(item) : onToggle?.(item)}
-                                    onEdit={!selectionMode ? () => onEdit?.(item) : undefined}
-                                    onDelete={!selectionMode ? () => onDelete?.(item) : undefined}
-                                    onUpdate={(updated) => onUpdate?.(updated, item)}
-                                    fileName={item.fileName}
-                                    showGuide={item.showGuide}
-                                    isFirstInFile={item.isFirstInFile}
-                                    isLastInFile={item.isLastInFile}
-                                    // Disable long press actions in selection mode
-                                    onStatusLongPress={!selectionMode ? () => {
-                                        setActiveTaskForSheet(item);
-                                        setIsStatusSheetVisible(true);
-                                    } : undefined}
-                                    onPriorityLongPress={!selectionMode ? () => {
-                                        setActiveTaskForSheet(item);
-                                        setIsPrioritySheetVisible(true);
-                                    } : undefined}
-                                />
-                            </View>
-                        </View>
+                        <RichTaskItem
+                            task={item}
+                            onToggle={() => selectionMode ? onToggleSelection?.(item) : onToggle?.(item)}
+                            onEdit={!selectionMode ? () => onEdit?.(item) : undefined}
+                            onDelete={!selectionMode ? () => onDelete?.(item) : undefined}
+                            onUpdate={(updated) => onUpdate?.(updated, item)}
+                            fileName={item.fileName}
+                            showGuide={item.showGuide}
+                            isFirstInFile={item.isFirstInFile}
+                            isLastInFile={item.isLastInFile}
+                            selectionMode={selectionMode}
+                            isSelected={isSelected}
+                            // Disable long press actions in selection mode
+                            onStatusLongPress={!selectionMode ? () => {
+                                setActiveTaskForSheet(item);
+                                setIsStatusSheetVisible(true);
+                            } : undefined}
+                            onPriorityLongPress={!selectionMode ? () => {
+                                setActiveTaskForSheet(item);
+                                setIsPrioritySheetVisible(true);
+                            } : undefined}
+                        />
                     );
                 }}
-                contentContainerStyle={{ padding: 16 }}
+                contentContainerStyle={{ padding: 12 }}
                 ListEmptyComponent={
                     <View className="items-center justify-center py-20">
                         <Text className="text-slate-500 italic">No tasks found matching criteria.</Text>

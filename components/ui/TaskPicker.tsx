@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationIndependentTree, NavigationContainer, DefaultTheme } from '@react-navigation/native';
@@ -146,15 +147,17 @@ export function TaskPicker({ visible, initialSelectedIds = [], initialSelectedTa
         <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onCancel}>
             <View className="flex-1 bg-slate-950">
                 {/* Header */}
-                <View className="flex-row items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800">
-                    <TouchableOpacity onPress={onCancel}>
-                        <Text className="text-slate-400 text-lg">Cancel</Text>
-                    </TouchableOpacity>
-                    <Text className="text-white text-lg font-bold">Select Tasks</Text>
-                    <TouchableOpacity onPress={handleDone}>
-                        <Text className="text-indigo-400 text-lg font-bold">Done</Text>
-                    </TouchableOpacity>
-                </View>
+                <SafeAreaView edges={['top']} className="bg-slate-900">
+                    <View className="flex-row items-center justify-between px-4 py-3 border-b border-slate-800">
+                        <TouchableOpacity onPress={onCancel}>
+                            <Text className="text-slate-400 text-lg">Cancel</Text>
+                        </TouchableOpacity>
+                        <Text className="text-white text-lg font-bold">Select Tasks</Text>
+                        <TouchableOpacity onPress={handleDone}>
+                            <Text className="text-indigo-300 text-lg font-bold">Done</Text>
+                        </TouchableOpacity>
+                    </View>
+                </SafeAreaView>
 
                 {/* Filter Panel */}
                 <View className="bg-slate-900 pb-2">

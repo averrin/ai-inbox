@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleProp, ViewStyle } from 'react-native
 
 interface BaseListItemProps {
     leftIcon?: ReactNode;
+    selectionComponent?: ReactNode;
     title: ReactNode;
     subtitle?: ReactNode;
     rightActions?: ReactNode;
@@ -10,17 +11,20 @@ interface BaseListItemProps {
     onLongPress?: () => void;
     containerStyle?: StyleProp<ViewStyle>;
     activeOpacity?: number;
+    hideIconBackground?: boolean;
 }
 
 export function BaseListItem({
     leftIcon,
+    selectionComponent,
     title,
     subtitle,
     rightActions,
     onPress,
     onLongPress,
     containerStyle,
-    activeOpacity = 0.7
+    activeOpacity = 0.7,
+    hideIconBackground = false
 }: BaseListItemProps) {
     const Container = onPress || onLongPress ? TouchableOpacity : View;
 
@@ -32,9 +36,16 @@ export function BaseListItem({
             activeOpacity={onPress ? activeOpacity : 1}
             style={containerStyle}
         >
-            {/* Left Icon */}
-            {leftIcon && (
-                <View className="mr-3 items-center justify-center w-10 h-10 bg-slate-700 rounded-lg overflow-hidden">
+            {/* Selection Component */}
+            {selectionComponent && (
+                <View className="mr-3 justify-center items-center">
+                    {selectionComponent}
+                </View>
+            )}
+
+            {/* Left Icon - Hidden in selection mode to avoid redundancy */}
+            {leftIcon && !selectionComponent && (
+                <View className={`${hideIconBackground ? 'mr-3' : 'mr-3 items-center justify-center w-10 h-10 bg-slate-700 rounded-lg overflow-hidden'}`}>
                     {leftIcon}
                 </View>
             )}

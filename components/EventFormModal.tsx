@@ -9,6 +9,7 @@ import { getCalendarEvents } from '../services/calendarService';
 import { rescheduleReminderWithAI, AIRescheduleContext } from '../services/gemini';
 import dayjs from 'dayjs';
 import { RecurrenceScopeModal } from './RecurrenceScopeModal';
+import { useTasksStore, TaskWithSource } from '../store/tasks';
 
 export interface EventSaveData {
     type: 'event' | 'reminder' | 'alarm';
@@ -41,6 +42,7 @@ interface EventFormModalProps {
     onSave: (data: EventSaveData) => void;
     onDelete?: (options: DeleteOptions) => void;
     onCancel: () => void;
+    onOpenTask?: (task: TaskWithSource) => void;
     timeFormat: '12h' | '24h';
 }
 
@@ -52,11 +54,13 @@ export function EventFormModal({
     onSave,
     onDelete,
     onCancel,
+    onOpenTask,
     timeFormat
 }: EventFormModalProps) {
     // Stores
     const { apiKey, visibleCalendarIds } = useSettingsStore();
     const { ranges } = useEventTypesStore();
+    const { tasks } = useTasksStore();
 
     // State
     const [type, setType] = useState<'event' | 'reminder' | 'alarm'>('event');
@@ -79,6 +83,9 @@ export function EventFormModal({
 
     // AI State
     const [isRescheduling, setIsRescheduling] = useState<null | 'later' | 'tomorrow'>(null);
+
+    // Linked Items State
+    const [linkedTasks, setLinkedTasks] = useState<TaskWithSource[]>([]);
 
     useEffect(() => {
         if (visible) {
@@ -163,6 +170,23 @@ export function EventFormModal({
             }
         }
     }, [visible, initialDate, initialEvent, initialType]);
+
+    useEffect(() => {
+        if (visible && initialEvent) {
+            const eventId = initialEvent.id || initialEvent.originalEvent?.id;
+            if (eventId) {
+                const linked = tasks.filter(t => {
+                    const linkedIds = t.properties['event_id']?.split(',').map((id: string) => id.trim()) || [];
+                    return linkedIds.includes(eventId);
+                });
+                setLinkedTasks(linked);
+            } else {
+                setLinkedTasks([]);
+            }
+        } else {
+            setLinkedTasks([]);
+        }
+    }, [visible, initialEvent, tasks]);
 
     // AI Logic
     const workRanges = useMemo(() => ranges.filter(r => r.isEnabled && r.isWork), [ranges]);
@@ -614,6 +638,31 @@ export function EventFormModal({
                                         />
                                     )}
                                 </View>
+
+                                {linkedTasks.length > 0 && (
+                                    <View className="mb-6">
+                                        <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Linked Tasks</Text>
+                                        <View className="gap-2">
+                                            {linkedTasks.map((t, i) => (
+                                                <TouchableOpacity 
+                                                    key={i} 
+                                                    onPress={() => onOpenTask && onOpenTask(t)}
+                                                    className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex-row items-center gap-2"
+                                                >
+                                                    <View className={`w-3 h-3 rounded-sm border ${t.completed ? 'bg-green-500 border-green-400' : 'bg-transparent border-slate-500'}`} />
+                                                    <View className="flex-1">
+                                                        <Text className={`text-white font-medium ${t.completed ? 'text-slate-500 line-through' : ''}`} numberOfLines={1}>
+                                                            {t.title.replace(/^\[\[(.*)\]\]$/, '$1')}
+                                                        </Text>
+                                                    </View>
+                                                    {onOpenTask && (
+                                                        <Ionicons name="chevron-forward" size={16} color="#475569" />
+                                                    )}
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </View>
+                                )}
                             </ScrollView>
 
                             <View className="flex-row gap-3 mt-4">

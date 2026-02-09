@@ -11,6 +11,10 @@ import { FloatingActionButton } from '../ui/FloatingActionButton';
 import { useFolderTasks } from '../../hooks/useFolderTasks';
 import { useFilteredTasks } from '../../hooks/useFilteredTasks';
 import { TasksList } from './TasksList';
+import { SelectionSheet, SelectionOption } from '../ui/SelectionSheet';
+import { EventFormModal, EventSaveData } from '../EventFormModal';
+import * as Calendar from 'expo-calendar';
+
 
 interface TasksFolderViewProps {
     folderUri: string;
@@ -33,6 +37,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
     // Edit Modal State
     const [editingTask, setEditingTask] = useState<TaskWithSource | null>(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
+    const [editingEvent, setEditingEvent] = useState<any | null>(null);
 
     // Merge Modal State
     const [isMergeModalVisible, setIsMergeModalVisible] = useState(false);
@@ -277,6 +282,30 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                         setEditingTask(null);
                     }}
                     onSave={editingTask ? handleSaveEdit : handleSaveNewTask}
+                    onOpenEvent={(id) => {
+                        setIsModalVisible(false);
+                        Calendar.getEventAsync(id).then(evt => {
+                            if (evt) setEditingEvent(evt);
+                        });
+                    }}
+                />
+            )}
+
+            {editingEvent && (
+                <EventFormModal
+                    visible={!!editingEvent}
+                    initialEvent={editingEvent}
+                    timeFormat={useSettingsStore.getState().timeFormat}
+                    onCancel={() => setEditingEvent(null)}
+                    onSave={() => {
+                        setEditingEvent(null);
+                        // Refresh if needed, but usually calendar sync handles it
+                    }}
+                    onOpenTask={(task) => {
+                        setEditingEvent(null);
+                        setEditingTask(task);
+                        setIsModalVisible(true);
+                    }}
                 />
             )}
 
