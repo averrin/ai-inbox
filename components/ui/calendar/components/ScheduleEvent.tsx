@@ -3,12 +3,14 @@ import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import dayjs from 'dayjs';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
+import { useEventTypesStore } from '../../../../store/eventTypes';
 
 
 interface ScheduleEventProps {
     event: any;
     touchableOpacityProps: any;
     timeFormat: string;
+    onToggleCompleted?: (title: string, dateStr: string) => void;
 }
 
 // Helper function to get difficulty color based on value (0-5+)
@@ -29,8 +31,9 @@ const getDifficultyColor = (difficulty: number): string => {
     return difficultyColors[index];
 };
 
-export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }: ScheduleEventProps) => {
+export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, onToggleCompleted }: ScheduleEventProps) => {
     const theme = useTheme();
+    const completedEvents = useEventTypesStore((s) => s.completedEvents);
     const isNow = (evt as any).isNow || false;
     // touchableOpacityProps includes key, style, onPress, etc.
     const { key, ...restProps } = touchableOpacityProps;
@@ -132,6 +135,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
     }
 
     const duration = dayjs(evt.end).diff(dayjs(evt.start), 'minute');
+    const isUltraCompact = duration <= 15;
     const isCompact = duration <= 30;
 
     // Special styling for generated lunch suggestions
@@ -143,6 +147,10 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
         containerStyle.borderColor = (evt.color || '#22c55e') + 'AA'; // Slightly higher border opacity
         containerStyle.borderStyle = 'dashed';
     }
+
+    const isCompletable = evt.completable;
+    const completedKey = `${evt.title}::${dayjs(evt.start).format('YYYY-MM-DD')}`;
+    const isCompleted = isCompletable && !!completedEvents[completedKey];
 
     const textColor = evt.isInverted ? evt.color : 'white';
     const subTextColor = evt.isInverted ? evt.color : 'rgba(255, 255, 255, 0.8)';
@@ -160,27 +168,54 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
         boxShadow: `0 4px 32px ${glowColor}88`,
     } : {};
 
+    const handleCheckboxPress = () => {
+        if (isCompletable && onToggleCompleted) {
+            const dateStr = dayjs(evt.start).format('YYYY-MM-DD');
+            onToggleCompleted(evt.title, dateStr);
+        }
+    };
+
     return (
         <TouchableOpacity key={key} {...restProps} style={[
             restProps.style,
             isLunchSuggestion && containerStyle,
-            nowStyle
+            nowStyle,
+            isUltraCompact && { overflow: 'visible', padding: 2, paddingVertical: 0 },
+            isCompleted && { opacity: 0.35 },
+            isCompletable && { overflow: 'visible' }
         ]}>
-            <View className={`flex-row items-center ${isCompact ? 'gap-1' : ''}`}>
+            <View className={`flex-row items-center ${isUltraCompact ? 'gap-0.5' : (isCompact ? 'gap-1' : '')}`}>
+                {isCompletable && (
+                    <TouchableOpacity onPress={handleCheckboxPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: isUltraCompact ? -0 : -2, marginRight: isUltraCompact ? 0 : 3 }}>
+                        <Ionicons
+                            name={isCompleted ? 'checkbox' : 'square-outline'}
+                            size={isUltraCompact ? 10 : 14}
+                            color={isCompleted ? '#22c55e' : 'rgba(255,255,255,0.5)'}
+                        />
+                    </TouchableOpacity>
+                )}
                 {evt.icon && (
                     <Ionicons
                         name={evt.icon as any}
-                        size={14}
+                        size={isUltraCompact ? 10 : 14}
                         color={textColor}
-                        style={{ marginRight: 4 }}
+                        style={{ marginRight: isUltraCompact ? 2 : 4 }}
                     />
                 )}
-                <Text className="font-semibold text-[13px]" style={{ color: textColor }} numberOfLines={1}>
+                <Text
+                    className={`font-semibold ${isUltraCompact ? 'text-[10px]' : 'text-[13px]'}`}
+                    style={{
+                        color: textColor,
+                        textDecorationLine: isCompleted ? 'line-through' : 'none',
+                        opacity: isCompleted ? 0.6 : 1
+                    }}
+                    numberOfLines={1}
+                >
                     {evt.title}
                 </Text>
                 {isCompact && (
-                    <Text className="text-[12px]" style={{ color: subTextColor }} numberOfLines={1}>
-                        {dayjs(evt.start).format(timeFormatStr)} - {dayjs(evt.end).format(timeFormatStr)}
+                    <Text className={isUltraCompact ? 'text-[9px]' : 'text-[12px]'} style={{ color: subTextColor, opacity: isCompleted ? 0.5 : 1 }} numberOfLines={1}>
+                        {dayjs(evt.start).format(timeFormatStr)} {isUltraCompact ? '' : `- ${dayjs(evt.end).format(timeFormatStr)}`}
                     </Text>
                 )}
             </View>
@@ -191,8 +226,8 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat }:
                 </Text>
             )}
 
-            {/* Hide badges if event type has hideBadges enabled */}
-            {!evt.hideBadges && (
+            {/* Hide badges if event type has hideBadges enabled or if ultra-compact */}
+            {!evt.hideBadges && !isUltraCompact && (
                 <View className="absolute top-1 right-1 flex-row gap-1 items-center">
                     {evt.movable && (
                         <View className="bg-emerald-500/80 px-1 py-0.5 rounded">

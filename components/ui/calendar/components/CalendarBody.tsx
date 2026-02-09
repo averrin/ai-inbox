@@ -724,6 +724,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
                       height: 2,
                       backgroundColor: theme.palette.nowIndicator,
                       position: 'absolute',
+                      top: -2
                     }}
                   />
                   {/* Badge */}
@@ -733,6 +734,8 @@ function _CalendarBody<T extends ICalendarEventBase>({
                       paddingHorizontal: 8,
                       paddingVertical: 2,
                       borderRadius: 12,
+                      position: 'absolute',
+                      top: -8
                     }}
                   >
                     <Text

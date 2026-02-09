@@ -14,8 +14,20 @@ import { DraggableEventWrapper } from './DraggableEventWrapper'
 const getEventCellPositionStyle = (start: Date, end: Date, minHour: number, hours: number) => {
   const totalMinutesInRange = (DAY_MINUTES / 24) * hours
   const durationInMinutes = dayjs(end).diff(start, 'minute')
-  const relativeHeight = 100 * (1 / totalMinutesInRange) * durationInMinutes
-  const relativeTop = getRelativeTopInDay(dayjs(start), minHour, hours)
+  
+  // Enforce minimum visual duration for legibility (e.g. 15min events look like 30min events)
+  const MIN_VISUAL_DURATION = 15
+  const visualDuration = Math.max(durationInMinutes, MIN_VISUAL_DURATION)
+  const relativeHeight = 100 * (1 / totalMinutesInRange) * visualDuration
+  
+  let relativeTop = getRelativeTopInDay(dayjs(start), minHour, hours)
+  if (visualDuration > durationInMinutes) {
+    // Center the larger visual pill on the shorter actual slot
+    const offsetMinutes = (visualDuration - durationInMinutes) / 2
+    const offsetPercentage = 100 * (1 / totalMinutesInRange) * offsetMinutes
+    relativeTop -= offsetPercentage
+  }
+
   const relativeTopOffset = (minHour * 60) / DAY_MINUTES
   return {
     height: `${relativeHeight}%`,

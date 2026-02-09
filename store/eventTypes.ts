@@ -11,8 +11,9 @@ interface EventTypesState {
     assignments: Record<string, string>; // Event Title -> Type ID
     difficulties: Record<string, number>; // Event Title -> Difficulty
     ranges: TimeRangeDefinition[];
-    eventFlags: Record<string, { isEnglish?: boolean; movable?: boolean; skippable?: boolean; needPrep?: boolean }>; // Event Title -> Flags
+    eventFlags: Record<string, { isEnglish?: boolean; movable?: boolean; skippable?: boolean; needPrep?: boolean; completable?: boolean }>; // Event Title -> Flags
     eventIcons: Record<string, string>; // Event Title -> Icon Name
+    completedEvents: Record<string, boolean>; // "title::YYYY-MM-DD" -> true
     lunchConfig: { targetCalendarId?: string; defaultInvitee?: string };
     isLoaded: boolean;
     loadConfig: () => Promise<void>;
@@ -27,7 +28,8 @@ interface EventTypesState {
     updateRange: (id: string, updates: Partial<Omit<TimeRangeDefinition, 'id'>>) => Promise<void>;
     deleteRange: (id: string) => Promise<void>;
     toggleRange: (id: string) => Promise<void>;
-    toggleEventFlag: (title: string, flag: 'isEnglish' | 'movable' | 'skippable' | 'needPrep') => Promise<void>;
+    toggleEventFlag: (title: string, flag: 'isEnglish' | 'movable' | 'skippable' | 'needPrep' | 'completable') => Promise<void>;
+    toggleCompleted: (title: string, dateStr: string) => void;
     updateLunchConfig: (config: { targetCalendarId?: string; defaultInvitee?: string }) => Promise<void>;
 }
 
@@ -40,6 +42,7 @@ export const useEventTypesStore = create<EventTypesState>()(
             ranges: [],
             eventFlags: {},
             eventIcons: {},
+            completedEvents: {},
             lunchConfig: {},
             isLoaded: false,
 
@@ -359,6 +362,18 @@ export const useEventTypesStore = create<EventTypesState>()(
                 }
             },
 
+            toggleCompleted: (title, dateStr) => {
+                const key = `${title}::${dateStr}`;
+                const state = get();
+                const newCompleted = { ...state.completedEvents };
+                if (newCompleted[key]) {
+                    delete newCompleted[key];
+                } else {
+                    newCompleted[key] = true;
+                }
+                set({ completedEvents: newCompleted });
+            },
+
             updateLunchConfig: async (config) => {
                 const state = get();
                 const newConfig: EventTypeConfig = {
@@ -389,8 +404,9 @@ export const useEventTypesStore = create<EventTypesState>()(
                 ranges: state.ranges,
                 eventFlags: state.eventFlags,
                 eventIcons: state.eventIcons,
+                completedEvents: state.completedEvents,
                 lunchConfig: state.lunchConfig
             }), // Don't persist isLoaded
         }
     )
-);
+)

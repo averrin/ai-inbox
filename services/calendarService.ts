@@ -253,13 +253,17 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
     if (eventData.startDate) {
         const sDate = new Date(eventData.startDate);
         if (!isNaN(sDate.getTime())) {
-            nativeEventData.startDate = isAndroid ? sDate.getTime() : sDate.toISOString();
+            nativeEventData.startDate = sDate;
         }
     }
     if (eventData.endDate) {
         const eDate = new Date(eventData.endDate);
         if (!isNaN(eDate.getTime())) {
-            nativeEventData.endDate = isAndroid ? eDate.getTime() : eDate.toISOString();
+            nativeEventData.endDate = eDate;
+            if (isAndroid) {
+                // Ensure duration is NOT in the object at all if sending endDate
+                delete nativeEventData.duration;
+            }
         }
     }
 
@@ -310,7 +314,33 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
         const finalOptions = Object.keys(options).length > 0 ? options : undefined;
 
         console.log('[CalendarService] Updating event robustly:', eventId, { nativeEventData, finalOptions });
-        await Calendar.updateEventAsync(eventId, nativeEventData, finalOptions);
+        try {
+            await Calendar.updateEventAsync(eventId, nativeEventData, finalOptions);
+        } catch (e: any) {
+            if (isAndroid && e.message?.includes('both DTEND and DURATION')) {
+                console.warn('[CalendarService] Detected DTEND/DURATION conflict, retrying with duration field...');
+                const fallbackData = { ...nativeEventData };
+                if (fallbackData.startDate && fallbackData.endDate) {
+                    const sTime = new Date(fallbackData.startDate).getTime();
+                    const eTime = new Date(fallbackData.endDate).getTime();
+                    const durationSeconds = Math.max(0, Math.floor((eTime - sTime) / 1000));
+                    // Android expects duration in RFC2445 format, e.g., PT1H or PT3600S. 
+                    // Using PT<n>S is precise.
+                    (fallbackData as any).duration = `PT${durationSeconds}S`;
+                    // For recurrence, DTEND and DURATION are strictly mutual exclusive.
+                    // When using DURATION, we MUST NOT send DTEND.
+                    delete fallbackData.endDate;
+
+                    console.log('[CalendarService] Retrying update with duration:', (fallbackData as any).duration);
+                    await Calendar.updateEventAsync(eventId, fallbackData, finalOptions);
+                    console.log('[CalendarService] Retry with duration succeeded');
+                } else {
+                    throw e;
+                }
+            } else {
+                throw e;
+            }
+        }
         console.log('[CalendarService] NATIVE updateEventAsync RETURNED successfully');
     } catch (e) {
         console.error(`[CalendarService] updateCalendarEvent FAILED for event ${eventId}:`, e);

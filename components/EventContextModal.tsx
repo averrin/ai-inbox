@@ -304,6 +304,18 @@ export function EventContextModal({ visible, onClose, onEdit, event }: Props) {
                                             </Text>
                                         </View>
                                     </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        onPress={() => toggleEventFlag(eventTitle, 'completable')}
+                                        className={`px-2 py-1 rounded-md border ${flags?.completable ? 'bg-cyan-500/20 border-cyan-500' : 'bg-slate-700 border-transparent'}`}
+                                    >
+                                        <View className="flex-row items-center gap-1">
+                                            <Ionicons name="checkbox-outline" size={12} color={flags?.completable ? '#22d3ee' : '#94a3b8'} />
+                                            <Text className={`text-xs ${flags?.completable ? 'text-cyan-400 font-bold' : 'text-slate-400'}`}>
+                                                Checkbox
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
                                 </View>
                             </View>
 
