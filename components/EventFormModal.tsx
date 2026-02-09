@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, TextInput, Switch, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, TextInput, Switch, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -24,6 +24,7 @@ interface EventFormModalProps {
     initialDate?: Date;
     initialEvent?: any; // Calendar event object for editing
     onSave: (data: EventSaveData) => void;
+    onDelete?: (scope?: 'this' | 'future' | 'all') => void;
     onCancel: () => void;
     timeFormat: '12h' | '24h';
 }
@@ -33,6 +34,7 @@ export function EventFormModal({
     initialDate,
     initialEvent,
     onSave,
+    onDelete,
     onCancel,
     timeFormat
 }: EventFormModalProps) {
@@ -47,10 +49,12 @@ export function EventFormModal({
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [showScopeSelector, setShowScopeSelector] = useState(false);
+    const [scopeAction, setScopeAction] = useState<'save' | 'delete'>('save');
 
     useEffect(() => {
         if (visible) {
             setShowScopeSelector(false);
+            setScopeAction('save');
             if (initialEvent) {
                 // Edit Mode
                 setTitle(initialEvent.title || '');
@@ -119,9 +123,37 @@ export function EventFormModal({
         // If editing a recurring event, ask for scope
         const isRecurrent = initialEvent?.originalEvent?.recurrenceRule || initialEvent?.recurrenceRule || initialEvent?.isRecurrent;
         if (initialEvent && isRecurrent) {
+            setScopeAction('save');
             setShowScopeSelector(true);
         } else {
             triggerSave();
+        }
+    };
+
+    const handlePreDelete = () => {
+        if (!onDelete) return;
+
+        const isRecurrent = initialEvent?.originalEvent?.recurrenceRule || initialEvent?.recurrenceRule || initialEvent?.isRecurrent;
+        if (isRecurrent) {
+            setScopeAction('delete');
+            setShowScopeSelector(true);
+        } else {
+            Alert.alert(
+                "Delete Event",
+                "Are you sure you want to delete this event?",
+                [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Delete", style: "destructive", onPress: () => onDelete() }
+                ]
+            );
+        }
+    };
+
+    const handleScopeSelect = (scope: 'this' | 'future' | 'all') => {
+        if (scopeAction === 'save') {
+            triggerSave(scope);
+        } else {
+            if (onDelete) onDelete(scope);
         }
     };
 
@@ -129,9 +161,16 @@ export function EventFormModal({
         <Modal visible={visible} transparent animationType="fade">
             <View className="flex-1 justify-center items-center bg-black/50 px-4">
                 <View className="bg-slate-900 w-full max-w-md p-6 rounded-3xl border border-slate-700 max-h-[90%]">
-                    <Text className="text-white text-xl font-bold mb-4">
-                        {initialEvent ? 'Edit Event' : 'New Event'}
-                    </Text>
+                    <View className="flex-row justify-between items-center mb-4">
+                        <Text className="text-white text-xl font-bold">
+                            {initialEvent ? 'Edit Event' : 'New Event'}
+                        </Text>
+                        {initialEvent && onDelete && (
+                            <TouchableOpacity onPress={handlePreDelete}>
+                                <Ionicons name="trash-outline" size={24} color="#ef4444" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
 
                     {!showScopeSelector ? (
                         <>
@@ -315,12 +354,12 @@ export function EventFormModal({
                     ) : (
                         <View className="py-4">
                             <Text className="text-slate-300 text-center mb-6">
-                                This is a recurring event. How would you like to apply your changes?
+                                This is a recurring event. How would you like to apply your {scopeAction === 'delete' ? 'deletion' : 'changes'}?
                             </Text>
 
                             <View className="gap-3">
                                 <TouchableOpacity
-                                    onPress={() => triggerSave('this')}
+                                    onPress={() => handleScopeSelect('this')}
                                     className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
                                 >
                                     <Text className="text-white font-semibold">This event only</Text>
@@ -328,7 +367,7 @@ export function EventFormModal({
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
-                                    onPress={() => triggerSave('future')}
+                                    onPress={() => handleScopeSelect('future')}
                                     className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
                                 >
                                     <Text className="text-white font-semibold">This and following events</Text>
@@ -336,7 +375,7 @@ export function EventFormModal({
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
-                                    onPress={() => triggerSave('all')}
+                                    onPress={() => handleScopeSelect('all')}
                                     className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
                                 >
                                     <Text className="text-white font-semibold">All events in series</Text>
