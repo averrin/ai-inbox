@@ -1,5 +1,6 @@
 export interface RichTask {
     indentation: string;
+    bullet: string; // '-', '*', '+'
     status: string; // ' ', 'x', '/', '-', '?', '>'
     completed: boolean;
     title: string;
@@ -8,7 +9,7 @@ export interface RichTask {
     originalLine: string;
 }
 
-const TASK_REGEX = /^(\s*)-\s\[([ x\/\-\? >])\]\s+(.*)$/;
+const TASK_REGEX = /^(\s*)([-*+])\s\[([ x\/\-\? >])\]\s+(.*)$/;
 const PROPERTY_REGEX = /\[([^:\]]+)::\s*([^\]]+)\]/g;
 const TAG_REGEX = /#([^\s#\[\]]+)/g;
 
@@ -19,7 +20,7 @@ export function parseTaskLine(line: string): RichTask | null {
     const match = line.match(TASK_REGEX);
     if (!match) return null;
 
-    const [, indentation, status, fullContent] = match;
+    const [, indentation, bullet, status, fullContent] = match;
     const completed = status === 'x';
 
     let title = fullContent;
@@ -27,7 +28,6 @@ export function parseTaskLine(line: string): RichTask | null {
     const tags: string[] = [];
 
     // Extract properties [key:: value]
-    let propMatch;
     const propertyMatches = Array.from(fullContent.matchAll(PROPERTY_REGEX));
     for (const m of propertyMatches) {
         properties[m[1].trim()] = m[2].trim();
@@ -51,6 +51,7 @@ export function parseTaskLine(line: string): RichTask | null {
 
     return {
         indentation,
+        bullet,
         status,
         completed,
         title,
@@ -79,7 +80,7 @@ export function serializeTaskLine(task: RichTask): string {
         content += ` #${tag}`;
     });
 
-    return `${task.indentation}- [${status}] ${content}`;
+    return `${task.indentation}${task.bullet || '-'} [${status}] ${content}`;
 }
 
 /**
