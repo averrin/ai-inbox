@@ -24,10 +24,10 @@ import { ErrorScreen } from './ErrorScreen';
 import { SavingScreen } from './SavingScreen';
 import { InputScreen } from './InputScreen';
 import { PreviewScreen } from './PreviewScreen';
-import { ReminderEditModal } from '../ReminderEditModal';
+import { EventFormModal, EventSaveData } from '../EventFormModal';
 
 export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent: ShareIntent, onReset: () => void }) {
-    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder } = useSettingsStore();
+    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, timeFormat } = useSettingsStore();
     const analyzingRef = useRef(false);
     const stateInitializedRef = useRef(false);
 
@@ -289,8 +289,28 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         setShowReminderModal(true);
     };
 
-    const handleReminderSave = (data: { date: Date, recurrence: string }) => {
-        setReminderData({ date: data.date, recurrence: data.recurrence });
+    const formatRecurrenceForReminder = (rule: any): string | undefined => {
+      if (!rule || !rule.frequency || rule.frequency === 'none') return undefined;
+      const freq = rule.frequency.toLowerCase();
+      const interval = rule.interval || 1;
+
+      if (interval === 1) {
+          return freq; // 'daily', 'weekly', etc.
+      }
+
+      let unit = '';
+      if (freq === 'daily') unit = 'days';
+      else if (freq === 'weekly') unit = 'weeks';
+      else if (freq === 'monthly') unit = 'months';
+      else if (freq === 'yearly') unit = 'years';
+
+      if (unit) return `${interval} ${unit}`;
+      return undefined;
+    };
+
+    const handleReminderSave = (data: EventSaveData) => {
+        const recurrence = formatRecurrenceForReminder(data.recurrenceRule) || '';
+        setReminderData({ date: data.startDate, recurrence: recurrence });
         setShowReminderModal(false);
     };
 
@@ -1014,15 +1034,22 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 />
 
 
-                <ReminderEditModal
+                <EventFormModal
                     visible={showReminderModal}
+                    initialType="reminder"
                     initialDate={reminderData?.date || new Date()}
-                    initialRecurrence={reminderData?.recurrence || ''}
-                    initialTitle={title || inputText}
-                    initialContent={body || inputText}
+                    initialEvent={reminderData ? {
+                        originalEvent: {
+                            title: title || inputText,
+                            recurrenceRule: reminderData.recurrence
+                        },
+                        title: title || inputText,
+                        start: reminderData.date,
+                        reminderTime: reminderData.date.toISOString()
+                    } : undefined}
                     onSave={handleReminderSave}
                     onCancel={() => setShowReminderModal(false)}
-                    timeFormat={useSettingsStore.getState().timeFormat}
+                    timeFormat={timeFormat}
                 />
             </>
         );

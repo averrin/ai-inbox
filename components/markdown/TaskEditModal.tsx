@@ -10,7 +10,7 @@ import { TaskWithSource } from '../../store/tasks';
 import { useVaultStore } from '../../services/vaultService';
 import { openInObsidian } from '../../utils/obsidian';
 import { ReminderItem } from '../ui/ReminderItem';
-import { ReminderEditModal, ReminderSaveData } from '../ReminderEditModal';
+import { EventFormModal, EventSaveData } from '../EventFormModal';
 import {
     REMINDER_PROPERTY_KEY,
     RECURRENT_PROPERTY_KEY,
@@ -29,7 +29,7 @@ interface TaskEditModalProps {
 }
 
 export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModalProps) {
-    const { propertyConfig, vaultUri } = useSettingsStore();
+    const { propertyConfig, vaultUri, timeFormat } = useSettingsStore();
     const { metadataCache } = useVaultStore();
     
     const [title, setTitle] = useState('');
@@ -68,12 +68,32 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
         setTags(tags.filter((_, i) => i !== index));
     };
 
-    const handleReminderSave = (data: ReminderSaveData) => {
-        const newProps = { ...properties };
-        newProps[REMINDER_PROPERTY_KEY] = data.date.toISOString();
+    const formatRecurrenceForReminder = (rule: any): string | undefined => {
+      if (!rule || !rule.frequency || rule.frequency === 'none') return undefined;
+      const freq = rule.frequency.toLowerCase();
+      const interval = rule.interval || 1;
 
-        if (data.recurrence) {
-            newProps[RECURRENT_PROPERTY_KEY] = data.recurrence;
+      if (interval === 1) {
+          return freq; // 'daily', 'weekly', etc.
+      }
+
+      let unit = '';
+      if (freq === 'daily') unit = 'days';
+      else if (freq === 'weekly') unit = 'weeks';
+      else if (freq === 'monthly') unit = 'months';
+      else if (freq === 'yearly') unit = 'years';
+
+      if (unit) return `${interval} ${unit}`;
+      return undefined;
+    };
+
+    const handleReminderSave = (data: EventSaveData) => {
+        const newProps = { ...properties };
+        newProps[REMINDER_PROPERTY_KEY] = data.startDate.toISOString();
+
+        const recurrence = formatRecurrenceForReminder(data.recurrenceRule);
+        if (recurrence) {
+            newProps[RECURRENT_PROPERTY_KEY] = recurrence;
         } else {
             delete newProps[RECURRENT_PROPERTY_KEY];
         }
@@ -235,6 +255,8 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
         openInObsidian(vaultUri, task.fileUri);
     };
 
+    const isAlarm = properties[ALARM_PROPERTY_KEY] === 'true';
+
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
             <KeyboardAvoidingView 
@@ -376,17 +398,24 @@ export function TaskEditModal({ visible, task, onSave, onCancel }: TaskEditModal
                 </View>
             </KeyboardAvoidingView>
 
-            <ReminderEditModal
+            <EventFormModal
                 visible={showReminderModal}
-                initialDate={reminderDate}
-                initialRecurrence={properties[RECURRENT_PROPERTY_KEY]}
-                initialAlarm={properties[ALARM_PROPERTY_KEY] === 'true'}
-                initialPersistent={properties[PERSISTENT_PROPERTY_KEY] ? parseInt(properties[PERSISTENT_PROPERTY_KEY]) : undefined}
-                initialTitle={title}
-                enableTitle={false}
+                initialType={isAlarm ? 'alarm' : 'reminder'}
+                initialDate={reminderDate || new Date()}
+                initialEvent={reminderDate ? {
+                    originalEvent: {
+                        title: title,
+                        recurrenceRule: properties[RECURRENT_PROPERTY_KEY],
+                        alarm: isAlarm,
+                        persistent: properties[PERSISTENT_PROPERTY_KEY] ? parseInt(properties[PERSISTENT_PROPERTY_KEY]) : undefined
+                    },
+                    title: title,
+                    start: reminderDate,
+                    reminderTime: reminderDate.toISOString()
+                } : undefined}
                 onSave={handleReminderSave}
                 onCancel={() => setShowReminderModal(false)}
-                timeFormat="12h"
+                timeFormat={timeFormat}
             />
         </Modal>
     );
