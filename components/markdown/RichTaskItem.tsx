@@ -10,8 +10,8 @@ import { REMINDER_PROPERTY_KEY } from '../../services/reminderService';
 interface RichTaskItemProps {
     task: RichTask;
     onToggle: () => void;
-    onEdit: () => void;
-    onDelete: () => void;
+    onEdit?: () => void;
+    onDelete?: () => void;
     onUpdate: (updatedTask: RichTask) => void;
     onStatusLongPress?: () => void;
     onPriorityLongPress?: () => void;
@@ -158,12 +158,12 @@ export function RichTaskItem({
         </View>
     );
 
-    const rightActions = (
+    const rightActions = (onEdit || onDelete) ? (
         <>
-            <ActionButton onPress={onEdit} icon="pencil" variant="neutral" />
-            <ActionButton onPress={onDelete} icon="trash-outline" variant="danger" />
+            {onEdit && <ActionButton onPress={onEdit} icon="pencil" variant="neutral" />}
+            {onDelete && <ActionButton onPress={onDelete} icon="trash-outline" variant="danger" />}
         </>
-    );
+    ) : null;
 
     return (
         <View className="relative">

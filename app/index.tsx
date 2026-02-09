@@ -2,6 +2,9 @@ import { BackHandler } from 'react-native';
 import { useShareIntent, ShareIntent } from 'expo-share-intent';
 import BottomTabNavigator from '../components/navigation/BottomTabNavigator';
 import { useEffect, useState } from 'react';
+import { useSettingsStore } from '../store/settings';
+import { useTasksStore } from '../store/tasks';
+import { RelationService } from '../services/relationService';
 
 export default function Home() {
   const { hasShareIntent, shareIntent, resetShareIntent, isReady } = useShareIntent({
@@ -15,6 +18,13 @@ export default function Home() {
     // Hydrate Google Auth State
     const { hydrate } = require('../store/googleStore').useGoogleStore.getState();
     hydrate();
+
+    // Initialize Relations
+    const { vaultUri } = useSettingsStore.getState();
+    const { tasksRoot } = useTasksStore.getState();
+    if (vaultUri && tasksRoot) {
+        RelationService.scanRelations(vaultUri, tasksRoot);
+    }
   }, []);
 
   // "Consume" the intent: if present, save to local state and reset the native one.
