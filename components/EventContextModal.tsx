@@ -212,7 +212,31 @@ export function EventContextModal({ visible, onClose, onEdit, event }: Props) {
                     <View className="p-4 border-b border-slate-800">
                         <View className="flex-row items-center justify-between">
                             <Text className="text-white text-lg font-bold">Assign Properties</Text>
-                            <View className="flex-row gap-2">
+                            <View className="flex-row gap-2 items-center">
+                                {/* Compact RSVP Controls */}
+                                {hasAttendees && currentUserAttendee && (
+                                    <View className="flex-row bg-slate-800 rounded-lg p-0.5 border border-slate-700 mr-1">
+                                        <TouchableOpacity
+                                            onPress={() => handleRSVP('accepted')}
+                                            className={`px-2 py-1 rounded-md ${currentStatus === 'accepted' ? 'bg-emerald-500/20' : ''}`}
+                                        >
+                                            <Text className={`text-[10px] font-bold ${currentStatus === 'accepted' ? 'text-emerald-400' : 'text-slate-500'}`}>Yes</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() => handleRSVP('tentative')}
+                                            className={`px-2 py-1 rounded-md ${currentStatus === 'tentative' ? 'bg-amber-500/20' : ''}`}
+                                        >
+                                            <Text className={`text-[10px] font-bold ${currentStatus === 'tentative' ? 'text-amber-400' : 'text-slate-500'}`}>Maybe</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() => handleRSVP('declined')}
+                                            className={`px-2 py-1 rounded-md ${currentStatus === 'declined' ? 'bg-rose-500/20' : ''}`}
+                                        >
+                                            <Text className={`text-[10px] font-bold ${currentStatus === 'declined' ? 'text-rose-400' : 'text-slate-500'}`}>No</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+
                                 <TouchableOpacity
                                     onPress={() => setShowIconPicker(true)}
                                     className={`w-8 h-8 rounded-full items-center justify-center border ${currentIcon ? 'bg-indigo-500/20 border-indigo-500' : 'bg-slate-800 border-slate-700'}`}
@@ -387,32 +411,6 @@ export function EventContextModal({ visible, onClose, onEdit, event }: Props) {
                         </View>
                     </View>
 
-                    {/* RSVP Section */}
-                    {hasAttendees && currentUserAttendee && (
-                        <View className="p-4 border-t border-slate-800">
-                            <Text className="text-slate-400 text-xs font-semibold uppercase mb-2">RSVP</Text>
-                            <View className="flex-row gap-2">
-                                <TouchableOpacity
-                                    onPress={() => handleRSVP('accepted')}
-                                    className={`flex-1 py-2 rounded-lg items-center justify-center ${currentStatus === 'accepted' ? 'bg-emerald-500/20 border border-emerald-500' : 'bg-slate-800'}`}
-                                >
-                                    <Text className={`text-sm font-semibold ${currentStatus === 'accepted' ? 'text-emerald-400' : 'text-slate-300'}`}>Yes</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => handleRSVP('tentative')}
-                                    className={`flex-1 py-2 rounded-lg items-center justify-center ${currentStatus === 'tentative' ? 'bg-amber-500/20 border border-amber-500' : 'bg-slate-800'}`}
-                                >
-                                    <Text className={`text-sm font-semibold ${currentStatus === 'tentative' ? 'text-amber-400' : 'text-slate-300'}`}>Maybe</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => handleRSVP('declined')}
-                                    className={`flex-1 py-2 rounded-lg items-center justify-center ${currentStatus === 'declined' ? 'bg-rose-500/20 border border-rose-500' : 'bg-slate-800'}`}
-                                >
-                                    <Text className={`text-sm font-semibold ${currentStatus === 'declined' ? 'text-rose-400' : 'text-slate-300'}`}>No</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    )}
 
                     {/* Source Calendars */}
                     {event?.originalEvent?.sourceCalendars && (
@@ -434,21 +432,21 @@ export function EventContextModal({ visible, onClose, onEdit, event }: Props) {
 
                     {/* Footer Actions */}
                     <View className="p-4 border-t border-slate-800 gap-3">
-                        <TouchableOpacity
-                            onPress={() => { onClose(); onEdit?.(); }}
-                            className="w-full py-3 flex-row items-center justify-center gap-2 rounded-xl bg-slate-800 border border-slate-700"
-                        >
-                            <Ionicons name="create-outline" size={18} color="#f59e0b" />
-                            <Text className="text-amber-500 font-medium text-sm">Edit Event</Text>
-                        </TouchableOpacity>
-
                         <View className="flex-row gap-3">
+                            <TouchableOpacity
+                                onPress={() => { onClose(); onEdit?.(); }}
+                                className="flex-1 py-3 flex-row items-center justify-center gap-2 rounded-xl bg-slate-800 border border-slate-700"
+                            >
+                                <Ionicons name="create-outline" size={18} color="#f59e0b" />
+                                <Text className="text-amber-500 font-medium text-xs" numberOfLines={1}>Edit</Text>
+                            </TouchableOpacity>
+
                             <TouchableOpacity
                                 onPress={handleOpenInCalendar}
                                 className="flex-1 py-3 flex-row items-center justify-center gap-2 rounded-xl bg-slate-800 border border-slate-700"
                             >
                                 <Ionicons name="open-outline" size={18} color="#60a5fa" />
-                                <Text className="text-blue-400 font-medium text-sm">Open Calendar</Text>
+                                <Text className="text-blue-400 font-medium text-xs" numberOfLines={1}>Open</Text>
                             </TouchableOpacity>
 
                             {currentType && (
@@ -457,7 +455,7 @@ export function EventContextModal({ visible, onClose, onEdit, event }: Props) {
                                     className="flex-1 py-3 flex-row items-center justify-center gap-2 rounded-xl bg-slate-800 border border-slate-700"
                                 >
                                     <Ionicons name="close-circle-outline" size={18} color="#ef4444" />
-                                    <Text className="text-red-500 font-medium text-sm">Unassign</Text>
+                                    <Text className="text-red-500 font-medium text-xs" numberOfLines={1}>Unassign</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
