@@ -52,7 +52,6 @@ export default function ScheduleScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [summaryModalVisible, setSummaryModalVisible] = useState(false);
     const [summaryData, setSummaryData] = useState<{ breakdown: DayBreakdown, status: any, date: Date } | null>(null);
-    const [editingReminder, setEditingReminder] = useState<any | null>(null);
     const [creatingEventDate, setCreatingEventDate] = useState<Date | null>(null);
     const [creatingEventType, setCreatingEventType] = useState<'event' | 'reminder' | 'alarm'>('event');
     const [editingEvent, setEditingEvent] = useState<any | null>(null);
@@ -66,43 +65,6 @@ export default function ScheduleScreen() {
 
     const calendarRef = useRef<CalendarRef>(null);
 
-    const handleDeleteReminder = async (reminder: Reminder) => {
-        // Optimistic Delete
-        const targetUri = reminder.fileUri;
-        setCachedReminders(cachedReminders.filter((r: any) => r.fileUri !== targetUri));
-        setEvents(prev => prev.filter(e => e.originalEvent?.fileUri !== targetUri));
-
-        // Close Modal
-        setEditingReminder(null);
-
-        // Async Delete
-        try {
-            await updateReminder(targetUri, null); // Pass null to delete
-        } catch (e) {
-            console.error("Failed to delete reminder:", e);
-            alert("Failed to delete reminder");
-            // Revert state if needed? (Ideally we reload)
-            fetchEvents();
-        }
-    };
-
-    const handleDeleteReminderWithNote = async (reminder: Reminder) => {
-        const targetUri = reminder.fileUri;
-
-        // Optimistic Delete
-        setCachedReminders(cachedReminders.filter((r: any) => r.fileUri !== targetUri));
-        setEvents(prev => prev.filter(e => e.originalEvent?.fileUri !== targetUri));
-        setEditingReminder(null);
-
-        // Async Delete: note file + reminder
-        try {
-            await FileSystem.deleteAsync(targetUri, { idempotent: true });
-        } catch (e) {
-            console.error("Failed to delete note file:", e);
-            alert("Failed to delete note");
-            fetchEvents();
-        }
-    };
 
     // Fetch Weather Effect
     useEffect(() => {
@@ -1129,8 +1091,6 @@ export default function ScheduleScreen() {
         }
     };
 
->>>>>>> master
-
     return (
         <View className="flex-1 bg-slate-950">
             <SafeAreaView className="flex-1" edges={['left', 'right', 'bottom']}>
@@ -1206,7 +1166,7 @@ export default function ScheduleScreen() {
                             onPressEvent={(evt) => {
                                 const event = evt as any;
                                 if (event.type === 'marker') {
-                                    setEditingReminder(event.originalEvent);
+                                    setEditingEvent(event);
                                 } else {
                                     setSelectedEvent({ title: event.title, start: event.start, end: event.end, ...event }); // Spread all props to include color/typeTag
                                 }
