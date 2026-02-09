@@ -19,10 +19,10 @@ import { calculateEventDifficulty } from '../../utils/difficultyUtils';
 import { useLunchSuggestion } from '../ui/calendar/hooks/useLunchSuggestion';
 import { LunchContextModal } from '../LunchContextModal';
 import { calculateDayStatus, aggregateDayStats, DayBreakdown, DayStatusLevel } from '../../utils/difficultyUtils';
-import { DayStatusMarker } from '../DayStatusMarker'; import { DaySummaryModal } from '../DaySummaryModal';
-import { ReminderEditModal, ReminderSaveData } from '../ReminderEditModal';
+import { DayStatusMarker } from '../DayStatusMarker';
+import { DaySummaryModal } from '../DaySummaryModal';
 import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder } from '../../services/reminderService';
-import { EventFormModal, EventSaveData } from '../EventFormModal';
+import { EventFormModal, EventSaveData, DeleteOptions } from '../EventFormModal';
 import { createCalendarEvent, getWritableCalendars, updateCalendarEvent, deleteCalendarEvent } from '../../services/calendarService';
 
 import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../services/weatherService';
@@ -53,6 +53,7 @@ export default function ScheduleScreen() {
     const [summaryData, setSummaryData] = useState<{ breakdown: DayBreakdown, status: any, date: Date } | null>(null);
     const [editingReminder, setEditingReminder] = useState<any | null>(null);
     const [creatingEventDate, setCreatingEventDate] = useState<Date | null>(null);
+    const [creatingEventType, setCreatingEventType] = useState<'event' | 'reminder' | 'alarm'>('event');
     const [editingEvent, setEditingEvent] = useState<any | null>(null);
     const [moodModalVisible, setMoodModalVisible] = useState(false);
     const [weatherModalVisible, setWeatherModalVisible] = useState(false);
@@ -328,21 +329,51 @@ export default function ScheduleScreen() {
 
     const handleQuickAction = useCallback((action: 'event' | 'reminder', date: Date) => {
         if (action === 'reminder') {
-            setEditingReminder({
-                reminderTime: date.toISOString(),
-                fileName: '', // Will be generated or handled by ReminderEditModal logic if needed, but assuming new
-                recurrenceRule: null,
-                alarm: false,
-                persistent: false,
-                isNew: true, // Flag to indicate new creation if needed
-                fileUri: `temp-${Date.now()}` // Temporary URI to track this item during creation
-            });
+            setCreatingEventType('reminder');
+            setCreatingEventDate(date);
         } else if (action === 'event') {
+            setCreatingEventType('event');
             setCreatingEventDate(date);
         }
-    }, [setEditingReminder, setCreatingEventDate]);
+    }, [setCreatingEventDate, setCreatingEventType]);
 
-    const handleDeleteEvent = async (scope?: 'this' | 'future' | 'all') => {
+    const handleDeleteEvent = async (options: DeleteOptions) => {
+        // Reminder Deletion
+        if (editingEvent?.typeTag === 'REMINDER' || editingEvent?.originalEvent?.fileUri) {
+             const reminder = editingEvent.originalEvent;
+             const targetUri = reminder.fileUri;
+
+             // Close Modal
+             setCreatingEventDate(null);
+             setEditingEvent(null);
+
+             // Optimistic Delete
+             setCachedReminders(cachedReminders.filter((r: any) => r.fileUri !== targetUri));
+             setEvents(prev => prev.filter(e => e.originalEvent?.fileUri !== targetUri));
+
+             if (options.deleteFile) {
+                 // Delete note file
+                 try {
+                     await FileSystem.deleteAsync(targetUri, { idempotent: true });
+                 } catch (e) {
+                     console.error("Failed to delete note file:", e);
+                     alert("Failed to delete note");
+                     fetchEvents();
+                 }
+             } else {
+                 // Delete reminder only
+                 try {
+                     await updateReminder(targetUri, null);
+                 } catch (e) {
+                     console.error("Failed to delete reminder:", e);
+                     alert("Failed to delete reminder");
+                     fetchEvents();
+                 }
+             }
+             return;
+        }
+
+        // Calendar Event Deletion
         if (!editingEvent) return;
         const originalId = editingEvent.originalEvent?.id;
 
@@ -358,16 +389,18 @@ export default function ScheduleScreen() {
             const targetId = editingEvent.originalEvent?.originalId || originalId;
             const instanceStartDate = editingEvent.originalEvent?.startDate;
 
-            const options: any = {};
+            const apiOptions: any = {};
+            const scope = options.scope;
+
             if (scope === 'this') {
-                options.instanceStartDate = instanceStartDate ? new Date(instanceStartDate) : undefined;
+                apiOptions.instanceStartDate = instanceStartDate ? new Date(instanceStartDate) : undefined;
             } else if (scope === 'future') {
-                options.instanceStartDate = instanceStartDate ? new Date(instanceStartDate) : undefined;
-                options.futureEvents = true;
+                apiOptions.instanceStartDate = instanceStartDate ? new Date(instanceStartDate) : undefined;
+                apiOptions.futureEvents = true;
             }
             // scope === 'all' -> no options (targets master)
 
-            await deleteCalendarEvent(targetId, options);
+            await deleteCalendarEvent(targetId, apiOptions);
 
             setTimeout(() => {
                 fetchEvents();
@@ -379,10 +412,184 @@ export default function ScheduleScreen() {
         }
     };
 
+    const formatRecurrenceForReminder = (rule: any): string | undefined => {
+        if (!rule || !rule.frequency || rule.frequency === 'none') return undefined;
+        const freq = rule.frequency.toLowerCase();
+        const interval = rule.interval || 1;
+
+        if (interval === 1) {
+            return freq; // 'daily', 'weekly', etc.
+        }
+
+        let unit = '';
+        if (freq === 'daily') unit = 'days';
+        else if (freq === 'weekly') unit = 'weeks';
+        else if (freq === 'monthly') unit = 'months';
+        else if (freq === 'yearly') unit = 'years';
+
+        if (unit) return `${interval} ${unit}`;
+        return undefined;
+    };
+
     const handleSaveEvent = (data: EventSaveData) => {
         // 1. Close modal immediately
         setCreatingEventDate(null);
         setEditingEvent(null);
+
+        // --- REMINDER / ALARM LOGIC ---
+        if (data.type === 'reminder' || data.type === 'alarm') {
+             // Handle Reminder Save
+             const reminderTime = data.startDate.toISOString();
+             const recurrenceStr = formatRecurrenceForReminder(data.recurrenceRule);
+
+             // Check if it's an update
+             if (editingEvent) {
+                 const originalReminder = editingEvent.originalEvent;
+                 const targetUri = originalReminder.fileUri;
+                 const isNew = originalReminder.isNew; // if it was a temp one (though temp usually don't have fileUri yet, unless created optimistically)
+
+                 // Optimistic Update (Cache & Events)
+                 const updatedReminder = {
+                     ...originalReminder,
+                     reminderTime,
+                     recurrenceRule: recurrenceStr,
+                     alarm: data.alarm,
+                     persistent: data.persistent,
+                     title: data.title
+                 };
+
+                 // Cache update
+                 if (isNew) {
+                     setCachedReminders([...cachedReminders, updatedReminder]);
+                 } else {
+                     const newCache = cachedReminders.map((r: any) =>
+                         r.fileUri === targetUri ? updatedReminder : r
+                     );
+                     setCachedReminders(newCache);
+                 }
+
+                 // Events state update
+                 const tempEvent = {
+                    title: data.title || (isNew ? 'Reminder' : 'Untitled'),
+                    start: data.startDate,
+                    end: data.startDate,
+                    color: data.alarm ? '#ef4444' : '#f59e0b',
+                    type: 'marker',
+                    originalEvent: updatedReminder,
+                    typeTag: 'REMINDER'
+                };
+
+                if (isNew) {
+                    setEvents([...events, tempEvent]);
+                } else {
+                    const newEvents = events.map(e => {
+                        if (e.originalEvent && e.originalEvent.fileUri === targetUri) {
+                            return {
+                                ...e,
+                                ...tempEvent,
+                                title: data.title || e.title
+                            };
+                        }
+                        return e;
+                    });
+                    setEvents(newEvents);
+                }
+
+                // Async Persistence
+                (async () => {
+                    try {
+                        if (isNew) {
+                            const result = await createStandaloneReminder(
+                                reminderTime,
+                                data.title,
+                                recurrenceStr,
+                                data.alarm,
+                                data.persistent
+                            );
+                            if (result) {
+                                // Fixup cache with real URI
+                                const { cachedReminders, setCachedReminders } = useSettingsStore.getState();
+                                const updatedCache = cachedReminders.map((r: any) => {
+                                    if (r.fileUri === targetUri) { // targetUri was 'temp-...' likely
+                                        return { ...r, fileUri: result.uri, isNew: false, fileName: result.fileName };
+                                    }
+                                    return r;
+                                });
+                                setCachedReminders(updatedCache);
+                                fetchEvents(); // Refresh to be safe
+                            }
+                        } else {
+                             await updateReminder(
+                                targetUri!,
+                                reminderTime,
+                                recurrenceStr,
+                                data.alarm,
+                                data.persistent,
+                                data.title
+                            );
+                        }
+                    } catch (e) {
+                        console.error("Failed to save reminder:", e);
+                    }
+                })();
+
+             } else {
+                 // Create New Reminder
+                 // Optimistic
+                 const tempUri = `temp-${Date.now()}`;
+                 const tempReminder = {
+                     fileUri: tempUri,
+                     title: data.title,
+                     reminderTime,
+                     recurrenceRule: recurrenceStr,
+                     alarm: data.alarm,
+                     persistent: data.persistent,
+                     isNew: true
+                 };
+
+                 setCachedReminders([...cachedReminders, tempReminder]);
+
+                 const tempEvent = {
+                     title: data.title,
+                     start: data.startDate,
+                     end: data.startDate,
+                     color: data.alarm ? '#ef4444' : '#f59e0b',
+                     type: 'marker',
+                     originalEvent: tempReminder,
+                     typeTag: 'REMINDER'
+                 };
+                 setEvents([...events, tempEvent]);
+
+                 (async () => {
+                     try {
+                        const result = await createStandaloneReminder(
+                            reminderTime,
+                            data.title,
+                            recurrenceStr,
+                            data.alarm,
+                            data.persistent
+                        );
+                        if (result) {
+                            // Fixup cache
+                            const { cachedReminders, setCachedReminders } = useSettingsStore.getState();
+                            const updatedCache = cachedReminders.map((r: any) => {
+                                if (r.fileUri === tempUri) {
+                                    return { ...r, fileUri: result.uri, isNew: false, fileName: result.fileName };
+                                }
+                                return r;
+                            });
+                            setCachedReminders(updatedCache);
+                            fetchEvents();
+                        }
+                     } catch (e) {
+                         console.error("Failed to create reminder:", e);
+                     }
+                 })();
+             }
+             return;
+        }
+
+        // --- CALENDAR EVENT LOGIC ---
 
         // 2. Handle Edit
         if (editingEvent) {
@@ -598,302 +805,6 @@ export default function ScheduleScreen() {
         return map;
     }, [events, lunchDifficulties, focusRanges]);
 
-    const renderHeader = useCallback((headerProps: any) => {
-        // headerProps.dateRange is an array of dayjs objects for the current view (page)
-        // We use the first date in the range to represent the page's date in the DateRuler
-        const pageDate = headerProps.dateRange[0];
-        const pageDay = dayjs(pageDate);
-
-        // Calculate score for this pageDate
-        const dailyEvents = events.filter(e =>
-            dayjs(e.start).isSame(pageDay, 'day') &&
-            e.type !== 'marker'
-        );
-
-        // Calculate Day Stats using helper
-        const dayStats = aggregateDayStats(dailyEvents);
-
-        // Add Lunch Difficulty penalties (which come from hook, not events array directly yet)
-        const dayStr = pageDay.format('YYYY-MM-DD');
-        const lunchPenalty = lunchDifficulties[dayStr] || 0;
-
-        if (lunchPenalty > 0) {
-            dayStats.totalScore += lunchPenalty;
-            dayStats.penalties.push({ reason: 'Lunch Issues', points: lunchPenalty, count: 1 });
-        }
-
-        // Calculate Focus Range Bonus (existing logic added length to score)
-        // We should add this to stats
-        const dailyFocus = focusRanges.filter(f =>
-            dayjs(f.start).isSame(pageDay, 'day')
-        );
-        if (dailyFocus.length > 0) {
-            dayStats.totalScore += dailyFocus.length;
-            dayStats.penalties.push({ reason: 'Focus Range Bonus', points: dailyFocus.length, count: dailyFocus.length });
-        }
-
-        const status = calculateDayStatus(dayStats.totalScore, dayStats.deepWorkMinutes / 60);
-
-        const hours = Math.floor(dayStats.deepWorkMinutes / 60);
-        const mins = dayStats.deepWorkMinutes % 60;
-        const deepWorkStr = `${hours}h ${mins}m`;
-
-        const weather = weatherData[dayStr];
-
-        // Mood Logic
-        // Display mood and weather in the header
-        const moodEntry = moods[dayStr];
-        const moodColors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
-        const moodColor = moodEntry ? moodColors[moodEntry.mood - 1] : undefined;
-
-        // All Day Events for this day
-        const dailyAllDayEvents = (headerProps.allDayEvents || []).filter((e: any) =>
-            e.type !== 'zone' && // Filter out the grid zone markers from header
-            dayjs(pageDate).isBetween(dayjs(e.start), dayjs(e.end), 'day', '[]')
-        );
-
-        return (
-            <View className="bg-slate-900 border-b border-slate-800">
-                <View className="px-4 py-2 flex-row justify-between items-center">
-                    {/* Left: Mood Tracker and Weather */}
-                    <View className="flex-row items-center gap-4">
-                        <TouchableOpacity
-                            onPress={() => {
-                                setMoodDate(pageDate.toDate());
-                                setMoodModalVisible(true);
-                            }}
-                            className="flex-row items-center"
-                        >
-                            {moodEntry ? (
-                                <View className="w-5 h-5 rounded-full border border-white/20" style={{ backgroundColor: moodColor }} />
-                            ) : (
-                                <Ionicons name="add-circle-outline" size={20} color="#475569" />
-                            )}
-                        </TouchableOpacity>
-
-                        {weather && (
-                            <TouchableOpacity
-                                onPress={() => setWeatherModalVisible(true)}
-                                className="flex-row items-center gap-1"
-                            >
-                                <Ionicons name={weather.icon as any} size={16} color="#94a3b8" />
-                                <Text className="text-slate-400 text-xs font-semibold">
-                                    {Math.round(weather.maxTemp)}°C
-                                </Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
-
-                    {/* Right: Stats (Clickable for details) */}
-                    <TouchableOpacity
-                        activeOpacity={0.7}
-                        onPress={() => {
-                            setSummaryData({ breakdown: dayStats, status, date: pageDate.toDate() });
-                            setSummaryModalVisible(true);
-                        }}
-                        className="flex-row items-center gap-4"
-                    >
-                        <View className="flex-row items-center gap-2">
-                            <DayStatusMarker status={status} />
-                            {dayStats.deepWorkMinutes > 0 && (
-                                <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                                    Deep Work: <Text className="text-emerald-400 text-sm">{deepWorkStr}</Text>
-                                </Text>
-                            )}
-                        </View>
-
-                        <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                            Day Score: <Text className="text-indigo-400 text-sm">{Math.round(dayStats.totalScore)}</Text>
-                        </Text>
-
-                        <Ionicons name="information-circle-outline" size={16} color="#64748b" />
-                    </TouchableOpacity>
-                </View>
-
-                {/* All Day Events Row */}
-                {dailyAllDayEvents.length > 0 && (
-                    <View className="px-4 pb-2 flex-row flex-wrap gap-1.5">
-                        {dailyAllDayEvents.map((evt: any, idx: number) => (
-                            <TouchableOpacity
-                                key={`${idx}-${evt.title}`}
-                                onPress={() => setSelectedEvent({ ...evt })}
-                                className="px-2 py-0.5 rounded-md flex-row items-center gap-1 border border-white/10"
-                                style={{ backgroundColor: evt.color || '#4f46e5', opacity: 0.9 }}
-                            >
-                                <Ionicons name="calendar-outline" size={10} color="white" />
-                                <Text className="text-white text-[10px] font-bold" numberOfLines={1}>
-                                    {evt.title}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                )}
-            </View>
-        );
-    }, [changeDate, events, focusRanges, lunchDifficulties, weatherData, moods]);
-
-    const workRanges = useMemo(() => timeRangeEvents.filter((e: any) => e.isWork), [timeRangeEvents]);
-
-    const freeTimeZones = useMemo(() => {
-        if (!isEventsLoaded) return [];
-        return detectFreeTimeZones(events, workRanges);
-    }, [events, workRanges, isEventsLoaded]);
-
-
-
-    const allEvents = useMemo(() => {
-        return [...events, ...timeRangeEvents, ...focusRanges, ...freeTimeZones, ...lunchEvents];
-    }, [events, timeRangeEvents, focusRanges, freeTimeZones, lunchEvents]);
-
-    const eventCellStyle = useCallback((event: any) => {
-        const now = dayjs();
-        const eventEnd = dayjs(event.end);
-        const isFinishedToday = now.isSame(event.start, 'day') && now.isAfter(eventEnd);
-        const style: any = {
-            backgroundColor: event.isInverted ? '#0f172a' : (event.color || '#4f46e5'),
-            borderColor: event.isInverted ? (event.color || '#4f46e5') : '#eeeeee66',
-            borderWidth: 1,
-            borderRadius: 4,
-            opacity: (event.isSkippable || isFinishedToday) ? 0.45 : (event.isInverted ? 0.95 : 0.7),
-            marginTop: -1
-        };
-
-        // Highlight events outside work hours (red dashed border)
-        if (workRanges.length > 0 && !event.type && (event.difficulty?.total || 0) > 0) {
-            const evtStart = dayjs(event.start);
-            const evtEnd = dayjs(event.end);
-
-            const isDuringWork = workRanges.some((range: any) => {
-                const rangeStart = dayjs(range.start);
-                const rangeEnd = dayjs(range.end);
-                return evtStart.isBefore(rangeEnd) && evtEnd.isAfter(rangeStart);
-            });
-
-            if (!isDuringWork) {
-                style.borderColor = 'red';
-                style.borderWidth = 2;
-                style.borderStyle = 'dashed';
-            }
-        }
-        return style;
-    }, [workRanges]);
-
-    const handleEventDrop = async (event: any, newDate: Date) => {
-        console.log('[ScheduleScreen] handleEventDrop initiated', { title: event.title, newDate });
-        // Only allow dropping reminders or personal events
-        const isReminder = event.typeTag === 'REMINDER' || !!event.originalEvent?.fileUri;
-        const isPersonalEvent = event.isPersonal && event.originalEvent?.id;
-
-        if (!isReminder && !isPersonalEvent) {
-            alert('Only reminders and personal events can be rescheduled.');
-            return;
-        }
-
-        if (isReminder) {
-            const originalReminder = event.originalEvent;
-            const newTimeStr = toLocalISOString(newDate);
-
-            // Optimistic Update
-            const updatedReminders = cachedReminders.map((r: any) => {
-                if (r.fileUri === originalReminder.fileUri) {
-                    return { ...r, reminderTime: newTimeStr };
-                }
-                return r;
-            });
-            setCachedReminders(updatedReminders);
-
-            // Persist
-            try {
-                await updateReminder(
-                    originalReminder.fileUri,
-                    newTimeStr
-                );
-            } catch (e) {
-                console.error('[ScheduleScreen] Failed to update reminder drop', e);
-                alert('Failed to reschedule reminder.');
-                fetchEvents();
-            }
-        } else {
-            try {
-                const duration = dayjs(event.end).diff(dayjs(event.start), 'millisecond');
-                const newStart = newDate;
-                const newEnd = new Date(newStart.getTime() + duration);
-
-                // Optimistic Update in events list
-                setEvents(prev => prev.map(e => {
-                    const match = e.originalEvent?.id === event.originalEvent?.id && 
-                                 (!e.start || new Date(e.start).getTime() === new Date(event.start).getTime());
-                    if (match) {
-                        return { ...e, start: newStart, end: newEnd };
-                    }
-                    return e;
-                }));
-
-                const rawIds = event.originalEvent?.ids || [event.originalEvent?.id];
-                const ids = rawIds.filter((id: any) => id && (rawIds.length === 1 || String(id) !== String(event.originalEvent?.calendarId)));
-                
-                const executeUpdate = async (options: any = {}) => {
-                    const isAndroid = Platform.OS === 'android';
-                    
-                    for (const id of ids) {
-                        try {
-                            let targetId = id;
-                            let finalOptions = { ...options };
-
-                            if (isAndroid && options.futureEvents) {
-                                targetId = String(id).split(':')[0];
-                                delete finalOptions.futureEvents;
-                            }
-
-                            await updateCalendarEvent(targetId, {
-                                startDate: newStart,
-                                endDate: newEnd,
-                                title: event.title || event.originalEvent?.title || 'Event',
-                                calendarId: event.originalEvent?.calendarId,
-                                ...finalOptions
-                            });
-                        } catch (err) {
-                            console.warn(`[ScheduleScreen] Failed to update event ID ${id}:`, err);
-                        }
-                    }
-                    setTimeout(() => {
-                        fetchEvents();
-                    }, 500);
-                };
-
-                if (event.isRecurrent) {
-                    Alert.alert(
-                        "Recurring Event",
-                        "Do you want to update only this instance or the whole series?",
-                        [
-                            { 
-                                text: "Cancel", 
-                                onPress: () => {
-                                    fetchEvents();
-                                }, 
-                                style: "cancel" 
-                            },
-                            { 
-                                text: "This Instance", 
-                                onPress: () => setTimeout(() => executeUpdate({ editScope: 'this', instanceStartDate: new Date(event.start) }), 50)
-                            },
-                            { 
-                                text: "Whole Series", 
-                                onPress: () => setTimeout(() => executeUpdate({ editScope: 'future', instanceStartDate: new Date(event.start) }), 50)
-                            }
-                        ]
-                    );
-                } else {
-                    executeUpdate();
-                }
-            } catch (e) {
-                console.error('[ScheduleScreen] Error in handleEventDrop Personal Path', e);
-                alert('Failed to reschedule event.');
-                fetchEvents();
-            }
-        }
-    };
-
 
     return (
         <View className="flex-1 bg-slate-950">
@@ -1016,164 +927,12 @@ export default function ScheduleScreen() {
                     date={summaryData?.date || new Date()}
                 />
 
-                {editingReminder && (
-                    <ReminderEditModal
-                        visible={!!editingReminder}
-                        initialDate={new Date(editingReminder.reminderTime)}
-                        initialTitle={editingReminder.title || editingReminder.fileName?.replace('.md', '') || 'Untitled Reminder'}
-                        enableTitle={true}
-                        initialRecurrence={editingReminder.recurrenceRule}
-                        initialAlarm={editingReminder.alarm}
-                        initialPersistent={editingReminder.persistent}
-                        initialContent={editingReminder.content}
-                        initialFileUri={editingReminder.fileUri}
-                        timeFormat={timeFormat}
-                        onCancel={() => setEditingReminder(null)}
-                        onDelete={() => {
-                            // Long press: Remove reminder only (keep note)
-                            if (editingReminder && !editingReminder.isNew) {
-                                handleDeleteReminder(editingReminder);
-                            } else {
-                                setEditingReminder(null);
-                            }
-                        }}
-                        onDeleteWithNote={() => {
-                            // Default tap: Remove reminder AND note
-                            if (editingReminder && !editingReminder.isNew) {
-                                handleDeleteReminderWithNote(editingReminder);
-                            } else {
-                                setEditingReminder(null);
-                            }
-                        }}
-                        onShow={() => {
-                            if (editingReminder) {
-                                showReminder(editingReminder);
-                            }
-                        }}
-                        onSave={(data) => {
-                            if (editingReminder) {
-                                // 1. Capture payload for async operations
-                                const targetUri = editingReminder.fileUri;
-                                const currentEditingReminder = editingReminder;
-
-                                // 2. Optimistic Update (Cache & Events)
-                                const updatedReminder = {
-                                    ...editingReminder,
-                                    reminderTime: data.date.toISOString(),
-                                    recurrenceRule: data.recurrence,
-                                    alarm: data.alarm,
-                                    persistent: data.persistent,
-                                    title: data.title
-                                };
-
-                                // Cache update
-                                if (currentEditingReminder.isNew) {
-                                    setCachedReminders([...cachedReminders, updatedReminder]);
-                                } else {
-                                    const newCache = cachedReminders.map((r: any) =>
-                                        r.fileUri === targetUri ? updatedReminder : r
-                                    );
-                                    setCachedReminders(newCache);
-                                }
-
-                                // Events state update (Immediate UI reflection)
-                                const tempEvent = {
-                                    title: data.title || (currentEditingReminder.isNew ? 'Reminder' : 'Untitled'),
-                                    start: data.date,
-                                    end: data.date,
-                                    color: data.alarm ? '#ef4444' : '#f59e0b',
-                                    type: 'reminder',
-                                    originalEvent: updatedReminder
-                                };
-
-                                if (currentEditingReminder.isNew) {
-                                    setEvents([...events, tempEvent]);
-                                } else {
-                                    const newEvents = events.map(e => {
-                                        if (e.originalEvent && e.originalEvent.fileUri === targetUri) {
-                                            return {
-                                                ...e,
-                                                ...tempEvent,
-                                                title: data.title || e.title
-                                            };
-                                        }
-                                        return e;
-                                    });
-                                    setEvents(newEvents);
-                                }
-
-                                // 3. Close Modal IMMEDIATELY
-                                setEditingReminder(null);
-
-                                // 4. Async Persistence (Fire & Forget/Background)
-                                (async () => {
-                                    try {
-                                        if (currentEditingReminder.isNew) {
-                                            const result = await createStandaloneReminder(
-                                                data.date.toISOString(),
-                                                data.title,
-                                                data.recurrence,
-                                                data.alarm,
-                                                data.persistent
-                                            );
-
-                                            // Update cache with real URI and remove isNew flag immediately
-                                            // This prevents "rescheduling creates new reminder" bug if user edits again before sync
-                                            if (result) {
-                                                const { cachedReminders, setCachedReminders } = useSettingsStore.getState();
-                                                const updatedCache = cachedReminders.map((r: any) => {
-                                                    if (r.fileUri === currentEditingReminder.fileUri) {
-                                                        return {
-                                                            ...r,
-                                                            fileUri: result.uri,
-                                                            isNew: false,
-                                                            fileName: result.fileName
-                                                        };
-                                                    }
-                                                    return r;
-                                                });
-                                                setCachedReminders(updatedCache);
-
-                                                // Update events state as well to prevent "edit pending" issues
-                                                setEvents(prevEvents => prevEvents.map(e => {
-                                                    if (e.originalEvent && e.originalEvent.fileUri === currentEditingReminder.fileUri) {
-                                                        return {
-                                                            ...e,
-                                                            originalEvent: {
-                                                                ...e.originalEvent,
-                                                                fileUri: result.uri,
-                                                                fileName: result.fileName,
-                                                                isNew: false
-                                                            }
-                                                        };
-                                                    }
-                                                    return e;
-                                                }));
-                                            }
-                                        } else {
-                                            await updateReminder(
-                                                targetUri!,
-                                                data.date.toISOString(),
-                                                data.recurrence,
-                                                data.alarm,
-                                                data.persistent,
-                                                data.title
-                                            );
-                                        }
-                                    } catch (e) {
-                                        console.error("Failed to save reminder:", e);
-                                    }
-                                })();
-                            }
-                        }}
-                    />
-                )}
-
                 {(creatingEventDate || editingEvent) && (
                     <EventFormModal
                         visible={!!creatingEventDate || !!editingEvent}
                         initialDate={creatingEventDate || undefined}
                         initialEvent={editingEvent}
+                        initialType={creatingEventType}
                         timeFormat={timeFormat}
                         onCancel={() => {
                             setCreatingEventDate(null);
