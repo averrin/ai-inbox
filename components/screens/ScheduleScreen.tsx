@@ -29,11 +29,12 @@ import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../services/
 import { useMoodStore } from '../../store/moodStore';
 import { MoodEvaluationModal } from '../MoodEvaluationModal';
 import { WeatherForecastModal } from '../WeatherForecastModal';
+import { RecurrenceScopeModal } from '../RecurrenceScopeModal';
 
 
 export default function ScheduleScreen() {
     const { visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes, personalCalendarIds, workCalendarIds } = useSettingsStore();
-    const { assignments, difficulties, eventTypes, eventFlags, eventIcons, ranges, loadConfig } = useEventTypesStore();
+    const { assignments, difficulties, eventTypes, eventFlags, eventIcons, ranges, loadConfig, completedEvents, toggleCompleted } = useEventTypesStore();
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
     const { height: windowHeight } = useWindowDimensions();
@@ -57,6 +58,11 @@ export default function ScheduleScreen() {
     const [moodModalVisible, setMoodModalVisible] = useState(false);
     const [weatherModalVisible, setWeatherModalVisible] = useState(false);
     const [moodDate, setMoodDate] = useState<Date>(new Date());
+    
+    // Recurrence Scope Modal State
+    const [recurrenceModalVisible, setRecurrenceModalVisible] = useState(false);
+    const [pendingEventDrop, setPendingEventDrop] = useState<{ event: any, newDate: Date, executeUpdate: (options?: any) => Promise<void> } | null>(null);
+
     const calendarRef = useRef<CalendarRef>(null);
 
     const handleDeleteReminder = async (reminder: Reminder) => {
@@ -267,6 +273,7 @@ export default function ScheduleScreen() {
                     isPersonal,
                     isSkippable: flags?.skippable !== undefined ? flags.skippable : currentUserRSVP === 'tentative',
                     needPrep: flags?.needPrep,
+                    completable: !!flags?.completable,
                     isRecurrent: !!evt.recurrenceRule,
                     hasRSVPNo: currentUserRSVP === 'declined',
                     hideBadges: assignedType?.hideBadges,
@@ -749,17 +756,38 @@ export default function ScheduleScreen() {
         const now = dayjs();
         const eventEnd = dayjs(event.end);
         const isFinishedToday = now.isSame(event.start, 'day') && now.isAfter(eventEnd);
+
+        // Compute isCompleted from store at render time
+        const completedKey = `${event.title}::${dayjs(event.start).format('YYYY-MM-DD')}`;
+        const isEventCompleted = event.completable && !!completedEvents[completedKey];
+
+        // Completable: overdue (past today, not completed) => full opacity, red border + glow
+        const isOverdueCompletable = event.completable && !isEventCompleted && isFinishedToday;
+        // Completable: completed => dimmed
+        const isCompletedEvent = isEventCompleted;
+
         const style: any = {
             backgroundColor: event.isInverted ? '#0f172a' : (event.color || '#4f46e5'),
             borderColor: event.isInverted ? (event.color || '#4f46e5') : '#eeeeee66',
             borderWidth: 1,
             borderRadius: 4,
-            opacity: (event.isSkippable || isFinishedToday) ? 0.45 : (event.isInverted ? 0.95 : 0.7),
+            opacity: isCompletedEvent ? 0.35 : isOverdueCompletable ? 0.9 : (event.isSkippable || isFinishedToday) ? 0.45 : (event.isInverted ? 0.95 : 0.7),
             marginTop: -1
         };
 
+        if (isOverdueCompletable) {
+            style.borderColor = '#ef4444';
+            style.borderWidth = 2;
+            style.shadowColor = '#ef4444';
+            style.shadowOffset = { width: 0, height: 4 };
+            style.shadowOpacity = 0.8;
+            style.shadowRadius = 12;
+            style.elevation = 10;
+            style.boxShadow = '0 4px 24px #ef444488';
+        }
+
         // Highlight events outside work hours (red dashed border)
-        if (workRanges.length > 0 && !event.type && (event.difficulty?.total || 0) > 0) {
+        if (!isOverdueCompletable && workRanges.length > 0 && !event.type && (event.difficulty?.total || 0) > 0) {
             const evtStart = dayjs(event.start);
             const evtEnd = dayjs(event.end);
 
@@ -776,7 +804,7 @@ export default function ScheduleScreen() {
             }
         }
         return style;
-    }, [workRanges]);
+    }, [workRanges, completedEvents]);
 
     const handleEventDrop = async (event: any, newDate: Date) => {
         console.log('[ScheduleScreen] handleEventDrop initiated', { title: event.title, newDate });
@@ -837,12 +865,19 @@ export default function ScheduleScreen() {
                     
                     for (const id of ids) {
                         try {
-                            let targetId = id;
+                            const originalId = event.originalEvent?.originalId || String(id).split(':')[0];
+                            const isSeriesUpdate = options.editScope === 'all' || options.editScope === 'future';
+                            
+                            // For a series update on Android, we should target the master ID.
+                            // For 'all', we target master directly. For 'future', expo-calendar handles splitting.
+                            let targetId = (isSeriesUpdate && originalId) ? originalId : id;
                             let finalOptions = { ...options };
 
-                            if (isAndroid && options.futureEvents) {
-                                targetId = String(id).split(':')[0];
-                                delete finalOptions.futureEvents;
+                            // Android specific adjustment for 'future' updates if we have an instance ID
+                            if (isAndroid && options.editScope === 'future' && String(targetId).includes(':')) {
+                                targetId = String(targetId).split(':')[0];
+                                // We don't need to delete anything from finalOptions here because calendarService 
+                                // will process editScope into the correct native options.
                             }
 
                             await updateCalendarEvent(targetId, {
@@ -861,28 +896,21 @@ export default function ScheduleScreen() {
                     }, 500);
                 };
 
-                if (event.isRecurrent) {
-                    Alert.alert(
-                        "Recurring Event",
-                        "Do you want to update only this instance or the whole series?",
-                        [
-                            { 
-                                text: "Cancel", 
-                                onPress: () => {
-                                    fetchEvents();
-                                }, 
-                                style: "cancel" 
-                            },
-                            { 
-                                text: "This Instance", 
-                                onPress: () => setTimeout(() => executeUpdate({ editScope: 'this', instanceStartDate: new Date(event.start) }), 50)
-                            },
-                            { 
-                                text: "Whole Series", 
-                                onPress: () => setTimeout(() => executeUpdate({ editScope: 'future', instanceStartDate: new Date(event.start) }), 50)
-                            }
-                        ]
-                    );
+                const isRecurrent = event.isRecurrent || !!event.originalEvent?.recurrenceRule || !!event.originalEvent?.originalId || !!event.originalEvent?.instanceStartDate;
+                console.log('[ScheduleScreen] handleEventDrop detected recurrence:', isRecurrent, { 
+                    isRecurrentField: event.isRecurrent,
+                    hasRule: !!event.originalEvent?.recurrenceRule,
+                    hasOriginalId: !!event.originalEvent?.originalId,
+                    hasInstanceStart: !!event.originalEvent?.instanceStartDate
+                });
+
+                if (isRecurrent) {
+                    setPendingEventDrop({ 
+                        event, 
+                        newDate, 
+                        executeUpdate: (opts) => executeUpdate({ ...opts, instanceStartDate: new Date(event.start) }) 
+                    });
+                    setRecurrenceModalVisible(true);
                 } else {
                     executeUpdate();
                 }
@@ -982,6 +1010,7 @@ export default function ScheduleScreen() {
                                     event={evt}
                                     touchableOpacityProps={touchableOpacityProps}
                                     timeFormat={timeFormat}
+                                    onToggleCompleted={toggleCompleted}
                                 />
                             )}
                             // refreshing={refreshing}
@@ -1168,6 +1197,23 @@ export default function ScheduleScreen() {
                         }}
                     />
                 )}
+                
+                <RecurrenceScopeModal
+                    visible={recurrenceModalVisible}
+                    onClose={() => {
+                        setRecurrenceModalVisible(false);
+                        setPendingEventDrop(null);
+                        fetchEvents(); // Revert optimistic move
+                    }}
+                    onSelect={(scope) => {
+                        if (pendingEventDrop) {
+                            pendingEventDrop.executeUpdate({ editScope: scope });
+                            setRecurrenceModalVisible(false);
+                            setPendingEventDrop(null);
+                        }
+                    }}
+                    actionType="reschedule"
+                />
 
                 {(creatingEventDate || editingEvent) && (
                     <EventFormModal

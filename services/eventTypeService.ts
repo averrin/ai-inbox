@@ -16,7 +16,7 @@ export interface EventTypeConfig {
     assignments: Record<string, string>; // Event Title -> Type ID
     difficulties?: Record<string, number>; // Event Title -> Difficulty (0-5)
     ranges?: TimeRangeDefinition[];
-    eventFlags?: Record<string, { isEnglish?: boolean; movable?: boolean; skippable?: boolean; needPrep?: boolean }>; // Event Title -> Flags
+    eventFlags?: Record<string, { isEnglish?: boolean; movable?: boolean; skippable?: boolean; needPrep?: boolean; completable?: boolean }>; // Event Title -> Flags
     eventIcons?: Record<string, string>; // Event Title -> Icon Name
     lunchConfig?: {
         targetCalendarId?: string;
