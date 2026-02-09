@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { useEventTypesStore } from '../../../../store/eventTypes';
+import { useRelationsStore } from '../../../../store/relations';
 
 
 interface ScheduleEventProps {
@@ -34,6 +35,8 @@ const getDifficultyColor = (difficulty: number): string => {
 export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, onToggleCompleted }: ScheduleEventProps) => {
     const theme = useTheme();
     const completedEvents = useEventTypesStore((s) => s.completedEvents);
+    const relations = useRelationsStore(s => evt?.originalEvent?.id ? s.relations[evt.originalEvent.id] : undefined);
+    const hasLinks = relations && (relations.tasks.length > 0 || relations.notes.length > 0);
     const isNow = (evt as any).isNow || false;
     // touchableOpacityProps includes key, style, onPress, etc.
     const { key, ...restProps } = touchableOpacityProps;
@@ -247,6 +250,11 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
                     {evt.isRecurrent === false && (
                         <View className="bg-sky-500/80 px-1 py-0.5 rounded">
                             <Ionicons name="calendar-outline" size={10} color="white" />
+                        </View>
+                    )}
+                    {hasLinks && (
+                        <View className="bg-indigo-500/80 px-1 py-0.5 rounded">
+                            <Ionicons name="link" size={10} color="white" />
                         </View>
                     )}
                     {(evt.difficulty !== undefined && evt.difficulty !== null) && !isLunchSuggestion && (
