@@ -1198,6 +1198,10 @@ export default function ScheduleScreen() {
                     visible={!!selectedEvent && !selectedEvent?.typeTag?.includes('LUNCH_SUGGESTION')}
                     onClose={() => setSelectedEvent(null)}
                     onEdit={() => setEditingEvent(selectedEvent)}
+                    onOpenTask={(task) => {
+                        setSelectedEvent(null);
+                        setEditingTask(task);
+                    }}
                     event={selectedEvent}
                 />
 

@@ -16,6 +16,7 @@ interface Props {
     visible: boolean;
     onClose: () => void;
     onEdit?: () => void;
+    onOpenTask?: (task: TaskWithSource) => void;
     event: {
         title: string;
         start: Date;
@@ -24,7 +25,7 @@ interface Props {
     } | null;
 }
 
-export function EventContextModal({ visible, onClose, onEdit, event }: Props) {
+export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event }: Props) {
     const [fetchedAttendees, setFetchedAttendees] = useState<any[] | null>(null);
     const [showAttendeesPopup, setShowAttendeesPopup] = useState(false);
     const [showIconPicker, setShowIconPicker] = useState(false);
@@ -443,16 +444,21 @@ export function EventContextModal({ visible, onClose, onEdit, event }: Props) {
                     <View className="p-4 border-t border-slate-800">
                         <View className="flex-row items-center justify-between mb-2">
                              <Text className="text-slate-400 text-xs font-semibold uppercase">Linked Tasks</Text>
-                             <TouchableOpacity onPress={() => setShowTaskPicker(true)} className="bg-slate-800 px-2 py-1 rounded border border-slate-700">
-                                 <Text className="text-indigo-400 text-xs font-bold">+ Link Task</Text>
-                             </TouchableOpacity>
                         </View>
                         <View className="gap-2">
                             {linkedTasks.map((task, i) => (
-                                <View key={i} className="flex-row items-center gap-2 bg-slate-800/50 p-2 rounded-lg border border-slate-700/50">
+                                <TouchableOpacity
+                                    key={i}
+                                    onPress={() => {
+                                        onClose();
+                                        onOpenTask?.(task);
+                                    }}
+                                    className="flex-row items-center gap-2 bg-slate-800/50 p-2 rounded-lg border border-slate-700/50 active:bg-slate-700"
+                                >
                                     <Ionicons name={task.completed ? "checkbox" : "square-outline"} size={14} color={task.completed ? "#22c55e" : "#94a3b8"} />
                                     <Text className="text-slate-300 text-xs flex-1" numberOfLines={1}>{task.title}</Text>
-                                </View>
+                                    <Ionicons name="chevron-forward" size={12} color="#64748b" />
+                                </TouchableOpacity>
                             ))}
                             {linkedTasks.length === 0 && (
                                 <Text className="text-slate-500 text-xs italic">No linked tasks.</Text>
