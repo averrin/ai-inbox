@@ -957,6 +957,7 @@ export default function ScheduleScreen() {
                                     event={evt}
                                     touchableOpacityProps={touchableOpacityProps}
                                     timeFormat={timeFormat}
+                                            cellHeight={(touchableOpacityProps as any).cellHeight}
                                 />
                             )}
                             // refreshing={refreshing}
