@@ -197,6 +197,29 @@ export const createCalendarEvent = async (calendarId: string, eventData: Partial
     }
 };
 
+export const deleteCalendarEvent = async (eventId: string, options?: { instanceStartDate?: string | Date, futureEvents?: boolean }) => {
+    const hasPermission = await ensureCalendarPermissions();
+    if (!hasPermission) throw new Error("Missing calendar permissions");
+
+    try {
+        const deleteOptions: any = {};
+        if (options) {
+            if (options.instanceStartDate) {
+                const date = new Date(options.instanceStartDate);
+                deleteOptions.instanceStartDate = Platform.OS === 'android' ? date.getTime() : date.toISOString();
+            }
+            if (options.futureEvents !== undefined) {
+                deleteOptions.futureEvents = options.futureEvents;
+            }
+        }
+
+        await Calendar.deleteEventAsync(eventId, deleteOptions);
+    } catch (e) {
+        console.error(`[CalendarService] deleteEventAsync FAILED for event ${eventId}:`, e);
+        throw e;
+    }
+};
+
 export const updateCalendarEvent = async (eventId: string, eventData: Partial<Calendar.Event> & { editScope?: 'this' | 'future' | 'all', isWork?: boolean, instanceStartDate?: string | Date }) => {
     const hasPermission = await ensureCalendarPermissions();
     if (!hasPermission) throw new Error("Missing calendar permissions");

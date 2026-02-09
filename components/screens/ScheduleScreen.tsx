@@ -23,7 +23,7 @@ import { DayStatusMarker } from '../DayStatusMarker'; import { DaySummaryModal }
 import { ReminderEditModal, ReminderSaveData } from '../ReminderEditModal';
 import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder } from '../../services/reminderService';
 import { EventFormModal, EventSaveData } from '../EventFormModal';
-import { createCalendarEvent, getWritableCalendars, updateCalendarEvent } from '../../services/calendarService';
+import { createCalendarEvent, getWritableCalendars, updateCalendarEvent, deleteCalendarEvent } from '../../services/calendarService';
 
 import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../services/weatherService';
 import { useMoodStore } from '../../store/moodStore';
@@ -341,6 +341,43 @@ export default function ScheduleScreen() {
             setCreatingEventDate(date);
         }
     }, [setEditingReminder, setCreatingEventDate]);
+
+    const handleDeleteEvent = async (scope?: 'this' | 'future' | 'all') => {
+        if (!editingEvent) return;
+        const originalId = editingEvent.originalEvent?.id;
+
+        // Close modal immediately
+        setCreatingEventDate(null);
+        setEditingEvent(null);
+
+        // Optimistic delete
+        setEvents(prev => prev.filter(e => e.originalEvent?.id !== originalId));
+
+        try {
+            // If editing a recurring instance, we might have originalId pointing to master
+            const targetId = editingEvent.originalEvent?.originalId || originalId;
+            const instanceStartDate = editingEvent.originalEvent?.startDate;
+
+            const options: any = {};
+            if (scope === 'this') {
+                options.instanceStartDate = instanceStartDate ? new Date(instanceStartDate) : undefined;
+            } else if (scope === 'future') {
+                options.instanceStartDate = instanceStartDate ? new Date(instanceStartDate) : undefined;
+                options.futureEvents = true;
+            }
+            // scope === 'all' -> no options (targets master)
+
+            await deleteCalendarEvent(targetId, options);
+
+            setTimeout(() => {
+                fetchEvents();
+            }, 500);
+        } catch (e) {
+            console.error("Failed to delete event", e);
+            alert('Failed to delete event');
+            fetchEvents();
+        }
+    };
 
     const handleSaveEvent = (data: EventSaveData) => {
         // 1. Close modal immediately
@@ -1143,6 +1180,7 @@ export default function ScheduleScreen() {
                             setEditingEvent(null);
                         }}
                         onSave={handleSaveEvent}
+                        onDelete={handleDeleteEvent}
                     />
                 )}
 
