@@ -8,7 +8,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { FolderInput } from '../ui/FolderInput';
 import { FileAttachment } from '../ui/FileAttachment';
-import { RichTextEditor } from '../RichTextEditor';
+import { ProseMarkEditor } from '../ui/ProseMarkEditor';
 import { SimpleTextEditor } from '../SimpleTextEditor';
 import { TagEditor } from '../ui/TagEditor';
 import { PropertyEditor } from '../ui/PropertyEditor';
@@ -591,7 +591,7 @@ export function PreviewScreen({
                                     inputStyle={isFocused ? { maxHeight: undefined, height: '100%' } : undefined}
                                 />
                             ) : (
-                                <RichTextEditor
+                                <ProseMarkEditor
                                     value={body}
                                     onChangeText={onBodyChange}
                                     placeholder="Note content..."

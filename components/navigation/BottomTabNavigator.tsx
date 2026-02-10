@@ -6,6 +6,7 @@ import TasksScreen from '../screens/TasksScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SetupScreen from '../screens/SetupScreen';
 import JulesScreen from '../screens/JulesScreen';
+import DumpScreen from '../screens/DumpScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect } from 'react';
 import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
@@ -111,7 +112,7 @@ function InnerTabNavigator({
           }}
         />
 
-        {/* <Tab.Screen
+        <Tab.Screen
           name="Dump"
           component={DumpScreen}
           options={{
@@ -119,7 +120,7 @@ function InnerTabNavigator({
               <Ionicons name="journal-outline" size={24} color={color} />
             ),
           }}
-        /> */}
+        />
 
         <Tab.Screen
           name="Reminders"

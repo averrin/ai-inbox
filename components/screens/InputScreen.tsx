@@ -5,7 +5,7 @@ import { Layout } from '../ui/Layout';
 import { Button } from '../ui/Button';
 import { LinkAttachment } from '../ui/LinkAttachment';
 import { FileAttachment } from '../ui/FileAttachment';
-import { RichTextEditor } from '../RichTextEditor'; // Updated import
+import { ProseMarkEditor } from '../ui/ProseMarkEditor';
 import { LongPressButton } from '../ui/LongPressButton';
 import { URLMetadata } from '../../utils/urlMetadata';
 import { useSettingsStore } from '../../store/settings';
@@ -146,7 +146,7 @@ export function InputScreen({
                             autoFocus
                         />
                     ) : (
-                        <RichTextEditor
+                        <ProseMarkEditor
                             value={inputText}
                             onChangeText={onInputTextChange}
                             placeholder="Paste URL or type your thought..."
