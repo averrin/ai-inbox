@@ -139,6 +139,8 @@ export interface PullRequest {
     number?: number;
     merged?: boolean;
     state?: string;
+    mergeable?: boolean | null;
+    mergeable_state?: string;
 }
 
 export interface SessionOutput {
@@ -240,16 +242,43 @@ export async function fetchJulesSessions(apiKey: string, limit: number = 10): Pr
     return sessions;
 }
 
+export async function sendMessageToSession(apiKey: string, sessionName: string, message: string): Promise<any> {
+    const url = `https://jules.googleapis.com/v1alpha/${sessionName}:sendMessage`;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'x-goog-api-key': apiKey,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            userInput: { text: message }
+        })
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Failed to send message: ${response.status} ${text}`);
+    }
+
+    return await response.json();
+}
+
 // Background Task Definition
 TaskManager.defineTask(JULES_ARTIFACT_TASK, async () => {
     try {
-        const { julesApiKey, julesOwner, julesRepo, julesNotificationsEnabled } = useSettingsStore.getState();
-
-        if (!julesNotificationsEnabled || !julesApiKey || !julesOwner || !julesRepo) {
+        const storedSettings = await AsyncStorage.getItem('ai-inbox-settings');
+        if (!storedSettings) {
             return BackgroundFetch.BackgroundFetchResult.NoData;
         }
 
-        const sessions = await fetchJulesSessions(julesApiKey);
+        const { state } = JSON.parse(storedSettings);
+        const { julesApiKey, julesGoogleApiKey, julesOwner, julesRepo, julesNotificationsEnabled } = state;
+
+        if (!julesNotificationsEnabled || !julesApiKey || !julesGoogleApiKey || !julesOwner || !julesRepo) {
+            return BackgroundFetch.BackgroundFetchResult.NoData;
+        }
+
+        const sessions = await fetchJulesSessions(julesGoogleApiKey);
         if (sessions.length === 0) return BackgroundFetch.BackgroundFetchResult.NoData;
 
         const notifiedRunsStr = await AsyncStorage.getItem(NOTIFIED_RUNS_KEY);
