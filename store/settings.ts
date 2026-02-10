@@ -1,7 +1,18 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
+import { createSecureStorage } from './secure-storage';
+
+const SENSITIVE_KEYS = [
+    'apiKey',
+    'googleAndroidClientId',
+    'googleIosClientId',
+    'googleWebClientId',
+    'julesApiKey',
+    'julesGoogleApiKey',
+    'workAccountId',
+    'personalAccountId',
+];
 
 export interface Contact {
     id: string;
@@ -213,7 +224,7 @@ Forecast for TODAY (1-2 sentences):
         }),
         {
             name: 'ai-inbox-settings',
-            storage: createJSONStorage(() => AsyncStorage),
+            storage: createJSONStorage(() => createSecureStorage(SENSITIVE_KEYS)),
             version: 6,
             migrate: (persistedState: any, version: number) => {
                 if (version === 0) {
