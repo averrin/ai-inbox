@@ -1,4 +1,5 @@
 import { StorageAccessFramework } from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system/legacy';
 import { checkDirectoryExists } from './saf';
 
 /**
@@ -57,7 +58,9 @@ export async function getMostUsedTags(vaultUri: string, contextFolder: string | 
         for (const fileUri of filesToScan) {
             try {
                 const fileName = decodeURIComponent(fileUri).split('/').pop() || 'unknown';
-                const content = await StorageAccessFramework.readAsStringAsync(fileUri);
+                // Optimization: Read only first 4KB (usually enough for frontmatter)
+                // Reading full file is heavy and unnecessary for tag extraction
+                const content = await FileSystem.readAsStringAsync(fileUri, { length: 4096 });
                 const fileTags: string[] = [];
 
                 // 1. Extract Frontmatter tags
