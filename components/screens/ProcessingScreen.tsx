@@ -10,7 +10,7 @@ import { useGoogleStore } from '../../store/googleStore';
 import { processContent, ProcessedNote, transcribeAudio, Action } from '../../services/gemini';
 import * as CalendarService from '../../services/calendarService';
 import { TasksService } from '../../services/tasksService';
-import { syncAllReminders } from '../../services/reminderService';
+import { syncAllReminders, formatRecurrenceForReminder } from '../../services/reminderService';
 import { saveToVault, checkDirectoryExists, readVaultStructure } from '../../utils/saf';
 import { openInObsidian as openNoteInObsidian } from '../../utils/obsidian';
 import { getMostUsedTags } from '../../utils/tagUtils';
@@ -287,25 +287,6 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
     // Reminder handlers
     const handleReminderClick = () => {
         setShowReminderModal(true);
-    };
-
-    const formatRecurrenceForReminder = (rule: any): string | undefined => {
-      if (!rule || !rule.frequency || rule.frequency === 'none') return undefined;
-      const freq = rule.frequency.toLowerCase();
-      const interval = rule.interval || 1;
-
-      if (interval === 1) {
-          return freq; // 'daily', 'weekly', etc.
-      }
-
-      let unit = '';
-      if (freq === 'daily') unit = 'days';
-      else if (freq === 'weekly') unit = 'weeks';
-      else if (freq === 'monthly') unit = 'months';
-      else if (freq === 'yearly') unit = 'years';
-
-      if (unit) return `${interval} ${unit}`;
-      return undefined;
     };
 
     const handleReminderSave = (data: EventSaveData) => {

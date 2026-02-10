@@ -21,7 +21,7 @@ import { LunchContextModal } from '../LunchContextModal';
 import { calculateDayStatus, aggregateDayStats, DayBreakdown, DayStatusLevel } from '../../utils/difficultyUtils';
 import { DayStatusMarker } from '../DayStatusMarker';
 import { DaySummaryModal } from '../DaySummaryModal';
-import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder } from '../../services/reminderService';
+import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder, formatRecurrenceForReminder } from '../../services/reminderService';
 import { EventFormModal, EventSaveData, DeleteOptions } from '../EventFormModal';
 import { TaskEditModal } from '../markdown/TaskEditModal';
 import { TaskWithSource } from '../../store/tasks';
@@ -382,25 +382,6 @@ export default function ScheduleScreen() {
             alert('Failed to delete event');
             fetchEvents();
         }
-    };
-
-    const formatRecurrenceForReminder = (rule: any): string | undefined => {
-        if (!rule || !rule.frequency || rule.frequency === 'none') return undefined;
-        const freq = rule.frequency.toLowerCase();
-        const interval = rule.interval || 1;
-
-        if (interval === 1) {
-            return freq; // 'daily', 'weekly', etc.
-        }
-
-        let unit = '';
-        if (freq === 'daily') unit = 'days';
-        else if (freq === 'weekly') unit = 'weeks';
-        else if (freq === 'monthly') unit = 'months';
-        else if (freq === 'yearly') unit = 'years';
-
-        if (unit) return `${interval} ${unit}`;
-        return undefined;
     };
 
     const handleSaveEvent = (data: EventSaveData) => {

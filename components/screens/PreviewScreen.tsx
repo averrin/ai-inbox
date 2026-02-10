@@ -13,6 +13,7 @@ import { SimpleTextEditor } from '../SimpleTextEditor';
 import { TagEditor } from '../ui/TagEditor';
 import { PropertyEditor } from '../ui/PropertyEditor';
 import { ProcessedNote } from '../../services/gemini';
+import { formatRecurrenceForReminder } from '../../services/reminderService';
 
 import { LongPressButton } from '../ui/LongPressButton';
 import { LinkAttachment } from '../ui/LinkAttachment';
@@ -179,25 +180,6 @@ export function PreviewScreen({
         setEditAlarm(false);
         setEditPersistent(undefined);
         setIsEditingReminder(true);
-    };
-
-    const formatRecurrenceForReminder = (rule: any): string | undefined => {
-      if (!rule || !rule.frequency || rule.frequency === 'none') return undefined;
-      const freq = rule.frequency.toLowerCase();
-      const interval = rule.interval || 1;
-
-      if (interval === 1) {
-          return freq; // 'daily', 'weekly', etc.
-      }
-
-      let unit = '';
-      if (freq === 'daily') unit = 'days';
-      else if (freq === 'weekly') unit = 'weeks';
-      else if (freq === 'monthly') unit = 'months';
-      else if (freq === 'yearly') unit = 'years';
-
-      if (unit) return `${interval} ${unit}`;
-      return undefined;
     };
 
     const handleSaveReminder = (eventData: EventSaveData) => {

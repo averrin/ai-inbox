@@ -131,6 +131,25 @@ export interface Reminder {
     content: string; // Full content for modal display
 }
 
+export const formatRecurrenceForReminder = (rule: any): string | undefined => {
+    if (!rule || !rule.frequency || rule.frequency === 'none') return undefined;
+    const freq = rule.frequency.toLowerCase();
+    const interval = rule.interval || 1;
+
+    if (interval === 1) {
+        return freq; // 'daily', 'weekly', etc.
+    }
+
+    let unit = '';
+    if (freq === 'daily') unit = 'days';
+    else if (freq === 'weekly') unit = 'weeks';
+    else if (freq === 'monthly') unit = 'months';
+    else if (freq === 'yearly') unit = 'years';
+
+    if (unit) return `${interval} ${unit}`;
+    return undefined;
+};
+
 export function calculateNextRecurrence(currentDate: Date, rule: string): Date | null {
     const r = rule.toLowerCase().trim();
     const nextDate = new Date(currentDate);

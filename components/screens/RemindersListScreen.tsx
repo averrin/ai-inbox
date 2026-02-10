@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
 import { useState, useEffect } from 'react';
-import { scanForReminders, Reminder } from '../../services/reminderService';
+import { scanForReminders, Reminder, formatRecurrenceForReminder } from '../../services/reminderService';
 import { useSettingsStore } from '../../store/settings';
 import Toast from 'react-native-toast-message';
 import { useReminderModal } from '../../utils/reminderModalContext';
@@ -39,25 +39,6 @@ export default function RemindersListScreen() {
     const found = await scanForReminders();
     setCachedReminders(found);
     setLoading(false);
-  };
-
-  const formatRecurrenceForReminder = (rule: any): string | undefined => {
-      if (!rule || !rule.frequency || rule.frequency === 'none') return undefined;
-      const freq = rule.frequency.toLowerCase();
-      const interval = rule.interval || 1;
-
-      if (interval === 1) {
-          return freq; // 'daily', 'weekly', etc.
-      }
-
-      let unit = '';
-      if (freq === 'daily') unit = 'days';
-      else if (freq === 'weekly') unit = 'weeks';
-      else if (freq === 'monthly') unit = 'months';
-      else if (freq === 'yearly') unit = 'years';
-
-      if (unit) return `${interval} ${unit}`;
-      return undefined;
   };
 
   const handleCreateReminder = (data: EventSaveData) => {
