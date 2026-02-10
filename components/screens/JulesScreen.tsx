@@ -685,8 +685,14 @@ export default function JulesScreen() {
                             onDelete={async () => {
                                 const { deleteJulesSession } = await import('../../services/jules');
                                 if (julesGoogleApiKey) {
-                                    await deleteJulesSession(julesGoogleApiKey, session.name);
-                                    onRefresh();
+                                    setJulesSessions(prev => prev.filter(s => s.name !== session.name));
+                                    try {
+                                        await deleteJulesSession(julesGoogleApiKey, session.name);
+                                    } catch (e) {
+                                        console.error(e);
+                                        Alert.alert("Error", "Failed to delete session");
+                                        onRefresh();
+                                    }
                                 }
                             }}
                             onRefresh={onRefresh}
