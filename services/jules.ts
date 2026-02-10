@@ -46,25 +46,27 @@ export interface Artifact {
     expired: boolean;
 }
 
-export async function fetchWorkflowRuns(token: string, owner: string, repo: string, workflowId?: string, limit: number = 10): Promise<WorkflowRun[]> {
+export async function fetchWorkflowRuns(token: string, owner: string, repo: string, workflowId?: string, limit: number = 10, branch?: string): Promise<WorkflowRun[]> {
     let url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs?per_page=${limit}`;
+    if (branch) url += `&branch=${branch}`;
     // If workflowId is provided (filename or ID), we can filter by it.
     // However, the API endpoint for a specific workflow is /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs
     // If workflowId is just a filename (e.g. jules.yml), we can try to use it.
     if (workflowId) {
-         url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/workflows/${workflowId}/runs?per_page=${limit}`;
+        url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/workflows/${workflowId}/runs?per_page=${limit}`;
+        if (branch) url += `&branch=${branch}`;
     }
 
     const response = await fetch(url, { headers: getHeaders(token) });
     if (!response.ok) {
         // Fallback: If workflow specific fetch failed (maybe ID invalid), try fetching all runs
         if (workflowId) {
-             const fallbackUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs?per_page=${limit}`;
-             const fallbackResponse = await fetch(fallbackUrl, { headers: getHeaders(token) });
-             if (fallbackResponse.ok) {
-                 const data = await fallbackResponse.json();
-                 return data.workflow_runs;
-             }
+            const fallbackUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs?per_page=${limit}`;
+            const fallbackResponse = await fetch(fallbackUrl, { headers: getHeaders(token) });
+            if (fallbackResponse.ok) {
+                const data = await fallbackResponse.json();
+                return data.workflow_runs;
+            }
         }
         const text = await response.text();
         throw new Error(`Failed to fetch workflow runs: ${response.status} ${text}`);
@@ -94,4 +96,139 @@ export async function fetchArtifacts(token: string, owner: string, repo: string,
     }
     const data = await response.json();
     return data.artifacts;
+}
+
+export async function mergePullRequest(token: string, owner: string, repo: string, pullNumber: number): Promise<boolean> {
+    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${pullNumber}/merge`;
+    const response = await fetch(url, {
+        method: 'PUT',
+        headers: getHeaders(token),
+        body: JSON.stringify({
+            merge_method: 'squash' // Prefer squash merge
+        })
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Failed to merge PR: ${response.status} ${text}`);
+    }
+
+    return true;
+}
+
+export async function fetchPullRequest(token: string, owner: string, repo: string, pullNumber: number): Promise<any> {
+    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${pullNumber}`;
+    const response = await fetch(url, { headers: getHeaders(token) });
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Failed to fetch PR: ${response.status} ${text}`);
+    }
+    return await response.json();
+}
+export interface PullRequest {
+    url: string;
+    title?: string;
+    description?: string;
+    number?: number;
+    merged?: boolean;
+    state?: string;
+}
+
+export interface SessionOutput {
+    pullRequest?: PullRequest;
+    changeSet?: any;
+}
+
+export interface SourceContext {
+    source: string;
+    githubRepoContext?: {
+        startingBranch?: string;
+    };
+}
+
+export interface JulesSession {
+    name: string;
+    id: string; // Leaf ID
+    title: string;
+    state: string; // QUEUED, PLANNING, AWAITING_PLAN_APPROVAL, AWAITING_USER_FEEDBACK, IN_PROGRESS, PAUSED, COMPLETED, FAILED
+    url: string;
+    createTime: string;
+    updateTime: string;
+    labels?: Record<string, string>;
+    outputs?: SessionOutput[];
+    sourceContext?: SourceContext;
+    githubMetadata?: {
+        pullRequestNumber?: number;
+        branch?: string;
+        owner?: string;
+        repo?: string;
+        repoFullName?: string;
+    };
+}
+
+export async function fetchJulesSessions(apiKey: string, limit: number = 10): Promise<JulesSession[]> {
+    const url = `https://jules.googleapis.com/v1alpha/sessions?pageSize=${limit}`;
+    const response = await fetch(url, {
+        headers: {
+            'x-goog-api-key': apiKey,
+            'Content-Type': 'application/json'
+        }
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Failed to fetch Jules sessions: ${response.status} ${text}`);
+    }
+
+    const data = await response.json();
+    const sessions = (data.sessions || []).map((s: any) => {
+        const parts = s.name.split('/');
+        const id = parts[parts.length - 1];
+
+        const session = s as JulesSession;
+        let githubMetadata = session.githubMetadata;
+
+        if (!githubMetadata) {
+            // Find pull request in outputs array
+            const prOutput = session.outputs?.find(o => o.pullRequest);
+            const pr = prOutput?.pullRequest;
+
+            // Extract branch from sourceContext
+            const branch = session.sourceContext?.githubRepoContext?.startingBranch;
+
+            // Extract repo info from source resource name: sources/github/owner/repo
+            const sourceParts = session.sourceContext?.source?.split('/') || [];
+            let owner = sourceParts.length >= 4 ? sourceParts[sourceParts.length - 2] : undefined;
+            let repo = sourceParts.length >= 4 ? sourceParts[sourceParts.length - 1] : undefined;
+            const repoFullName = owner && repo ? `${owner}/${repo}` : undefined;
+
+            if (pr?.url) {
+                // Parse GitHub PR URL: https://github.com/{owner}/{repo}/pull/{number}
+                const urlParts = pr.url.split('/');
+                if (urlParts.length >= 7 && urlParts[2] === 'github.com' && urlParts[5] === 'pull') {
+                    githubMetadata = {
+                        owner: urlParts[3],
+                        repo: urlParts[4],
+                        pullRequestNumber: parseInt(urlParts[6], 10),
+                        branch: branch || undefined,
+                        repoFullName: `${urlParts[3]}/${urlParts[4]}`,
+                    };
+                }
+            } else if (branch || repoFullName) {
+                githubMetadata = {
+                    owner,
+                    repo,
+                    branch,
+                    repoFullName,
+                };
+            }
+        }
+
+        return {
+            ...session,
+            id,
+            githubMetadata
+        };
+    });
+    return sessions;
 }

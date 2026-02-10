@@ -33,7 +33,7 @@ type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
-    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesWorkflow, setJulesWorkflow } = useSettingsStore();
+    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
     const [androidIdInput, setAndroidIdInput] = useState(googleAndroidClientId || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
@@ -43,6 +43,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const [julesOwnerInput, setJulesOwnerInput] = useState(julesOwner || '');
     const [julesRepoInput, setJulesRepoInput] = useState(julesRepo || '');
     const [julesWorkflowInput, setJulesWorkflowInput] = useState(julesWorkflow || '');
+    const [julesGoogleKeyInput, setJulesGoogleKeyInput] = useState(julesGoogleApiKey || '');
     const [availableModels, setAvailableModels] = useState<string[]>(['gemini-2.0-flash-exp']);
     const [showModelPicker, setShowModelPicker] = useState(false);
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
@@ -202,6 +203,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             setJulesOwner(julesOwnerInput || null);
             setJulesRepo(julesRepoInput || null);
             setJulesWorkflow(julesWorkflowInput || null);
+            setJulesGoogleApiKey(julesGoogleKeyInput || null);
         }, 500); // 500ms debounce
 
         return () => clearTimeout(timer);
@@ -221,10 +223,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         julesOwnerInput,
         julesRepoInput,
         julesWorkflowInput,
+        julesGoogleKeyInput,
         setJulesApiKey,
         setJulesOwner,
         setJulesRepo,
         setJulesWorkflow,
+        setJulesGoogleApiKey,
     ]);
 
     const renderHeader = (title: string, onBack: (() => void) | undefined) => (
@@ -431,6 +435,18 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     value={julesWorkflowInput}
                     onChangeText={setJulesWorkflowInput}
                     placeholder="e.g. jules.yml"
+                />
+
+                <Text className="text-indigo-200 mt-6 mb-2 font-semibold">Google Jules API</Text>
+                <Text className="text-slate-400 text-sm mb-4">
+                    Direct integration with the Google Jules REST API.
+                </Text>
+                <Input
+                    label="Google Jules API Key"
+                    value={julesGoogleKeyInput}
+                    onChangeText={setJulesGoogleKeyInput}
+                    placeholder="AIza..."
+                    secureTextEntry
                 />
             </View>
         </Card>
