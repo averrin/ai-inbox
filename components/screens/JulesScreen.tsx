@@ -14,6 +14,25 @@ import { useNavigation } from '@react-navigation/native';
 
 dayjs.extend(relativeTime);
 
+// Helper to select the best artifact (e.g. app binary)
+function getBestArtifact(artifacts: Artifact[]): Artifact | null {
+    if (!artifacts || artifacts.length === 0) return null;
+
+    // Sort by creation date descending (newest first)
+    const sorted = [...artifacts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    // Priority list for app binaries
+    const priorities = ['app-release', 'app-debug', 'release', 'debug', 'build'];
+
+    for (const p of priorities) {
+        const match = sorted.find(a => a.name.toLowerCase().includes(p));
+        if (match) return match;
+    }
+
+    // Default to newest
+    return sorted[0];
+}
+
 function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string }) {
     const [ghRun, setGhRun] = useState<WorkflowRun | null>(null);
     const [loadingGh, setLoadingGh] = useState(false);
@@ -85,7 +104,9 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
         if (!ghRun || !artifacts || artifacts.length === 0 || !ghToken) return;
         setIsDownloading(true);
         try {
-            const artifact = artifacts[0];
+            const artifact = getBestArtifact(artifacts);
+            if (!artifact) return;
+
             const fileUri = FileSystem.documentDirectory + `${artifact.name}.zip`;
             const downloadResumable = FileSystem.createDownloadResumable(
                 artifact.archive_download_url,
@@ -313,9 +334,8 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
         if (!artifacts || artifacts.length === 0) return;
         setIsDownloading(true);
         try {
-            // Sort by creation date descending
-            const sortedArtifacts = [...artifacts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-            const artifact = sortedArtifacts[0];
+            const artifact = getBestArtifact(artifacts);
+            if (!artifact) return;
 
             const fileUri = FileSystem.documentDirectory + `${artifact.name}.zip`;
 
