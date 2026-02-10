@@ -53,7 +53,7 @@ export interface Artifact {
     expired: boolean;
 }
 
-export async function fetchWorkflowRuns(token: string, owner: string, repo: string, workflowId?: string, limit: number = 10, branch?: string): Promise<WorkflowRun[]> {
+export async function fetchWorkflowRuns(token: string, owner: string, repo: string, workflowId?: string, limit: number = 25, branch?: string): Promise<WorkflowRun[]> {
     let url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs?per_page=${limit}`;
     if (branch) url += `&branch=${branch}`;
     // If workflowId is provided (filename or ID), we can filter by it.
@@ -173,7 +173,7 @@ export interface JulesSession {
     };
 }
 
-export async function fetchJulesSessions(apiKey: string, limit: number = 10): Promise<JulesSession[]> {
+export async function fetchJulesSessions(apiKey: string, limit: number = 25): Promise<JulesSession[]> {
     const url = `https://jules.googleapis.com/v1alpha/sessions?pageSize=${limit}`;
     const response = await fetch(url, {
         headers: {
