@@ -576,14 +576,42 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 const embeddings: string[] = [];
 
                 if (attachedFiles.length > 0) {
-                    const { copyFileToVault } = await import('../../utils/saf');
+                    const { ensurePath, copyFileToFolder } = await import('../../utils/saf');
 
+                    // 1. Pre-ensure all destination folders
+                    const uniquePaths = new Set<string>();
                     for (const file of attachedFiles) {
                         const subfolder = getAttachmentSubfolder(file.mimeType);
-                        const targetPath = `Files/${subfolder}/${file.name}`;
-                        const copiedUri = await copyFileToVault(file.uri, vaultUri!, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
-                        if (copiedUri) embeddings.push(`![[${targetPath}]]`);
+                        const relativeFolder = `Files/${subfolder}`;
+                        const fullFolderPath = rootFolderForContext ? `${rootFolderForContext}/${relativeFolder}` : relativeFolder;
+                        uniquePaths.add(fullFolderPath);
                     }
+
+                    const folderUris: Record<string, string> = {};
+                    for (const path of uniquePaths) {
+                        folderUris[path] = await ensurePath(vaultUri!, path);
+                    }
+
+                    // 2. Parallel Copy in Original Order
+                    const copyPromises = attachedFiles.map(async (file) => {
+                        const subfolder = getAttachmentSubfolder(file.mimeType);
+                        const relativeFolder = `Files/${subfolder}`;
+                        const fullFolderPath = rootFolderForContext ? `${rootFolderForContext}/${relativeFolder}` : relativeFolder;
+                        const folderUri = folderUris[fullFolderPath];
+
+                        const copiedUri = await copyFileToFolder(file.uri, folderUri, file.name);
+                        if (copiedUri) {
+                            const subfolder = getAttachmentSubfolder(file.mimeType);
+                            const targetPath = `Files/${subfolder}/${file.name}`;
+                            return `![[${targetPath}]]`;
+                        }
+                        return null;
+                    });
+
+                    const results = await Promise.all(copyPromises);
+                    results.forEach(result => {
+                        if (result) embeddings.push(result);
+                    });
 
                     // Apply embeddings/transcription to ALL generated notes
                     // Or maybe just the first one? Let's apply to all for now as context is same.

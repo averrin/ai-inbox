@@ -97,6 +97,32 @@ export async function ensureDirectory(parentUri: string, dirName: string): Promi
     }
 }
 
+export async function ensurePath(baseUri: string, path: string): Promise<string> {
+    let currentUri = baseUri;
+    if (!path || !path.trim()) return currentUri;
+
+    const parts = path.split('/').filter(p => p.trim());
+    for (const part of parts) {
+        currentUri = await ensureDirectory(currentUri, part);
+    }
+    return currentUri;
+}
+
+export async function copyFileToFolder(sourceUri: string, folderUri: string, filename: string): Promise<string | null> {
+    try {
+        const content = await FileSystem.readAsStringAsync(sourceUri, { encoding: 'base64' });
+        // Note: ensureDirectory handles folder creation, but here we assume folderUri exists.
+        // SAF usually creates a new file with (1) appended if exists, depending on implementation,
+        // or throws. We rely on SAF behavior here.
+        const fileUri = await StorageAccessFramework.createFileAsync(folderUri, filename, 'application/octet-stream');
+        await FileSystem.writeAsStringAsync(fileUri, content, { encoding: 'base64' });
+        return fileUri;
+    } catch (e) {
+        console.error('[copyFileToFolder] Error:', e);
+        return null;
+    }
+}
+
 export async function saveToVault(
     vaultUri: string,
     filename: string,
@@ -105,13 +131,7 @@ export async function saveToVault(
     mimeType: string = 'text/markdown'
 ): Promise<string> {
     try {
-        let targetUri = vaultUri;
-        if (folderPath && folderPath.trim()) {
-            const parts = folderPath.split('/').filter(p => p.trim());
-            for (const part of parts) {
-                targetUri = await ensureDirectory(targetUri, part);
-            }
-        }
+        const targetUri = await ensurePath(vaultUri, folderPath || '');
 
         const existingFileUri = await findFile(targetUri, filename);
         if (existingFileUri) {
