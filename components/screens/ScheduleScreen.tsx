@@ -51,7 +51,6 @@ export default function ScheduleScreen() {
     const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
     const [viewMode, setViewMode] = useState<'day' | '3days' | 'week'>('day');
     const [selectedEvent, setSelectedEvent] = useState<{ title: string, start: Date, end: Date, typeTag?: string, [key: string]: any } | null>(null);
-    const [refreshing, setRefreshing] = useState(false);
     const [summaryModalVisible, setSummaryModalVisible] = useState(false);
     const [summaryData, setSummaryData] = useState<{ breakdown: DayBreakdown, status: any, date: Date } | null>(null);
     const [creatingEventDate, setCreatingEventDate] = useState<Date | null>(null);
@@ -292,12 +291,6 @@ export default function ScheduleScreen() {
             setIsEventsLoaded(true);
         }
     }, [visibleCalendarIds, date, viewMode, assignments, eventTypes, difficulties, eventFlags, eventIcons, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes]);
-
-    const handleRefresh = async () => {
-        setRefreshing(true);
-        await fetchEvents();
-        setRefreshing(false);
-    };
 
     const handleQuickAction = useCallback((action: 'event' | 'reminder', date: Date) => {
         if (action === 'reminder') {
@@ -1085,8 +1078,7 @@ export default function ScheduleScreen() {
                     onPrev={() => calendarRef.current?.goPrev()}
                     onToday={() => calendarRef.current?.goToDate(new Date())}
                     dayStatuses={dayStatuses}
-                    onSync={handleRefresh}
-                    isSyncing={refreshing}
+                    onSync={fetchEvents}
                 />
 
                 {/* Calendar View */}
@@ -1165,8 +1157,6 @@ export default function ScheduleScreen() {
                                     onToggleCompleted={toggleCompleted}
                                 />
                             )}
-                            // refreshing={refreshing}
-                            // onRefresh={handleRefresh}
                             onQuickAction={handleQuickAction}
                         />
                     </View>
