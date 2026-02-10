@@ -21,7 +21,7 @@ import { LunchContextModal } from '../LunchContextModal';
 import { calculateDayStatus, aggregateDayStats, DayBreakdown, DayStatusLevel } from '../../utils/difficultyUtils';
 import { DayStatusMarker } from '../DayStatusMarker';
 import { DaySummaryModal } from '../DaySummaryModal';
-import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder } from '../../services/reminderService';
+import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder, formatRecurrenceForReminder } from '../../services/reminderService';
 import { EventFormModal, EventSaveData, DeleteOptions } from '../EventFormModal';
 import { TaskEditModal } from '../markdown/TaskEditModal';
 import { TaskWithSource } from '../../store/tasks';
@@ -51,7 +51,6 @@ export default function ScheduleScreen() {
     const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
     const [viewMode, setViewMode] = useState<'day' | '3days' | 'week'>('day');
     const [selectedEvent, setSelectedEvent] = useState<{ title: string, start: Date, end: Date, typeTag?: string, [key: string]: any } | null>(null);
-    const [refreshing, setRefreshing] = useState(false);
     const [summaryModalVisible, setSummaryModalVisible] = useState(false);
     const [summaryData, setSummaryData] = useState<{ breakdown: DayBreakdown, status: any, date: Date } | null>(null);
     const [creatingEventDate, setCreatingEventDate] = useState<Date | null>(null);
@@ -293,12 +292,6 @@ export default function ScheduleScreen() {
         }
     }, [visibleCalendarIds, date, viewMode, assignments, eventTypes, difficulties, eventFlags, eventIcons, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes]);
 
-    const handleRefresh = async () => {
-        setRefreshing(true);
-        await fetchEvents();
-        setRefreshing(false);
-    };
-
     const handleQuickAction = useCallback((action: 'event' | 'reminder', date: Date) => {
         if (action === 'reminder') {
             setCreatingEventType('reminder');
@@ -384,25 +377,6 @@ export default function ScheduleScreen() {
         }
     };
 
-    const formatRecurrenceForReminder = (rule: any): string | undefined => {
-        if (!rule || !rule.frequency || rule.frequency === 'none') return undefined;
-        const freq = rule.frequency.toLowerCase();
-        const interval = rule.interval || 1;
-
-        if (interval === 1) {
-            return freq; // 'daily', 'weekly', etc.
-        }
-
-        let unit = '';
-        if (freq === 'daily') unit = 'days';
-        else if (freq === 'weekly') unit = 'weeks';
-        else if (freq === 'monthly') unit = 'months';
-        else if (freq === 'yearly') unit = 'years';
-
-        if (unit) return `${interval} ${unit}`;
-        return undefined;
-    };
-
     const handleSaveEvent = (data: EventSaveData) => {
         // 1. Close modal immediately
         setCreatingEventDate(null);
@@ -413,6 +387,7 @@ export default function ScheduleScreen() {
              // Handle Reminder Save
              const reminderTime = data.startDate.toISOString();
              const recurrenceStr = formatRecurrenceForReminder(data.recurrenceRule);
+             const content = data.content;
 
              // Check if it's an update
              if (editingEvent) {
@@ -427,7 +402,8 @@ export default function ScheduleScreen() {
                      recurrenceRule: recurrenceStr,
                      alarm: data.alarm,
                      persistent: data.persistent,
-                     title: data.title
+                     title: data.title,
+                     content: content
                  };
 
                  // Cache update
@@ -476,7 +452,11 @@ export default function ScheduleScreen() {
                                 data.title,
                                 recurrenceStr,
                                 data.alarm,
-                                data.persistent
+                                data.persistent,
+                                {},
+                                [],
+                                undefined,
+                                content
                             );
                             if (result) {
                                 // Fixup cache with real URI
@@ -497,7 +477,8 @@ export default function ScheduleScreen() {
                                 recurrenceStr,
                                 data.alarm,
                                 data.persistent,
-                                data.title
+                                data.title,
+                                content
                             );
                         }
                     } catch (e) {
@@ -516,6 +497,7 @@ export default function ScheduleScreen() {
                      recurrenceRule: recurrenceStr,
                      alarm: data.alarm,
                      persistent: data.persistent,
+                     content: content,
                      isNew: true
                  };
 
@@ -539,7 +521,11 @@ export default function ScheduleScreen() {
                             data.title,
                             recurrenceStr,
                             data.alarm,
-                            data.persistent
+                            data.persistent,
+                            {},
+                            [],
+                            undefined,
+                            content
                         );
                         if (result) {
                             // Fixup cache
@@ -1104,8 +1090,7 @@ export default function ScheduleScreen() {
                     onPrev={() => calendarRef.current?.goPrev()}
                     onToday={() => calendarRef.current?.goToDate(new Date())}
                     dayStatuses={dayStatuses}
-                    onSync={handleRefresh}
-                    isSyncing={refreshing}
+                    onSync={fetchEvents}
                 />
 
                 {/* Calendar View */}
@@ -1184,8 +1169,6 @@ export default function ScheduleScreen() {
                                     onToggleCompleted={toggleCompleted}
                                 />
                             )}
-                            // refreshing={refreshing}
-                            // onRefresh={handleRefresh}
                             onQuickAction={handleQuickAction}
                         />
                     </View>
