@@ -112,7 +112,8 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onRefre
             const artifact = getBestArtifact(artifacts);
             if (!artifact) return;
 
-            const fileUri = FileSystem.documentDirectory + `${artifact.name}.zip`;
+            const sanitizedBranch = (branch || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
+            const fileUri = FileSystem.documentDirectory + `${artifact.name}-${sanitizedBranch}.zip`;
             const downloadResumable = FileSystem.createDownloadResumable(
                 artifact.archive_download_url,
                 fileUri,
@@ -363,7 +364,8 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
             const artifact = getBestArtifact(artifacts);
             if (!artifact) return;
 
-            const fileUri = FileSystem.documentDirectory + `${artifact.name}.zip`;
+            const sanitizedBranch = (run.head_branch || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
+            const fileUri = FileSystem.documentDirectory + `${artifact.name}-${sanitizedBranch}.zip`;
 
             const downloadResumable = FileSystem.createDownloadResumable(
                 artifact.archive_download_url,
