@@ -6,6 +6,8 @@ import { StatusBar } from "expo-status-bar";
 import * as Notifications from 'expo-notifications';
 import { useEffect, useRef } from "react";
 import { registerReminderTask, scanForReminders, Reminder, getHash } from "../services/reminderService";
+import { registerJulesTask, unregisterJulesTask } from "../services/jules";
+import { useSettingsStore } from "../store/settings";
 import { ReminderModalProvider, useReminderModal } from "../utils/reminderModalContext";
 import { ReminderModal } from "../components/ReminderModal";
 import Toast, { BaseToast, ErrorToast, ToastConfig } from 'react-native-toast-message';
@@ -143,6 +145,14 @@ function AppContent() {
 
     // Check for Native Alarm Launch
     if (Platform.OS === 'android') {
+      // Set up notification channels for Android
+      Notifications.setNotificationChannelAsync('jules-artifacts', {
+        name: 'Jules Artifacts',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#818cf8',
+      });
+      
       import('../services/alarmModule').then(async ({ getLaunchAlarmDetails, dismissNativeNotification }) => {
         const details = await getLaunchAlarmDetails();
         if (details) {
@@ -178,6 +188,16 @@ function AppContent() {
       responseListener.current?.remove();
     };
   }, []);
+
+  const { julesNotificationsEnabled } = useSettingsStore();
+
+  useEffect(() => {
+    if (julesNotificationsEnabled) {
+      registerJulesTask();
+    } else {
+      unregisterJulesTask();
+    }
+  }, [julesNotificationsEnabled]);
 
   return (
     <>
