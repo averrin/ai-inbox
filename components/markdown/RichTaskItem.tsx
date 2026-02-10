@@ -180,41 +180,45 @@ export function RichTaskItem({
 
     return (
         <View className="flex-row items-start relative">
-            {showGuide && (
-                <View 
-                    style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 40, alignItems: 'center', justifyContent: 'center' }}
-                    pointerEvents="none"
-                >
-                    <View 
-                        className={`absolute w-0.5 bg-indigo-500/30 ${isFirstInFile ? 'top-6' : 'top-0'} ${isLastInFile ? 'bottom-6' : 'bottom-0'}`}
-                        style={{ left: 19 }}
-                    />
-
-                    {isFirstInFile && fileName && (
+            {/* Always reserve space for guide to keep alignment consistent */}
+            <View
+                style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 40, alignItems: 'center', justifyContent: 'center' }}
+                pointerEvents="none"
+            >
+                {showGuide && (
+                    <>
                         <View 
-                            style={{ 
-                                position: 'absolute',
-                                top: '50%',
-                                left: -40,
-                                width: 120,
-                                height: 20,
-                                transform: [{ translateY: -10 }, { rotate: '90deg' }],
-                                zIndex: 10,
-                                alignItems: 'center', 
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <Text 
-                                className="text-slate-500 text-[8px] font-bold uppercase tracking-[2px] text-center"
-                                numberOfLines={1}
+                            className={`absolute w-0.5 bg-indigo-500/30 ${isFirstInFile ? 'top-6' : 'top-0'} ${isLastInFile ? 'bottom-6' : 'bottom-0'}`}
+                            style={{ left: 19 }}
+                        />
+
+                        {isFirstInFile && fileName && (
+                            <View
+                                style={{
+                                    position: 'absolute',
+                                    top: '50%',
+                                    left: -40,
+                                    width: 120,
+                                    height: 20,
+                                    transform: [{ translateY: -10 }, { rotate: '90deg' }],
+                                    zIndex: 10,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                }}
                             >
-                                {fileName}
-                            </Text>
-                        </View>
-                    )}
-                </View>
-            )}
-            <View className={`flex-1 ${showGuide ? 'pl-10' : ''}`}>
+                                <Text
+                                    className="text-slate-500 text-[8px] font-bold uppercase tracking-[2px] text-center"
+                                    numberOfLines={1}
+                                >
+                                    {fileName}
+                                </Text>
+                            </View>
+                        )}
+                    </>
+                )}
+            </View>
+            {/* Always apply padding to push content right */}
+            <View className="flex-1 pl-10">
                 <BaseListItem
                     leftIcon={leftIcon}
                     selectionComponent={selectionComponent}
