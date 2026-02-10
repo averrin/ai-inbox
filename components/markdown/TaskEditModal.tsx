@@ -19,7 +19,8 @@ import {
     ALARM_PROPERTY_KEY,
     PERSISTENT_PROPERTY_KEY,
     createStandaloneReminder,
-    updateReminder
+    updateReminder,
+    formatRecurrenceForReminder
 } from '../../services/reminderService';
 import { getParentFolderUri, findFile } from '../../utils/saf';
 import { TaskStatusIcon, getStatusConfig } from '../ui/TaskStatusIcon';
@@ -104,25 +105,6 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
 
     const handleRemoveTag = (index: number) => {
         setTags(tags.filter((_, i) => i !== index));
-    };
-
-    const formatRecurrenceForReminder = (rule: any): string | undefined => {
-      if (!rule || !rule.frequency || rule.frequency === 'none') return undefined;
-      const freq = rule.frequency.toLowerCase();
-      const interval = rule.interval || 1;
-
-      if (interval === 1) {
-          return freq; // 'daily', 'weekly', etc.
-      }
-
-      let unit = '';
-      if (freq === 'daily') unit = 'days';
-      else if (freq === 'weekly') unit = 'weeks';
-      else if (freq === 'monthly') unit = 'months';
-      else if (freq === 'yearly') unit = 'years';
-
-      if (unit) return `${interval} ${unit}`;
-      return undefined;
     };
 
     const handleReminderSave = (data: EventSaveData) => {
