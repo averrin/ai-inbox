@@ -413,21 +413,27 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 if (audioFiles.length > 0) {
                     setLoadingStatus('Transcribing audio...');
 
-                    for (const file of audioFiles) {
+                    const transcriptionPromises = audioFiles.map(async (file) => {
                         try {
                             const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
                             const transcription = await transcribeAudio(apiKey || '', base64, file.mimeType, selectedModel || undefined);
-
-                            if (transcription) {
-                                // For Note Body (Formatted)
-                                const formatted = transcription.split('\n').map(line => `> ${line}`).join('\n');
-                                transcriptionContext += `\n> [!quote] Transcription: ${file.name}\n${formatted}\n`;
-
-                                // For AI Prompt (Raw)
-                                rawTranscriptions += `\n\nTranscription of ${file.name}:\n${transcription}\n`;
-                            }
+                            return { file, transcription };
                         } catch (e) {
                             console.warn(`Failed to transcribe ${file.name}`, e);
+                            return null;
+                        }
+                    });
+
+                    const results = await Promise.all(transcriptionPromises);
+                    for (const result of results) {
+                        if (result && result.transcription) {
+                            const { file, transcription } = result;
+                            // For Note Body (Formatted)
+                            const formatted = transcription.split('\n').map(line => `> ${line}`).join('\n');
+                            transcriptionContext += `\n> [!quote] Transcription: ${file.name}\n${formatted}\n`;
+
+                            // For AI Prompt (Raw)
+                            rawTranscriptions += `\n\nTranscription of ${file.name}:\n${transcription}\n`;
                         }
                     }
                 }
@@ -578,11 +584,16 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 if (attachedFiles.length > 0) {
                     const { copyFileToVault } = await import('../../utils/saf');
 
-                    for (const file of attachedFiles) {
+                    const copyPromises = attachedFiles.map(async (file) => {
                         const subfolder = getAttachmentSubfolder(file.mimeType);
                         const targetPath = `Files/${subfolder}/${file.name}`;
                         const copiedUri = await copyFileToVault(file.uri, vaultUri!, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
-                        if (copiedUri) embeddings.push(`![[${targetPath}]]`);
+                        return copiedUri ? `![[${targetPath}]]` : null;
+                    });
+
+                    const copyResults = await Promise.all(copyPromises);
+                    for (const embedding of copyResults) {
+                        if (embedding) embeddings.push(embedding);
                     }
 
                     // Apply embeddings/transcription to ALL generated notes
@@ -676,24 +687,39 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             const { copyFileToVault } = await import('../../utils/saf');
             const { transcribeAudio } = await import('../../services/gemini');
 
-            for (const file of attachedFiles) {
+            const fileProcessingPromises = attachedFiles.map(async (file) => {
+                let transcription = null;
                 if (file.mimeType.startsWith('audio/')) {
                     try {
                         const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
-                        const transcription = await transcribeAudio(apiKey || '', base64, file.mimeType, selectedModel || undefined);
-                        if (transcription) {
-                            const formatted = transcription.split('\n').map(line => `> ${line}`).join('\n');
-                            transcriptionText += `\n> [!quote] Transcription\n${formatted}\n`;
-                        }
+                        transcription = await transcribeAudio(apiKey || '', base64, file.mimeType, selectedModel || undefined);
                     } catch (e) {
                         console.warn(`Failed to transcribe ${file.name}`, e);
                     }
                 }
 
-                const subfolder = getAttachmentSubfolder(file.mimeType);
-                const targetPath = `Files/${subfolder}/${file.name}`;
-                const copiedUri = await copyFileToVault(file.uri, vaultUri, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
-                if (copiedUri) embeddings.push(`![[${targetPath}]]`);
+                let embedding = null;
+                try {
+                    const subfolder = getAttachmentSubfolder(file.mimeType);
+                    const targetPath = `Files/${subfolder}/${file.name}`;
+                    const copiedUri = await copyFileToVault(file.uri, vaultUri, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
+                    if (copiedUri) embedding = `![[${targetPath}]]`;
+                } catch (e) {
+                    console.warn(`Failed to copy ${file.name} to vault`, e);
+                }
+
+                return { transcription, embedding };
+            });
+
+            const results = await Promise.all(fileProcessingPromises);
+            for (const res of results) {
+                if (res.transcription) {
+                    const formatted = res.transcription.split('\n').map(line => `> ${line}`).join('\n');
+                    transcriptionText += `\n> [!quote] Transcription\n${formatted}\n`;
+                }
+                if (res.embedding) {
+                    embeddings.push(res.embedding);
+                }
             }
 
             if (transcriptionText) processedText = `${transcriptionText}\n\n${inputText}`.trim();
