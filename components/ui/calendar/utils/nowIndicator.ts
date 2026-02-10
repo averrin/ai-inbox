@@ -5,14 +5,23 @@ interface SimpleEvent {
   end: Date
 }
 
+interface UpcomingEvent {
+  title: string
+  minutesUntil: number
+}
+
 export function getNowIndicatorInfo(
   now: dayjs.Dayjs,
   activeEvent: SimpleEvent | undefined,
-  ampm = false
+  ampm = false,
+  upcomingEvent?: UpcomingEvent,
 ) {
   const timeText = now.format(ampm ? 'h:mm A' : 'HH:mm')
 
   if (!activeEvent) {
+    if (upcomingEvent && upcomingEvent.minutesUntil > 0) {
+      return `${timeText} • ${upcomingEvent.minutesUntil}m to ${upcomingEvent.title}`
+    }
     return timeText
   }
 
