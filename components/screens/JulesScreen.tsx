@@ -4,7 +4,7 @@ import { Layout } from '../ui/Layout';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
 import { useEffect, useState, useCallback } from 'react';
-import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest, sendMessageToSession } from '../../services/jules';
+import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest } from '../../services/jules';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -14,16 +14,14 @@ import { useNavigation } from '@react-navigation/native';
 
 dayjs.extend(relativeTime);
 
-function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onDelete?: () => void, onRefresh?: () => void, julesGoogleApiKey?: string }) {
+function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string }) {
     const [ghRun, setGhRun] = useState<WorkflowRun | null>(null);
     const [loadingGh, setLoadingGh] = useState(false);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
     const [artifactsLoading, setArtifactsLoading] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [isMerging, setIsMerging] = useState(false);
-    const [isResolving, setIsResolving] = useState(false);
     const [prInactive, setPrInactive] = useState(false);
-    const [mergeable, setMergeable] = useState<boolean | null>(null);
 
     const metadata = session.githubMetadata;
     const owner = metadata?.owner || defaultOwner;
@@ -77,10 +75,7 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
             
             if (prNumber) {
                 fetchPullRequest(ghToken, owner, repo, prNumber)
-                    .then(pr => {
-                        setPrInactive(pr.merged || pr.state === 'merged' || pr.state === 'closed');
-                        setMergeable(pr.mergeable);
-                    })
+                    .then(pr => setPrInactive(pr.merged || pr.state === 'merged' || pr.state === 'closed'))
                     .catch(err => console.error("Fetch PR detail error:", err));
             }
         }
@@ -116,42 +111,12 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
             setIsMerging(true);
             await mergePullRequest(ghToken, owner, repo, prNumber);
             Alert.alert("Success", "Pull Request merged successfully");
-            if (onRefresh) onRefresh();
         } catch (e) {
             console.error(e);
             Alert.alert("Error", "Failed to merge Pull Request");
         } finally {
             setIsMerging(false);
         }
-    };
-
-    const handleResolveConflict = async () => {
-        if (!julesGoogleApiKey) {
-            Alert.alert("Error", "Jules API key missing");
-            return;
-        }
-
-        try {
-            setIsResolving(true);
-            await sendMessageToSession(julesGoogleApiKey, session.name, "merge master, resolve conflicts and push");
-            Alert.alert("Request Sent", "Asked Jules to resolve conflicts.");
-        } catch (e) {
-            console.error(e);
-            Alert.alert("Error", "Failed to send resolution request");
-        } finally {
-            setIsResolving(false);
-        }
-    };
-
-    const handleDelete = () => {
-        Alert.alert(
-            "Delete Session",
-            "Are you sure you want to delete this session? This cannot be undone.",
-            [
-                { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: onDelete }
-            ]
-        );
     };
 
     const getStatusIcon = (state: string) => {
@@ -260,18 +225,16 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
 
                 {session.state === 'COMPLETED' && ghRun?.conclusion === 'success' && prNumber && !prInactive && (
                     <TouchableOpacity
-                        onPress={mergeable === false ? handleResolveConflict : handleMerge}
-                        disabled={isMerging || isResolving}
-                        className={`flex-1 py-2 rounded-lg flex-row items-center justify-center ${mergeable === false ? 'bg-orange-600' : 'bg-green-600'}`}
+                        onPress={handleMerge}
+                        disabled={isMerging}
+                        className="flex-1 bg-green-600 py-2 rounded-lg flex-row items-center justify-center"
                     >
-                        {isMerging || isResolving ? (
+                        {isMerging ? (
                             <ActivityIndicator size="small" color="white" />
                         ) : (
                             <>
-                                <Ionicons name={mergeable === false ? "hammer-outline" : "git-merge-outline"} size={14} color="white" />
-                                <Text className="text-white text-xs font-semibold ml-2">
-                                    {mergeable === false ? "Resolve" : "Merge"}
-                                </Text>
+                                <Ionicons name="git-merge-outline" size={14} color="white" />
+                                <Text className="text-white text-xs font-semibold ml-2">Merge</Text>
                             </>
                         )}
                     </TouchableOpacity>
@@ -301,16 +264,6 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
                         <Text className="text-slate-500 text-[10px] italic">No Artifacts</Text>
                     </View>
                 ) : null}
-
-                {(session.state === 'COMPLETED' || session.state === 'FAILED' || prInactive) && onDelete && (
-                    <TouchableOpacity
-                        onPress={handleDelete}
-                        className="flex-1 bg-red-600/20 border border-red-500/30 py-2 rounded-lg flex-row items-center justify-center"
-                    >
-                        <Ionicons name="trash-outline" size={14} color="#f87171" />
-                        <Text className="text-red-400 text-xs font-semibold ml-2">Delete</Text>
-                    </TouchableOpacity>
-                )}
             </View>
         </Card>
     );
@@ -549,12 +502,12 @@ export default function JulesScreen() {
         try {
             if (mode === 'github') {
                 if (julesApiKey && julesOwner && julesRepo) {
-                    const data = await fetchWorkflowRuns(julesApiKey, julesOwner, julesRepo, julesWorkflow || undefined, 25);
+                    const data = await fetchWorkflowRuns(julesApiKey, julesOwner, julesRepo, julesWorkflow || undefined, 10);
                     setRuns(data);
                 }
             } else {
                 if (julesGoogleApiKey) {
-                    const data = await fetchJulesSessions(julesGoogleApiKey, 25);
+                    const data = await fetchJulesSessions(julesGoogleApiKey, 10);
                     setJulesSessions(data);
                 }
             }
@@ -682,15 +635,6 @@ export default function JulesScreen() {
                             ghToken={julesApiKey || undefined}
                             defaultOwner={julesOwner || undefined}
                             defaultRepo={julesRepo || undefined}
-                            onDelete={async () => {
-                                const { deleteJulesSession } = await import('../../services/jules');
-                                if (julesGoogleApiKey) {
-                                    await deleteJulesSession(julesGoogleApiKey, session.name);
-                                    onRefresh();
-                                }
-                            }}
-                            onRefresh={onRefresh}
-                            julesGoogleApiKey={julesGoogleApiKey || undefined}
                         />
                     ))
                     }</>

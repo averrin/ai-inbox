@@ -387,7 +387,6 @@ export default function ScheduleScreen() {
              // Handle Reminder Save
              const reminderTime = data.startDate.toISOString();
              const recurrenceStr = formatRecurrenceForReminder(data.recurrenceRule);
-             const content = data.content;
 
              // Check if it's an update
              if (editingEvent) {
@@ -402,8 +401,7 @@ export default function ScheduleScreen() {
                      recurrenceRule: recurrenceStr,
                      alarm: data.alarm,
                      persistent: data.persistent,
-                     title: data.title,
-                     content: content
+                     title: data.title
                  };
 
                  // Cache update
@@ -452,11 +450,7 @@ export default function ScheduleScreen() {
                                 data.title,
                                 recurrenceStr,
                                 data.alarm,
-                                data.persistent,
-                                {},
-                                [],
-                                undefined,
-                                content
+                                data.persistent
                             );
                             if (result) {
                                 // Fixup cache with real URI
@@ -477,8 +471,7 @@ export default function ScheduleScreen() {
                                 recurrenceStr,
                                 data.alarm,
                                 data.persistent,
-                                data.title,
-                                content
+                                data.title
                             );
                         }
                     } catch (e) {
@@ -497,7 +490,6 @@ export default function ScheduleScreen() {
                      recurrenceRule: recurrenceStr,
                      alarm: data.alarm,
                      persistent: data.persistent,
-                     content: content,
                      isNew: true
                  };
 
@@ -521,11 +513,7 @@ export default function ScheduleScreen() {
                             data.title,
                             recurrenceStr,
                             data.alarm,
-                            data.persistent,
-                            {},
-                            [],
-                            undefined,
-                            content
+                            data.persistent
                         );
                         if (result) {
                             // Fixup cache
