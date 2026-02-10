@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 dayjs.extend(relativeTime);
 
 function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string }) {
+    const { archiveJulesSession } = useSettingsStore();
     const [ghRun, setGhRun] = useState<WorkflowRun | null>(null);
     const [loadingGh, setLoadingGh] = useState(false);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
@@ -117,6 +118,17 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
         } finally {
             setIsMerging(false);
         }
+    };
+
+    const handleArchive = () => {
+        Alert.alert(
+            "Archive Session",
+            "Are you sure you want to archive this session?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "Archive", style: "destructive", onPress: () => archiveJulesSession(session.id) }
+            ]
+        );
     };
 
     const getStatusIcon = (state: string) => {
@@ -264,6 +276,16 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
                         <Text className="text-slate-500 text-[10px] italic">No Artifacts</Text>
                     </View>
                 ) : null}
+
+                {(session.state === 'COMPLETED' || session.state === 'FAILED' || prInactive) && (
+                    <TouchableOpacity
+                        onPress={handleArchive}
+                        className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
+                    >
+                        <Ionicons name="archive-outline" size={14} color="white" />
+                        <Text className="text-white text-xs font-semibold ml-2">Archive</Text>
+                    </TouchableOpacity>
+                )}
             </View>
         </Card>
     );
@@ -489,7 +511,7 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
 }
 
 export default function JulesScreen() {
-    const { julesApiKey, julesOwner, julesRepo, julesWorkflow, julesGoogleApiKey, julesNotificationsEnabled } = useSettingsStore();
+    const { julesApiKey, julesOwner, julesRepo, julesWorkflow, julesGoogleApiKey, julesNotificationsEnabled, archivedJulesSessions } = useSettingsStore();
     const [mode, setMode] = useState<'jules' | 'github'>('jules');
     const [runs, setRuns] = useState<WorkflowRun[]>([]);
     const [julesSessions, setJulesSessions] = useState<JulesSession[]>([]);
@@ -502,12 +524,12 @@ export default function JulesScreen() {
         try {
             if (mode === 'github') {
                 if (julesApiKey && julesOwner && julesRepo) {
-                    const data = await fetchWorkflowRuns(julesApiKey, julesOwner, julesRepo, julesWorkflow || undefined, 10);
+                    const data = await fetchWorkflowRuns(julesApiKey, julesOwner, julesRepo, julesWorkflow || undefined, 25);
                     setRuns(data);
                 }
             } else {
                 if (julesGoogleApiKey) {
-                    const data = await fetchJulesSessions(julesGoogleApiKey, 10);
+                    const data = await fetchJulesSessions(julesGoogleApiKey, 25);
                     setJulesSessions(data);
                 }
             }
@@ -576,7 +598,8 @@ export default function JulesScreen() {
             );
         }
 
-        const items = mode === 'github' ? runs : julesSessions;
+        const filteredJulesSessions = julesSessions.filter(s => !(archivedJulesSessions || []).includes(s.id));
+        const items = mode === 'github' ? runs : filteredJulesSessions;
 
         if (items.length === 0) {
             return (
@@ -628,7 +651,7 @@ export default function JulesScreen() {
                         <Ionicons name="chevron-forward" size={20} color="#818cf8" />
                     </TouchableOpacity>
 
-                    {julesSessions.map(session => (
+                    {filteredJulesSessions.map(session => (
                         <JulesSessionItem
                             key={session.id}
                             session={session}

@@ -81,6 +81,9 @@ interface SettingsState {
     setJulesGoogleApiKey: (key: string | null) => void;
     julesNotificationsEnabled: boolean;
     setJulesNotificationsEnabled: (enabled: boolean) => void;
+    archivedJulesSessions: string[];
+    archiveJulesSession: (id: string) => void;
+    unarchiveJulesSession: (id: string) => void;
     weatherLocation: { lat: number, lon: number };
     setWeatherLocation: (location: { lat: number, lon: number }) => void;
     tagConfig: Record<string, MetadataConfig>;
@@ -171,6 +174,13 @@ export const useSettingsStore = create<SettingsState>()(
             setJulesGoogleApiKey: (key) => set({ julesGoogleApiKey: key }),
             julesNotificationsEnabled: true,
             setJulesNotificationsEnabled: (enabled) => set({ julesNotificationsEnabled: enabled }),
+            archivedJulesSessions: [],
+            archiveJulesSession: (id) => set((state) => ({
+                archivedJulesSessions: [...(state.archivedJulesSessions || []), id]
+            })),
+            unarchiveJulesSession: (id) => set((state) => ({
+                archivedJulesSessions: (state.archivedJulesSessions || []).filter(sid => sid !== id)
+            })),
             weatherLocation: { lat: 37.7749, lon: -122.4194 },
             setWeatherLocation: (location) => set({ weatherLocation: location }),
             tagConfig: {},
