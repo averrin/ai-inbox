@@ -14,7 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 
 dayjs.extend(relativeTime);
 
-function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string }) {
+function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onRefresh }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onRefresh?: () => void }) {
     const [ghRun, setGhRun] = useState<WorkflowRun | null>(null);
     const [loadingGh, setLoadingGh] = useState(false);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
@@ -22,6 +22,7 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
     const [isDownloading, setIsDownloading] = useState(false);
     const [isMerging, setIsMerging] = useState(false);
     const [prInactive, setPrInactive] = useState(false);
+    const [mergeable, setMergeable] = useState<boolean | null>(null);
 
     const metadata = session.githubMetadata;
     const owner = metadata?.owner || defaultOwner;
@@ -75,7 +76,10 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
             
             if (prNumber) {
                 fetchPullRequest(ghToken, owner, repo, prNumber)
-                    .then(pr => setPrInactive(pr.merged || pr.state === 'merged' || pr.state === 'closed'))
+                    .then(pr => {
+                        setPrInactive(pr.merged || pr.state === 'merged' || pr.state === 'closed');
+                        setMergeable(pr.mergeable);
+                    })
                     .catch(err => console.error("Fetch PR detail error:", err));
             }
         }
@@ -111,6 +115,7 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
             setIsMerging(true);
             await mergePullRequest(ghToken, owner, repo, prNumber);
             Alert.alert("Success", "Pull Request merged successfully");
+            if (onRefresh) onRefresh();
         } catch (e) {
             console.error(e);
             Alert.alert("Error", "Failed to merge Pull Request");
@@ -226,15 +231,17 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
                 {session.state === 'COMPLETED' && ghRun?.conclusion === 'success' && prNumber && !prInactive && (
                     <TouchableOpacity
                         onPress={handleMerge}
-                        disabled={isMerging}
-                        className="flex-1 bg-green-600 py-2 rounded-lg flex-row items-center justify-center"
+                        disabled={isMerging || mergeable === false}
+                        className={`flex-1 py-2 rounded-lg flex-row items-center justify-center ${mergeable === false ? 'bg-orange-600' : 'bg-green-600'}`}
                     >
                         {isMerging ? (
                             <ActivityIndicator size="small" color="white" />
                         ) : (
                             <>
-                                <Ionicons name="git-merge-outline" size={14} color="white" />
-                                <Text className="text-white text-xs font-semibold ml-2">Merge</Text>
+                                <Ionicons name={mergeable === false ? "alert-circle-outline" : "git-merge-outline"} size={14} color="white" />
+                                <Text className="text-white text-xs font-semibold ml-2">
+                                    {mergeable === false ? "Conflict" : "Merge"}
+                                </Text>
                             </>
                         )}
                     </TouchableOpacity>
@@ -635,6 +642,7 @@ export default function JulesScreen() {
                             ghToken={julesApiKey || undefined}
                             defaultOwner={julesOwner || undefined}
                             defaultRepo={julesRepo || undefined}
+                            onRefresh={onRefresh}
                         />
                     ))
                     }</>

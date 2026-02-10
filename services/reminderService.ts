@@ -246,13 +246,14 @@ export async function updateReminder(
     recurrenceRule?: string,
     alarm?: boolean,
     persistent?: number,
-    title?: string
+    title?: string,
+    bodyContent?: string
 ) {
     try {
-        const content = await StorageAccessFramework.readAsStringAsync(fileUri);
+        const fileContent = await StorageAccessFramework.readAsStringAsync(fileUri);
 
         // Check for existing alarm to cancel it if time changes or alarm is disabled
-        const oldFm = parseFrontmatter(content);
+        const oldFm = parseFrontmatter(fileContent);
         if (oldFm[ALARM_PROPERTY_KEY] === 'true' && oldFm[REMINDER_PROPERTY_KEY]) {
             const oldTimeStr = oldFm[REMINDER_PROPERTY_KEY].replace(/^["']|["']$/g, '');
             const oldDate = new Date(oldTimeStr);
@@ -261,21 +262,30 @@ export async function updateReminder(
             }
         }
 
-        let newContent = content;
+        let newContent = fileContent;
+
+        // Update body content if provided
+        if (bodyContent !== undefined) {
+            const fmEndIndex = newContent.indexOf('\n---', 3);
+            if (fmEndIndex !== -1) {
+                const frontmatter = newContent.slice(0, fmEndIndex + 4); // include \n---
+                newContent = `${frontmatter}\n\n${bodyContent}`;
+            }
+        }
 
         if (newTime) {
             // Update or add
-            if (content.match(new RegExp(`${REMINDER_PROPERTY_KEY}:.*`))) {
-                newContent = content.replace(
+            if (newContent.match(new RegExp(`${REMINDER_PROPERTY_KEY}:.*`))) {
+                newContent = newContent.replace(
                     new RegExp(`${REMINDER_PROPERTY_KEY}:.*`),
                     `${REMINDER_PROPERTY_KEY}: ${newTime}`
                 );
             } else {
                 // Insert into frontmatter if exists
-                if (content.startsWith('---')) {
-                    const endOfFM = content.indexOf('\n---', 3);
+                if (newContent.startsWith('---')) {
+                    const endOfFM = newContent.indexOf('\n---', 3);
                     if (endOfFM !== -1) {
-                        newContent = content.slice(0, endOfFM) + `\n${REMINDER_PROPERTY_KEY}: ${newTime}` + content.slice(endOfFM);
+                        newContent = newContent.slice(0, endOfFM) + `\n${REMINDER_PROPERTY_KEY}: ${newTime}` + newContent.slice(endOfFM);
                     }
                 }
             }
@@ -368,10 +378,10 @@ export async function updateReminder(
 
         } else {
             // Delete (Remove the line)
-            newContent = content.replace(new RegExp(`^${REMINDER_PROPERTY_KEY}:.*\\n?`, 'm'), '');
+            newContent = newContent.replace(new RegExp(`^${REMINDER_PROPERTY_KEY}:.*\\n?`, 'm'), '');
         }
 
-        if (newContent !== content) {
+        if (newContent !== fileContent) {
             await StorageAccessFramework.writeAsStringAsync(fileUri, newContent);
 
             // Trigger global sync to update notifications
@@ -398,7 +408,8 @@ export async function createStandaloneReminder(
     persistent?: number,
     additionalProps: Record<string, any> = {},
     tags: string[] = [],
-    siblingFileUri?: string
+    siblingFileUri?: string,
+    bodyContent?: string
 ): Promise<{ uri: string, fileName: string } | null> {
     try {
         const { vaultUri, defaultReminderFolder, remindersScanFolder } = useSettingsStore.getState();
@@ -452,7 +463,7 @@ export async function createStandaloneReminder(
             frontmatter += `\ntags: [${tags.join(', ')}]`;
         }
 
-        const content = `---\n${frontmatter}\n---\n# ${baseName}\n\nCreated via Reminders App.`;
+        const content = `---\n${frontmatter}\n---\n# ${baseName}\n\n${bodyContent || 'Created via Reminders App.'}`;
         const fileUri = await StorageAccessFramework.createFileAsync(targetFolderUri, fileName, 'text/markdown');
         await StorageAccessFramework.writeAsStringAsync(fileUri, content);
 
