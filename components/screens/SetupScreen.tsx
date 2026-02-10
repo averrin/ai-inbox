@@ -28,17 +28,21 @@ import { useEventTypesStore } from '../../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../../utils/debugUtils';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
-    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType } = useSettingsStore();
+    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesWorkflow, setJulesWorkflow } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
     const [androidIdInput, setAndroidIdInput] = useState(googleAndroidClientId || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
     const [modelInput, setModelInput] = useState(selectedModel);
     const [rootFolderInput, setRootFolderInput] = useState(contextRootFolder || '');
+    const [julesKeyInput, setJulesKeyInput] = useState(julesApiKey || '');
+    const [julesOwnerInput, setJulesOwnerInput] = useState(julesOwner || '');
+    const [julesRepoInput, setJulesRepoInput] = useState(julesRepo || '');
+    const [julesWorkflowInput, setJulesWorkflowInput] = useState(julesWorkflow || '');
     const [availableModels, setAvailableModels] = useState<string[]>(['gemini-2.0-flash-exp']);
     const [showModelPicker, setShowModelPicker] = useState(false);
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
@@ -194,6 +198,10 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             setSelectedModel(modelInput);
             setContextRootFolder(rootFolderInput);
             setGoogleAndroidClientId(androidIdInput);
+            setJulesApiKey(julesKeyInput || null);
+            setJulesOwner(julesOwnerInput || null);
+            setJulesRepo(julesRepoInput || null);
+            setJulesWorkflow(julesWorkflowInput || null);
         }, 500); // 500ms debounce
 
         return () => clearTimeout(timer);
@@ -209,6 +217,14 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         setSelectedModel,
         setContextRootFolder,
         setGoogleAndroidClientId,
+        julesKeyInput,
+        julesOwnerInput,
+        julesRepoInput,
+        julesWorkflowInput,
+        setJulesApiKey,
+        setJulesOwner,
+        setJulesRepo,
+        setJulesWorkflow,
     ]);
 
     const renderHeader = (title: string, onBack: (() => void) | undefined) => (
@@ -385,6 +401,41 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     );
 
 
+    const renderJulesSettings = () => (
+        <Card>
+            <View className="mb-4">
+                <Text className="text-indigo-200 mb-2 font-semibold">GitHub Integration</Text>
+                <Text className="text-slate-400 text-sm mb-4">
+                    Configure access to your GitHub repository to view Jules sessions and artifacts.
+                </Text>
+                <Input
+                    label="GitHub Personal Access Token"
+                    value={julesKeyInput}
+                    onChangeText={setJulesKeyInput}
+                    placeholder="ghp_..."
+                />
+                <Input
+                    label="Repository Owner"
+                    value={julesOwnerInput}
+                    onChangeText={setJulesOwnerInput}
+                    placeholder="e.g. facebook"
+                />
+                <Input
+                    label="Repository Name"
+                    value={julesRepoInput}
+                    onChangeText={setJulesRepoInput}
+                    placeholder="e.g. react-native"
+                />
+                <Input
+                    label="Workflow Filename (Optional)"
+                    value={julesWorkflowInput}
+                    onChangeText={setJulesWorkflowInput}
+                    placeholder="e.g. jules.yml"
+                />
+            </View>
+        </Card>
+    );
+
     const renderAdvancedSettings = () => (
         <Card>
             <View className="mb-4">
@@ -544,6 +595,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "cloud-outline",
                 () => setActiveSection('weather'),
                 "Location & Preferences"
+            )}
+            {renderMenuButton(
+                "Jules Integration",
+                "logo-github",
+                () => setActiveSection('jules'),
+                "Sessions & Artifacts"
             )}
             {renderMenuButton(
                 "Advanced",
@@ -734,6 +791,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("Weather", () => setActiveSection('root'))}
                                 <View className="px-0"><WeatherSettings /></View>
+                            </>
+                        )}
+                        {activeSection === 'jules' && (
+                            <>
+                                {renderHeader("Jules Integration", () => setActiveSection('root'))}
+                                <View className="px-0">{renderJulesSettings()}</View>
                             </>
                         )}
                         {activeSection === 'advanced' && (
