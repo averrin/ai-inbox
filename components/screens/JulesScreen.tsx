@@ -14,8 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 
 dayjs.extend(relativeTime);
 
-function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string }) {
-    const { archiveJulesSession } = useSettingsStore();
+function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelete }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onDelete?: () => void }) {
     const [ghRun, setGhRun] = useState<WorkflowRun | null>(null);
     const [loadingGh, setLoadingGh] = useState(false);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
@@ -120,13 +119,13 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
         }
     };
 
-    const handleArchive = () => {
+    const handleDelete = () => {
         Alert.alert(
-            "Archive Session",
-            "Are you sure you want to archive this session?",
+            "Delete Session",
+            "Are you sure you want to delete this session? This cannot be undone.",
             [
                 { text: "Cancel", style: "cancel" },
-                { text: "Archive", style: "destructive", onPress: () => archiveJulesSession(session.id) }
+                { text: "Delete", style: "destructive", onPress: onDelete }
             ]
         );
     };
@@ -277,13 +276,13 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
                     </View>
                 ) : null}
 
-                {(session.state === 'COMPLETED' || session.state === 'FAILED' || prInactive) && (
+                {(session.state === 'COMPLETED' || session.state === 'FAILED' || prInactive) && onDelete && (
                     <TouchableOpacity
-                        onPress={handleArchive}
-                        className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
+                        onPress={handleDelete}
+                        className="flex-1 bg-red-600/20 border border-red-500/30 py-2 rounded-lg flex-row items-center justify-center"
                     >
-                        <Ionicons name="archive-outline" size={14} color="white" />
-                        <Text className="text-white text-xs font-semibold ml-2">Archive</Text>
+                        <Ionicons name="trash-outline" size={14} color="#f87171" />
+                        <Text className="text-red-400 text-xs font-semibold ml-2">Delete</Text>
                     </TouchableOpacity>
                 )}
             </View>
@@ -511,7 +510,7 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
 }
 
 export default function JulesScreen() {
-    const { julesApiKey, julesOwner, julesRepo, julesWorkflow, julesGoogleApiKey, julesNotificationsEnabled, archivedJulesSessions } = useSettingsStore();
+    const { julesApiKey, julesOwner, julesRepo, julesWorkflow, julesGoogleApiKey, julesNotificationsEnabled } = useSettingsStore();
     const [mode, setMode] = useState<'jules' | 'github'>('jules');
     const [runs, setRuns] = useState<WorkflowRun[]>([]);
     const [julesSessions, setJulesSessions] = useState<JulesSession[]>([]);
@@ -598,8 +597,7 @@ export default function JulesScreen() {
             );
         }
 
-        const filteredJulesSessions = julesSessions.filter(s => !(archivedJulesSessions || []).includes(s.id));
-        const items = mode === 'github' ? runs : filteredJulesSessions;
+        const items = mode === 'github' ? runs : julesSessions;
 
         if (items.length === 0) {
             return (
@@ -651,13 +649,20 @@ export default function JulesScreen() {
                         <Ionicons name="chevron-forward" size={20} color="#818cf8" />
                     </TouchableOpacity>
 
-                    {filteredJulesSessions.map(session => (
+                    {julesSessions.map(session => (
                         <JulesSessionItem
                             key={session.id}
                             session={session}
                             ghToken={julesApiKey || undefined}
                             defaultOwner={julesOwner || undefined}
                             defaultRepo={julesRepo || undefined}
+                            onDelete={async () => {
+                                const { deleteJulesSession } = await import('../../services/jules');
+                                if (julesGoogleApiKey) {
+                                    await deleteJulesSession(julesGoogleApiKey, session.name);
+                                    onRefresh();
+                                }
+                            }}
                         />
                     ))
                     }</>
