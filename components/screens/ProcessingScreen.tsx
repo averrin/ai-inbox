@@ -705,6 +705,28 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             for (const res of results) {
                 if (res.transcription) transcriptionText += res.transcription;
                 if (res.embedding) embeddings.push(res.embedding);
+                let embedding = null;
+                try {
+                    const subfolder = getAttachmentSubfolder(file.mimeType);
+                    const targetPath = `Files/${subfolder}/${file.name}`;
+                    const copiedUri = await copyFileToVault(file.uri, vaultUri, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
+                    if (copiedUri) embedding = `![[${targetPath}]]`;
+                } catch (e) {
+                    console.warn(`Failed to copy ${file.name} to vault`, e);
+                }
+
+                return { transcription, embedding };
+            });
+
+            const results = await Promise.all(fileProcessingPromises);
+            for (const res of results) {
+                if (res.transcription) {
+                    const formatted = res.transcription.split('\n').map(line => `> ${line}`).join('\n');
+                    transcriptionText += `\n> [!quote] Transcription\n${formatted}\n`;
+                }
+                if (res.embedding) {
+                    embeddings.push(res.embedding);
+                }
             }
 
             if (transcriptionText) processedText = `${transcriptionText}\n\n${inputText}`.trim();
