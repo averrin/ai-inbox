@@ -26,7 +26,7 @@ export interface ICalendarEventBase {
   /**
    * Type of the event for advanced visualization
    */
-  type?: 'marker' | 'zone' | 'range' | 'event'
+  type?: 'marker' | 'zone' | 'range' | 'event' | 'generated'
   /**
    * Whether the event can be moved/rescheduled via drag and drop
    */

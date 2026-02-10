@@ -52,6 +52,7 @@ import { HourGuideCell } from './HourGuideCell'
 import { HourGuideColumn } from './HourGuideColumn'
 import { QuickEntryMarker } from './QuickEntryMarker'
 import * as Haptics from 'expo-haptics'
+import { useEventTypesStore } from '../../../../store/eventTypes'
 import { QuickActionMenu } from './QuickActionMenu'
 
 const styles = StyleSheet.create({
@@ -150,6 +151,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
   const scrollView = React.useRef<ScrollView>(null)
   const [hasScrolled, setHasScrolled] = React.useState(false)
   const { now } = useNow(!hideNowIndicator)
+  const difficulties = useEventTypesStore((s) => s.difficulties)
   const hours = Array.from({ length: maxHour - minHour + 1 }, (_, i) => minHour + i)
 
   const { markers, zones, ranges, standardEvents } = React.useMemo(() => {
@@ -745,15 +747,30 @@ function _CalendarBody<T extends ICalendarEventBase>({
                         fontWeight: 'bold',
                       }}
                     >
-                      {getNowIndicatorInfo(
-                        now,
-                        standardEvents.find((e) => {
+                      {(() => {
+                        const activeEvent = standardEvents.find((e) => {
                           const s = dayjs(e.start)
                           const d = dayjs(e.end)
                           return now.isBetween(s, d, null, '[)')
-                        }),
-                        ampm,
-                      )}
+                        })
+                        let upcomingEvent: { title: string; minutesUntil: number } | undefined
+                        if (!activeEvent) {
+                          const upcoming = standardEvents
+                            .filter((e) => {
+                              const s = dayjs(e.start)
+                              const minUntil = s.diff(now, 'minute')
+                              return minUntil > 0 && minUntil <= 60 && (difficulties[e.title] ?? 0) > 0
+                            })
+                            .sort((a, b) => dayjs(a.start).diff(dayjs(b.start)))
+                          if (upcoming.length > 0) {
+                            upcomingEvent = {
+                              title: upcoming[0].title,
+                              minutesUntil: dayjs(upcoming[0].start).diff(now, 'minute'),
+                            }
+                          }
+                        }
+                        return getNowIndicatorInfo(now, activeEvent, ampm, upcomingEvent)
+                      })()}
                     </Text>
                   </View>
                 </View>

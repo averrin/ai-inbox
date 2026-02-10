@@ -5,7 +5,7 @@ import { OVERLAP_OFFSET, u } from '../commonStyles'
 import { useCalendarTouchableOpacityProps } from '../hooks/useCalendarTouchableOpacityProps'
 import type { EventCellStyle, EventRenderer, ICalendarEventBase, Mode } from '../interfaces'
 import { useTheme } from '../theme/ThemeContext'
-import { DAY_MINUTES, getRelativeTopInDay, getStyleForOverlappingEvent } from '../utils/datetime'
+import { DAY_MINUTES, getRelativeTopInDay, getStyleForOverlappingEvent, isSecondaryEvent, isAllDayEvent } from '../utils/datetime'
 import { typedMemo } from '../utils/react'
 import { DefaultCalendarEventRenderer } from './DefaultCalendarEventRenderer'
 
@@ -108,6 +108,9 @@ function _CalendarEvent<T extends ICalendarEventBase>({
       : [
         getEventCellPositionStyle(event.start, event.end, minHour, hours),
         layoutOnlyOverlapStyles,
+        isSecondaryEvent(event) && {
+          zIndex: isAllDayEvent(event.start, event.end, event.allDay) ? 300 : (event.type === 'generated' ? 200 : 10)
+        },
         marginStyles,
         u.absolute,
       ]

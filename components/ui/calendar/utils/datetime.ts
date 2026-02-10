@@ -124,7 +124,32 @@ export function isAllDayEvent(start: Date, end: Date, allDay?: boolean) {
   const _start = dayjs(start)
   const _end = dayjs(end)
 
-  return _start.hour() === 0 && _start.minute() === 0 && _end.hour() === 0 && _end.minute() === 0
+  // Standard all-day: midnight to midnight
+  const isMidnightToMidnight = _start.hour() === 0 && _start.minute() === 0 && _end.hour() === 0 && _end.minute() === 0
+  if (isMidnightToMidnight) return true
+
+  // Also treat events spanning exactly 24h as all-day if they start/end at midnight
+  const durationHours = _end.diff(_start, 'hour')
+  if (durationHours >= 24 && _start.hour() === 0 && _start.minute() === 0) return true
+
+  return false
+}
+
+export function isSecondaryEvent<T extends ICalendarEventBase>(e: T): boolean {
+  // All day events are secondary
+  if (isAllDayEvent(e.start, e.end, e.allDay)) return true
+
+  // Generated suggestions (like Lunch) are secondary
+  if (e.type === 'generated') return true
+
+  // Zones and markers are handled elsewhere usually, but if they hit layout, they overlap
+  if (e.type === 'zone' || e.type === 'marker') return true
+
+  // Special titles that should generally be background to avoid column splitting
+  const title = e.title.toLowerCase()
+  if (title.includes('out of office') || title.includes('off-site')) return true
+
+  return false
 }
 
 export function getCountOfEventsAtEvent(
@@ -320,14 +345,27 @@ export function enrichEvents<T extends ICalendarEventBase>(
 
 
 export function calculateEventLayout<T extends ICalendarEventBase>(events: T[]): T[] {
-  const sortedEvents = [...events].sort((a, b) => a.start.getTime() - b.start.getTime())
+  const secondaryEvents: T[] = []
+  const primaryEvents: T[] = []
 
-  // 1. Detect clusters (connected groups of overlapping events)
+  events.forEach(e => {
+    if (isSecondaryEvent(e)) {
+      e.overlapCount = 1
+      e.overlapPosition = 0
+      secondaryEvents.push(e)
+    } else {
+      primaryEvents.push(e)
+    }
+  })
+
+  const sortedPrimaryEvents = [...primaryEvents].sort((a, b) => a.start.getTime() - b.start.getTime())
+
+  // 1. Detect clusters (connected groups of overlapping events) for primary events only
   const clusters: T[][] = []
   let currentCluster: T[] = []
   let clusterEnd = -1
 
-  sortedEvents.forEach((event) => {
+  sortedPrimaryEvents.forEach((event) => {
     const start = event.start.getTime()
     const end = event.end.getTime()
 
@@ -347,7 +385,7 @@ export function calculateEventLayout<T extends ICalendarEventBase>(events: T[]):
   })
   if (currentCluster.length > 0) clusters.push(currentCluster)
 
-  // 2. Assign columns within clusters
+  // 2. Assign columns within clusters for primary events only
   clusters.forEach((cluster) => {
     const columns: T[][] = []
     cluster.forEach((event) => {
@@ -375,7 +413,8 @@ export function calculateEventLayout<T extends ICalendarEventBase>(events: T[]):
     })
   })
 
-  return sortedEvents
+  // Return secondary first (rendered behind) followed by sorted primary
+  return [...secondaryEvents, ...sortedPrimaryEvents]
 }
 
 export function getStyleForOverlappingEvent(

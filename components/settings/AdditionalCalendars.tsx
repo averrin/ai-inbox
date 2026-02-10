@@ -1,17 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Switch, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, Switch, FlatList, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
 import * as Calendar from 'expo-calendar';
 import { useSettingsStore } from '../../store/settings';
+import { useEventTypesStore } from '../../store/eventTypes';
 import { getWritableCalendars } from '../../services/calendarService';
 import { SettingsListItem } from '../ui/SettingsListItem';
+import { Ionicons } from '@expo/vector-icons';
+import { Button } from '../ui/Button';
 
 export function AdditionalCalendars() {
     const {
         visibleCalendarIds, setVisibleCalendarIds,
-        personalCalendarIds, workCalendarIds
+        personalCalendarIds, workCalendarIds,
+        calendarDefaultEventTypes, setCalendarDefaultEventTypes,
+        defaultCreateCalendarId, setDefaultCreateCalendarId,
+        defaultOpenCalendarId, setDefaultOpenCalendarId
     } = useSettingsStore();
+    const { eventTypes } = useEventTypesStore();
+
     const [calendars, setCalendars] = useState<Calendar.Calendar[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showTypePicker, setShowTypePicker] = useState<string | null>(null);
 
     useEffect(() => {
         loadCalendars();
@@ -45,27 +54,92 @@ export function AdditionalCalendars() {
         }
     };
 
+    const handleSetDefaultType = (calendarId: string, typeId: string | null) => {
+        const newTypes = { ...calendarDefaultEventTypes };
+        if (typeId) {
+            newTypes[calendarId] = typeId;
+        } else {
+            delete newTypes[calendarId];
+        }
+        setCalendarDefaultEventTypes(newTypes);
+        setShowTypePicker(null);
+    };
+
     const renderItem = ({ item: cal }: { item: Calendar.Calendar }) => {
+        const isVisible = visibleCalendarIds.includes(cal.id);
+        const isCreateDefault = defaultCreateCalendarId === cal.id;
+        const isOpenDefault = defaultOpenCalendarId === cal.id;
+        const defaultTypeId = calendarDefaultEventTypes[cal.id];
+        const defaultType = eventTypes.find(t => t.id === defaultTypeId);
+
         return (
-            <SettingsListItem color={cal.color}>
-                <View className="flex-1 flex-row items-center">
-                    <View>
-                        <Text className="text-white font-medium" numberOfLines={1}>
-                            {cal.title}
-                        </Text>
-                        <Text className="text-slate-500 text-xs">{cal.source.name}</Text>
+            <View className="mb-2">
+                <SettingsListItem color={cal.color}>
+                    <View className="flex-1 flex-row items-center">
+                        <View className="flex-1">
+                            <Text className="text-white font-medium" numberOfLines={1}>
+                                {cal.title}
+                            </Text>
+                            <Text className="text-slate-500 text-xs">{cal.source.name}</Text>
+                        </View>
                     </View>
-                </View>
-                <View className="flex-row items-center gap-2">
-                    <Switch
-                        value={visibleCalendarIds.includes(cal.id)}
-                        onValueChange={() => toggleCalendar(cal.id, visibleCalendarIds.includes(cal.id))}
-                        trackColor={{ false: "#334155", true: cal.color }}
-                        thumbColor={visibleCalendarIds.includes(cal.id) ? "#ffffff" : "#94a3b8"}
-                        className="scale-75"
-                    />
-                </View>
-            </SettingsListItem>
+                    <View className="flex-row items-center gap-2">
+                        <Switch
+                            value={isVisible}
+                            onValueChange={() => toggleCalendar(cal.id, isVisible)}
+                            trackColor={{ false: "#334155", true: cal.color }}
+                            thumbColor={isVisible ? "#ffffff" : "#94a3b8"}
+                            className="scale-75"
+                        />
+                    </View>
+                </SettingsListItem>
+
+                {isVisible && (
+                    <View className="ml-4 pl-4 border-l-2 border-slate-700/50 mt-1">
+                        {/* Default Logic */}
+                        <View className="flex-row items-center gap-2 mb-2">
+                            <TouchableOpacity
+                                onPress={() => setDefaultCreateCalendarId(cal.id)}
+                                className={`flex-row items-center gap-1 px-2 py-1 rounded-md border ${isCreateDefault ? 'bg-emerald-500/10 border-emerald-500/50' : 'bg-slate-800 border-slate-700'}`}
+                            >
+                                <Ionicons name="add-circle" size={14} color={isCreateDefault ? "#10b981" : "#64748b"} />
+                                <Text className={`text-xs ${isCreateDefault ? 'text-emerald-500 font-bold' : 'text-slate-400'}`}>
+                                    Default Create
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={() => setDefaultOpenCalendarId(cal.id)}
+                                className={`flex-row items-center gap-1 px-2 py-1 rounded-md border ${isOpenDefault ? 'bg-amber-500/10 border-amber-500/50' : 'bg-slate-800 border-slate-700'}`}
+                            >
+                                <Ionicons name="eye" size={14} color={isOpenDefault ? "#f59e0b" : "#64748b"} />
+                                <Text className={`text-xs ${isOpenDefault ? 'text-amber-500 font-bold' : 'text-slate-400'}`}>
+                                    Default Open
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Default Event Type Picker Trigger */}
+                        <TouchableOpacity
+                            onPress={() => setShowTypePicker(cal.id)}
+                            className="flex-row items-center justify-between bg-slate-800/50 px-3 py-2 rounded-lg border border-slate-700"
+                        >
+                            <Text className="text-slate-400 text-xs">Default Event Type:</Text>
+                            <View className="flex-row items-center gap-1">
+                                {defaultType ? (
+                                    <View className="flex-row items-center gap-1 bg-slate-700 px-1.5 py-0.5 rounded">
+                                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: defaultType.color }} />
+                                        <Text className="text-white text-xs">{defaultType.title}</Text>
+                                    </View>
+                                ) : (
+                                    <Text className="text-slate-500 text-xs italic">None</Text>
+                                )}
+                                <Ionicons name="chevron-down" size={12} color="#64748b" />
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
         );
     };
 
@@ -101,6 +175,47 @@ export function AdditionalCalendars() {
                     showsVerticalScrollIndicator={false}
                 />
             )}
+
+            {/* Event Type Picker Modal */}
+            <Modal visible={!!showTypePicker} transparent animationType="fade">
+                <View className="flex-1 justify-center items-center bg-black/70 p-4">
+                    <View className="bg-slate-900 w-full max-w-sm rounded-2xl p-4 border border-slate-700">
+                        <Text className="text-white text-lg font-bold mb-4">Select Default Event Type</Text>
+
+                        <TouchableOpacity
+                            onPress={() => handleSetDefaultType(showTypePicker!, null)}
+                            className="p-3 border-b border-slate-800"
+                        >
+                            <Text className="text-slate-400 italic">None (Auto-detect)</Text>
+                        </TouchableOpacity>
+
+                        <FlatList
+                            data={eventTypes}
+                            keyExtractor={item => item.id}
+                            style={{ maxHeight: 300 }}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity
+                                    onPress={() => handleSetDefaultType(showTypePicker!, item.id)}
+                                    className="flex-row items-center gap-3 p-3 border-b border-slate-800"
+                                >
+                                    <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: item.color }} />
+                                    <Text className="text-white font-medium">{item.title}</Text>
+                                    {calendarDefaultEventTypes[showTypePicker!] === item.id && (
+                                        <Ionicons name="checkmark" size={16} color="#818cf8" className="ml-auto" />
+                                    )}
+                                </TouchableOpacity>
+                            )}
+                        />
+
+                        <Button
+                            title="Cancel"
+                            onPress={() => setShowTypePicker(null)}
+                            variant="secondary"
+                            className="mt-4"
+                        />
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
