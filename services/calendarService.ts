@@ -30,13 +30,13 @@ export const getWritableCalendars = async (): Promise<Calendar.Calendar[]> => {
     const now = new Date();
     const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    for (const cal of calendars) {
+    await Promise.all(calendars.map(async (cal) => {
         try {
             await Calendar.getEventsAsync([cal.id], now, oneWeekLater);
         } catch (e) {
             // Ignore errors for individual calendar checks
         }
-    }
+    }));
 
     const filtered = calendars.filter(cal => cal.source?.name !== 'AI Inbox');
     return filtered;
