@@ -10,6 +10,7 @@ import { rescheduleReminderWithAI, AIRescheduleContext } from '../services/gemin
 import dayjs from 'dayjs';
 import { RecurrenceScopeModal } from './RecurrenceScopeModal';
 import { useTasksStore, TaskWithSource } from '../store/tasks';
+import { TaskStatusIcon } from './ui/TaskStatusIcon';
 
 export interface EventSaveData {
     type: 'event' | 'reminder' | 'alarm';
@@ -649,7 +650,7 @@ export function EventFormModal({
                                                     onPress={() => onOpenTask && onOpenTask(t)}
                                                     className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex-row items-center gap-2"
                                                 >
-                                                    <View className={`w-3 h-3 rounded-sm border ${t.completed ? 'bg-green-500 border-green-400' : 'bg-transparent border-slate-500'}`} />
+                                                    <TaskStatusIcon status={t.status} size={16} />
                                                     <View className="flex-1">
                                                         <Text className={`text-white font-medium ${t.completed ? 'text-slate-500 line-through' : ''}`} numberOfLines={1}>
                                                             {t.title.replace(/^\[\[(.*)\]\]$/, '$1')}
