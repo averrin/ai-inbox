@@ -79,6 +79,8 @@ interface SettingsState {
     setJulesWorkflow: (workflow: string | null) => void;
     julesGoogleApiKey: string | null;
     setJulesGoogleApiKey: (key: string | null) => void;
+    julesNotificationsEnabled: boolean;
+    setJulesNotificationsEnabled: (enabled: boolean) => void;
     weatherLocation: { lat: number, lon: number };
     setWeatherLocation: (location: { lat: number, lon: number }) => void;
     tagConfig: Record<string, MetadataConfig>;
@@ -167,6 +169,8 @@ export const useSettingsStore = create<SettingsState>()(
             setJulesWorkflow: (workflow) => set({ julesWorkflow: workflow }),
             julesGoogleApiKey: null,
             setJulesGoogleApiKey: (key) => set({ julesGoogleApiKey: key }),
+            julesNotificationsEnabled: true,
+            setJulesNotificationsEnabled: (enabled) => set({ julesNotificationsEnabled: enabled }),
             weatherLocation: { lat: 37.7749, lon: -122.4194 },
             setWeatherLocation: (location) => set({ weatherLocation: location }),
             tagConfig: {},

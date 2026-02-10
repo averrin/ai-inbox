@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Layout } from '../ui/Layout';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
@@ -17,9 +18,10 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
     const [ghRun, setGhRun] = useState<WorkflowRun | null>(null);
     const [loadingGh, setLoadingGh] = useState(false);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
+    const [artifactsLoading, setArtifactsLoading] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [isMerging, setIsMerging] = useState(false);
-    const [prMerged, setPrMerged] = useState(false);
+    const [prInactive, setPrInactive] = useState(false);
 
     const metadata = session.githubMetadata;
     const owner = metadata?.owner || defaultOwner;
@@ -28,7 +30,9 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
     const branch = metadata?.branch;
 
     useEffect(() => {
-        console.log(session);
+        setGhRun(null);
+        setArtifacts(null);
+        
         if (ghToken && owner && repo && (prNumber || branch)) {
             setLoadingGh(true);
             
@@ -39,29 +43,31 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
             // Fetch more runs to increase chance of finding the right one if branch filter is absent
             fetchWorkflowRuns(ghToken, owner, repo, undefined, 10, branchFilter)
                 .then(runs => {
-                    let match = runs[0];
+                    let match = null;
+                    const sessionStartTime = new Date(session.createTime).getTime();
                     
                     if (prNumber) {
                         // Priority 1: Match specifically by PR number in the pull_requests field
-                        const prMatch = runs.find(r => 
+                        match = runs.find(r => 
                             r.pull_requests && r.pull_requests.some(p => p.number === prNumber)
                         );
-                        if (prMatch) {
-                            match = prMatch;
-                        } else if (branch) {
-                            // Priority 2: Match by branch name if PR match failed
-                            const branchMatch = runs.find(r => r.head_branch === branch);
-                            if (branchMatch) match = branchMatch;
-                        }
-                    } else if (branch) {
-                        // Match by branch name
-                        const branchMatch = runs.find(r => r.head_branch === branch);
-                        if (branchMatch) match = branchMatch;
+                    } 
+                    
+                    if (!match && branch) {
+                        // Match by branch name but ONLY if it was created after the session started
+                        match = runs.find(r => 
+                            r.head_branch === branch && 
+                            new Date(r.created_at).getTime() >= sessionStartTime - 60000 // 1 minute buffer
+                        );
                     }
 
                     setGhRun(match || null);
+                    if (!match) setArtifacts(null);
                     if (match) {
-                        fetchArtifacts(ghToken, owner, repo, match.id).then(setArtifacts);
+                        setArtifactsLoading(true);
+                        fetchArtifacts(ghToken, owner, repo, match.id)
+                            .then(setArtifacts)
+                            .finally(() => setArtifactsLoading(false));
                     }
                 })
                 .catch(err => console.error("GH fetch for session error:", err))
@@ -69,7 +75,7 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
             
             if (prNumber) {
                 fetchPullRequest(ghToken, owner, repo, prNumber)
-                    .then(pr => setPrMerged(pr.merged || pr.state === 'merged'))
+                    .then(pr => setPrInactive(pr.merged || pr.state === 'merged' || pr.state === 'closed'))
                     .catch(err => console.error("Fetch PR detail error:", err));
             }
         }
@@ -138,8 +144,35 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
     const webUrl = session.url;
     const prUrl = session.outputs?.find(o => o.pullRequest)?.pullRequest?.url;
 
+    // Generate diagonal stripes for inactive sessions
+    const stripeColors: string[] = [];
+    const stripeLocations: number[] = [];
+    if (prInactive) {
+        const step = 0.02; 
+        for (let i = 0; i < 200; i++) {
+            const isColor = i % 2 === 1;
+            const c = isColor ? 'rgba(148, 163, 184, 0.12)' : 'transparent';
+            stripeColors.push(c, c);
+            stripeLocations.push(i * step, (i + 1) * step);
+        }
+    }
+
     return (
-        <Card className="mb-1" padding="p-3">
+        <Card 
+            className={`mb-1 ${prInactive ? 'opacity-50' : ''}`} 
+            padding="p-3"
+            background={prInactive ? (
+                <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                    <LinearGradient
+                        colors={stripeColors as any}
+                        locations={stripeLocations as any}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                    />
+                </View>
+            ) : undefined}
+        >
             <View className="flex-row items-center justify-between mb-1">
                 <View className="flex-row items-center flex-1">
                     <Ionicons name={statusObj.icon as any} size={24} color={statusObj.color} />
@@ -190,7 +223,7 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
                     </TouchableOpacity>
                 )}
 
-                {session.state === 'COMPLETED' && ghRun?.conclusion === 'success' && prNumber && !prMerged && (
+                {session.state === 'COMPLETED' && ghRun?.conclusion === 'success' && prNumber && !prInactive && (
                     <TouchableOpacity
                         onPress={handleMerge}
                         disabled={isMerging}
@@ -207,7 +240,7 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
                     </TouchableOpacity>
                 )}
 
-                {artifacts && artifacts.length > 0 && (
+                {artifacts && artifacts.length > 0 ? (
                     <TouchableOpacity
                         onPress={handleDownloadArtifact}
                         disabled={isDownloading}
@@ -222,35 +255,59 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
                             </>
                         )}
                     </TouchableOpacity>
-                )}
+                ) : artifactsLoading ? (
+                    <View className="flex-1 bg-slate-800/50 py-2 rounded-lg items-center justify-center">
+                        <ActivityIndicator size="small" color="#94a3b8" />
+                    </View>
+                ) : ghRun?.conclusion === 'success' ? (
+                     <View className="flex-1 bg-slate-800/50 py-2 rounded-lg items-center justify-center border border-slate-700">
+                        <Text className="text-slate-500 text-[10px] italic">No Artifacts</Text>
+                    </View>
+                ) : null}
             </View>
         </Card>
     );
 }
 
-function SessionItem({ run, token, owner, repo }: { run: WorkflowRun, token: string, owner: string, repo: string }) {
+function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run: WorkflowRun, token: string, owner: string, repo: string, initialExpanded?: boolean }) {
     const [checks, setChecks] = useState<CheckRun[] | null>(null);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
     const [isDownloading, setIsDownloading] = useState(false);
     const [checksLoading, setChecksLoading] = useState(false);
-    const [expanded, setExpanded] = useState(false);
+    const [artifactsLoading, setArtifactsLoading] = useState(false);
+    const [expanded, setExpanded] = useState(initialExpanded);
+    const [prInactive, setPrInactive] = useState(false);
 
     // Some runs have pull_requests populated, others don't.
     const pr = run.pull_requests && run.pull_requests.length > 0 ? run.pull_requests[0] : null;
 
     useEffect(() => {
-        if (expanded && !checks) {
-            setChecksLoading(true);
-            fetchChecks(token, owner, repo, run.head_sha)
-                .then(setChecks)
-                .catch(err => console.error("Checks fetch error:", err))
-                .finally(() => setChecksLoading(false));
-
-            fetchArtifacts(token, owner, repo, run.id)
-                .then(setArtifacts)
-                .catch(err => console.error("Artifacts fetch error:", err));
+        if (pr) {
+            fetchPullRequest(token, owner, repo, pr.number)
+                .then(prData => setPrInactive(prData.merged || prData.state === 'merged' || prData.state === 'closed'))
+                .catch(err => console.error("Fetch PR detail error:", err));
         }
-    }, [expanded, run.head_sha, run.id, token, owner, repo, checks]);
+    }, [pr, token, owner, repo]);
+
+    useEffect(() => {
+        if (expanded) {
+            if (!checks && !checksLoading) {
+                setChecksLoading(true);
+                fetchChecks(token, owner, repo, run.head_sha)
+                    .then(setChecks)
+                    .catch(err => console.error("Checks fetch error:", err))
+                    .finally(() => setChecksLoading(false));
+            }
+
+            if (!artifacts && !artifactsLoading) {
+                setArtifactsLoading(true);
+                fetchArtifacts(token, owner, repo, run.id)
+                    .then(setArtifacts)
+                    .catch(err => console.error("Artifacts fetch error:", err))
+                    .finally(() => setArtifactsLoading(false));
+            }
+        }
+    }, [expanded, run.head_sha, run.id, token, owner, repo, checks, artifacts, checksLoading, artifactsLoading]);
 
     const handleDownloadArtifact = async () => {
         if (!artifacts || artifacts.length === 0) return;
@@ -308,8 +365,36 @@ function SessionItem({ run, token, owner, repo }: { run: WorkflowRun, token: str
     // Construct PR URL if available or try to guess
     const prUrl = pr ? `https://github.com/${owner}/${repo}/pull/${pr.number}` : null;
 
+    // Generate diagonal stripes for inactive sessions
+    const stripeColors: string[] = [];
+    const stripeLocations: number[] = [];
+    if (prInactive) {
+        const step = 0.005; 
+        for (let i = 0; i < 200; i++) {
+            const isColor = i % 2 === 1;
+            const c = isColor ? 'rgba(148, 163, 184, 0.12)' : 'transparent';
+            stripeColors.push(c, c);
+            stripeLocations.push(i * step, (i + 1) * step);
+        }
+    }
+
     return (
-        <Card className="mb-1" padding="p-3">
+        <Card 
+            className={`mb-1 ${prInactive ? 'opacity-50' : ''}`} 
+            padding="p-3"
+            style={{ overflow: 'hidden' }}
+            background={prInactive ? (
+                <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                    <LinearGradient
+                        colors={stripeColors as any}
+                        locations={stripeLocations as any}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                    />
+                </View>
+            ) : undefined}
+        >
             <TouchableOpacity onPress={() => setExpanded(!expanded)} className="flex-row items-center justify-between mb-1">
                 <View className="flex-row items-center flex-1">
                     <Ionicons name={statusInfo.icon as any} size={24} color={statusInfo.color} />
@@ -348,7 +433,7 @@ function SessionItem({ run, token, owner, repo }: { run: WorkflowRun, token: str
                             </TouchableOpacity>
                         )}
 
-                        {artifacts && artifacts.length > 0 && (
+                        {artifacts && artifacts.length > 0 ? (
                             <TouchableOpacity
                                 onPress={handleDownloadArtifact}
                                 disabled={isDownloading}
@@ -363,6 +448,14 @@ function SessionItem({ run, token, owner, repo }: { run: WorkflowRun, token: str
                                     </>
                                 )}
                             </TouchableOpacity>
+                        ) : artifactsLoading ? (
+                             <View className="flex-1 bg-slate-800/50 py-2 rounded-lg items-center justify-center">
+                                <ActivityIndicator size="small" color="#94a3b8" />
+                             </View>
+                        ) : (
+                            <View className="flex-1 bg-slate-800/50 py-2 rounded-lg items-center justify-center border border-slate-700">
+                                <Text className="text-slate-500 text-[10px] italic">No Artifacts</Text>
+                            </View>
                         )}
                     </View>
 
@@ -396,7 +489,7 @@ function SessionItem({ run, token, owner, repo }: { run: WorkflowRun, token: str
 }
 
 export default function JulesScreen() {
-    const { julesApiKey, julesOwner, julesRepo, julesWorkflow, julesGoogleApiKey } = useSettingsStore();
+    const { julesApiKey, julesOwner, julesRepo, julesWorkflow, julesGoogleApiKey, julesNotificationsEnabled } = useSettingsStore();
     const [mode, setMode] = useState<'jules' | 'github'>('jules');
     const [runs, setRuns] = useState<WorkflowRun[]>([]);
     const [julesSessions, setJulesSessions] = useState<JulesSession[]>([]);
@@ -507,13 +600,14 @@ export default function JulesScreen() {
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#818cf8" />}
             >
                 {mode === 'github' ? (
-                    runs.map(run => (
+                    runs.map((run, index) => (
                         <SessionItem
                             key={run.id}
                             run={run}
                             token={julesApiKey!}
                             owner={julesOwner!}
                             repo={julesRepo!}
+                            initialExpanded={index === 0}
                         />
                     ))
                 ) : (
@@ -553,7 +647,15 @@ export default function JulesScreen() {
         <Layout>
             <View className="px-4 pt-4 pb-2 border-b border-slate-800">
                 <View className="flex-row items-center justify-between mb-4">
-                    <Text className="text-2xl font-bold text-white">Jules Activities</Text>
+                    <View className="flex-row items-center">
+                        <Text className="text-2xl font-bold text-white mr-2">Jules Activities</Text>
+                        {julesNotificationsEnabled && (
+                            <View className="bg-green-600/20 px-2 py-0.5 rounded-full border border-green-500/30 flex-row items-center">
+                                <View className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5" />
+                                <Text className="text-green-400 text-[10px] font-bold uppercase tracking-wider">Live Monitoring</Text>
+                            </View>
+                        )}
+                    </View>
                     <TouchableOpacity onPress={onRefresh} className="p-2">
                         <Ionicons name="refresh" size={24} color="#94a3b8" />
                     </TouchableOpacity>
