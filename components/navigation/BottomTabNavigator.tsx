@@ -5,6 +5,7 @@ import RemindersListScreen from '../screens/RemindersListScreen';
 import TasksScreen from '../screens/TasksScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SetupScreen from '../screens/SetupScreen';
+import JulesScreen from '../screens/JulesScreen';
 import DumpScreen from '../screens/DumpScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect } from 'react';
@@ -127,6 +128,16 @@ function InnerTabNavigator({
           options={{
             tabBarIcon: ({ color }) => (
               <Ionicons name="alarm-outline" size={24} color={color} />
+            ),
+          }}
+        />
+
+        <Tab.Screen
+          name="Jules"
+          component={JulesScreen}
+          options={{
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="logo-github" size={24} color={color} />
             ),
           }}
         />

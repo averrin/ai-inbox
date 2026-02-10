@@ -69,6 +69,14 @@ interface SettingsState {
     setPersonalAccountId: (id: string | null) => void;
     calendarDefaultEventTypes: Record<string, string>;
     setCalendarDefaultEventTypes: (types: Record<string, string>) => void;
+    julesApiKey: string | null;
+    setJulesApiKey: (key: string | null) => void;
+    julesOwner: string | null;
+    setJulesOwner: (owner: string | null) => void;
+    julesRepo: string | null;
+    setJulesRepo: (repo: string | null) => void;
+    julesWorkflow: string | null;
+    setJulesWorkflow: (workflow: string | null) => void;
     weatherLocation: { lat: number, lon: number };
     setWeatherLocation: (location: { lat: number, lon: number }) => void;
     tagConfig: Record<string, MetadataConfig>;
@@ -147,6 +155,14 @@ export const useSettingsStore = create<SettingsState>()(
             setPersonalAccountId: (id) => set({ personalAccountId: id }),
             calendarDefaultEventTypes: {},
             setCalendarDefaultEventTypes: (types) => set({ calendarDefaultEventTypes: types }),
+            julesApiKey: null,
+            setJulesApiKey: (key) => set({ julesApiKey: key }),
+            julesOwner: null,
+            setJulesOwner: (owner) => set({ julesOwner: owner }),
+            julesRepo: null,
+            setJulesRepo: (repo) => set({ julesRepo: repo }),
+            julesWorkflow: null,
+            setJulesWorkflow: (workflow) => set({ julesWorkflow: workflow }),
             weatherLocation: { lat: 37.7749, lon: -122.4194 },
             setWeatherLocation: (location) => set({ weatherLocation: location }),
             tagConfig: {},
@@ -172,7 +188,7 @@ export const useSettingsStore = create<SettingsState>()(
         {
             name: 'ai-inbox-settings',
             storage: createJSONStorage(() => AsyncStorage),
-            version: 4,
+            version: 5,
             migrate: (persistedState: any, version: number) => {
                 if (version === 0) {
                     if (persistedState.defaultCalendarId && !persistedState.defaultCreateCalendarId) {
