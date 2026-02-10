@@ -12,6 +12,8 @@ const SENSITIVE_KEYS = [
     'julesGoogleApiKey',
     'workAccountId',
     'personalAccountId',
+    'githubClientId',
+    'githubClientSecret',
 ];
 
 export interface Contact {
@@ -94,6 +96,10 @@ interface SettingsState {
     setJulesGoogleApiKey: (key: string | null) => void;
     julesNotificationsEnabled: boolean;
     setJulesNotificationsEnabled: (enabled: boolean) => void;
+    githubClientId: string | null;
+    setGithubClientId: (id: string | null) => void;
+    githubClientSecret: string | null;
+    setGithubClientSecret: (secret: string | null) => void;
     weatherLocation: { lat: number, lon: number };
     setWeatherLocation: (location: { lat: number, lon: number }) => void;
     tagConfig: Record<string, MetadataConfig>;
@@ -200,6 +206,10 @@ Forecast for TODAY (1-2 sentences):
             setJulesGoogleApiKey: (key) => set({ julesGoogleApiKey: key }),
             julesNotificationsEnabled: true,
             setJulesNotificationsEnabled: (enabled) => set({ julesNotificationsEnabled: enabled }),
+            githubClientId: null,
+            setGithubClientId: (id) => set({ githubClientId: id }),
+            githubClientSecret: null,
+            setGithubClientSecret: (secret) => set({ githubClientSecret: secret }),
             weatherLocation: { lat: 37.7749, lon: -122.4194 },
             setWeatherLocation: (location) => set({ weatherLocation: location }),
             tagConfig: {},
