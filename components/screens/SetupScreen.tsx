@@ -34,7 +34,7 @@ type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
-    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, julesNotificationsEnabled, setJulesNotificationsEnabled } = useSettingsStore();
+    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, julesNotificationsEnabled, setJulesNotificationsEnabled, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
     const [androidIdInput, setAndroidIdInput] = useState(googleAndroidClientId || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
@@ -46,6 +46,8 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const [julesRepoInput, setJulesRepoInput] = useState(julesRepo || '');
     const [julesWorkflowInput, setJulesWorkflowInput] = useState(julesWorkflow || '');
     const [julesGoogleKeyInput, setJulesGoogleKeyInput] = useState(julesGoogleApiKey || '');
+    const [githubClientIdInput, setGithubClientIdInput] = useState(githubClientId || '');
+    const [githubClientSecretInput, setGithubClientSecretInput] = useState(githubClientSecret || '');
     const [availableModels, setAvailableModels] = useState<string[]>(['gemini-2.0-flash-exp']);
     const [showModelPicker, setShowModelPicker] = useState(false);
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
@@ -189,6 +191,8 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         setContextRootFolder(rootFolderInput);
         setDaySummaryPrompt(daySummaryPromptInput);
         setGoogleAndroidClientId(androidIdInput);
+        setGithubClientId(githubClientIdInput || null);
+        setGithubClientSecret(githubClientSecretInput || null);
         if (onClose) onClose();
     };
 
@@ -208,6 +212,8 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             setJulesRepo(julesRepoInput || null);
             setJulesWorkflow(julesWorkflowInput || null);
             setJulesGoogleApiKey(julesGoogleKeyInput || null);
+            setGithubClientId(githubClientIdInput || null);
+            setGithubClientSecret(githubClientSecretInput || null);
         }, 500); // 500ms debounce
 
         return () => clearTimeout(timer);
@@ -230,11 +236,15 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         julesRepoInput,
         julesWorkflowInput,
         julesGoogleKeyInput,
+        githubClientIdInput,
+        githubClientSecretInput,
         setJulesApiKey,
         setJulesOwner,
         setJulesRepo,
         setJulesWorkflow,
         setJulesGoogleApiKey,
+        setGithubClientId,
+        setGithubClientSecret,
     ]);
 
     const renderHeader = (title: string, onBack: (() => void) | undefined) => (
@@ -430,11 +440,26 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     Configure access to your GitHub repository to view Jules sessions and artifacts.
                 </Text>
                 <Input
-                    label="GitHub Personal Access Token"
+                    label="GitHub Client ID"
+                    value={githubClientIdInput}
+                    onChangeText={setGithubClientIdInput}
+                    placeholder="Client ID for OAuth"
+                />
+                <Input
+                    label="GitHub Client Secret"
+                    value={githubClientSecretInput}
+                    onChangeText={setGithubClientSecretInput}
+                    placeholder="Client Secret for OAuth"
+                    secureTextEntry
+                />
+                <Input
+                    label="GitHub Personal Access Token (Optional)"
                     value={julesKeyInput}
                     onChangeText={setJulesKeyInput}
-                    placeholder="ghp_..."
+                    placeholder="ghp_... (Leave empty if using OAuth)"
                 />
+
+                <Text className="text-indigo-200 mt-4 mb-2 font-semibold">Repository Details</Text>
                 <Input
                     label="Repository Owner"
                     value={julesOwnerInput}
