@@ -10,7 +10,7 @@ import { useGoogleStore } from '../../store/googleStore';
 import { processContent, ProcessedNote, transcribeAudio, Action } from '../../services/gemini';
 import * as CalendarService from '../../services/calendarService';
 import { TasksService } from '../../services/tasksService';
-import { syncAllReminders } from '../../services/reminderService';
+import { syncAllReminders, formatRecurrenceForReminder } from '../../services/reminderService';
 import { saveToVault, checkDirectoryExists, readVaultStructure } from '../../utils/saf';
 import { openInObsidian as openNoteInObsidian } from '../../utils/obsidian';
 import { getMostUsedTags } from '../../utils/tagUtils';
@@ -289,25 +289,6 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         setShowReminderModal(true);
     };
 
-    const formatRecurrenceForReminder = (rule: any): string | undefined => {
-      if (!rule || !rule.frequency || rule.frequency === 'none') return undefined;
-      const freq = rule.frequency.toLowerCase();
-      const interval = rule.interval || 1;
-
-      if (interval === 1) {
-          return freq; // 'daily', 'weekly', etc.
-      }
-
-      let unit = '';
-      if (freq === 'daily') unit = 'days';
-      else if (freq === 'weekly') unit = 'weeks';
-      else if (freq === 'monthly') unit = 'months';
-      else if (freq === 'yearly') unit = 'years';
-
-      if (unit) return `${interval} ${unit}`;
-      return undefined;
-    };
-
     const handleReminderSave = (data: EventSaveData) => {
         const recurrence = formatRecurrenceForReminder(data.recurrenceRule) || '';
         setReminderData({ date: data.startDate, recurrence: recurrence });
@@ -413,21 +394,27 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 if (audioFiles.length > 0) {
                     setLoadingStatus('Transcribing audio...');
 
-                    for (const file of audioFiles) {
+                    const transcriptionPromises = audioFiles.map(async (file) => {
                         try {
                             const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
                             const transcription = await transcribeAudio(apiKey || '', base64, file.mimeType, selectedModel || undefined);
-
-                            if (transcription) {
-                                // For Note Body (Formatted)
-                                const formatted = transcription.split('\n').map(line => `> ${line}`).join('\n');
-                                transcriptionContext += `\n> [!quote] Transcription: ${file.name}\n${formatted}\n`;
-
-                                // For AI Prompt (Raw)
-                                rawTranscriptions += `\n\nTranscription of ${file.name}:\n${transcription}\n`;
-                            }
+                            return { file, transcription };
                         } catch (e) {
                             console.warn(`Failed to transcribe ${file.name}`, e);
+                            return null;
+                        }
+                    });
+
+                    const results = await Promise.all(transcriptionPromises);
+                    for (const result of results) {
+                        if (result && result.transcription) {
+                            const { file, transcription } = result;
+                            // For Note Body (Formatted)
+                            const formatted = transcription.split('\n').map(line => `> ${line}`).join('\n');
+                            transcriptionContext += `\n> [!quote] Transcription: ${file.name}\n${formatted}\n`;
+
+                            // For AI Prompt (Raw)
+                            rawTranscriptions += `\n\nTranscription of ${file.name}:\n${transcription}\n`;
                         }
                     }
                 }
@@ -578,11 +565,16 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 if (attachedFiles.length > 0) {
                     const { copyFileToVault } = await import('../../utils/saf');
 
-                    for (const file of attachedFiles) {
+                    const copyPromises = attachedFiles.map(async (file) => {
                         const subfolder = getAttachmentSubfolder(file.mimeType);
                         const targetPath = `Files/${subfolder}/${file.name}`;
                         const copiedUri = await copyFileToVault(file.uri, vaultUri!, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
-                        if (copiedUri) embeddings.push(`![[${targetPath}]]`);
+                        return copiedUri ? `![[${targetPath}]]` : null;
+                    });
+
+                    const copyResults = await Promise.all(copyPromises);
+                    for (const embedding of copyResults) {
+                        if (embedding) embeddings.push(embedding);
                     }
 
                     // Apply embeddings/transcription to ALL generated notes
