@@ -11,6 +11,7 @@ import { useRelationsStore } from '../store/relations';
 import { RelationService } from '../services/relationService';
 import { TaskPicker } from './ui/TaskPicker';
 import { TaskWithSource } from '../store/tasks';
+import { TaskStatusIcon } from './ui/TaskStatusIcon';
 
 interface Props {
     visible: boolean;
@@ -458,7 +459,7 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                                     }}
                                     className="flex-row items-center gap-2 bg-slate-800/50 p-2 rounded-lg border border-slate-700/50 active:bg-slate-700"
                                 >
-                                    <Ionicons name={task.completed ? "checkbox" : "square-outline"} size={14} color={task.completed ? "#22c55e" : "#94a3b8"} />
+                                    <TaskStatusIcon status={task.status} size={14} />
                                     <Text className="text-slate-300 text-xs flex-1" numberOfLines={1}>{task.title}</Text>
                                     <Ionicons name="chevron-forward" size={12} color="#64748b" />
                                 </TouchableOpacity>

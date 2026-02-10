@@ -22,6 +22,7 @@ import {
     updateReminder
 } from '../../services/reminderService';
 import { getParentFolderUri, findFile } from '../../utils/saf';
+import { TaskStatusIcon, getStatusConfig } from '../ui/TaskStatusIcon';
 
 interface TaskEditModalProps {
     visible: boolean;
@@ -216,6 +217,7 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
 
                 const updatedTask: RichTask = {
                     title: `[[${linkName}]]`,
+                    bullet: task?.bullet || '-',
                     status,
                     completed: status === 'x',
                     properties: newProps,
@@ -276,6 +278,7 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
 
         const updatedTask: RichTask = {
             title,
+            bullet: task?.bullet || '-',
             status,
             completed: status === 'x',
             properties,
@@ -351,6 +354,29 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
                                 </View>
                             </View>
                         )}
+
+                        <View className="mb-4">
+                            <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Status</Text>
+                            <View className="flex-row flex-wrap gap-2">
+                                {[' ', 'x', '/', '?', '>', '-'].map((id) => {
+                                    const s = getStatusConfig(id);
+                                    const isSelected = status === id;
+                                    return (
+                                        <TouchableOpacity
+                                            key={id}
+                                            onPress={() => setStatus(id)}
+                                            className={`flex-row items-center justify-center py-2 px-3 rounded-xl border ${isSelected ? 'bg-indigo-600/20 border-indigo-500' : 'bg-slate-800 border-slate-700'}`}
+                                            style={{ minWidth: '30%' }}
+                                        >
+                                            <TaskStatusIcon status={id} size={16} />
+                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-indigo-300' : 'text-slate-400'}`}>
+                                                {s.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        </View>
 
                         <View className="mb-4">
                             <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Priority</Text>

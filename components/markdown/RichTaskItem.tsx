@@ -6,6 +6,7 @@ import { ActionButton } from '../ui/ActionButton';
 import { RichTask } from '../../utils/taskParser';
 import { useSettingsStore } from '../../store/settings';
 import { REMINDER_PROPERTY_KEY } from '../../services/reminderService';
+import { TaskStatusIcon } from '../ui/TaskStatusIcon';
 
 interface RichTaskItemProps {
     task: RichTask;
@@ -72,25 +73,6 @@ export function RichTaskItem({
         }
     };
 
-    const getStatusConfig = (status: string) => {
-        switch (status) {
-            case 'x':
-                return { icon: 'checkbox' as const, color: '#6366f1', label: 'Completed' };
-            case '/':
-                return { icon: 'play-circle-outline' as const, color: '#818cf8', label: 'In Progress' };
-            case '-':
-                return { icon: 'close-circle-outline' as const, color: '#94a3b8', label: 'Abandoned' };
-            case '?':
-                return { icon: 'help-circle-outline' as const, color: '#fbbf24', label: 'Planned' };
-            case '>':
-                return { icon: 'arrow-forward-circle-outline' as const, color: '#6366f1', label: 'Delayed' };
-            default:
-                return { icon: 'square-outline' as const, color: '#94a3b8', label: 'Pending' };
-        }
-    };
-
-    const statusConfig = getStatusConfig(task.status);
-
     const leftIcon = (
         <TouchableOpacity 
             onPress={onToggle}
@@ -98,10 +80,9 @@ export function RichTaskItem({
             delayLongPress={500}
             className="items-center justify-center p-2"
         >
-            <Ionicons 
-                name={statusConfig.icon} 
+            <TaskStatusIcon 
+                status={task.status} 
                 size={24} 
-                color={statusConfig.color} 
             />
         </TouchableOpacity>
     );
