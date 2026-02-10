@@ -283,13 +283,19 @@ export async function sendMessageToSession(apiKey: string, sessionName: string, 
 // Background Task Definition
 TaskManager.defineTask(JULES_ARTIFACT_TASK, async () => {
     try {
-        const { julesApiKey, julesOwner, julesRepo, julesNotificationsEnabled } = useSettingsStore.getState();
-
-        if (!julesNotificationsEnabled || !julesApiKey || !julesOwner || !julesRepo) {
+        const storedSettings = await AsyncStorage.getItem('ai-inbox-settings');
+        if (!storedSettings) {
             return BackgroundFetch.BackgroundFetchResult.NoData;
         }
 
-        const sessions = await fetchJulesSessions(julesApiKey);
+        const { state } = JSON.parse(storedSettings);
+        const { julesApiKey, julesGoogleApiKey, julesOwner, julesRepo, julesNotificationsEnabled } = state;
+
+        if (!julesNotificationsEnabled || !julesApiKey || !julesGoogleApiKey || !julesOwner || !julesRepo) {
+            return BackgroundFetch.BackgroundFetchResult.NoData;
+        }
+
+        const sessions = await fetchJulesSessions(julesGoogleApiKey);
         if (sessions.length === 0) return BackgroundFetch.BackgroundFetchResult.NoData;
 
         const notifiedRunsStr = await AsyncStorage.getItem(NOTIFIED_RUNS_KEY);
