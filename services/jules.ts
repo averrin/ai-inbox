@@ -92,7 +92,8 @@ export async function fetchGithubRepos(token: string, page: number = 1): Promise
     return await response.json();
 }
 
-export async function exchangeGithubToken(clientId: string, clientSecret: string, code: string, redirectUri: string): Promise<string> {
+export async function exchangeGithubToken(clientId: string, clientSecret: string, code: string, redirectUri: string, codeVerifier?: string): Promise<string> {
+    console.log(redirectUri)
     const url = 'https://github.com/login/oauth/access_token';
     const response = await fetch(url, {
         method: 'POST',
@@ -104,7 +105,8 @@ export async function exchangeGithubToken(clientId: string, clientSecret: string
             client_id: clientId,
             client_secret: clientSecret,
             code: code,
-            redirect_uri: redirectUri
+            redirect_uri: redirectUri,
+            code_verifier: codeVerifier
         })
     });
 
