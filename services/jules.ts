@@ -242,24 +242,7 @@ export interface JulesSession {
     };
 }
 
-export async function deleteJulesSession(apiKey: string, sessionName: string): Promise<boolean> {
-    const url = `https://jules.googleapis.com/v1alpha/${sessionName}`;
-    const response = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-            'x-goog-api-key': apiKey,
-        }
-    });
-
-    if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Failed to delete Jules session: ${response.status} ${text}`);
-    }
-
-    return true;
-}
-
-export async function fetchJulesSessions(apiKey: string, limit: number = 25): Promise<JulesSession[]> {
+export async function fetchJulesSessions(apiKey: string, limit: number = 10): Promise<JulesSession[]> {
     const url = `https://jules.googleapis.com/v1alpha/sessions?pageSize=${limit}`;
     const response = await fetch(url, {
         headers: {

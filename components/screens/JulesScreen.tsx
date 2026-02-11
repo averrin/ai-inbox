@@ -843,13 +843,6 @@ export default function JulesScreen() {
                             ghToken={julesApiKey || undefined}
                             defaultOwner={julesOwner || undefined}
                             defaultRepo={julesRepo || undefined}
-                            onDelete={async () => {
-                                const { deleteJulesSession } = await import('../../services/jules');
-                                if (julesGoogleApiKey) {
-                                    await deleteJulesSession(julesGoogleApiKey, session.name);
-                                    onRefresh();
-                                }
-                            }}
                             onRefresh={onRefresh}
                             julesGoogleApiKey={julesGoogleApiKey || undefined}
                         />
