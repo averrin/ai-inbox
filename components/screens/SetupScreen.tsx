@@ -36,12 +36,13 @@ type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
-    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, julesNotificationsEnabled, setJulesNotificationsEnabled, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret } = useSettingsStore();
+    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, julesNotificationsEnabled, setJulesNotificationsEnabled, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret, linksRoot, setLinksRoot } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
     const [androidIdInput, setAndroidIdInput] = useState(googleAndroidClientId || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
     const [modelInput, setModelInput] = useState(selectedModel);
     const [rootFolderInput, setRootFolderInput] = useState(contextRootFolder || '');
+    const [linksRootInput, setLinksRootInput] = useState(linksRoot || '');
     const [julesKeyInput, setJulesKeyInput] = useState(julesApiKey || '');
     const [julesWorkflowInput, setJulesWorkflowInput] = useState(julesWorkflow || '');
     const [julesGoogleKeyInput, setJulesGoogleKeyInput] = useState(julesGoogleApiKey || '');
@@ -50,6 +51,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const [availableModels, setAvailableModels] = useState<string[]>(['gemini-2.0-flash-exp']);
     const [showModelPicker, setShowModelPicker] = useState(false);
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
+    const [linksRootStatus, setLinksRootStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [promptFileStatus, setPromptFileStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [isGeneratingSnapshot, setIsGeneratingSnapshot] = useState(false);
 
@@ -116,6 +118,16 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         setFolderStatus(exists ? 'valid' : 'invalid');
     };
 
+    const checkLinksRoot = async () => {
+        if (!vaultUri || !linksRootInput) {
+            setLinksRootStatus('neutral');
+            return;
+        }
+        const { checkDirectoryExists } = await import('../../utils/saf');
+        const exists = await checkDirectoryExists(vaultUri, linksRootInput);
+        setLinksRootStatus(exists ? 'valid' : 'invalid');
+    };
+
     // Reactive folder validation
     useEffect(() => {
         if (!vaultUri || !rootFolderInput) {
@@ -129,6 +141,15 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
 
         return () => clearTimeout(timer);
     }, [rootFolderInput, vaultUri]);
+
+    useEffect(() => {
+        if (!vaultUri || !linksRootInput) {
+            setLinksRootStatus('neutral');
+            return;
+        }
+        const timer = setTimeout(() => checkLinksRoot(), 500);
+        return () => clearTimeout(timer);
+    }, [linksRootInput, vaultUri]);
 
     // Check prompt file validity
     const checkPromptFile = async () => {
@@ -188,6 +209,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         setCustomPromptPath(promptPathInput);
         setSelectedModel(modelInput);
         setContextRootFolder(rootFolderInput);
+        setLinksRoot(linksRootInput);
         setGoogleAndroidClientId(androidIdInput);
         setGithubClientId(githubClientIdInput || null);
         setGithubClientSecret(githubClientSecretInput || null);
@@ -203,6 +225,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             setCustomPromptPath(promptPathInput);
             setSelectedModel(modelInput);
             setContextRootFolder(rootFolderInput);
+            setLinksRoot(linksRootInput);
             setGoogleAndroidClientId(androidIdInput);
             setJulesApiKey(julesKeyInput || null);
             setJulesWorkflow(julesWorkflowInput || null);
@@ -218,11 +241,13 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         promptPathInput,
         modelInput,
         rootFolderInput,
+        linksRootInput,
         androidIdInput,
         setApiKey,
         setCustomPromptPath,
         setSelectedModel,
         setContextRootFolder,
+        setLinksRoot,
         setGoogleAndroidClientId,
         julesKeyInput,
         julesWorkflowInput,
@@ -308,6 +333,16 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 folderStatus={folderStatus}
                 onCheckFolder={checkFolder}
                 placeholder="e.g., Inbox (leave empty for vault root)"
+            />
+
+            <FolderInput
+                label="Links Root Folder (Optional)"
+                value={linksRootInput}
+                onChangeText={setLinksRootInput}
+                vaultUri={vaultUri}
+                folderStatus={linksRootStatus}
+                onCheckFolder={checkLinksRoot}
+                placeholder="e.g., Links (folder for stored links)"
             />
 
             <FileInput

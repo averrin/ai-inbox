@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ProcessingScreen from '../screens/ProcessingScreen';
 import RemindersListScreen from '../screens/RemindersListScreen';
 import TasksScreen from '../screens/TasksScreen';
+import LinksScreen from '../screens/LinksScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SetupScreen from '../screens/SetupScreen';
 import JulesScreen from '../screens/JulesScreen';
@@ -107,6 +108,16 @@ function InnerTabNavigator({
           options={{
             tabBarIcon: ({ color }) => (
               <Ionicons name="list-outline" size={24} color={color} />
+            ),
+          }}
+        />
+
+        <Tab.Screen
+          name="Links"
+          component={LinksScreen}
+          options={{
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="link-outline" size={24} color={color} />
             ),
           }}
         />
