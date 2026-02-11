@@ -37,11 +37,14 @@ jobs:
         run: npm ci
 
       - name: Generate git-info.json
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ -n "$GITHUB_HEAD_REF" ]; then
-            BRANCH="$GITHUB_HEAD_REF"
+          if [ -n "$HEAD_REF" ]; then
+            BRANCH="$HEAD_REF"
           else
-            BRANCH="${GITHUB_REF#refs/heads/}"
+            BRANCH="$REF_NAME"
           fi
           echo "{\"branch\": \"$BRANCH\", \"commit\": \"${GITHUB_SHA}\"}" > git-info.json
 

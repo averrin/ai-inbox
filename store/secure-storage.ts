@@ -16,9 +16,14 @@ export const createSecureStorage = (sensitiveKeys: string[]): StateStorage => {
         // 2. Rehydrate sensitive keys from SecureStore
         if (Platform.OS !== 'web') {
            for (const key of sensitiveKeys) {
-             const secureValue = await SecureStore.getItemAsync(`${name}-${key}`);
-             if (secureValue !== null && state.state) {
-               state.state[key] = secureValue;
+             try {
+                const secureValue = await SecureStore.getItemAsync(`${name}-${key}`);
+                if (secureValue !== null && state.state) {
+                  state.state[key] = secureValue;
+                }
+             } catch (e) {
+                console.warn(`[SecureStorage] Failed to fetch ${key}`, e);
+                // Fallback: keep value from AsyncStorage if present
              }
            }
         }
@@ -39,17 +44,22 @@ export const createSecureStorage = (sensitiveKeys: string[]): StateStorage => {
                 for (const key of sensitiveKeys) {
                     if (state.state && state.state[key] !== undefined) {
                         const val = state.state[key];
-                        // Only string values can be stored in SecureStore easily.
-                        // If it's null, we remove it.
-                        if (val === null) {
-                            await SecureStore.deleteItemAsync(`${name}-${key}`);
-                        } else {
-                            await SecureStore.setItemAsync(`${name}-${key}`, String(val));
+                        try {
+                            // Only string values can be stored in SecureStore easily.
+                            // If it's null, we remove it.
+                            if (val === null) {
+                                await SecureStore.deleteItemAsync(`${name}-${key}`);
+                            } else {
+                                await SecureStore.setItemAsync(`${name}-${key}`, String(val));
+                            }
+
+                            // Remove from the object to be saved in AsyncStorage ONLY if SecureStore succeeded
+                            // This ensures that if SecureStore fails, we fall back to AsyncStorage (plaintext but safe from data loss)
+                            state.state[key] = null;
+                        } catch (e) {
+                            console.warn(`[SecureStorage] Failed to save ${key}`, e);
+                            // Do NOT clear key from state.state, so it persists in AsyncStorage
                         }
-                        // Remove from the object to be saved in AsyncStorage
-                        // We set it to null or a placeholder in AsyncStorage?
-                        // Better to keep it null in AsyncStorage so we don't leak it.
-                         state.state[key] = null;
                     }
                 }
             }
