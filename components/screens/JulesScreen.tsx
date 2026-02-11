@@ -165,17 +165,6 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
         }
     };
 
-    const handleDelete = () => {
-        Alert.alert(
-            "Delete Session",
-            "Are you sure you want to delete this session? This cannot be undone.",
-            [
-                { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: onDelete }
-            ]
-        );
-    };
-
     const getStatusIcon = (state: string) => {
         switch (state) {
             case 'COMPLETED': return { icon: 'checkmark-circle', color: '#4ade80' };
@@ -323,16 +312,6 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
                         <Text className="text-slate-500 text-[10px] italic">No Artifacts</Text>
                     </View>
                 ) : null}
-
-                {(session.state === 'COMPLETED' || session.state === 'FAILED' || prInactive) && onDelete && (
-                    <TouchableOpacity
-                        onPress={handleDelete}
-                        className="flex-1 bg-red-600/20 border border-red-500/30 py-2 rounded-lg flex-row items-center justify-center"
-                    >
-                        <Ionicons name="trash-outline" size={14} color="#f87171" />
-                        <Text className="text-red-400 text-xs font-semibold ml-2">Delete</Text>
-                    </TouchableOpacity>
-                )}
             </View>
         </Card>
     );
