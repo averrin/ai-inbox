@@ -47,6 +47,8 @@ interface SettingsState {
     setGoogleWebClientId: (id: string) => void;
     remindersScanFolder: string | null;
     setRemindersScanFolder: (folder: string) => void;
+    linksRoot: string | null;
+    setLinksRoot: (folder: string) => void;
     defaultReminderFolder: string | null;
     setDefaultReminderFolder: (folder: string) => void;
     backgroundSyncInterval: number;
@@ -190,6 +192,8 @@ export const useSettingsStore = create<SettingsState>()(
             setGoogleWebClientId: (id) => set({ googleWebClientId: id }),
             remindersScanFolder: null,
             setRemindersScanFolder: (folder) => set({ remindersScanFolder: folder }),
+            linksRoot: null,
+            setLinksRoot: (folder) => set({ linksRoot: folder }),
             defaultReminderFolder: null,
             setDefaultReminderFolder: (folder) => set({ defaultReminderFolder: folder }),
             backgroundSyncInterval: 15,
