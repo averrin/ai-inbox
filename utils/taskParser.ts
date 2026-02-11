@@ -1,5 +1,3 @@
-import { parseInlineProperties, serializeInlineProperties } from './propertyParser';
-
 export interface RichTask {
     indentation: string;
     bullet: string; // '-', '*', '+'
@@ -12,7 +10,7 @@ export interface RichTask {
 }
 
 const TASK_REGEX = /^(\s*)([-*+])\s\[([ x\/\-\? >])\]\s+(.*)$/;
-// const PROPERTY_REGEX = /\[([^:\]]+)::\s*([^\]]+)\]/g; // Deprecated by robust parser
+const PROPERTY_REGEX = /\[([^:\]]+)::\s*([^\]]+)\]/g;
 const TAG_REGEX = /#([^\s#\[\]]+)/g;
 
 /**
@@ -25,39 +23,31 @@ export function parseTaskLine(line: string): RichTask | null {
     const [, indentation, bullet, status, fullContent] = match;
     const completed = status === 'x';
 
-    // 1. Extract Properties using robust parser
-    const { properties, cleanedText } = parseInlineProperties(fullContent);
-
-    // 2. Extract Tags from the remaining text (title + tags)
-    // We use the cleanedText which has properties removed, to avoid extracting tags inside properties
-    let title = cleanedText;
+    let title = fullContent;
+    const properties: Record<string, string> = {};
     const tags: string[] = [];
 
-    const tagMatches = Array.from(title.matchAll(TAG_REGEX));
-    const seenTags = new Set<string>();
+    // Extract properties [key:: value]
+    const propertyMatches = Array.from(fullContent.matchAll(PROPERTY_REGEX));
+    for (const m of propertyMatches) {
+        properties[m[1].trim()] = m[2].trim();
+        title = title.replace(m[0], '');
+    }
 
+    // Extract tags #tag (deduplicated)
+    const tagMatches = Array.from(fullContent.matchAll(TAG_REGEX));
+    const seenTags = new Set<string>();
     for (const m of tagMatches) {
         const tag = m[1];
         if (!seenTags.has(tag)) {
             tags.push(tag);
             seenTags.add(tag);
         }
-        // Remove tag from title
-        // We use replace with the exact match. Note: replace only replaces the first occurrence.
-        // Since we iterate matchAll, we are fine, BUT if we have duplicates, we need to be careful.
-        // If we have "Task #tag #tag", matchAll returns two matches.
-        // First iteration removes first "#tag". Title becomes "Task  #tag".
-        // Second iteration matches "#tag". Removes second "#tag". Title becomes "Task   ".
-        // This works because matchAll finds indices in original string, but we are modifying 'title'.
-        // Wait, matchAll indices are relative to 'cleanedText' (which is 'title' initially).
-        // If we modify 'title', indices become invalid!
-        // So we should NOT rely on indices, but simple replace is risky if order matters or if context changes.
-        // However, standard approach is:
         title = title.replace(m[0], '');
     }
 
     // Clean up title (remove extra whitespace left by removals, but keep it minimal)
-    title = title.replace(/\s+/g, ' ').trim();
+    title = title.trim();
 
     return {
         indentation,
@@ -78,8 +68,12 @@ export function serializeTaskLine(task: RichTask): string {
     const status = task.status;
     let content = task.title.trim();
 
-    // Append properties using robust serializer
-    content += serializeInlineProperties(task.properties);
+    // Append properties
+    // Sort keys to ensure deterministic order? optional but good for stability
+    const propKeys = Object.keys(task.properties).sort();
+    propKeys.forEach(key => {
+        content += ` [${key}:: ${task.properties[key]}]`;
+    });
 
     // Append tags
     task.tags.forEach(tag => {
