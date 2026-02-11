@@ -142,57 +142,92 @@ TaskManager.defineTask(JULES_ARTIFACT_TASK, async () => {
             julesGoogleApiKey = await SecureStore.getItemAsync('ai-inbox-settings-julesGoogleApiKey');
         }
 
-        if (!julesNotificationsEnabled || !julesApiKey || !julesGoogleApiKey || !julesOwner || !julesRepo) {
-            console.log("[Jules Task] Missing credentials or disabled:", { enabled: julesNotificationsEnabled, hasKey: !!julesApiKey, hasGoogle: !!julesGoogleApiKey });
+        if (!julesNotificationsEnabled || !julesApiKey) {
+            console.log("[Jules Task] Missing credentials or disabled:", { enabled: julesNotificationsEnabled, hasKey: !!julesApiKey });
             return BackgroundFetch.BackgroundFetchResult.NoData;
         }
-
-        const sessions = await fetchJulesSessions(julesGoogleApiKey);
-        if (sessions.length === 0) return BackgroundFetch.BackgroundFetchResult.NoData;
 
         const notifiedRunsStr = await AsyncStorage.getItem(NOTIFIED_RUNS_KEY);
         const notifiedRuns: number[] = notifiedRunsStr ? JSON.parse(notifiedRunsStr) : [];
         let newNotification = false;
 
-        const ghToken = julesApiKey; // Re-use jules key if same token
+        const ghToken = julesApiKey;
 
-        for (const session of sessions) {
-            const metadata = session.githubMetadata;
-            if (!metadata || !metadata.owner || !metadata.repo) continue;
+        // 1. Check configured repo for completed builds with artifacts
+        if (julesOwner && julesRepo) {
+            try {
+                const runs = await fetchWorkflowRuns(ghToken, julesOwner, julesRepo, undefined, 5);
+                for (const run of runs) {
+                    if (run.status === 'completed' &&
+                        run.conclusion === 'success' &&
+                        !notifiedRuns.includes(run.id)) {
 
-            // Check for most recent run associated with this session's PR or branch
-            const runs = await fetchWorkflowRuns(ghToken, metadata.owner, metadata.repo, undefined, 1, metadata.branch);
-            const latestRun = runs[0];
+                        const artifacts = await fetchArtifacts(ghToken, julesOwner, julesRepo, run.id);
+                        if (artifacts.length > 0) {
+                            await Notifications.scheduleNotificationAsync({
+                                content: {
+                                    title: 'Build Artifact Ready',
+                                    body: `Build "${run.name}" finished on ${run.head_branch}`,
+                                    data: {
+                                        type: 'jules-artifact',
+                                        runId: run.id,
+                                        owner: julesOwner,
+                                        repo: julesRepo,
+                                    },
+                                },
+                                trigger: null,
+                            });
 
-            if (latestRun &&
-                latestRun.status === 'completed' &&
-                latestRun.conclusion === 'success' &&
-                !notifiedRuns.includes(latestRun.id)) {
-
-                // Fetch artifacts to be sure
-                const artifacts = await fetchArtifacts(ghToken, metadata.owner, metadata.repo, latestRun.id);
-                if (artifacts.length > 0) {
-                    // Trigger notification
-                    await Notifications.scheduleNotificationAsync({
-                        content: {
-                            title: 'Jules Artifact Ready',
-                            body: `Build finished for "${session.title || latestRun.name}"`,
-                            data: {
-                                type: 'jules-artifact',
-                                runId: latestRun.id,
-                                owner: metadata.owner,
-                                repo: metadata.repo,
-                                sessionName: session.name
-                            },
-                        },
-                        trigger: {
-                            channelId: 'jules-artifacts',
-                        } as any,
-                    });
-
-                    notifiedRuns.push(latestRun.id);
-                    newNotification = true;
+                            notifiedRuns.push(run.id);
+                            newNotification = true;
+                        }
+                    }
                 }
+            } catch (e) {
+                console.warn("[Jules Task] Failed to check repo builds:", e);
+            }
+        }
+
+        // 2. Also check builds tied to Jules sessions (if Google API key is available)
+        if (julesGoogleApiKey) {
+            try {
+                const sessions = await fetchJulesSessions(julesGoogleApiKey);
+                for (const session of sessions) {
+                    const metadata = session.githubMetadata;
+                    if (!metadata || !metadata.owner || !metadata.repo) continue;
+
+                    const runs = await fetchWorkflowRuns(ghToken, metadata.owner, metadata.repo, undefined, 1, metadata.branch);
+                    const latestRun = runs[0];
+
+                    if (latestRun &&
+                        latestRun.status === 'completed' &&
+                        latestRun.conclusion === 'success' &&
+                        !notifiedRuns.includes(latestRun.id)) {
+
+                        const artifacts = await fetchArtifacts(ghToken, metadata.owner, metadata.repo, latestRun.id);
+                        if (artifacts.length > 0) {
+                            await Notifications.scheduleNotificationAsync({
+                                content: {
+                                    title: 'Jules Artifact Ready',
+                                    body: `Build finished for "${session.title || latestRun.name}"`,
+                                    data: {
+                                        type: 'jules-artifact',
+                                        runId: latestRun.id,
+                                        owner: metadata.owner,
+                                        repo: metadata.repo,
+                                        sessionName: session.name
+                                    },
+                                },
+                                trigger: null,
+                            });
+
+                            notifiedRuns.push(latestRun.id);
+                            newNotification = true;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("[Jules Task] Failed to check Jules sessions:", e);
             }
         }
 
