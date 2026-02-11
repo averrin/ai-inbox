@@ -38,7 +38,12 @@ jobs:
 
       - name: Generate git-info.json
         run: |
-          echo "{\"branch\": \"${GITHUB_REF#refs/heads/}\", \"commit\": \"${GITHUB_SHA}\"}" > git-info.json
+          if [ -n "$GITHUB_HEAD_REF" ]; then
+            BRANCH="$GITHUB_HEAD_REF"
+          else
+            BRANCH="${GITHUB_REF#refs/heads/}"
+          fi
+          echo "{\"branch\": \"$BRANCH\", \"commit\": \"${GITHUB_SHA}\"}" > git-info.json
 
       - name: Setup Expo
         uses: expo/expo-github-action@v8
