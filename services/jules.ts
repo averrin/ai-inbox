@@ -3,11 +3,24 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSettingsStore } from '../store/settings';
-import { WorkflowRun, CheckRun, Artifact, PullRequest, SessionOutput, JulesSession } from './julesTypes';
+import {
+    WorkflowRun,
+    CheckRun,
+    Artifact,
+    PullRequest,
+    SessionOutput,
+    SourceContext,
+    JulesSession,
+    fetchWorkflowRuns,
+    fetchChecks,
+    fetchArtifacts,
+    mergePullRequest,
+    fetchPullRequest,
+    deleteJulesSession,
+    fetchJulesSessions,
+    sendMessageToSession
+} from './julesApi';
 
-export * from './julesTypes';
-
-const GITHUB_API_BASE = 'https://api.github.com';
 export const JULES_ARTIFACT_TASK = 'CHECK_JULES_ARTIFACTS';
 const NOTIFIED_RUNS_KEY = 'jules_notified_runs';
 
@@ -17,173 +30,93 @@ const getHeaders = (token: string) => ({
     'X-GitHub-Api-Version': '2022-11-28'
 });
 
-export async function fetchWorkflowRuns(token: string, owner: string, repo: string, workflowId?: string, limit: number = 10, branch?: string): Promise<WorkflowRun[]> {
-    let url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs?per_page=${limit}`;
-    if (branch) url += `&branch=${branch}`;
-    // If workflowId is provided (filename or ID), we can filter by it.
-    // However, the API endpoint for a specific workflow is /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs
-    // If workflowId is just a filename (e.g. jules.yml), we can try to use it.
-    if (workflowId) {
-        url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/workflows/${workflowId}/runs?per_page=${limit}`;
-        if (branch) url += `&branch=${branch}`;
-    }
-
-    const response = await fetch(url, { headers: getHeaders(token) });
-    if (!response.ok) {
-        // Fallback: If workflow specific fetch failed (maybe ID invalid), try fetching all runs
-        if (workflowId) {
-            const fallbackUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs?per_page=${limit}`;
-            const fallbackResponse = await fetch(fallbackUrl, { headers: getHeaders(token) });
-            if (fallbackResponse.ok) {
-                const data = await fallbackResponse.json();
-                return data.workflow_runs;
-            }
-        }
-        const text = await response.text();
-        throw new Error(`Failed to fetch workflow runs: ${response.status} ${text}`);
-    }
-    const data = await response.json();
-    return data.workflow_runs;
+export interface GithubUser {
+    login: string;
+    id: number;
+    avatar_url: string;
+    name: string;
 }
 
-export async function fetchChecks(token: string, owner: string, repo: string, ref: string): Promise<CheckRun[]> {
-    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/commits/${ref}/check-runs`;
-    const response = await fetch(url, { headers: getHeaders(token) });
-    if (!response.ok) {
-        // If checks fail, return empty list instead of throwing
-        console.warn(`Failed to fetch checks for ref ${ref}: ${response.status}`);
-        return [];
-    }
-    const data = await response.json();
-    return data.check_runs;
+export interface GithubRepo {
+    id: number;
+    name: string;
+    full_name: string;
+    private: boolean;
+    description: string;
+    owner: GithubUser;
+    default_branch: string;
 }
 
-export async function fetchArtifacts(token: string, owner: string, repo: string, runId: number): Promise<Artifact[]> {
-    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs/${runId}/artifacts`;
-    const response = await fetch(url, { headers: getHeaders(token) });
-    if (!response.ok) {
-        console.warn(`Failed to fetch artifacts for run ${runId}: ${response.status}`);
-        return [];
-    }
-    const data = await response.json();
-    return data.artifacts;
-}
-
-export async function mergePullRequest(token: string, owner: string, repo: string, pullNumber: number): Promise<boolean> {
-    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${pullNumber}/merge`;
-    const response = await fetch(url, {
-        method: 'PUT',
-        headers: getHeaders(token),
-        body: JSON.stringify({
-            merge_method: 'squash' // Prefer squash merge
-        })
+export async function fetchGithubUser(token: string): Promise<GithubUser> {
+    const response = await fetch(`${GITHUB_API_BASE}/user`, {
+        headers: getHeaders(token)
     });
-
     if (!response.ok) {
         const text = await response.text();
-        throw new Error(`Failed to merge PR: ${response.status} ${text}`);
-    }
-
-    return true;
-}
-
-export async function fetchPullRequest(token: string, owner: string, repo: string, pullNumber: number): Promise<any> {
-    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${pullNumber}`;
-    const response = await fetch(url, { headers: getHeaders(token) });
-    if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Failed to fetch PR: ${response.status} ${text}`);
+        throw new Error(`Failed to fetch user: ${response.status} ${text}`);
     }
     return await response.json();
 }
 
-export async function fetchJulesSessions(apiKey: string, limit: number = 10): Promise<JulesSession[]> {
-    const url = `https://jules.googleapis.com/v1alpha/sessions?pageSize=${limit}`;
-    const response = await fetch(url, {
-        headers: {
-            'x-goog-api-key': apiKey,
-            'Content-Type': 'application/json'
-        }
+export async function fetchGithubRepos(token: string, page: number = 1): Promise<GithubRepo[]> {
+    const response = await fetch(`${GITHUB_API_BASE}/user/repos?sort=updated&per_page=100&page=${page}`, {
+        headers: getHeaders(token)
     });
-
     if (!response.ok) {
         const text = await response.text();
-        throw new Error(`Failed to fetch Jules sessions: ${response.status} ${text}`);
+        throw new Error(`Failed to fetch repos: ${response.status} ${text}`);
     }
-
-    const data = await response.json();
-    const sessions = (data.sessions || []).map((s: any) => {
-        const parts = s.name.split('/');
-        const id = parts[parts.length - 1];
-
-        const session = s as JulesSession;
-        let githubMetadata = session.githubMetadata;
-
-        if (!githubMetadata) {
-            // Find pull request in outputs array
-            const prOutput = session.outputs?.find(o => o.pullRequest);
-            const pr = prOutput?.pullRequest;
-
-            // Extract branch from sourceContext
-            const branch = session.sourceContext?.githubRepoContext?.startingBranch;
-
-            // Extract repo info from source resource name: sources/github/owner/repo
-            const sourceParts = session.sourceContext?.source?.split('/') || [];
-            let owner = sourceParts.length >= 4 ? sourceParts[sourceParts.length - 2] : undefined;
-            let repo = sourceParts.length >= 4 ? sourceParts[sourceParts.length - 1] : undefined;
-            const repoFullName = owner && repo ? `${owner}/${repo}` : undefined;
-
-            if (pr?.url) {
-                // Parse GitHub PR URL: https://github.com/{owner}/{repo}/pull/{number}
-                const urlParts = pr.url.split('/');
-                if (urlParts.length >= 7 && urlParts[2] === 'github.com' && urlParts[5] === 'pull') {
-                    githubMetadata = {
-                        owner: urlParts[3],
-                        repo: urlParts[4],
-                        pullRequestNumber: parseInt(urlParts[6], 10),
-                        branch: branch || undefined,
-                        repoFullName: `${urlParts[3]}/${urlParts[4]}`,
-                    };
-                }
-            } else if (branch || repoFullName) {
-                githubMetadata = {
-                    owner,
-                    repo,
-                    branch,
-                    repoFullName,
-                };
-            }
-        }
-
-        return {
-            ...session,
-            id,
-            githubMetadata
-        };
-    });
-    return sessions;
+    return await response.json();
 }
 
-export async function sendMessageToSession(apiKey: string, sessionName: string, message: string): Promise<any> {
-    const url = `https://jules.googleapis.com/v1alpha/${sessionName}:sendMessage`;
+export async function exchangeGithubToken(clientId: string, clientSecret: string, code: string, redirectUri: string, codeVerifier?: string): Promise<string> {
+    console.log(redirectUri)
+    const url = 'https://github.com/login/oauth/access_token';
     const response = await fetch(url, {
         method: 'POST',
         headers: {
-            'x-goog-api-key': apiKey,
+            'Accept': 'application/json',
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            userInput: { text: message }
+            client_id: clientId,
+            client_secret: clientSecret,
+            code: code,
+            redirect_uri: redirectUri,
+            code_verifier: codeVerifier
         })
     });
 
     if (!response.ok) {
         const text = await response.text();
-        throw new Error(`Failed to send message: ${response.status} ${text}`);
+        throw new Error(`Failed to exchange token: ${response.status} ${text}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    if (data.error) {
+        throw new Error(`GitHub OAuth Error: ${data.error_description || data.error}`);
+    }
+    return data.access_token;
 }
+
+// Re-export types and functions
+export {
+    WorkflowRun,
+    CheckRun,
+    Artifact,
+    PullRequest,
+    SessionOutput,
+    SourceContext,
+    JulesSession,
+    fetchWorkflowRuns,
+    fetchChecks,
+    fetchArtifacts,
+    mergePullRequest,
+    fetchPullRequest,
+    deleteJulesSession,
+    fetchJulesSessions,
+    sendMessageToSession
+};
 
 // Background Task Definition
 TaskManager.defineTask(JULES_ARTIFACT_TASK, async () => {
