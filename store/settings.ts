@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
+<<<<<<< HEAD
 import { createSecureStorage } from './secure-storage';
 
 const SENSITIVE_KEYS = [
@@ -15,6 +17,8 @@ const SENSITIVE_KEYS = [
     'githubClientId',
     'githubClientSecret',
 ];
+=======
+>>>>>>> origin/master
 
 export interface Contact {
     id: string;
@@ -31,13 +35,11 @@ interface SettingsState {
     customPromptPath: string | null;
     selectedModel: string;
     contextRootFolder: string;
-    daySummaryPrompt: string;
     setApiKey: (key: string) => void;
     setVaultUri: (uri: string) => void;
     setCustomPromptPath: (path: string) => void;
     setSelectedModel: (model: string) => void;
     setContextRootFolder: (folder: string) => void;
-    setDaySummaryPrompt: (prompt: string) => void;
     googleAndroidClientId: string | null;
     googleIosClientId: string | null;
     googleWebClientId: string | null;
@@ -127,27 +129,11 @@ export const useSettingsStore = create<SettingsState>()(
             customPromptPath: null,
             selectedModel: 'gemini-3-flash-preview',
             contextRootFolder: '',
-            daySummaryPrompt: `
-You are a highly perceptive and motivating AI productivity expert.
-Based on the user's recent mood/habits data and their schedule (past 2 weeks, today, and upcoming days), provide a 1-2 sentence day forecast for TODAY.
-Will it be a good day or a bad day? Why? What should the user expect?
-If the schedule is overloaded, suggest specific events to move or skip (look for [Movable] or [Skippable] flags).
-Keep it concise, actionable, and personalized.
-
-## Recent Context (Last 14 Days - Mood & Habits)
-{{context}}
-
-## Schedule Overview (Past 2 Weeks + Today + Rest of Week)
-{{schedule}}
-
-Forecast for TODAY (1-2 sentences):
-`,
             setApiKey: (key) => set({ apiKey: key }),
             setVaultUri: (uri) => set({ vaultUri: uri }),
             setCustomPromptPath: (path) => set({ customPromptPath: path }),
             setSelectedModel: (model) => set({ selectedModel: model }),
             setContextRootFolder: (folder) => set({ contextRootFolder: folder }),
-            setDaySummaryPrompt: (prompt) => set({ daySummaryPrompt: prompt }),
             googleAndroidClientId: null,
             googleIosClientId: null,
             googleWebClientId: null,
@@ -234,8 +220,8 @@ Forecast for TODAY (1-2 sentences):
         }),
         {
             name: 'ai-inbox-settings',
-            storage: createJSONStorage(() => createSecureStorage(SENSITIVE_KEYS)),
-            version: 6,
+            storage: createJSONStorage(() => AsyncStorage),
+            version: 5,
             migrate: (persistedState: any, version: number) => {
                 if (version === 0) {
                     if (persistedState.defaultCalendarId && !persistedState.defaultCreateCalendarId) {
@@ -264,23 +250,6 @@ Forecast for TODAY (1-2 sentences):
                     }
                     // Do NOT delete myEmails yet in case something goes wrong, or delete it later
                     // delete persistedState.myEmails; 
-                }
-                if (version < 6) {
-                    persistedState.daySummaryPrompt = `
-You are a highly perceptive and motivating AI productivity expert.
-Based on the user's recent mood/habits data and their schedule (past 2 weeks, today, and upcoming days), provide a 1-2 sentence day forecast for TODAY.
-Will it be a good day or a bad day? Why? What should the user expect?
-If the schedule is overloaded, suggest specific events to move or skip (look for [Movable] or [Skippable] flags).
-Keep it concise, actionable, and personalized.
-
-## Recent Context (Last 14 Days - Mood & Habits)
-{{context}}
-
-## Schedule Overview (Past 2 Weeks + Today + Rest of Week)
-{{schedule}}
-
-Forecast for TODAY (1-2 sentences):
-`;
                 }
                 return persistedState;
             },

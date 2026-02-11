@@ -70,6 +70,7 @@ export interface Artifact {
     expired: boolean;
 }
 
+<<<<<<< HEAD
 export async function fetchGithubUser(token: string): Promise<GithubUser> {
     const response = await fetch(`${GITHUB_API_BASE}/user`, {
         headers: getHeaders(token)
@@ -121,6 +122,9 @@ export async function exchangeGithubToken(clientId: string, clientSecret: string
 }
 
 export async function fetchWorkflowRuns(token: string, owner: string, repo: string, workflowId?: string, limit: number = 25, branch?: string): Promise<WorkflowRun[]> {
+=======
+export async function fetchWorkflowRuns(token: string, owner: string, repo: string, workflowId?: string, limit: number = 10, branch?: string): Promise<WorkflowRun[]> {
+>>>>>>> origin/master
     let url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs?per_page=${limit}`;
     if (branch) url += `&branch=${branch}`;
     // If workflowId is provided (filename or ID), we can filter by it.
@@ -242,24 +246,7 @@ export interface JulesSession {
     };
 }
 
-export async function deleteJulesSession(apiKey: string, sessionName: string): Promise<boolean> {
-    const url = `https://jules.googleapis.com/v1alpha/${sessionName}`;
-    const response = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-            'x-goog-api-key': apiKey,
-        }
-    });
-
-    if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Failed to delete Jules session: ${response.status} ${text}`);
-    }
-
-    return true;
-}
-
-export async function fetchJulesSessions(apiKey: string, limit: number = 25): Promise<JulesSession[]> {
+export async function fetchJulesSessions(apiKey: string, limit: number = 10): Promise<JulesSession[]> {
     const url = `https://jules.googleapis.com/v1alpha/sessions?pageSize=${limit}`;
     const response = await fetch(url, {
         headers: {

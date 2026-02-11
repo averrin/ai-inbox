@@ -668,39 +668,43 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             const { copyFileToVault } = await import('../../utils/saf');
             const { transcribeAudio } = await import('../../services/gemini');
 
-            const fileProcessingPromises = attachedFiles.map(async (file) => {
-                let transcription = null;
-                if (file.mimeType.startsWith('audio/')) {
-                    try {
-                        const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
-                        transcription = await transcribeAudio(apiKey || '', base64, file.mimeType, selectedModel || undefined);
-                    } catch (e) {
-                        console.warn(`Failed to transcribe ${file.name}`, e);
+            const results = await Promise.all(attachedFiles.map(async (file) => {
+                // Parallel Task 1: Transcribe (if audio)
+                const transcriptionPromise = (async () => {
+                    if (file.mimeType.startsWith('audio/')) {
+                        try {
+                            const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
+                            const transcription = await transcribeAudio(apiKey || '', base64, file.mimeType, selectedModel || undefined);
+                            if (transcription) {
+                                const formatted = transcription.split('\n').map(line => `> ${line}`).join('\n');
+                                return `\n> [!quote] Transcription\n${formatted}\n`;
+                            }
+                        } catch (e) {
+                            console.warn(`Failed to transcribe ${file.name}`, e);
+                        }
                     }
-                }
+                    return '';
+                })();
 
-                let embedding = null;
-                try {
+                // Parallel Task 2: Copy
+                const copyPromise = (async () => {
                     const subfolder = getAttachmentSubfolder(file.mimeType);
                     const targetPath = `Files/${subfolder}/${file.name}`;
                     const copiedUri = await copyFileToVault(file.uri, vaultUri, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
-                    if (copiedUri) embedding = `![[${targetPath}]]`;
-                } catch (e) {
-                    console.warn(`Failed to copy ${file.name} to vault`, e);
-                }
+                    if (copiedUri) {
+                        return `![[${targetPath}]]`;
+                    }
+                    return '';
+                })();
 
+                const [transcription, embedding] = await Promise.all([transcriptionPromise, copyPromise]);
                 return { transcription, embedding };
-            });
+            }));
 
-            const results = await Promise.all(fileProcessingPromises);
+            // Assemble results in order
             for (const res of results) {
-                if (res.transcription) {
-                    const formatted = res.transcription.split('\n').map(line => `> ${line}`).join('\n');
-                    transcriptionText += `\n> [!quote] Transcription\n${formatted}\n`;
-                }
-                if (res.embedding) {
-                    embeddings.push(res.embedding);
-                }
+                if (res.transcription) transcriptionText += res.transcription;
+                if (res.embedding) embeddings.push(res.embedding);
             }
 
             if (transcriptionText) processedText = `${transcriptionText}\n\n${inputText}`.trim();

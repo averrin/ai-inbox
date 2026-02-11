@@ -18,7 +18,26 @@ import { useNavigation } from '@react-navigation/native';
 
 dayjs.extend(relativeTime);
 
-function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onDelete?: () => void, onRefresh?: () => void, julesGoogleApiKey?: string }) {
+// Helper to select the best artifact (e.g. app binary)
+function getBestArtifact(artifacts: Artifact[]): Artifact | null {
+    if (!artifacts || artifacts.length === 0) return null;
+
+    // Sort by creation date descending (newest first)
+    const sorted = [...artifacts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    // Priority list for app binaries
+    const priorities = ['app-release', 'app-debug', 'release', 'debug', 'build'];
+
+    for (const p of priorities) {
+        const match = sorted.find(a => a.name.toLowerCase().includes(p));
+        if (match) return match;
+    }
+
+    // Default to newest
+    return sorted[0];
+}
+
+function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onRefresh, julesGoogleApiKey }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onRefresh?: () => void, julesGoogleApiKey?: string }) {
     const [ghRun, setGhRun] = useState<WorkflowRun | null>(null);
     const [loadingGh, setLoadingGh] = useState(false);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
@@ -94,8 +113,11 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
         if (!ghRun || !artifacts || artifacts.length === 0 || !ghToken) return;
         setIsDownloading(true);
         try {
-            const artifact = artifacts[0];
-            const fileUri = FileSystem.documentDirectory + `${artifact.name}.zip`;
+            const artifact = getBestArtifact(artifacts);
+            if (!artifact) return;
+
+            const sanitizedBranch = (branch || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
+            const fileUri = FileSystem.documentDirectory + `${artifact.name}-${sanitizedBranch}.zip`;
             const downloadResumable = FileSystem.createDownloadResumable(
                 artifact.archive_download_url,
                 fileUri,
@@ -145,17 +167,6 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
         } finally {
             setIsResolving(false);
         }
-    };
-
-    const handleDelete = () => {
-        Alert.alert(
-            "Delete Session",
-            "Are you sure you want to delete this session? This cannot be undone.",
-            [
-                { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: onDelete }
-            ]
-        );
     };
 
     const getStatusIcon = (state: string) => {
@@ -305,16 +316,6 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
                         <Text className="text-slate-500 text-[10px] italic">No Artifacts</Text>
                     </View>
                 ) : null}
-
-                {(session.state === 'COMPLETED' || session.state === 'FAILED' || prInactive) && onDelete && (
-                    <TouchableOpacity
-                        onPress={handleDelete}
-                        className="flex-1 bg-red-600/20 border border-red-500/30 py-2 rounded-lg flex-row items-center justify-center"
-                    >
-                        <Ionicons name="trash-outline" size={14} color="#f87171" />
-                        <Text className="text-red-400 text-xs font-semibold ml-2">Delete</Text>
-                    </TouchableOpacity>
-                )}
             </View>
         </Card>
     );
@@ -433,11 +434,11 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
         if (!artifacts || artifacts.length === 0) return;
         setIsDownloading(true);
         try {
-            // Sort by creation date descending
-            const sortedArtifacts = [...artifacts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-            const artifact = sortedArtifacts[0];
+            const artifact = getBestArtifact(artifacts);
+            if (!artifact) return;
 
-            const fileUri = FileSystem.documentDirectory + `${artifact.name}.zip`;
+            const sanitizedBranch = (run.head_branch || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
+            const fileUri = FileSystem.documentDirectory + `${artifact.name}-${sanitizedBranch}.zip`;
 
             const downloadResumable = FileSystem.createDownloadResumable(
                 artifact.archive_download_url,
@@ -677,12 +678,12 @@ export default function JulesScreen() {
         try {
             if (mode === 'github') {
                 if (julesApiKey && julesOwner && julesRepo) {
-                    const data = await fetchWorkflowRuns(julesApiKey, julesOwner, julesRepo, julesWorkflow || undefined, 25);
+                    const data = await fetchWorkflowRuns(julesApiKey, julesOwner, julesRepo, julesWorkflow || undefined, 10);
                     setRuns(data);
                 }
             } else {
                 if (julesGoogleApiKey) {
-                    const data = await fetchJulesSessions(julesGoogleApiKey, 25);
+                    const data = await fetchJulesSessions(julesGoogleApiKey, 10);
                     setJulesSessions(data);
                 }
             }

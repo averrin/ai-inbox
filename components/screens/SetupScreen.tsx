@@ -34,13 +34,16 @@ type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
+<<<<<<< HEAD
     const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, julesNotificationsEnabled, setJulesNotificationsEnabled, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret } = useSettingsStore();
+=======
+    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, julesNotificationsEnabled, setJulesNotificationsEnabled } = useSettingsStore();
+>>>>>>> origin/master
     const [keyInput, setKeyInput] = useState(apiKey || '');
     const [androidIdInput, setAndroidIdInput] = useState(googleAndroidClientId || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
     const [modelInput, setModelInput] = useState(selectedModel);
     const [rootFolderInput, setRootFolderInput] = useState(contextRootFolder || '');
-    const [daySummaryPromptInput, setDaySummaryPromptInput] = useState(daySummaryPrompt || '');
     const [julesKeyInput, setJulesKeyInput] = useState(julesApiKey || '');
     const [julesOwnerInput, setJulesOwnerInput] = useState(julesOwner || '');
     const [julesRepoInput, setJulesRepoInput] = useState(julesRepo || '');
@@ -189,7 +192,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         setCustomPromptPath(promptPathInput);
         setSelectedModel(modelInput);
         setContextRootFolder(rootFolderInput);
-        setDaySummaryPrompt(daySummaryPromptInput);
         setGoogleAndroidClientId(androidIdInput);
         setGithubClientId(githubClientIdInput || null);
         setGithubClientSecret(githubClientSecretInput || null);
@@ -205,7 +207,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             setCustomPromptPath(promptPathInput);
             setSelectedModel(modelInput);
             setContextRootFolder(rootFolderInput);
-            setDaySummaryPrompt(daySummaryPromptInput);
             setGoogleAndroidClientId(androidIdInput);
             setJulesApiKey(julesKeyInput || null);
             setJulesOwner(julesOwnerInput || null);
@@ -223,13 +224,11 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         promptPathInput,
         modelInput,
         rootFolderInput,
-        daySummaryPromptInput,
         androidIdInput,
         setApiKey,
         setCustomPromptPath,
         setSelectedModel,
         setContextRootFolder,
-        setDaySummaryPrompt,
         setGoogleAndroidClientId,
         julesKeyInput,
         julesOwnerInput,
@@ -332,17 +331,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 placeholder="e.g., ai-prompt.md"
                 fileExtension=".md"
             />
-
-            <Input
-                label="AI Day Summary Prompt"
-                value={daySummaryPromptInput}
-                onChangeText={setDaySummaryPromptInput}
-                multiline={true}
-                placeholder="Enter prompt..."
-            />
-            <Text className="text-slate-400 text-xs ml-4 mb-4 -mt-2">
-                Placeholders: {'{{context}}'}, {'{{schedule}}'}
-            </Text>
 
             {/* Open in Obsidian button */}
             {promptPathInput && promptFileStatus === 'valid' && vaultUri && (
