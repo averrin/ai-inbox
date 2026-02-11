@@ -4,7 +4,7 @@ import { Layout } from '../ui/Layout';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
 import { useEffect, useState, useCallback } from 'react';
-import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest } from '../../services/jules';
+import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest, sendMessageToSession } from '../../services/jules';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -14,14 +14,35 @@ import { useNavigation } from '@react-navigation/native';
 
 dayjs.extend(relativeTime);
 
-function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string }) {
+// Helper to select the best artifact (e.g. app binary)
+function getBestArtifact(artifacts: Artifact[]): Artifact | null {
+    if (!artifacts || artifacts.length === 0) return null;
+
+    // Sort by creation date descending (newest first)
+    const sorted = [...artifacts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    // Priority list for app binaries
+    const priorities = ['app-release', 'app-debug', 'release', 'debug', 'build'];
+
+    for (const p of priorities) {
+        const match = sorted.find(a => a.name.toLowerCase().includes(p));
+        if (match) return match;
+    }
+
+    // Default to newest
+    return sorted[0];
+}
+
+function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onRefresh, julesGoogleApiKey }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onRefresh?: () => void, julesGoogleApiKey?: string }) {
     const [ghRun, setGhRun] = useState<WorkflowRun | null>(null);
     const [loadingGh, setLoadingGh] = useState(false);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
     const [artifactsLoading, setArtifactsLoading] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [isMerging, setIsMerging] = useState(false);
+    const [isResolving, setIsResolving] = useState(false);
     const [prInactive, setPrInactive] = useState(false);
+    const [mergeable, setMergeable] = useState<boolean | null>(null);
 
     const metadata = session.githubMetadata;
     const owner = metadata?.owner || defaultOwner;
@@ -75,7 +96,10 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
             
             if (prNumber) {
                 fetchPullRequest(ghToken, owner, repo, prNumber)
-                    .then(pr => setPrInactive(pr.merged || pr.state === 'merged' || pr.state === 'closed'))
+                    .then(pr => {
+                        setPrInactive(pr.merged || pr.state === 'merged' || pr.state === 'closed');
+                        setMergeable(pr.mergeable);
+                    })
                     .catch(err => console.error("Fetch PR detail error:", err));
             }
         }
@@ -85,8 +109,11 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
         if (!ghRun || !artifacts || artifacts.length === 0 || !ghToken) return;
         setIsDownloading(true);
         try {
-            const artifact = artifacts[0];
-            const fileUri = FileSystem.documentDirectory + `${artifact.name}.zip`;
+            const artifact = getBestArtifact(artifacts);
+            if (!artifact) return;
+
+            const sanitizedBranch = (branch || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
+            const fileUri = FileSystem.documentDirectory + `${artifact.name}-${sanitizedBranch}.zip`;
             const downloadResumable = FileSystem.createDownloadResumable(
                 artifact.archive_download_url,
                 fileUri,
@@ -111,11 +138,30 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
             setIsMerging(true);
             await mergePullRequest(ghToken, owner, repo, prNumber);
             Alert.alert("Success", "Pull Request merged successfully");
+            if (onRefresh) onRefresh();
         } catch (e) {
             console.error(e);
             Alert.alert("Error", "Failed to merge Pull Request");
         } finally {
             setIsMerging(false);
+        }
+    };
+
+    const handleResolveConflict = async () => {
+        if (!julesGoogleApiKey) {
+            Alert.alert("Error", "Jules API key missing");
+            return;
+        }
+
+        try {
+            setIsResolving(true);
+            await sendMessageToSession(julesGoogleApiKey, session.name, "merge master, resolve conflicts and push");
+            Alert.alert("Request Sent", "Asked Jules to resolve conflicts.");
+        } catch (e) {
+            console.error(e);
+            Alert.alert("Error", "Failed to send resolution request");
+        } finally {
+            setIsResolving(false);
         }
     };
 
@@ -225,16 +271,18 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo }: { ses
 
                 {session.state === 'COMPLETED' && ghRun?.conclusion === 'success' && prNumber && !prInactive && (
                     <TouchableOpacity
-                        onPress={handleMerge}
-                        disabled={isMerging}
-                        className="flex-1 bg-green-600 py-2 rounded-lg flex-row items-center justify-center"
+                        onPress={mergeable === false ? handleResolveConflict : handleMerge}
+                        disabled={isMerging || isResolving}
+                        className={`flex-1 py-2 rounded-lg flex-row items-center justify-center ${mergeable === false ? 'bg-orange-600' : 'bg-green-600'}`}
                     >
-                        {isMerging ? (
+                        {isMerging || isResolving ? (
                             <ActivityIndicator size="small" color="white" />
                         ) : (
                             <>
-                                <Ionicons name="git-merge-outline" size={14} color="white" />
-                                <Text className="text-white text-xs font-semibold ml-2">Merge</Text>
+                                <Ionicons name={mergeable === false ? "hammer-outline" : "git-merge-outline"} size={14} color="white" />
+                                <Text className="text-white text-xs font-semibold ml-2">
+                                    {mergeable === false ? "Resolve" : "Merge"}
+                                </Text>
                             </>
                         )}
                     </TouchableOpacity>
@@ -313,11 +361,11 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
         if (!artifacts || artifacts.length === 0) return;
         setIsDownloading(true);
         try {
-            // Sort by creation date descending
-            const sortedArtifacts = [...artifacts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-            const artifact = sortedArtifacts[0];
+            const artifact = getBestArtifact(artifacts);
+            if (!artifact) return;
 
-            const fileUri = FileSystem.documentDirectory + `${artifact.name}.zip`;
+            const sanitizedBranch = (run.head_branch || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
+            const fileUri = FileSystem.documentDirectory + `${artifact.name}-${sanitizedBranch}.zip`;
 
             const downloadResumable = FileSystem.createDownloadResumable(
                 artifact.archive_download_url,
@@ -635,6 +683,8 @@ export default function JulesScreen() {
                             ghToken={julesApiKey || undefined}
                             defaultOwner={julesOwner || undefined}
                             defaultRepo={julesRepo || undefined}
+                            onRefresh={onRefresh}
+                            julesGoogleApiKey={julesGoogleApiKey || undefined}
                         />
                     ))
                     }</>

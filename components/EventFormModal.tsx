@@ -28,6 +28,7 @@ export interface EventSaveData {
     editScope?: 'this' | 'future' | 'all';
     alarm?: boolean;
     persistent?: number;
+    content?: string;
 }
 
 export interface DeleteOptions {
@@ -73,6 +74,7 @@ export function EventFormModal({
     const [recurrenceFreq, setRecurrenceFreq] = useState<string>('none'); // 'none', 'daily', 'weekly', 'monthly', 'yearly'
     const [recurrenceInterval, setRecurrenceInterval] = useState<string>('1');
     const [persistent, setPersistent] = useState<string>(''); // For Alarm
+    const [content, setContent] = useState('');
 
     // UI State
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -117,6 +119,7 @@ export function EventFormModal({
 
                 setAllDay(initialEvent.allDay || false);
                 setIsWork(initialEvent.isWork || false);
+                setContent(initialEvent.originalEvent?.content || '');
 
                 // Recurrence
                 // Check if it's a calendar recurrence object or a reminder string
@@ -168,6 +171,7 @@ export function EventFormModal({
                 setRecurrenceInterval('1');
                 setPersistent('');
                 setIsCustomDuration(false);
+                setContent('');
             }
         }
     }, [visible, initialDate, initialEvent, initialType]);
@@ -252,7 +256,8 @@ export function EventFormModal({
             isWork: type === 'event' ? isWork : false,
             editScope: scope,
             alarm: type === 'alarm',
-            persistent: (type === 'alarm' || type === 'reminder') ? (isNaN(persistentVal as number) ? undefined : persistentVal) : undefined
+            persistent: (type === 'alarm' || type === 'reminder') ? (isNaN(persistentVal as number) ? undefined : persistentVal) : undefined,
+            content: (type === 'reminder' || type === 'alarm') ? content : undefined
         };
 
         if (recurrenceFreq !== 'none') {
@@ -379,6 +384,21 @@ export function EventFormModal({
                                         autoFocus={!initialEvent}
                                     />
                                 </View>
+
+                                {(!isEvent) && (
+                                    <View className="mb-4">
+                                        <Text className="text-indigo-200 mb-2 font-medium">Content</Text>
+                                        <TextInput
+                                            className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700 min-h-[80px]"
+                                            value={content}
+                                            onChangeText={setContent}
+                                            placeholder="Details..."
+                                            placeholderTextColor="#64748b"
+                                            multiline
+                                            textAlignVertical="top"
+                                        />
+                                    </View>
+                                )}
 
                                 {/* Time Section */}
                                 <View className="mb-6">
