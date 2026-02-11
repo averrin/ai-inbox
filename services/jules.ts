@@ -3,6 +3,9 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSettingsStore } from '../store/settings';
+import { WorkflowRun, CheckRun, Artifact, PullRequest, SessionOutput, JulesSession } from './julesTypes';
+
+export * from './julesTypes';
 
 const GITHUB_API_BASE = 'https://api.github.com';
 export const JULES_ARTIFACT_TASK = 'CHECK_JULES_ARTIFACTS';
@@ -13,45 +16,6 @@ const getHeaders = (token: string) => ({
     'Accept': 'application/vnd.github.v3+json',
     'X-GitHub-Api-Version': '2022-11-28'
 });
-
-export interface WorkflowRun {
-    id: number;
-    name: string;
-    head_branch: string;
-    head_sha: string;
-    status: string; // queued, in_progress, completed
-    conclusion: string | null; // success, failure, cancelled, skipped, timed_out, action_required
-    created_at: string;
-    updated_at: string;
-    html_url: string;
-    pull_requests: {
-        id: number;
-        number: number;
-        url: string;
-        head: { ref: string, sha: string, repo: { id: number, url: string, name: string } };
-        base: { ref: string, sha: string, repo: { id: number, url: string, name: string } };
-    }[];
-}
-
-export interface CheckRun {
-    id: number;
-    name: string;
-    status: string;
-    conclusion: string | null;
-    html_url: string;
-    started_at: string;
-    completed_at: string | null;
-}
-
-export interface Artifact {
-    id: number;
-    name: string;
-    size_in_bytes: number;
-    url: string;
-    archive_download_url: string;
-    created_at: string;
-    expired: boolean;
-}
 
 export async function fetchWorkflowRuns(token: string, owner: string, repo: string, workflowId?: string, limit: number = 10, branch?: string): Promise<WorkflowRun[]> {
     let url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs?per_page=${limit}`;
@@ -131,48 +95,6 @@ export async function fetchPullRequest(token: string, owner: string, repo: strin
         throw new Error(`Failed to fetch PR: ${response.status} ${text}`);
     }
     return await response.json();
-}
-export interface PullRequest {
-    url: string;
-    title?: string;
-    description?: string;
-    number?: number;
-    merged?: boolean;
-    state?: string;
-    mergeable?: boolean | null;
-    mergeable_state?: string;
-}
-
-export interface SessionOutput {
-    pullRequest?: PullRequest;
-    changeSet?: any;
-}
-
-export interface SourceContext {
-    source: string;
-    githubRepoContext?: {
-        startingBranch?: string;
-    };
-}
-
-export interface JulesSession {
-    name: string;
-    id: string; // Leaf ID
-    title: string;
-    state: string; // QUEUED, PLANNING, AWAITING_PLAN_APPROVAL, AWAITING_USER_FEEDBACK, IN_PROGRESS, PAUSED, COMPLETED, FAILED
-    url: string;
-    createTime: string;
-    updateTime: string;
-    labels?: Record<string, string>;
-    outputs?: SessionOutput[];
-    sourceContext?: SourceContext;
-    githubMetadata?: {
-        pullRequestNumber?: number;
-        branch?: string;
-        owner?: string;
-        repo?: string;
-        repoFullName?: string;
-    };
 }
 
 export async function fetchJulesSessions(apiKey: string, limit: number = 10): Promise<JulesSession[]> {

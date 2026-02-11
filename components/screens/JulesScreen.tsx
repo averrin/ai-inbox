@@ -8,9 +8,9 @@ import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchA
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 import { useNavigation } from '@react-navigation/native';
+import { downloadAndInstallArtifact } from '../../utils/artifactHandler';
+import { artifactDeps } from '../../utils/artifactDeps';
 
 dayjs.extend(relativeTime);
 
@@ -107,28 +107,16 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onRefre
 
     const handleDownloadArtifact = async () => {
         if (!ghRun || !artifacts || artifacts.length === 0 || !ghToken) return;
-        setIsDownloading(true);
-        try {
-            const artifact = getBestArtifact(artifacts);
-            if (!artifact) return;
+        const artifact = getBestArtifact(artifacts);
+        if (!artifact) return;
 
-            const sanitizedBranch = (branch || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
-            const fileUri = FileSystem.documentDirectory + `${artifact.name}-${sanitizedBranch}.zip`;
-            const downloadResumable = FileSystem.createDownloadResumable(
-                artifact.archive_download_url,
-                fileUri,
-                { headers: { 'Authorization': `Bearer ${ghToken}` } }
-            );
-            const result = await downloadResumable.downloadAsync();
-            if (result && result.uri && await Sharing.isAvailableAsync()) {
-                await Sharing.shareAsync(result.uri);
-            }
-        } catch (e) {
-            console.error(e);
-            Alert.alert("Error", "Failed to download artifact");
-        } finally {
-            setIsDownloading(false);
-        }
+        await downloadAndInstallArtifact(
+            artifact,
+            ghToken,
+            branch || 'unknown',
+            setIsDownloading,
+            artifactDeps
+        );
     };
 
     const handleMerge = async () => {
@@ -359,38 +347,16 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
 
     const handleDownloadArtifact = async () => {
         if (!artifacts || artifacts.length === 0) return;
-        setIsDownloading(true);
-        try {
-            const artifact = getBestArtifact(artifacts);
-            if (!artifact) return;
+        const artifact = getBestArtifact(artifacts);
+        if (!artifact) return;
 
-            const sanitizedBranch = (run.head_branch || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
-            const fileUri = FileSystem.documentDirectory + `${artifact.name}-${sanitizedBranch}.zip`;
-
-            const downloadResumable = FileSystem.createDownloadResumable(
-                artifact.archive_download_url,
-                fileUri,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                }
-            );
-
-            const result = await downloadResumable.downloadAsync();
-            if (result && result.uri) {
-                if (await Sharing.isAvailableAsync()) {
-                    await Sharing.shareAsync(result.uri);
-                } else {
-                    Alert.alert("Success", "Artifact downloaded to: " + result.uri);
-                }
-            }
-        } catch (e) {
-            console.error(e);
-            Alert.alert("Error", "Failed to download artifact");
-        } finally {
-            setIsDownloading(false);
-        }
+        await downloadAndInstallArtifact(
+            artifact,
+            token,
+            run.head_branch || 'unknown',
+            setIsDownloading,
+            artifactDeps
+        );
     };
 
     const getStatusInfo = () => {
