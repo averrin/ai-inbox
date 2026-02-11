@@ -19,7 +19,7 @@ interface Props {
 }
 
 export function LunchContextModal({ visible, onClose, event, onEventCreated }: Props) {
-    const { visibleCalendarIds, timeFormat, defaultCreateCalendarId, myEmails } = useSettingsStore(); // Added timeFormat
+    const { visibleCalendarIds, timeFormat, defaultCreateCalendarId, personalAccountId, workAccountId } = useSettingsStore(); // Added timeFormat
     const timeFormatStr = timeFormat === '24h' ? 'HH:mm' : 'h:mm A'; // Derived format
 
     // Internal state for edits
@@ -70,8 +70,9 @@ export function LunchContextModal({ visible, onClose, event, onEventCreated }: P
             };
 
             // Add Default Invitee if present
-            if (myEmails && myEmails.length > 0) {
-                eventData.attendees = myEmails.map(email => ({
+            const invitees = [personalAccountId, workAccountId].filter(Boolean) as string[];
+            if (invitees.length > 0) {
+                eventData.attendees = invitees.map(email => ({
                     email: email,
                     role: 'attendee',
                     status: 'pending',

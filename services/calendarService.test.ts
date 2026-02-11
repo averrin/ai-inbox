@@ -11,8 +11,8 @@ const createEvent = (id: string, title: string, startDate: string, endDate: stri
     timeZone: 'UTC',
     endTimeZone: 'UTC',
     allDay: false,
-    accessLevel: Calendar.EventAccessLevel.OWNER,
-    availability: Calendar.EventAvailability.BUSY,
+    accessLevel: Calendar.EventAccessLevel.PUBLIC,
+    availability: Calendar.Availability.BUSY,
 } as unknown as Calendar.Event);
 
 describe('mergeDuplicateEvents', () => {
@@ -31,7 +31,7 @@ describe('mergeDuplicateEvents', () => {
     it('should merge identical events', () => {
         const e1 = createEvent('1', 'A', '2023-01-01', '2023-01-02');
         const e2 = createEvent('2', 'A', '2023-01-01', '2023-01-02'); // Duplicate
-        
+
         const result = mergeDuplicateEvents([e1, e2]);
         expect(result).toHaveLength(1);
         expect(result[0]).toBe(e1); // Should preserve first one
@@ -40,14 +40,14 @@ describe('mergeDuplicateEvents', () => {
     it('should not merge if title differs', () => {
         const e1 = createEvent('1', 'A', '2023-01-01', '2023-01-02');
         const e2 = createEvent('2', 'B', '2023-01-01', '2023-01-02');
-        
+
         expect(mergeDuplicateEvents([e1, e2])).toHaveLength(2);
     });
 
-     it('should not merge if time differs', () => {
+    it('should not merge if time differs', () => {
         const e1 = createEvent('1', 'A', '2023-01-01', '2023-01-02');
         const e2 = createEvent('2', 'A', '2023-01-01', '2023-01-03');
-        
+
         expect(mergeDuplicateEvents([e1, e2])).toHaveLength(2);
     });
 });

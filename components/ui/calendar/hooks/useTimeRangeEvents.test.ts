@@ -1,10 +1,11 @@
+// @ts-ignore
 import { renderHook } from '@testing-library/react-hooks'
 import dayjs from 'dayjs'
 import { useTimeRangeEvents } from './useTimeRangeEvents'
-import { useTimeRangeStore } from '../../../../stores/useTimeRangeStore'
+import { useEventTypesStore } from '../../../../store/eventTypes'
 
 // Mock the store
-jest.mock('../../../../stores/useTimeRangeStore')
+jest.mock('../../../../store/eventTypes')
 
 describe('useTimeRangeEvents', () => {
     const mockDateRange = [
@@ -15,7 +16,7 @@ describe('useTimeRangeEvents', () => {
 
     beforeEach(() => {
         // Reset mock
-        (useTimeRangeStore as unknown as jest.Mock).mockReturnValue({
+        (useEventTypesStore as unknown as jest.Mock).mockReturnValue({
             ranges: []
         })
     })
@@ -26,7 +27,7 @@ describe('useTimeRangeEvents', () => {
     })
 
     it('should generate events for active days', () => {
-        (useTimeRangeStore as unknown as jest.Mock).mockReturnValue({
+        (useEventTypesStore as unknown as jest.Mock).mockReturnValue({
             ranges: [
                 {
                     id: '1',
@@ -46,23 +47,23 @@ describe('useTimeRangeEvents', () => {
         expect(result.current).toHaveLength(2)
 
         // Check Monday event
-        const monEvent = result.current.find(e => dayjs(e.start).date() === 1)
+        const monEvent = result.current.find((e: any) => dayjs(e.start).date() === 1)
         expect(monEvent).toBeDefined()
         expect(dayjs(monEvent!.start).hour()).toBe(7)
         expect(dayjs(monEvent!.end).hour()).toBe(8)
         expect(monEvent!.title).toBe('Gym')
 
         // Check Wednesday event
-        const wedEvent = result.current.find(e => dayjs(e.start).date() === 3)
+        const wedEvent = result.current.find((e: any) => dayjs(e.start).date() === 3)
         expect(wedEvent).toBeDefined()
 
         // No Tuesday event
-        const tueEvent = result.current.find(e => dayjs(e.start).date() === 2)
+        const tueEvent = result.current.find((e: any) => dayjs(e.start).date() === 2)
         expect(tueEvent).toBeUndefined()
     })
 
     it('should ignore disabled ranges', () => {
-        (useTimeRangeStore as unknown as jest.Mock).mockReturnValue({
+        (useEventTypesStore as unknown as jest.Mock).mockReturnValue({
             ranges: [
                 {
                     id: '1',

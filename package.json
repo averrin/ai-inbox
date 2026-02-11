@@ -72,6 +72,7 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/json5": "^0.0.30",
     "@types/marked": "^6.0.0",
     "@types/react": "^19.1.10",
