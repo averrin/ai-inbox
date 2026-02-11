@@ -1,7 +1,21 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createSecureStorage } from './secure-storage';
 import * as Crypto from 'expo-crypto';
+
+const SENSITIVE_KEYS = [
+    'apiKey',
+    'googleAndroidClientId',
+    'googleIosClientId',
+    'googleWebClientId',
+    'julesApiKey',
+    'julesGoogleApiKey',
+    'workAccountId',
+    'personalAccountId',
+    'githubClientId',
+    'githubClientSecret',
+];
 
 export interface Contact {
     id: string;
@@ -81,6 +95,10 @@ interface SettingsState {
     setJulesGoogleApiKey: (key: string | null) => void;
     julesNotificationsEnabled: boolean;
     setJulesNotificationsEnabled: (enabled: boolean) => void;
+    githubClientId: string | null;
+    setGithubClientId: (id: string | null) => void;
+    githubClientSecret: string | null;
+    setGithubClientSecret: (secret: string | null) => void;
     weatherLocation: { lat: number, lon: number };
     setWeatherLocation: (location: { lat: number, lon: number }) => void;
     tagConfig: Record<string, MetadataConfig>;
@@ -91,7 +109,8 @@ interface SettingsState {
     setContacts: (contacts: Contact[]) => void;
     addContact: (contact: Omit<Contact, 'id'>) => void;
     updateContact: (contact: Contact) => void;
-    deleteContact: (id: string) => void;
+    daySummaryPrompt: string | null;
+    setDaySummaryPrompt: (prompt: string | null) => void;
 }
 
 export interface MetadataConfig {
@@ -171,6 +190,10 @@ export const useSettingsStore = create<SettingsState>()(
             setJulesGoogleApiKey: (key) => set({ julesGoogleApiKey: key }),
             julesNotificationsEnabled: true,
             setJulesNotificationsEnabled: (enabled) => set({ julesNotificationsEnabled: enabled }),
+            githubClientId: null,
+            setGithubClientId: (id) => set({ githubClientId: id }),
+            githubClientSecret: null,
+            setGithubClientSecret: (secret) => set({ githubClientSecret: secret }),
             weatherLocation: { lat: 37.7749, lon: -122.4194 },
             setWeatherLocation: (location) => set({ weatherLocation: location }),
             tagConfig: {},
@@ -189,13 +212,29 @@ export const useSettingsStore = create<SettingsState>()(
             updateContact: (contact) => set((state) => ({
                 contacts: state.contacts.map(c => c.id === contact.id ? contact : c)
             })),
-            deleteContact: (id) => set((state) => ({
+            deleteContact: (id: string) => set((state) => ({
                 contacts: state.contacts.filter(c => c.id !== id)
             })),
+            daySummaryPrompt: null,
+            setDaySummaryPrompt: (prompt) => set({ daySummaryPrompt: prompt }),
         }),
         {
             name: 'ai-inbox-settings',
-            storage: createJSONStorage(() => AsyncStorage),
+            storage: createJSONStorage(() => createSecureStorage([
+                'apiKey',
+                'julesApiKey',
+                'julesGoogleApiKey',
+                'googleAndroidClientId',
+                'googleIosClientId',
+                'googleWebClientId',
+                'workAccountId',
+                'personalAccountId'
+            ])),
+            partialize: (state) => {
+                // Exclude cachedReminders from persistence to prevent hitting AsyncStorage limits
+                const { cachedReminders, ...rest } = state;
+                return rest;
+            },
             version: 5,
             migrate: (persistedState: any, version: number) => {
                 if (version === 0) {

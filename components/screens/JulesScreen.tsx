@@ -1,12 +1,16 @@
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, Alert, ActivityIndicator, StyleSheet, Modal, FlatList, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Layout } from '../ui/Layout';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
 import { useEffect, useState, useCallback } from 'react';
-import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest, sendMessageToSession } from '../../services/jules';
+import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest, sendMessageToSession, exchangeGithubToken, fetchGithubRepos, fetchGithubUser, GithubRepo } from '../../services/jules';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
+import * as WebBrowser from 'expo-web-browser';
+import { useAuthRequest, makeRedirectUri, ResponseType } from 'expo-auth-session';
+
+WebBrowser.maybeCompleteAuthSession();
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useNavigation } from '@react-navigation/native';
 import { downloadAndInstallArtifact } from '../../utils/artifactHandler';
@@ -33,7 +37,7 @@ function getBestArtifact(artifacts: Artifact[]): Artifact | null {
     return sorted[0];
 }
 
-function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onRefresh, julesGoogleApiKey }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onRefresh?: () => void, julesGoogleApiKey?: string }) {
+function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onDelete?: () => void, onRefresh?: () => void, julesGoogleApiKey?: string }) {
     const [ghRun, setGhRun] = useState<WorkflowRun | null>(null);
     const [loadingGh, setLoadingGh] = useState(false);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
@@ -151,6 +155,17 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onRefre
         } finally {
             setIsResolving(false);
         }
+    };
+
+    const handleDelete = () => {
+        Alert.alert(
+            "Delete Session",
+            "Are you sure you want to delete this session? This cannot be undone.",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "Delete", style: "destructive", onPress: onDelete }
+            ]
+        );
     };
 
     const getStatusIcon = (state: string) => {
@@ -300,8 +315,87 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onRefre
                         <Text className="text-slate-500 text-[10px] italic">No Artifacts</Text>
                     </View>
                 ) : null}
+
+                {(session.state === 'COMPLETED' || session.state === 'FAILED' || prInactive) && onDelete && (
+                    <TouchableOpacity
+                        onPress={handleDelete}
+                        className="flex-1 bg-red-600/20 border border-red-500/30 py-2 rounded-lg flex-row items-center justify-center"
+                    >
+                        <Ionicons name="trash-outline" size={14} color="#f87171" />
+                        <Text className="text-red-400 text-xs font-semibold ml-2">Delete</Text>
+                    </TouchableOpacity>
+                )}
             </View>
         </Card>
+    );
+}
+
+function RepoSelector({ visible, onClose, onSelect, token }: { visible: boolean, onClose: () => void, onSelect: (repo: GithubRepo) => void, token: string }) {
+    const [repos, setRepos] = useState<GithubRepo[]>([]);
+    const [search, setSearch] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (visible && token) {
+            setLoading(true);
+            setSearch('');
+            fetchGithubRepos(token)
+                .then(setRepos)
+                .catch(err => console.error(err))
+                .finally(() => setLoading(false));
+        }
+    }, [visible, token]);
+
+    const filtered = repos.filter(r => r.full_name.toLowerCase().includes(search.toLowerCase()));
+
+    return (
+        <Modal visible={visible} animationType="slide" transparent>
+            <View className="flex-1 bg-black/80 justify-center px-4">
+                <View className="bg-slate-900 rounded-2xl max-h-[80%] overflow-hidden w-full border border-slate-700">
+                    <View className="p-4 border-b border-slate-700 flex-row justify-between items-center bg-slate-800">
+                        <Text className="text-white font-bold text-lg">Select Repository</Text>
+                        <TouchableOpacity onPress={onClose}>
+                            <Ionicons name="close" size={24} color="white" />
+                        </TouchableOpacity>
+                    </View>
+                    <View className="p-4 bg-slate-900">
+                        <View className="bg-slate-800 rounded-lg flex-row items-center px-3 mb-2 border border-slate-700">
+                             <Ionicons name="search" size={20} color="#94a3b8" />
+                             <TextInput
+                                className="flex-1 text-white p-3"
+                                placeholder="Search repositories..."
+                                placeholderTextColor="#94a3b8"
+                                value={search}
+                                onChangeText={setSearch}
+                                autoCapitalize="none"
+                             />
+                        </View>
+                    </View>
+                    {loading ? (
+                        <ActivityIndicator size="large" color="#818cf8" className="my-10" />
+                    ) : (
+                        <FlatList
+                            data={filtered}
+                            keyExtractor={item => item.id.toString()}
+                            className="bg-slate-900"
+                            contentContainerStyle={{ paddingBottom: 20 }}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity
+                                    className="p-4 border-b border-slate-800 flex-row items-center justify-between"
+                                    onPress={() => onSelect(item)}
+                                >
+                                    <View className="flex-1 mr-2">
+                                        <Text className="text-white font-medium text-base">{item.full_name}</Text>
+                                        {item.description && <Text className="text-slate-500 text-xs" numberOfLines={1}>{item.description}</Text>}
+                                    </View>
+                                    {item.private && <Ionicons name="lock-closed" size={14} color="#94a3b8" />}
+                                </TouchableOpacity>
+                            )}
+                        />
+                    )}
+                </View>
+            </View>
+        </Modal>
     );
 }
 
@@ -503,13 +597,68 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
 }
 
 export default function JulesScreen() {
-    const { julesApiKey, julesOwner, julesRepo, julesWorkflow, julesGoogleApiKey, julesNotificationsEnabled } = useSettingsStore();
+    const { julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesWorkflow, julesGoogleApiKey, julesNotificationsEnabled, githubClientId, githubClientSecret } = useSettingsStore();
     const [mode, setMode] = useState<'jules' | 'github'>('jules');
     const [runs, setRuns] = useState<WorkflowRun[]>([]);
     const [julesSessions, setJulesSessions] = useState<JulesSession[]>([]);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showRepoSelector, setShowRepoSelector] = useState(false);
+
+    const [request, response, promptAsync] = useAuthRequest(
+        {
+            clientId: githubClientId || 'placeholder',
+            scopes: ['repo', 'read:user', 'workflow'],
+            redirectUri: makeRedirectUri({
+                scheme: 'com.aiinbox.mobile'
+            }),
+        },
+        {
+            authorizationEndpoint: 'https://github.com/login/oauth/authorize',
+            tokenEndpoint: 'https://github.com/login/oauth/access_token',
+            revocationEndpoint: 'https://github.com/settings/connections/applications/' + (githubClientId || ''),
+        }
+    );
+
+    useEffect(() => {
+        if (response?.type === 'success') {
+            const { code } = response.params;
+            if (code && githubClientId && githubClientSecret) {
+                setLoading(true);
+                exchangeGithubToken(githubClientId, githubClientSecret, code, makeRedirectUri({ scheme: 'com.aiinbox.mobile' }), request?.codeVerifier || undefined)
+                    .then(async token => {
+                        setJulesApiKey(token);
+
+                        // Auto-fetch user details to set owner default
+                        try {
+                            const user = await fetchGithubUser(token);
+                            if (user && user.login) {
+                                setJulesOwner(user.login);
+                            }
+                        } catch (e) {
+                            console.error("Failed to fetch user details after login", e);
+                        }
+
+                        Alert.alert("Success", "Logged in with GitHub!");
+                        setShowRepoSelector(true); // Open repo selector
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        Alert.alert("Login Failed", err.message);
+                    })
+                    .finally(() => setLoading(false));
+            }
+        }
+    }, [response]);
+
+    const loginWithGithub = () => {
+        if (!githubClientId || !githubClientSecret) {
+            Alert.alert("Configuration Missing", "Please configure GitHub Client ID and Secret in Settings.");
+            return;
+        }
+        promptAsync();
+    };
 
     const loadData = useCallback(async () => {
         setError(null);
@@ -534,7 +683,7 @@ export default function JulesScreen() {
     useEffect(() => {
         setLoading(true);
         loadData().finally(() => setLoading(false));
-    }, [loadData, mode]);
+    }, [loadData, mode, julesApiKey]); // Added julesApiKey to deps so it reloads after login
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
@@ -546,13 +695,45 @@ export default function JulesScreen() {
         const hasJulesConfig = !!julesGoogleApiKey;
 
         if (mode === 'github' && !hasGithubConfig) {
+            if (!julesApiKey) {
+                return (
+                    <View className="flex-1 justify-center items-center px-6">
+                        <Ionicons name="logo-github" size={64} color="#475569" />
+                        <Text className="text-white text-xl font-bold mt-4 text-center">GitHub Integration</Text>
+                        <Text className="text-slate-400 text-center mt-2 mb-6">
+                            Login with GitHub to view your workflow runs and artifacts.
+                        </Text>
+                        <TouchableOpacity
+                            onPress={loginWithGithub}
+                            disabled={!request}
+                            className="bg-indigo-600 px-8 py-3 rounded-xl flex-row items-center"
+                        >
+                            <Ionicons name="logo-github" size={24} color="white" />
+                            <Text className="text-white font-bold ml-2">Login with GitHub</Text>
+                        </TouchableOpacity>
+                        {(!githubClientId || !githubClientSecret) && (
+                            <Text className="text-slate-500 text-xs mt-4 text-center">
+                                (Requires Client ID/Secret in Settings)
+                            </Text>
+                        )}
+                    </View>
+                );
+            }
+
+            // Token exists but repo missing
             return (
                 <View className="flex-1 justify-center items-center px-6">
-                    <Ionicons name="logo-github" size={64} color="#475569" />
-                    <Text className="text-white text-xl font-bold mt-4 text-center">Setup GitHub Integration</Text>
+                    <Ionicons name="git-branch-outline" size={64} color="#475569" />
+                    <Text className="text-white text-xl font-bold mt-4 text-center">Select Repository</Text>
                     <Text className="text-slate-400 text-center mt-2 mb-6">
-                        Configure your GitHub PAT, Owner, and Repo in Settings to see workflow runs.
+                        Choose a repository to view workflows.
                     </Text>
+                    <TouchableOpacity
+                        onPress={() => setShowRepoSelector(true)}
+                        className="bg-indigo-600 px-8 py-3 rounded-xl"
+                    >
+                        <Text className="text-white font-bold">Select Repository</Text>
+                    </TouchableOpacity>
                 </View>
             );
         }
@@ -649,6 +830,19 @@ export default function JulesScreen() {
                             ghToken={julesApiKey || undefined}
                             defaultOwner={julesOwner || undefined}
                             defaultRepo={julesRepo || undefined}
+                            onDelete={async () => {
+                                const { deleteJulesSession } = await import('../../services/jules');
+                                if (julesGoogleApiKey) {
+                                    setJulesSessions(prev => prev.filter(s => s.name !== session.name));
+                                    try {
+                                        await deleteJulesSession(julesGoogleApiKey, session.name);
+                                    } catch (e) {
+                                        console.error(e);
+                                        Alert.alert("Error", "Failed to delete session");
+                                        onRefresh();
+                                    }
+                                }
+                            }}
                             onRefresh={onRefresh}
                             julesGoogleApiKey={julesGoogleApiKey || undefined}
                         />
@@ -672,10 +866,28 @@ export default function JulesScreen() {
                             </View>
                         )}
                     </View>
-                    <TouchableOpacity onPress={onRefresh} className="p-2">
-                        <Ionicons name="refresh" size={24} color="#94a3b8" />
-                    </TouchableOpacity>
+                    <View className="flex-row items-center">
+                        {mode === 'github' && julesApiKey && (
+                            <TouchableOpacity onPress={() => setShowRepoSelector(true)} className="p-2 mr-1">
+                                <Ionicons name="git-network-outline" size={24} color="#94a3b8" />
+                            </TouchableOpacity>
+                        )}
+                        <TouchableOpacity onPress={onRefresh} className="p-2">
+                            <Ionicons name="refresh" size={24} color="#94a3b8" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
+
+                <RepoSelector
+                    visible={showRepoSelector}
+                    onClose={() => setShowRepoSelector(false)}
+                    token={julesApiKey || ''}
+                    onSelect={(repo) => {
+                        setJulesOwner(repo.owner.login);
+                        setJulesRepo(repo.name);
+                        setShowRepoSelector(false);
+                    }}
+                />
                 
                 <View className="flex-row bg-slate-800 rounded-lg p-1">
                     <TouchableOpacity 

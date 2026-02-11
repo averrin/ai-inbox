@@ -1,6 +1,6 @@
 
 import { downloadAndInstallArtifact } from './artifactHandler';
-import { Artifact } from '../services/julesTypes';
+import { Artifact } from '../services/julesApi';
 
 // Manual test runner since no Jest/Test Runner configured
 const runTest = async (name: string, fn: () => Promise<void>) => {
@@ -34,7 +34,7 @@ const mockFileSystem = {
         downloadAsync: async () => ({ uri })
     }),
     readAsStringAsync: async () => mockZipContent,
-    writeAsStringAsync: async () => {},
+    writeAsStringAsync: async () => { },
     getContentUriAsync: async (uri: string) => uri.replace('file://', 'content://'),
     EncodingType: { Base64: 'base64' }
 };
@@ -112,7 +112,7 @@ const mockDeps = {
             if (uri.endsWith('.zip')) shareCalled = true;
         };
 
-        await downloadAndInstallArtifact(mockArtifact, 'token', 'branch', () => {}, mockDeps as any);
+        await downloadAndInstallArtifact(mockArtifact, 'token', 'branch', () => { }, mockDeps as any);
 
         if (!shareCalled) throw new Error('Sharing not called on iOS');
     });
@@ -126,7 +126,7 @@ const mockDeps = {
             if (uri.endsWith('.zip')) shareCalled = true;
         };
 
-        await downloadAndInstallArtifact(otherArtifact, 'token', 'branch', () => {}, mockDeps as any);
+        await downloadAndInstallArtifact(otherArtifact, 'token', 'branch', () => { }, mockDeps as any);
 
         if (!shareCalled) throw new Error('Sharing not called for non-app-release');
     });

@@ -1,4 +1,4 @@
-import { Artifact } from '../services/julesTypes';
+import { Artifact } from '../services/julesApi';
 import type { ArtifactDeps } from './artifactDeps';
 
 export async function downloadAndInstallArtifact(
