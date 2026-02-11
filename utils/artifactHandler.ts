@@ -18,10 +18,37 @@ export async function downloadAndInstallArtifact(
         const zipFileUri = deps.FileSystem.documentDirectory + zipFilename;
 
         // 1. Download the zip
+        // GitHub artifact API returns a 302 redirect to Azure Blob Storage.
+        // If we send the Authorization header to the redirect target, the download
+        // returns corrupted data (Azure rejects/ignores the Bearer token).
+        // We resolve the final URL by following the redirect with fetch, then
+        // re-download from that URL without the auth header.
+        console.log(`[Artifact] Resolving redirect for artifact URL...`);
+        const redirectResponse = await fetch(artifact.archive_download_url, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github+json',
+            },
+        });
+        // response.url gives us the final URL after all redirects
+        const finalUrl = redirectResponse.url;
+        const wasRedirected = finalUrl !== artifact.archive_download_url;
+        console.log(`[Artifact] Resolved download URL (redirected: ${wasRedirected})`);
+
+        // Abort the body — we only needed the final URL
+        try { await redirectResponse.body?.cancel(); } catch (_) {}
+
+        if (!wasRedirected) {
+            // No redirect happened — the response itself may contain the data.
+            // This shouldn't normally happen with the GitHub API, but handle it.
+            console.warn(`[Artifact] No redirect detected, status: ${redirectResponse.status}`);
+        }
+
+        // Download from the final (Azure) URL without auth headers
         const downloadResumable = deps.FileSystem.createDownloadResumable(
-            artifact.archive_download_url,
+            finalUrl,
             zipFileUri,
-            { headers: { 'Authorization': `Bearer ${token}` } }
+            {}
         );
 
         const result = await downloadResumable.downloadAsync();
