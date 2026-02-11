@@ -191,7 +191,7 @@ export function RichTaskItem({
                     />
 
                     {isFirstInFile && fileName && (
-                        <View
+                        <View 
                             style={{
                                 position: 'absolute',
                                 top: '50%',

@@ -40,7 +40,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
     const [modelInput, setModelInput] = useState(selectedModel);
     const [rootFolderInput, setRootFolderInput] = useState(contextRootFolder || '');
-    const [daySummaryPromptInput, setDaySummaryPromptInput] = useState(daySummaryPrompt || '');
     const [julesKeyInput, setJulesKeyInput] = useState(julesApiKey || '');
     const [julesOwnerInput, setJulesOwnerInput] = useState(julesOwner || '');
     const [julesRepoInput, setJulesRepoInput] = useState(julesRepo || '');
@@ -189,7 +188,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         setCustomPromptPath(promptPathInput);
         setSelectedModel(modelInput);
         setContextRootFolder(rootFolderInput);
-        setDaySummaryPrompt(daySummaryPromptInput);
         setGoogleAndroidClientId(androidIdInput);
         setGithubClientId(githubClientIdInput || null);
         setGithubClientSecret(githubClientSecretInput || null);
@@ -205,7 +203,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             setCustomPromptPath(promptPathInput);
             setSelectedModel(modelInput);
             setContextRootFolder(rootFolderInput);
-            setDaySummaryPrompt(daySummaryPromptInput);
             setGoogleAndroidClientId(androidIdInput);
             setJulesApiKey(julesKeyInput || null);
             setJulesOwner(julesOwnerInput || null);
@@ -223,13 +220,11 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         promptPathInput,
         modelInput,
         rootFolderInput,
-        daySummaryPromptInput,
         androidIdInput,
         setApiKey,
         setCustomPromptPath,
         setSelectedModel,
         setContextRootFolder,
-        setDaySummaryPrompt,
         setGoogleAndroidClientId,
         julesKeyInput,
         julesOwnerInput,
@@ -332,17 +327,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 placeholder="e.g., ai-prompt.md"
                 fileExtension=".md"
             />
-
-            <Input
-                label="AI Day Summary Prompt"
-                value={daySummaryPromptInput}
-                onChangeText={setDaySummaryPromptInput}
-                multiline={true}
-                placeholder="Enter prompt..."
-            />
-            <Text className="text-slate-400 text-xs ml-4 mb-4 -mt-2">
-                Placeholders: {'{{context}}'}, {'{{schedule}}'}
-            </Text>
 
             {/* Open in Obsidian button */}
             {promptPathInput && promptFileStatus === 'valid' && vaultUri && (
