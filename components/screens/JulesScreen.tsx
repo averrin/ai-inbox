@@ -624,7 +624,7 @@ export default function JulesScreen() {
             clientId: githubClientId || 'placeholder',
             scopes: ['repo', 'read:user', 'workflow'],
             redirectUri: makeRedirectUri({
-                scheme: 'aiinbox'
+                scheme: 'com.aiinbox.mobile'
             }),
         },
         {
@@ -639,7 +639,7 @@ export default function JulesScreen() {
             const { code } = response.params;
             if (code && githubClientId && githubClientSecret) {
                 setLoading(true);
-                exchangeGithubToken(githubClientId, githubClientSecret, code, makeRedirectUri({ scheme: 'aiinbox' }))
+                exchangeGithubToken(githubClientId, githubClientSecret, code, makeRedirectUri({ scheme: 'com.aiinbox.mobile' }), request?.codeVerifier || undefined)
                     .then(async token => {
                         setJulesApiKey(token);
 

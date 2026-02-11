@@ -34,15 +34,13 @@ type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
-    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, julesNotificationsEnabled, setJulesNotificationsEnabled, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret } = useSettingsStore();
+    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, julesNotificationsEnabled, setJulesNotificationsEnabled, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
     const [androidIdInput, setAndroidIdInput] = useState(googleAndroidClientId || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
     const [modelInput, setModelInput] = useState(selectedModel);
     const [rootFolderInput, setRootFolderInput] = useState(contextRootFolder || '');
     const [julesKeyInput, setJulesKeyInput] = useState(julesApiKey || '');
-    const [julesOwnerInput, setJulesOwnerInput] = useState(julesOwner || '');
-    const [julesRepoInput, setJulesRepoInput] = useState(julesRepo || '');
     const [julesWorkflowInput, setJulesWorkflowInput] = useState(julesWorkflow || '');
     const [julesGoogleKeyInput, setJulesGoogleKeyInput] = useState(julesGoogleApiKey || '');
     const [githubClientIdInput, setGithubClientIdInput] = useState(githubClientId || '');
@@ -205,8 +203,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             setContextRootFolder(rootFolderInput);
             setGoogleAndroidClientId(androidIdInput);
             setJulesApiKey(julesKeyInput || null);
-            setJulesOwner(julesOwnerInput || null);
-            setJulesRepo(julesRepoInput || null);
             setJulesWorkflow(julesWorkflowInput || null);
             setJulesGoogleApiKey(julesGoogleKeyInput || null);
             setGithubClientId(githubClientIdInput || null);
@@ -227,15 +223,11 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         setContextRootFolder,
         setGoogleAndroidClientId,
         julesKeyInput,
-        julesOwnerInput,
-        julesRepoInput,
         julesWorkflowInput,
         julesGoogleKeyInput,
         githubClientIdInput,
         githubClientSecretInput,
         setJulesApiKey,
-        setJulesOwner,
-        setJulesRepo,
         setJulesWorkflow,
         setJulesGoogleApiKey,
         setGithubClientId,
@@ -441,26 +433,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     value={julesKeyInput}
                     onChangeText={setJulesKeyInput}
                     placeholder="ghp_... (Leave empty if using OAuth)"
-                />
-
-                <Text className="text-indigo-200 mt-4 mb-2 font-semibold">Repository Details</Text>
-                <Input
-                    label="Repository Owner"
-                    value={julesOwnerInput}
-                    onChangeText={setJulesOwnerInput}
-                    placeholder="e.g. facebook"
-                />
-                <Input
-                    label="Repository Name"
-                    value={julesRepoInput}
-                    onChangeText={setJulesRepoInput}
-                    placeholder="e.g. react-native"
-                />
-                <Input
-                    label="Workflow Filename (Optional)"
-                    value={julesWorkflowInput}
-                    onChangeText={setJulesWorkflowInput}
-                    placeholder="e.g. jules.yml"
                 />
 
                 <Text className="text-indigo-200 mt-6 mb-2 font-semibold">Google Jules API</Text>
