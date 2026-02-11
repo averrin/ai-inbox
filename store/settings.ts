@@ -3,6 +3,8 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createSecureStorage } from './secure-storage';
 import * as Crypto from 'expo-crypto';
+import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 
 const SENSITIVE_KEYS = [
     'apiKey',
@@ -111,6 +113,8 @@ interface SettingsState {
     updateContact: (contact: Contact) => void;
     daySummaryPrompt: string | null;
     setDaySummaryPrompt: (prompt: string | null) => void;
+    forecastPrompt: string | null;
+    setForecastPrompt: (prompt: string | null) => void;
 }
 
 export interface MetadataConfig {
@@ -118,6 +122,52 @@ export interface MetadataConfig {
     color?: string;
     valueConfigs?: Record<string, MetadataConfig>; // For property values
 }
+
+// Custom storage adapter that reverts to AsyncStorage (plaintext) but attempts to recover
+// sensitive keys from SecureStore if they are missing (migration back to stability).
+const recoveryStorage = {
+    getItem: async (name: string): Promise<string | null> => {
+        try {
+            const json = await AsyncStorage.getItem(name);
+            if (!json) return null;
+
+            const state = JSON.parse(json);
+
+            // Attempt to recover sensitive keys from SecureStore if they are missing in AsyncStorage
+            // (This handles the case where they were moved to SecureStore and stripped from AsyncStorage)
+            if (state.state && Platform.OS !== 'web') {
+                let recovered = false;
+                for (const key of SENSITIVE_KEYS) {
+                    if (state.state[key] === null) { // Only recover if null (stripped)
+                        try {
+                            const secureVal = await SecureStore.getItemAsync(`${name}-${key}`);
+                            if (secureVal) {
+                                console.log(`[Settings] Recovered ${key} from SecureStore`);
+                                state.state[key] = secureVal;
+                                recovered = true;
+                            }
+                        } catch (e) {
+                            console.warn(`[Settings] Failed to recover ${key}`, e);
+                        }
+                    }
+                }
+            }
+
+            return JSON.stringify(state);
+        } catch (e) {
+            console.error('[Settings] Failed to load state', e);
+            return null;
+        }
+    },
+    setItem: async (name: string, value: string): Promise<void> => {
+        // Simple direct write to AsyncStorage (Plaintext persistence)
+        // This effectively reverts the "SecureStorage" change for future writes, ensuring stability.
+        await AsyncStorage.setItem(name, value);
+    },
+    removeItem: async (name: string): Promise<void> => {
+        await AsyncStorage.removeItem(name);
+    }
+};
 
 export const useSettingsStore = create<SettingsState>()(
     persist(
@@ -217,21 +267,14 @@ export const useSettingsStore = create<SettingsState>()(
             })),
             daySummaryPrompt: null,
             setDaySummaryPrompt: (prompt) => set({ daySummaryPrompt: prompt }),
+            forecastPrompt: null,
+            setForecastPrompt: (prompt) => set({ forecastPrompt: prompt }),
         }),
         {
             name: 'ai-inbox-settings',
-            storage: createJSONStorage(() => createSecureStorage([
-                'apiKey',
-                'julesApiKey',
-                'julesGoogleApiKey',
-                'googleAndroidClientId',
-                'googleIosClientId',
-                'googleWebClientId',
-                'workAccountId',
-                'personalAccountId'
-            ])),
+            storage: createJSONStorage(() => recoveryStorage),
             partialize: (state) => {
-                // Exclude cachedReminders from persistence to prevent hitting AsyncStorage limits
+                // Exclude cachedReminders from persistence
                 const { cachedReminders, ...rest } = state;
                 return rest;
             },
@@ -252,18 +295,14 @@ export const useSettingsStore = create<SettingsState>()(
                     persistedState.calendarDefaultEventTypes = persistedState.calendarDefaultEventTypes || {};
                 }
                 if (version < 4) {
-                    // Set personalAccountId from myEmails if available
                     if (persistedState.myEmails && persistedState.myEmails.length > 0) {
                         if (!persistedState.personalAccountId) {
                             persistedState.personalAccountId = persistedState.myEmails[0];
                         }
-                        // If there is a second email and work account is not set, use it
                         if (persistedState.myEmails.length > 1 && !persistedState.workAccountId) {
                             persistedState.workAccountId = persistedState.myEmails[1];
                         }
                     }
-                    // Do NOT delete myEmails yet in case something goes wrong, or delete it later
-                    // delete persistedState.myEmails; 
                 }
                 return persistedState;
             },

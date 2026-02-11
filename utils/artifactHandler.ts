@@ -12,6 +12,7 @@ export async function downloadAndInstallArtifact(
     setDownloading(true);
 
     try {
+        console.log(`[Artifact] Starting download for ${artifact.name} from ${artifact.archive_download_url}`);
         const sanitizedBranch = (branch || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
         const zipFilename = `${artifact.name}-${sanitizedBranch}.zip`;
         const zipFileUri = deps.FileSystem.documentDirectory + zipFilename;
@@ -24,58 +25,102 @@ export async function downloadAndInstallArtifact(
         );
 
         const result = await downloadResumable.downloadAsync();
+        console.log(`[Artifact] Download finished: ${result?.uri}`);
         if (!result || !result.uri) {
             throw new Error("Download failed");
         }
 
         // 2. Check if we should try to install it (Android + app-release)
         if (deps.Platform.OS === 'android' && artifact.name === 'app-release') {
+            console.log(`[Artifact] Android app-release detected, unzipping...`);
             try {
-                // Read the zip file as base64
-                const zipContent = await deps.FileSystem.readAsStringAsync(result.uri, {
-                    encoding: deps.FileSystem.EncodingType.Base64
-                });
+                // Use native unzip instead of in-memory JSZip to avoid OOM
+                const unzipPath = deps.FileSystem.cacheDirectory + 'unzipped/';
 
-                // Load zip
-                const zip = await deps.JSZip.loadAsync(zipContent, { base64: true });
+                // Ensure directory exists or is clean
+                const info = await deps.FileSystem.getInfoAsync(unzipPath);
+                if (info.exists) {
+                    await deps.FileSystem.deleteAsync(unzipPath, { idempotent: true });
+                }
+                await deps.FileSystem.makeDirectoryAsync(unzipPath, { intermediates: true });
 
-                // Find APK
-                let apkFile = null;
-                zip.forEach((relativePath: string, file: any) => {
-                    if (relativePath.endsWith('.apk')) {
-                        apkFile = file;
+                // Native unzip — react-native-zip-archive requires raw paths, not file:// URIs
+                const stripFileUri = (uri: string) => uri.replace(/^file:\/\//, '');
+                await deps.unzip(stripFileUri(result.uri), stripFileUri(unzipPath));
+                console.log(`[Artifact] Unzip complete`);
+
+                // Find APK in the unzipped folder (search root and subfolders)
+                const findApk = async (dir: string, depth = 0): Promise<string | null> => {
+                    if (depth > 5) return null; // Safety limit
+
+                    const files = await deps.FileSystem.readDirectoryAsync(dir);
+                    const apk = files.find(f => f.endsWith('.apk'));
+                    if (apk) {
+                        return dir + (dir.endsWith('/') ? '' : '/') + apk;
                     }
-                });
 
-                if (apkFile) {
-                    // Extract APK to cache
-                    const apkContent = await (apkFile as any).async('base64');
-                    const apkUri = deps.FileSystem.cacheDirectory + 'app-release.apk';
+                    for (const file of files) {
+                        const path = dir + (dir.endsWith('/') ? '' : '/') + file;
+                        try {
+                            const info = await deps.FileSystem.getInfoAsync(path);
+                            if (info.exists && info.isDirectory) {
+                                const found = await findApk(path, depth + 1);
+                                if (found) return found;
+                            }
+                        } catch (err) {
+                            // ignore
+                        }
+                    }
+                    return null;
+                };
 
-                    await deps.FileSystem.writeAsStringAsync(apkUri, apkContent, {
-                        encoding: deps.FileSystem.EncodingType.Base64
+                const apkSourceUri = await findApk(unzipPath);
+
+                if (apkSourceUri) {
+                    const apkTargetUri = deps.FileSystem.cacheDirectory + 'app-release.apk';
+                    console.log(`[Artifact] Found APK at ${apkSourceUri}, copying to ${apkTargetUri}`);
+
+                    // Move/copy to a predictable name for install
+                    await deps.FileSystem.copyAsync({
+                        from: apkSourceUri,
+                        to: apkTargetUri
                     });
 
                     // Get content URI
-                    const contentUri = await deps.FileSystem.getContentUriAsync(apkUri);
+                    const contentUri = await deps.FileSystem.getContentUriAsync(apkTargetUri);
+                    console.log(`[Artifact] Launching intent for: ${contentUri}`);
 
-                    // Launch intent
-                    await deps.IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-                        data: contentUri,
-                        flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
-                        type: 'application/vnd.android.package-archive'
-                    });
+                    // Use native ApkInstaller module which calls startActivity (fire-and-forget)
+                    // with proper MIME type. IntentLauncher uses startActivityForResult which
+                    // causes the package installer to return immediately without showing UI,
+                    // and Linking.openURL doesn't set the MIME type needed for content:// URIs.
+                    try {
+                        await deps.ApkInstaller.install(contentUri);
+                        console.log(`[Artifact] Launched package installer via ApkInstaller native module`);
+                    } catch (installError: any) {
+                        if (installError?.code === 'APK_PERMISSION_NEEDED') {
+                            deps.Alert.alert(
+                                "Permission Required",
+                                "Please enable 'Install unknown apps' for AI Inbox in the settings screen that just opened, then try downloading again."
+                            );
+                        } else {
+                            throw installError;
+                        }
+                    }
 
                     setDownloading(false);
                     return;
+                } else {
+                    throw new Error("No APK found in the artifact");
                 }
-            } catch (unzipError) {
-                console.warn("Failed to unzip/install APK, falling back to share:", unzipError);
+            } catch (unzipError: any) {
+                console.warn("[Artifact] Native unzip/install failed:", unzipError?.message || unzipError);
                 // Fallthrough to share zip
             }
         }
 
         // 3. Fallback: Share the downloaded zip
+        console.log(`[Artifact] Falling back to sharing zip file: ${result.uri}`);
         if (await deps.Sharing.isAvailableAsync()) {
             await deps.Sharing.shareAsync(result.uri);
         } else {
@@ -83,7 +128,7 @@ export async function downloadAndInstallArtifact(
         }
 
     } catch (e: any) {
-        console.error(e);
+        console.error("[Artifact] Critical error in downloadAndInstallArtifact:", e);
         deps.Alert.alert("Error", "Failed to download/install artifact: " + e.message);
     } finally {
         setDownloading(false);
