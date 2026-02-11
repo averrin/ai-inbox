@@ -8,7 +8,7 @@ import SetupScreen from '../screens/SetupScreen';
 import JulesScreen from '../screens/JulesScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect } from 'react';
-import { NavigationContainer, NavigationIndependentTree, DefaultTheme, useNavigationContainerRef } from '@react-navigation/native';
+import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View } from 'react-native';
 
@@ -21,6 +21,22 @@ const TransparentTheme = {
 };
 
 const Tab = createMaterialTopTabNavigator();
+
+function NavigationHandler({ shareIntent }: { shareIntent: ShareIntent }) {
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    if (shareIntent && (shareIntent.text || shareIntent.webUrl || (shareIntent.files && shareIntent.files.length > 0))) {
+      // Small delay ensuring navigator is ready
+      setTimeout(() => {
+        // @ts-ignore - Navigate to route defined in sibling Tab.Navigator
+        navigation.navigate('Input');
+      }, 50);
+    }
+  }, [shareIntent, navigation]);
+
+  return null;
+}
 
 function InnerTabNavigator({
   shareIntent,
@@ -144,20 +160,10 @@ export default function BottomTabNavigator(props: {
   shareIntent: ShareIntent;
   onReset: () => void;
 }) {
-  const navigationRef = useNavigationContainerRef();
-
-  useEffect(() => {
-    if (props.shareIntent && (props.shareIntent.text || props.shareIntent.webUrl || (props.shareIntent.files && props.shareIntent.files.length > 0))) {
-      if (navigationRef.isReady()) {
-        // @ts-ignore
-        navigationRef.navigate('Input');
-      }
-    }
-  }, [props.shareIntent, navigationRef]);
-
   return (
     <NavigationIndependentTree>
-      <NavigationContainer theme={TransparentTheme} ref={navigationRef}>
+      <NavigationContainer theme={TransparentTheme}>
+        <NavigationHandler shareIntent={props.shareIntent} />
         <InnerTabNavigator {...props} />
       </NavigationContainer>
     </NavigationIndependentTree>

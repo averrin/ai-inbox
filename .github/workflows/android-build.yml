@@ -36,6 +36,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate git-info.json
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ -n "$HEAD_REF" ]; then
+            BRANCH="$HEAD_REF"
+          else
+            BRANCH="$REF_NAME"
+          fi
+          echo "{\"branch\": \"$BRANCH\", \"commit\": \"${GITHUB_SHA}\"}" > git-info.json
+
       - name: Setup Expo
         uses: expo/expo-github-action@v8
         with:

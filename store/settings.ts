@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createSecureStorage } from './secure-storage';
 import * as Crypto from 'expo-crypto';
 
 const SENSITIVE_KEYS = [
@@ -219,7 +220,21 @@ export const useSettingsStore = create<SettingsState>()(
         }),
         {
             name: 'ai-inbox-settings',
-            storage: createJSONStorage(() => AsyncStorage),
+            storage: createJSONStorage(() => createSecureStorage([
+                'apiKey',
+                'julesApiKey',
+                'julesGoogleApiKey',
+                'googleAndroidClientId',
+                'googleIosClientId',
+                'googleWebClientId',
+                'workAccountId',
+                'personalAccountId'
+            ])),
+            partialize: (state) => {
+                // Exclude cachedReminders from persistence to prevent hitting AsyncStorage limits
+                const { cachedReminders, ...rest } = state;
+                return rest;
+            },
             version: 5,
             migrate: (persistedState: any, version: number) => {
                 if (version === 0) {
