@@ -20,6 +20,7 @@ import {
     fetchJulesSessions,
     sendMessageToSession
 } from './julesApi';
+const GITHUB_API_BASE = 'https://api.github.com';
 
 export const JULES_ARTIFACT_TASK = 'CHECK_JULES_ARTIFACTS';
 const NOTIFIED_RUNS_KEY = 'jules_notified_runs';
@@ -118,6 +119,10 @@ export {
     sendMessageToSession
 };
 
+import * as SecureStore from 'expo-secure-store';
+
+// ... (imports remain)
+
 // Background Task Definition
 TaskManager.defineTask(JULES_ARTIFACT_TASK, async () => {
     try {
@@ -127,9 +132,18 @@ TaskManager.defineTask(JULES_ARTIFACT_TASK, async () => {
         }
 
         const { state } = JSON.parse(storedSettings);
-        const { julesApiKey, julesGoogleApiKey, julesOwner, julesRepo, julesNotificationsEnabled } = state;
+        let { julesApiKey, julesGoogleApiKey, julesOwner, julesRepo, julesNotificationsEnabled } = state;
+
+        // Hydrate sensitive keys from SecureStore if missing
+        if (!julesApiKey) {
+            julesApiKey = await SecureStore.getItemAsync('ai-inbox-settings-julesApiKey');
+        }
+        if (!julesGoogleApiKey) {
+            julesGoogleApiKey = await SecureStore.getItemAsync('ai-inbox-settings-julesGoogleApiKey');
+        }
 
         if (!julesNotificationsEnabled || !julesApiKey || !julesGoogleApiKey || !julesOwner || !julesRepo) {
+            console.log("[Jules Task] Missing credentials or disabled:", { enabled: julesNotificationsEnabled, hasKey: !!julesApiKey, hasGoogle: !!julesGoogleApiKey });
             return BackgroundFetch.BackgroundFetchResult.NoData;
         }
 

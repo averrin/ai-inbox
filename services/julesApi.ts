@@ -115,6 +115,7 @@ export async function fetchPullRequest(token: string, owner: string, repo: strin
     const response = await fetch(url, { headers: getHeaders(token) });
     if (!response.ok) {
         const text = await response.text();
+        console.error(`Failed to fetch PR: ${owner}/${repo} #${pullNumber}`, response.status, text);
         throw new Error(`Failed to fetch PR: ${response.status} ${text}`);
     }
     return await response.json();
@@ -212,21 +213,37 @@ export async function fetchJulesSessions(apiKey: string, limit: number = 25): Pr
 
             if (pr?.url) {
                 const urlParts = pr.url.split('/');
-                if (urlParts.length >= 7 && urlParts[2] === 'github.com' && urlParts[5] === 'pull') {
+                if (urlParts.length >= 7 && (urlParts[2] === 'github.com' || urlParts[2] === 'api.github.com') && (urlParts[5] === 'pull' || urlParts[6] === 'pulls')) {
+                    const ownerIdx = urlParts[2] === 'api.github.com' ? 4 : 3;
+                    const repoIdx = urlParts[2] === 'api.github.com' ? 5 : 4;
+                    const numIdx = urlParts[2] === 'api.github.com' ? 7 : 6;
+
                     githubMetadata = {
-                        owner: urlParts[3],
-                        repo: urlParts[4],
-                        pullRequestNumber: parseInt(urlParts[6], 10),
+                        owner: urlParts[ownerIdx],
+                        repo: urlParts[repoIdx],
+                        pullRequestNumber: parseInt(urlParts[numIdx], 10),
                         branch: branch || undefined,
-                        repoFullName: `${urlParts[3]}/${urlParts[4]}`,
+                        repoFullName: `${urlParts[ownerIdx]}/${urlParts[repoIdx]}`,
                     };
                 }
             } else if (branch || repoFullName) {
+                // If we have a source URL like "https://github.com/owner/repo" or "owner/repo"
+                let finalOwner = owner;
+                let finalRepo = repo;
+
+                if (session.sourceContext?.source?.startsWith('http')) {
+                    const srcParts = session.sourceContext.source.split('/');
+                    if (srcParts.length >= 5) {
+                        finalOwner = srcParts[3];
+                        finalRepo = srcParts[4];
+                    }
+                }
+
                 githubMetadata = {
-                    owner,
-                    repo,
+                    owner: finalOwner,
+                    repo: finalRepo,
                     branch,
-                    repoFullName,
+                    repoFullName: finalOwner && finalRepo ? `${finalOwner}/${finalRepo}` : repoFullName,
                 };
             }
         }

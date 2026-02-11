@@ -24,13 +24,14 @@ import { HabitSettings } from '../settings/HabitSettings';
 import { TasksSettings } from '../settings/TasksSettings';
 import { TagPropertySettings } from '../settings/TagPropertySettings';
 import { ContactsSettings } from '../settings/ContactsSettings';
+import { ForecastSettings } from '../settings/ForecastSettings';
 import { scanForReminders } from '../../services/reminderService';
 import { useEventTypesStore } from '../../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../../utils/debugUtils';
 import gitInfo from '../../git-info.json';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -641,6 +642,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "Location & Preferences"
             )}
             {renderMenuButton(
+                "AI Forecast",
+                "sparkles-outline",
+                () => setActiveSection('forecast'),
+                "Daily Forecast Prompt"
+            )}
+            {renderMenuButton(
                 "Jules Integration",
                 "logo-github",
                 () => setActiveSection('jules'),
@@ -796,6 +803,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                 {renderHeader("Calendar Settings", () => setActiveSection('root'))}
                                 {/* Calendars Config */}
                                 <View className="px-0"><CalendarsMainSettings /></View>
+                            </>
+                        )}
+                        {activeSection === 'forecast' && (
+                            <>
+                                {renderHeader("AI Forecast", () => setActiveSection('root'))}
+                                <View className="px-0"><ForecastSettings /></View>
                             </>
                         )}
                         {activeSection === 'event-types' && (

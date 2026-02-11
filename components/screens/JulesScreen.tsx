@@ -110,8 +110,13 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
     }, [ghToken, owner, repo, prNumber, branch]);
 
     const handleDownloadArtifact = async () => {
-        if (!ghRun || !artifacts || artifacts.length === 0 || !ghToken) return;
+        console.log(`[JulesScreen] handleDownloadArtifact called. ghRun: ${!!ghRun}, artifacts: ${artifacts?.length}, token: ${!!ghToken}`);
+        if (!ghRun || !artifacts || artifacts.length === 0 || !ghToken) {
+            console.log(`[JulesScreen] handleDownloadArtifact guard failed`);
+            return;
+        }
         const artifact = getBestArtifact(artifacts);
+        console.log(`[JulesScreen] Best artifact: ${artifact?.name}`);
         if (!artifact) return;
 
         await downloadAndInstallArtifact(
@@ -440,8 +445,13 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
     }, [expanded, run.head_sha, run.id, token, owner, repo, checks, artifacts, checksLoading, artifactsLoading]);
 
     const handleDownloadArtifact = async () => {
-        if (!artifacts || artifacts.length === 0) return;
+        console.log(`[JulesSessionItem] handleDownloadArtifact called. ghRun: ${!!run}, artifacts: ${artifacts?.length}, token: ${!!token}`);
+        if (!run || !artifacts || artifacts.length === 0 || !token) {
+            console.log(`[JulesSessionItem] handleDownloadArtifact guard failed`);
+            return;
+        }
         const artifact = getBestArtifact(artifacts);
+        console.log(`[JulesSessionItem] Best artifact: ${artifact?.name}`);
         if (!artifact) return;
 
         await downloadAndInstallArtifact(
@@ -621,11 +631,14 @@ export default function JulesScreen() {
         }
     );
 
+    const [lastExchangedCode, setLastExchangedCode] = useState<string | null>(null);
+
     useEffect(() => {
         if (response?.type === 'success') {
             const { code } = response.params;
-            if (code && githubClientId && githubClientSecret) {
+            if (code && githubClientId && githubClientSecret && code !== lastExchangedCode) {
                 setLoading(true);
+                setLastExchangedCode(code);
                 exchangeGithubToken(githubClientId, githubClientSecret, code, makeRedirectUri({ scheme: 'com.aiinbox.mobile' }), request?.codeVerifier || undefined)
                     .then(async token => {
                         setJulesApiKey(token);
@@ -644,8 +657,9 @@ export default function JulesScreen() {
                         setShowRepoSelector(true); // Open repo selector
                     })
                     .catch(err => {
-                        console.error(err);
+                        console.error("OAuth exchange error:", err);
                         Alert.alert("Login Failed", err.message);
+                        setLastExchangedCode(null); // Allow retry on failure
                     })
                     .finally(() => setLoading(false));
             }

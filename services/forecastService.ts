@@ -129,7 +129,10 @@ export async function buildDayForecastPrompt(date: Date): Promise<string> {
         nextDay = nextDay.add(1, 'day');
     }
 
-    return FORECAST_PROMPT
+    const { forecastPrompt } = useSettingsStore.getState();
+    const promptTemplate = forecastPrompt || FORECAST_PROMPT;
+
+    return promptTemplate
         .replace('{{context}}', contextText)
         .replace('{{schedule}}', scheduleText);
 }
