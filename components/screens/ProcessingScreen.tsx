@@ -29,7 +29,6 @@ import { EventFormModal, EventSaveData } from '../EventFormModal';
 export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent: ShareIntent, onReset: () => void }) {
     const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, timeFormat } = useSettingsStore();
     const analyzingRef = useRef(false);
-    const stateInitializedRef = useRef(false);
 
     // Main state
     const [loading, setLoading] = useState(true);
@@ -77,41 +76,37 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         }
     }, [vaultUri, contextRootFolder]);
 
-    // Initialize state from shareIntent props (must run before auto-analyze effect)
+    // Initialize state from shareIntent props
     useEffect(() => {
-        stateInitializedRef.current = false;
+        const hasContent = !!(shareIntent?.text || shareIntent?.webUrl || (shareIntent?.files && shareIntent.files.length > 0));
 
-        // Sync inputText from shareIntent
-        if (shareIntent?.text || shareIntent?.webUrl) {
-            const newText = (shareIntent.text || shareIntent.webUrl) ?? '';
-            setInputText(newText);
-        }
-
-        // Sync attachedFiles from shareIntent
-        if (shareIntent?.files && shareIntent.files.length > 0) {
-            const newFiles = shareIntent.files.map((f: any) => ({
-                uri: f.uri || f.path,
-                name: f.fileName || f.name || 'file',
-                size: f.fileSize || f.size || 0,
-                mimeType: f.mimeType || 'application/octet-stream'
-            }));
-            setAttachedFiles(newFiles);
-        }
-
-        // Auto-analyze if we have content
-        if (shareIntent?.text || shareIntent?.webUrl || (shareIntent?.files && shareIntent.files.length > 0)) {
+        if (hasContent) {
+            // Sync inputText from shareIntent
             const textToAnalyze = (shareIntent.text || shareIntent.webUrl) ?? '';
-            // Use a timeout to allow state to settle
-            setTimeout(() => {
-                analyze(appendTags(textToAnalyze));
-            }, 500);
-        }
+            setInputText(textToAnalyze);
 
-        // Mark state as initialized after state updates have been queued
-        // Use a microtask to ensure state setters have been called
-        Promise.resolve().then(() => {
-            stateInitializedRef.current = true;
-        });
+            // Sync attachedFiles from shareIntent
+            let newFiles: typeof attachedFiles = [];
+            if (shareIntent?.files && shareIntent.files.length > 0) {
+                newFiles = shareIntent.files.map((f: any) => ({
+                    uri: f.uri || f.path,
+                    name: f.fileName || f.name || 'file',
+                    size: f.fileSize || f.size || 0,
+                    mimeType: f.mimeType || 'application/octet-stream'
+                }));
+                setAttachedFiles(newFiles);
+            }
+
+            // Auto-analyze directly with the new data
+            // We pass newFiles explicitly to avoid depending on state update race conditions
+            setInputMode(false);
+            analyze(appendTags(textToAnalyze), false, newFiles);
+        } else {
+            // No content (e.g. manual open), stop loading if it was set
+            if (loading) {
+                setLoading(false);
+            }
+        }
     }, [shareIntent]);
 
     // Folder validation
@@ -378,7 +373,9 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
 
 
     // Analyze & Save
-    const analyze = async (text: string, quickSave: boolean = false) => {
+    const analyze = async (text: string, quickSave: boolean = false, filesOverride?: typeof attachedFiles) => {
+        const filesToProcess = filesOverride || attachedFiles;
+
         if (analyzingRef.current) return;
         analyzingRef.current = true;
         setLoading(true);
@@ -389,8 +386,8 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             let rawTranscriptions = '';
             const { transcribeAudio } = await import('../../services/gemini'); // Moved import here
 
-            if (attachedFiles.length > 0) {
-                const audioFiles = attachedFiles.filter(f => f.mimeType.startsWith('audio/'));
+            if (filesToProcess.length > 0) {
+                const audioFiles = filesToProcess.filter(f => f.mimeType.startsWith('audio/'));
                 if (audioFiles.length > 0) {
                     setLoadingStatus('Transcribing audio...');
 
@@ -425,8 +422,8 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 contentForAI = text.trim() ? `${text}\n${rawTranscriptions}` : rawTranscriptions.trim();
             }
 
-            if (attachedFiles.length > 0) {
-                const filesInfo = attachedFiles.map((f, i) => `File ${i + 1}: ${f.name} (${f.mimeType}, ${(f.size / 1024).toFixed(1)} KB)`).join('\n');
+            if (filesToProcess.length > 0) {
+                const filesInfo = filesToProcess.map((f, i) => `File ${i + 1}: ${f.name} (${f.mimeType}, ${(f.size / 1024).toFixed(1)} KB)`).join('\n');
                 contentForAI = `${filesInfo}\n\n${contentForAI}`;
             }
 
@@ -434,7 +431,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             const { embeds: urlEmbeds, cleanText, metadata: urlMetadata } = await processURLsInText(text);
 
             // --- Smart Scheduling Context ---
-            const hasVoiceRecording = attachedFiles.some(f => f.mimeType.startsWith('audio/')); // We assume audio implies voice intent usually
+            const hasVoiceRecording = filesToProcess.some(f => f.mimeType.startsWith('audio/')); // We assume audio implies voice intent usually
             const hasMeaningfulText = cleanText && cleanText.replace(/#[\w-]+/g, '').trim().length > 0; // Text that isn't just tags or empty
 
             if (hasVoiceRecording || hasMeaningfulText) {
@@ -522,8 +519,8 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 if (cleanText.trim()) baseContent += `\n\nUser Notes:\n${cleanText}`;
                 if (rawTranscriptions) baseContent += rawTranscriptions;
 
-                if (attachedFiles.length > 0) {
-                    const filesInfo = attachedFiles.map((f, i) => `File ${i + 1}: ${f.name} (${f.mimeType}, ${(f.size / 1024).toFixed(1)} KB)`).join('\n');
+                if (filesToProcess.length > 0) {
+                    const filesInfo = filesToProcess.map((f, i) => `File ${i + 1}: ${f.name} (${f.mimeType}, ${(f.size / 1024).toFixed(1)} KB)`).join('\n');
                     contentForAI = `${filesInfo}\n\n${baseContent}`;
                 } else {
                     contentForAI = baseContent;
@@ -562,10 +559,10 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
 
                 const embeddings: string[] = [];
 
-                if (attachedFiles.length > 0) {
+                if (filesToProcess.length > 0) {
                     const { copyFileToVault } = await import('../../utils/saf');
 
-                    const copyPromises = attachedFiles.map(async (file) => {
+                    const copyPromises = filesToProcess.map(async (file) => {
                         const subfolder = getAttachmentSubfolder(file.mimeType);
                         const targetPath = `Files/${subfolder}/${file.name}`;
                         const copiedUri = await copyFileToVault(file.uri, vaultUri!, rootFolderForContext ? `${rootFolderForContext}/${targetPath}` : targetPath);
@@ -963,46 +960,6 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         }
     };
 
-    // Auto-analyze on mount or intent change
-    // This effect depends on inputText and attachedFiles being synced by the initialization effect
-    useEffect(() => {
-        const hasContent = !!(shareIntent?.text || shareIntent?.webUrl || (shareIntent?.files && shareIntent.files.length > 0));
-
-        if (!hasContent) {
-            // Only stop loading if we don't have content and aren't already analyzing
-            if (!analyzingRef.current) {
-                setLoading(false);
-            }
-            return;
-        }
-
-        // Wait for state initialization to complete to avoid analyzing with stale state
-        if (!stateInitializedRef.current) {
-            const timer = setTimeout(() => {
-                if (stateInitializedRef.current) {
-                    const isCleanInput = inputMode && !inputText && attachedFiles.length === 0;
-                    if (!inputMode || isCleanInput) {
-                        if (isCleanInput) setInputMode(false);
-                        analyze((shareIntent?.text || shareIntent?.webUrl) ?? '');
-                    } else {
-                        setLoading(false);
-                    }
-                }
-            }, 50);
-            return () => clearTimeout(timer);
-        }
-
-        // Auto-analyze when share content is present and we haven't manually entered input mode
-        // OR if content arrived and we were previously "clean" in input mode
-        const isCleanInput = inputMode && !inputText && attachedFiles.length === 0;
-
-        if (!inputMode || isCleanInput) {
-            if (isCleanInput) setInputMode(false);
-            analyze((shareIntent?.text || shareIntent?.webUrl) ?? '');
-        } else {
-            setLoading(false);
-        }
-    }, [shareIntent, stateInitializedRef.current]);
 
 
 
