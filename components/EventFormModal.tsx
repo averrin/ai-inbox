@@ -11,9 +11,12 @@ import dayjs from 'dayjs';
 import { RecurrenceScopeModal } from './RecurrenceScopeModal';
 import { useTasksStore, TaskWithSource } from '../store/tasks';
 import { TaskStatusIcon } from './ui/TaskStatusIcon';
+import { ColorPicker, PRESET_COLORS } from './ui/ColorPicker';
+
+
 
 export interface EventSaveData {
-    type: 'event' | 'reminder' | 'alarm';
+    type: 'event' | 'reminder' | 'alarm' | 'zone';
     title: string;
     startDate: Date;
     endDate: Date;
@@ -29,6 +32,7 @@ export interface EventSaveData {
     alarm?: boolean;
     persistent?: number;
     content?: string;
+    color?: string;
 }
 
 export interface DeleteOptions {
@@ -40,7 +44,7 @@ interface EventFormModalProps {
     visible: boolean;
     initialDate?: Date;
     initialEvent?: any; // Calendar event object for editing
-    initialType?: 'event' | 'reminder' | 'alarm';
+    initialType?: 'event' | 'reminder' | 'alarm' | 'zone';
     onSave: (data: EventSaveData) => void;
     onDelete?: (options: DeleteOptions) => void;
     onCancel: () => void;
@@ -65,7 +69,7 @@ export function EventFormModal({
     const { tasks } = useTasksStore();
 
     // State
-    const [type, setType] = useState<'event' | 'reminder' | 'alarm'>('event');
+    const [type, setType] = useState<'event' | 'reminder' | 'alarm' | 'zone'>('event');
     const [title, setTitle] = useState('');
     const [startDate, setStartDate] = useState<Date>(new Date());
     const [durationMinutes, setDurationMinutes] = useState(60);
@@ -75,6 +79,7 @@ export function EventFormModal({
     const [recurrenceInterval, setRecurrenceInterval] = useState<string>('1');
     const [persistent, setPersistent] = useState<string>(''); // For Alarm
     const [content, setContent] = useState('');
+    const [color, setColor] = useState(PRESET_COLORS[0]); // Default Red
 
     // UI State
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -97,11 +102,13 @@ export function EventFormModal({
             setIsAdvancedOpen(false);
 
             // Determine Type
-            let defaultType: 'event' | 'reminder' | 'alarm' = initialType || 'event';
+            let defaultType: 'event' | 'reminder' | 'alarm' | 'zone' = initialType || 'event';
 
             if (initialEvent) {
                 if (initialEvent.typeTag === 'REMINDER' || initialEvent.originalEvent?.fileUri) {
                     defaultType = initialEvent.originalEvent?.alarm ? 'alarm' : 'reminder';
+                } else if (initialEvent.typeTag === 'ZONE') {
+                    defaultType = 'zone';
                 }
             }
             setType(defaultType);
@@ -120,6 +127,7 @@ export function EventFormModal({
                 setAllDay(initialEvent.allDay || false);
                 setIsWork(initialEvent.isWork || false);
                 setContent(initialEvent.originalEvent?.content || '');
+                setColor(initialEvent.color || PRESET_COLORS[0]);
 
                 // Recurrence
                 // Check if it's a calendar recurrence object or a reminder string
@@ -172,6 +180,7 @@ export function EventFormModal({
                 setPersistent('');
                 setIsCustomDuration(false);
                 setContent('');
+                setColor(PRESET_COLORS[0]);
             }
         }
     }, [visible, initialDate, initialEvent, initialType]);
@@ -242,7 +251,7 @@ export function EventFormModal({
     };
 
     const triggerSave = (scope?: 'this' | 'future' | 'all') => {
-        const trimmedTitle = title.trim() || (type === 'event' ? 'New Event' : 'New Reminder');
+        const trimmedTitle = title.trim() || (type === 'event' ? 'New Event' : type === 'zone' ? 'New Zone' : 'New Reminder');
 
         const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
         const persistentVal = persistent ? parseInt(persistent, 10) : undefined;
@@ -252,12 +261,13 @@ export function EventFormModal({
             title: trimmedTitle,
             startDate,
             endDate,
-            allDay: type === 'event' ? allDay : false,
+            allDay: (type === 'event' || type === 'zone') ? allDay : false,
             isWork: type === 'event' ? isWork : false,
             editScope: scope,
             alarm: type === 'alarm',
             persistent: (type === 'alarm' || type === 'reminder') ? (isNaN(persistentVal as number) ? undefined : persistentVal) : undefined,
-            content: (type === 'reminder' || type === 'alarm') ? content : undefined
+            content: (type === 'reminder' || type === 'alarm' || type === 'zone') ? content : undefined,
+            color: type === 'zone' ? color : undefined
         };
 
         if (recurrenceFreq !== 'none') {
@@ -291,15 +301,15 @@ export function EventFormModal({
     const handlePreDelete = () => {
         if (!onDelete) return;
 
-        if (type === 'event') {
+        if (type === 'event' || type === 'zone') {
             const isRecurrent = initialEvent?.originalEvent?.recurrenceRule || initialEvent?.recurrenceRule || initialEvent?.isRecurrent;
             if (isRecurrent) {
                 setScopeAction('delete');
                 setShowScopeSelector(true);
             } else {
                 Alert.alert(
-                    "Delete Event",
-                    "Are you sure you want to delete this event?",
+                    `Delete ${type === 'zone' ? 'Zone' : 'Event'}`,
+                    `Are you sure you want to delete this ${type === 'zone' ? 'zone' : 'event'}?`,
                     [
                         { text: "Cancel", style: "cancel" },
                         { text: "Delete", style: "destructive", onPress: () => onDelete({ scope: 'all' }) }
@@ -336,6 +346,7 @@ export function EventFormModal({
     };
 
     const isEvent = type === 'event';
+    const isZone = type === 'zone';
 
     return (
         <Modal visible={visible} transparent animationType="fade">
@@ -345,7 +356,7 @@ export function EventFormModal({
                     {/* Header */}
                     <View className="flex-row justify-between items-center mb-4">
                         <Text className="text-white text-xl font-bold">
-                            {initialEvent ? 'Edit' : 'New'} {type === 'alarm' ? 'Alarm' : type === 'reminder' ? 'Reminder' : 'Event'}
+                            {initialEvent ? 'Edit' : 'New'} {type === 'alarm' ? 'Alarm' : type === 'reminder' ? 'Reminder' : type === 'zone' ? 'Zone' : 'Event'}
                         </Text>
                         {initialEvent && onDelete && (
                             <TouchableOpacity onPress={handlePreDelete} className="bg-red-500/10 p-2 rounded-full">
@@ -356,7 +367,7 @@ export function EventFormModal({
 
                     {/* Type Selector */}
                     <View className="flex-row bg-slate-800 p-1 rounded-xl mb-4 border border-slate-700">
-                        {(['event', 'reminder', 'alarm'] as const).map((t) => (
+                        {(['event', 'reminder', 'alarm', 'zone'] as const).map((t) => (
                             <TouchableOpacity
                                 key={t}
                                 onPress={() => setType(t)}
@@ -379,13 +390,24 @@ export function EventFormModal({
                                         className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700 font-medium"
                                         value={title}
                                         onChangeText={setTitle}
-                                        placeholder={type === 'event' ? "Event Title" : "Reminder Title"}
+                                        placeholder={type === 'event' ? "Event Title" : type === 'zone' ? "Zone Title" : "Reminder Title"}
                                         placeholderTextColor="#64748b"
                                         autoFocus={!initialEvent}
                                     />
                                 </View>
 
-                                {(!isEvent) && (
+                                {/* Color Picker (Zone Only) */}
+                                {isZone && (
+                                    <View className="mb-4">
+                                        <ColorPicker
+                                            value={color}
+                                            onChange={setColor}
+                                            label="Color"
+                                        />
+                                    </View>
+                                )}
+
+                                {(!isEvent && !isZone) && (
                                     <View className="mb-4">
                                         <Text className="text-indigo-200 mb-2 font-medium">Content</Text>
                                         <TextInput
@@ -419,7 +441,7 @@ export function EventFormModal({
                                     </TouchableOpacity>
 
                                     {/* Time Row */}
-                                    {(!allDay || !isEvent) && (
+                                    {(!allDay || (!isEvent && !isZone)) && (
                                         <View className="flex-row gap-3 mb-3">
                                             <TouchableOpacity
                                                 onPress={() => setShowTimePicker('start')}
@@ -437,8 +459,8 @@ export function EventFormModal({
                                                 </View>
                                             </TouchableOpacity>
 
-                                            {/* Duration presets (Event only) */}
-                                            {isEvent && (
+                                            {/* Duration presets (Event/Zone only) */}
+                                            {(isEvent || isZone) && (
                                                 <View className="flex-1 bg-slate-800 p-1.5 rounded-xl border border-slate-700 justify-center">
                                                     {!isCustomDuration ? (
                                                         <View className="flex-row justify-between items-center gap-x-1">
@@ -477,7 +499,7 @@ export function EventFormModal({
                                     )}
 
                                     {/* Custom End Time Picker Row */}
-                                    {isEvent && isCustomDuration && (
+                                    {(isEvent || isZone) && isCustomDuration && (
                                         <View className="mb-3">
                                             <TouchableOpacity
                                                 onPress={() => setShowTimePicker('end')}
@@ -502,7 +524,7 @@ export function EventFormModal({
                                     )}
 
                                     {/* AI Reschedule (Reminder/Alarm only) */}
-                                    {!isEvent && apiKey && (
+                                    {(!isEvent && !isZone) && apiKey && (
                                         <View className="flex-row justify-end gap-2 mb-3">
                                             <TouchableOpacity
                                                 onPress={() => handleAIReschedule('later')}
@@ -588,7 +610,7 @@ export function EventFormModal({
                                     </View>
 
                                     {/* Advanced / Persistent (Alarm) */}
-                                    {!isEvent && (
+                                    {(!isEvent && !isZone) && (
                                         <View>
                                             <TouchableOpacity
                                                 onPress={() => setIsAdvancedOpen(!isAdvancedOpen)}

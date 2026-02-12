@@ -7,7 +7,7 @@ import { useTheme } from '../theme/ThemeContext'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 
 interface QuickActionMenuProps {
-    onAction: (action: 'event' | 'reminder') => void
+    onAction: (action: 'event' | 'reminder' | 'zone') => void
     top: number
     left: number
 }
@@ -17,7 +17,7 @@ export const QuickActionMenu = ({ onAction, top, left }: QuickActionMenuProps) =
 
     // Calculate position: trying to center the menu horizontally on the click
     // Adjust Y to appear slightly above the marker
-    const MENU_WIDTH = 220
+    const MENU_WIDTH = 270
     const MENU_OFFSET_Y = 60
 
     return (
@@ -31,6 +31,7 @@ export const QuickActionMenu = ({ onAction, top, left }: QuickActionMenuProps) =
                     left: left - (MENU_WIDTH / 2),
                     backgroundColor: theme.palette.gray['100'],
                     borderColor: theme.palette.gray['200'],
+                    width: MENU_WIDTH,
                 }
             ]}
         >
@@ -43,11 +44,19 @@ export const QuickActionMenu = ({ onAction, top, left }: QuickActionMenuProps) =
             </TouchableOpacity>
 
             <TouchableOpacity
-                style={styles.button}
+                style={[styles.button, { borderRightColor: theme.palette.gray['200'], borderRightWidth: 1 }]}
                 onPress={() => onAction('reminder')}
             >
                 <MaterialCommunityIcons name="bell-plus" size={20} color={'#E26245'} />
                 <Text style={[styles.text, { color: theme.palette.gray['800'] }]}>Reminder</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                style={styles.button}
+                onPress={() => onAction('zone')}
+            >
+                <MaterialCommunityIcons name="shape-plus" size={20} color={'#10b981'} />
+                <Text style={[styles.text, { color: theme.palette.gray['800'] }]}>Zone</Text>
             </TouchableOpacity>
         </Animated.View>
     )
@@ -68,7 +77,7 @@ const styles = StyleSheet.create({
         shadowRadius: 3.84,
         elevation: 5,
         borderWidth: 1,
-        width: 180,
+        width: 270,
         height: 42,
         alignItems: 'center',
     },
