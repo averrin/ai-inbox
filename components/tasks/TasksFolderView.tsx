@@ -241,6 +241,10 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
         }
     };
 
+    const handleTagPress = (tag: string) => {
+        setSearch(tag);
+    };
+
     if (isLoading && tasks.length === 0) {
         return (
             <View className="flex-1 justify-center items-center bg-slate-950">
@@ -271,6 +275,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                 onEdit={handleEditTask}
                 onDelete={handleDeleteTask}
                 onUpdate={handleSaveEdit}
+                onTagPress={handleTagPress}
             />
 
             {editingTask !== undefined && (
