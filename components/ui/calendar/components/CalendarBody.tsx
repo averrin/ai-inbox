@@ -539,12 +539,14 @@ function _CalendarBody<T extends ICalendarEventBase>({
               event={adjustedEvent}
               minHour={minHour}
               hours={hours.length}
+              onPress={() => onPressEvent?.(event)}
             />
           )
         })
     },
-    [zones, minHour, hours.length],
+    [zones, minHour, hours.length, onPressEvent],
   )
+
 
   const _renderMarkers = React.useCallback(
     (date: dayjs.Dayjs) => {
