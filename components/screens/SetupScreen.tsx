@@ -480,7 +480,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     label="Google Jules API Key"
                     value={julesGoogleKeyInput}
                     onChangeText={setJulesGoogleKeyInput}
-                    placeholder="AIza..."
+                    placeholder="AQ..."
                     secureTextEntry
                 />
 

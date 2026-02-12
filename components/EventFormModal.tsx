@@ -22,6 +22,7 @@ export interface EventSaveData {
     endDate: Date;
     allDay: boolean;
     isWork: boolean;
+    isNonFree?: boolean; // New flag for zones
     recurrenceRule?: {
         frequency: string; // 'daily', 'weekly', 'monthly', 'yearly'
         interval?: number;
@@ -80,6 +81,7 @@ export function EventFormModal({
     const [persistent, setPersistent] = useState<string>(''); // For Alarm
     const [content, setContent] = useState('');
     const [color, setColor] = useState(PRESET_COLORS[0]); // Default Red
+    const [isNonFree, setIsNonFree] = useState(false);
 
     // UI State
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -128,6 +130,10 @@ export function EventFormModal({
                 setIsWork(initialEvent.isWork || false);
                 setContent(initialEvent.originalEvent?.content || '');
                 setColor(initialEvent.color || PRESET_COLORS[0]);
+                
+                // Initialize isNonFree from content/notes
+                const noteContent = initialEvent.originalEvent?.content || initialEvent.originalEvent?.notes || '';
+                setIsNonFree(noteContent.includes('[nonFree::true]'));
 
                 // Recurrence
                 // Check if it's a calendar recurrence object or a reminder string
@@ -181,6 +187,7 @@ export function EventFormModal({
                 setIsCustomDuration(false);
                 setContent('');
                 setColor(PRESET_COLORS[0]);
+                setIsNonFree(false);
             }
         }
     }, [visible, initialDate, initialEvent, initialType]);
@@ -265,6 +272,7 @@ export function EventFormModal({
             isWork: type === 'event' ? isWork : false,
             editScope: scope,
             alarm: type === 'alarm',
+            isNonFree: type === 'zone' ? isNonFree : undefined,
             persistent: (type === 'alarm' || type === 'reminder') ? (isNaN(persistentVal as number) ? undefined : persistentVal) : undefined,
             content: (type === 'reminder' || type === 'alarm' || type === 'zone') ? content : undefined,
             color: type === 'zone' ? color : undefined
@@ -548,6 +556,25 @@ export function EventFormModal({
                                                     <Text className="text-xs text-indigo-300">✨ Tomorrow</Text>
                                                 )}
                                             </TouchableOpacity>
+                                        </View>
+                                    )}
+
+                                    {/* Zone Specific Switches */}
+                                    {isZone && (
+                                        <View className="flex-row justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 mb-3">
+                                            <View className="flex-row items-center gap-3">
+                                                <Ionicons name="hand-left-outline" size={20} color="#f43f5e" />
+                                                <View>
+                                                    <Text className="text-white font-medium">Non-Free</Text>
+                                                    <Text className="text-slate-400 text-xs">Blocks free time generation</Text>
+                                                </View>
+                                            </View>
+                                            <Switch
+                                                value={isNonFree}
+                                                onValueChange={setIsNonFree}
+                                                trackColor={{ false: '#334155', true: '#f43f5e' }}
+                                                thumbColor={isNonFree ? '#fb7185' : '#94a3b8'}
+                                            />
                                         </View>
                                     )}
 
