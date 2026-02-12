@@ -1,9 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { UniversalIcon } from './UniversalIcon';
 
 // Get all available icons from the glyph map
-const ALL_ICONS = Object.keys(Ionicons.glyphMap) as string[];
+const ION_ICONS = Object.keys(Ionicons.glyphMap) as string[];
+// Filter and map MCI icons
+const MCI_ICONS = Object.keys(MaterialCommunityIcons.glyphMap).map(key => `mc/${key}`);
+
+const ALL_ICONS = [...ION_ICONS, ...MCI_ICONS];
 
 interface IconPickerProps {
     value: string;
@@ -35,8 +40,8 @@ export const IconPicker = ({
                     : 'bg-slate-800/50 border-transparent'
             }`}
         >
-            <Ionicons
-                name={item as any}
+            <UniversalIcon
+                name={item}
                 size={24}
                 color={value === item ? '#818cf8' : '#64748b'}
             />

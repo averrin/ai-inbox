@@ -9,6 +9,7 @@ import { Button } from '../ui/Button';
 import { SettingsListItem } from '../ui/SettingsListItem';
 import { ColorPicker } from '../ui/ColorPicker';
 import { IconPicker } from '../ui/IconPicker';
+import { UniversalIcon } from '../ui/UniversalIcon';
 
 export function ContactsSettings() {
     const { contacts, addContact, updateContact, deleteContact } = useSettingsStore();
@@ -112,7 +113,7 @@ export function ContactsSettings() {
                         >
                             <View className="flex-row items-center flex-1">
                                 <View className="w-10 h-10 rounded-full bg-slate-700 items-center justify-center mr-3">
-                                    <Ionicons name={(contact.icon as any) || 'person'} size={20} color={contact.color || '#94a3b8'} />
+                                    <UniversalIcon name={contact.icon || 'person'} size={20} color={contact.color || '#94a3b8'} />
                                 </View>
                                 <View className="flex-1">
                                     <View className="flex-row items-center gap-2">
