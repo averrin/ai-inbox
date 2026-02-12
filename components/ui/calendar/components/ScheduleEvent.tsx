@@ -190,7 +190,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
         ]}>
             <View className={`flex-row items-center ${isUltraCompact ? 'gap-0.5' : (isCompact ? 'gap-1' : '')}`}>
                 {isCompletable && (
-                    <TouchableOpacity onPress={handleCheckboxPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: isUltraCompact ? -0 : -2, marginRight: isUltraCompact ? 0 : 3 }}>
+                    <TouchableOpacity onPress={handleCheckboxPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: isUltraCompact ? -0 : -0, marginRight: isUltraCompact ? 0 : 0 }}>
                         <Ionicons
                             name={isCompleted ? 'checkbox' : 'square-outline'}
                             size={isUltraCompact ? 10 : 14}

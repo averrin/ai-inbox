@@ -610,12 +610,20 @@ export default function ScheduleScreen() {
                         finalTitle = `[Zone] ${finalTitle}`;
                     }
                     
-                    // Handle Zone Color Update
-                    // We need to pass the content with the color tag to the update function
+                    // Handle Zone Color and Non-Free Update
+                    // We need to pass the content with the color/nonFree tags to the update function
                     let finalContent = editingEvent.originalEvent?.content;
-                    if (data.type === 'zone' && data.color) {
-                         const baseContent = (finalContent || '').replace(/\[color::.*?\]/g, '').trim();
-                         finalContent = baseContent + `\n[color::${data.color}]`;
+                    if (data.type === 'zone') {
+                         let baseContent = (finalContent || '').replace(/\[color::.*?\]/g, '').replace(/\[nonFree::.*?\]/g, '').trim();
+                         
+                         if (data.color) {
+                             baseContent += `\n[color::${data.color}]`;
+                         }
+                         if (data.isNonFree) {
+                             baseContent += `\n[nonFree::true]`;
+                         }
+                         
+                         finalContent = baseContent;
                     }
 
                     await updateCalendarEvent(targetId, {
@@ -654,16 +662,21 @@ export default function ScheduleScreen() {
 
         if (data.type === 'zone') {
              finalTitle = `[Zone] ${data.title}`;
-             // Only append color if present
+             
+             let baseContent = (data.content || '').replace(/\[color::.*?\]/g, '').replace(/\[nonFree::.*?\]/g, '').trim();
+             
              if (data.color) {
-                 // Clean existing color tags to prevent duplication
-                 const baseContent = (data.content || '').replace(/\[color::.*?\]/g, '').trim();
-                 finalContent = baseContent + `\n[color::${data.color}]`;
+                 baseContent += `\n[color::${data.color}]`;
                  optimisticColor = data.color;
              } else {
-                 finalContent = data.content;
-                 optimisticColor = data.color || 'rgba(234, 179, 8, 0.2)';
+                 optimisticColor = 'rgba(234, 179, 8, 0.2)';
              }
+             
+             if (data.isNonFree) {
+                 baseContent += `\n[nonFree::true]`;
+             }
+             
+             finalContent = baseContent;
              internalMarkerType = 'zone';
         }
 
@@ -1436,11 +1449,14 @@ const detectFocusRanges = (allEvents: any[]) => {
 // Restricted to within provided workRanges
 const detectFreeTimeZones = (allEvents: any[], workRanges: any[] = []) => {
     // 1. Filter events with difficulty >= 1 (Busy events)
-    // Ignore internal types
-    const busyEvents = allEvents.filter(e =>
-        (e.difficulty?.total >= 1) &&
-        !e.type
-    );
+    // Ignore internal types unless they are zones marked as non-free
+    const busyEvents = allEvents.filter(e => {
+        if (e.type === 'zone') {
+            const content = e.originalEvent?.content || e.originalEvent?.notes || '';
+            if (content.includes('[nonFree::true]')) return true;
+        }
+        return (e.difficulty?.total >= 1) && !e.type;
+    });
 
     // Group busy events by day
     const byDay: Record<string, typeof busyEvents> = {};
