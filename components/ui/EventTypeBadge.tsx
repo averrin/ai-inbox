@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { UniversalIcon } from './UniversalIcon';
 import { EventType } from '../../services/eventTypeService';
 
 interface EventTypeBadgeProps {
@@ -20,7 +21,7 @@ export function EventTypeBadge({ type }: EventTypeBadgeProps) {
             className="flex-row items-center px-3 py-1.5 rounded-md gap-2"
         >
             {type.icon && (
-                <Ionicons name={type.icon as any} size={16} color={textColor} />
+                <UniversalIcon name={type.icon} size={16} color={textColor} />
             )}
             <Text style={{ color: textColor }} className="font-semibold text-base">
                 {type.title}

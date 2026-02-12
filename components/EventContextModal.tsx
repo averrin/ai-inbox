@@ -4,6 +4,7 @@ import { useEventTypesStore } from '../store/eventTypes';
 import { useSettingsStore } from '../store/settings';
 import { updateEventRSVP, getAttendeesForEvent } from '../services/calendarService';
 import { Ionicons } from '@expo/vector-icons';
+import { UniversalIcon } from './ui/UniversalIcon';
 import dayjs from 'dayjs';
 import { calculateEventDifficulty } from '../utils/difficultyUtils';
 import { IconPicker } from './ui/IconPicker';
@@ -272,7 +273,7 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                                     className={`w-8 h-8 rounded-full items-center justify-center border ${currentIcon ? 'bg-indigo-500/20 border-indigo-500' : 'bg-slate-800 border-slate-700'}`}
                                 >
                                     {currentIcon ? (
-                                        <Ionicons name={currentIcon as any} size={16} color={currentIcon ? '#818cf8' : '#64748b'} />
+                                        <UniversalIcon name={currentIcon} size={16} color={currentIcon ? '#818cf8' : '#64748b'} />
                                     ) : (
                                         <Ionicons name="happy-outline" size={16} color="#475569" />
                                     )}
@@ -417,8 +418,8 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                                         }}
                                     >
                                         {item.icon && (
-                                            <Ionicons
-                                                name={item.icon as any}
+                                            <UniversalIcon
+                                                name={item.icon}
                                                 size={14}
                                                 color={isInv ? item.color : 'white'}
                                             />
@@ -651,7 +652,7 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                                             }}
                                         >
                                             {displayIcon ? (
-                                                <Ionicons name={displayIcon as any} size={20} color={displayColor} />
+                                                <UniversalIcon name={displayIcon} size={20} color={displayColor} />
                                             ) : (
                                                 <Text
                                                     className="font-bold text-lg"
