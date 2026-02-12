@@ -41,6 +41,10 @@ export function LinksFolderView({ folderUri, folderPath }: LinksFolderViewProps)
         }
     };
 
+    const handleTagPress = (tag: string) => {
+        setSearch(tag);
+    };
+
     return (
         <View className="flex-1 bg-transparent">
              {/* Search Bar */}
@@ -71,6 +75,7 @@ export function LinksFolderView({ folderUri, folderPath }: LinksFolderViewProps)
                 isRefreshing={isRefreshing}
                 onRefresh={() => loadLinks(true)}
                 onDelete={handleDelete}
+                onTagPress={handleTagPress}
             />
         </View>
     );

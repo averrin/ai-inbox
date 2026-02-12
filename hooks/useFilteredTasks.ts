@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { TaskWithSource } from '../store/tasks';
+import { filterTasks } from '../utils/taskFilter';
 
 export function useFilteredTasks(
     tasks: TaskWithSource[],
@@ -8,12 +9,7 @@ export function useFilteredTasks(
     sortBy: 'smart' | 'file' | 'title' | 'priority'
 ) {
     return useMemo(() => {
-        let result = tasks.filter(task => {
-            const isDone = task.status === 'x' || task.status === '-';
-            const matchesStatus = isDone === showCompleted;
-            const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase());
-            return matchesStatus && matchesSearch;
-        });
+        let result = filterTasks(tasks, search, showCompleted);
 
         if (sortBy === 'file') return result;
 
