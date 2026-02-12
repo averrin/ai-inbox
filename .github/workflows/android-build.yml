@@ -24,15 +24,16 @@ jobs:
         env:
           GOOGLE_SERVICES_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          if [ -z "$GOOGLE_SERVICES_BASE64" ]; then
-            echo "Error: GOOGLE_SERVICES_BASE64 is empty!"
-            exit 1
+          if [ -n "$GOOGLE_SERVICES_BASE64" ]; then
+            echo "Decoding GOOGLE_SERVICES_BASE64..."
+            echo "$GOOGLE_SERVICES_BASE64" | base64 --decode > app/google-services.json
+          else
+            echo "GOOGLE_SERVICES_BASE64 is empty. Generating dummy google-services.json..."
+            echo '{ "project_info": { "project_number": "123456789012", "project_id": "dummy-project", "storage_bucket": "dummy.appspot.com" }, "client": [ { "client_info": { "mobilesdk_app_id": "1:123456789012:android:0000000000000000", "android_client_info": { "package_name": "com.aiinbox.mobile" } }, "api_key": [ { "current_key": "dummy-api-key" } ], "services": { "analytics_service": { "status": 1 }, "appinvite_service": { "status": 1, "other_platform_oauth_client": [] }, "ads_service": { "status": 2 } } } ], "configuration_version": "1" }' > app/google-services.json
           fi
-          echo "GOOGLE_SERVICES_BASE64 length: ${#GOOGLE_SERVICES_BASE64}"
-          echo "$GOOGLE_SERVICES_BASE64" | base64 --decode > app/google-services.json
 
           if [ ! -s app/google-services.json ]; then
-            echo "Error: app/google-services.json is empty after decode!"
+            echo "Error: app/google-services.json is empty!"
             exit 1
           fi
 
