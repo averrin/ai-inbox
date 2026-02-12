@@ -5,6 +5,7 @@ import * as Linking from 'expo-linking';
 import * as Clipboard from 'expo-clipboard';
 import { LinkWithSource } from '../../services/linkService';
 import Toast from 'react-native-toast-message';
+import { useSettingsStore } from '../../store/settings';
 
 interface LinkItemProps {
     link: LinkWithSource;
@@ -13,6 +14,8 @@ interface LinkItemProps {
 }
 
 export function LinkItem({ link, onDelete, onTagPress }: LinkItemProps) {
+    const { tagConfig } = useSettingsStore();
+
     const handleOpen = () => {
         Linking.openURL(link.url).catch(err => {
              Toast.show({ type: 'error', text1: 'Could not open URL' });
@@ -42,6 +45,8 @@ export function LinkItem({ link, onDelete, onTagPress }: LinkItemProps) {
             return url;
         }
     };
+
+    const visibleTags = (link.tags || []).filter(tag => !tagConfig[tag]?.hidden);
 
     return (
         <View className="flex-row bg-slate-800/50 border border-slate-700 rounded-xl mb-3 overflow-hidden h-28">
@@ -77,19 +82,29 @@ export function LinkItem({ link, onDelete, onTagPress }: LinkItemProps) {
                     </View>
 
                     {/* Tags */}
-                    {link.tags && link.tags.length > 0 && (
+                    {visibleTags.length > 0 && (
                         <View className="flex-row flex-wrap gap-1 mt-1">
-                            {link.tags.slice(0, 3).map(tag => (
-                                <TouchableOpacity
-                                    key={tag}
-                                    onPress={() => onTagPress(tag)}
-                                    className="bg-indigo-900/50 px-1.5 py-0.5 rounded text-xs border border-indigo-500/30"
-                                >
-                                    <Text className="text-indigo-300 text-[10px]" numberOfLines={1}>#{tag}</Text>
-                                </TouchableOpacity>
-                            ))}
-                            {link.tags.length > 3 && (
-                                <Text className="text-slate-500 text-[10px] self-center">+{link.tags.length - 3}</Text>
+                            {visibleTags.slice(0, 3).map(tag => {
+                                const config = tagConfig[tag];
+                                const customStyle = config?.color ? {
+                                    backgroundColor: `${config.color}33`,
+                                    borderColor: `${config.color}66`,
+                                } : undefined;
+                                const textStyle = config?.color ? { color: config.color } : undefined;
+
+                                return (
+                                    <TouchableOpacity
+                                        key={tag}
+                                        onPress={() => onTagPress(tag)}
+                                        className="bg-indigo-900/50 px-1.5 py-0.5 rounded text-xs border border-indigo-500/30"
+                                        style={customStyle}
+                                    >
+                                        <Text className="text-indigo-300 text-[10px]" style={textStyle} numberOfLines={1}>#{tag}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                            {visibleTags.length > 3 && (
+                                <Text className="text-slate-500 text-[10px] self-center">+{visibleTags.length - 3}</Text>
                             )}
                         </View>
                     )}
