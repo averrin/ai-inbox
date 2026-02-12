@@ -220,7 +220,7 @@ export const deleteCalendarEvent = async (eventId: string, options?: { instanceS
     }
 };
 
-export const updateCalendarEvent = async (eventId: string, eventData: Partial<Calendar.Event> & { editScope?: 'this' | 'future' | 'all', isWork?: boolean, instanceStartDate?: string | Date }) => {
+export const updateCalendarEvent = async (eventId: string, eventData: Partial<Calendar.Event> & { editScope?: 'this' | 'future' | 'all', isWork?: boolean, instanceStartDate?: string | Date, content?: string }) => {
     const hasPermission = await ensureCalendarPermissions();
     if (!hasPermission) throw new Error("Missing calendar permissions");
 
@@ -230,21 +230,14 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
 
     // Auto-invite work account logic (similar to create)
     if (data.isWork && workAccountId) {
-        // We can't easily check existing attendees without fetching, so we skip duplication check for now
-        // or rely on native calendar to dedupe.
-        // Note: updating attendees usually requires passing the full list.
-        // Since we don't have the full list here, this might overwrite or fail if strict.
-        // For safety, we only append if 'attendees' is already in data (rare in this flow) or skip.
-        // Ideally we would fetch -> merge -> update.
-        // For now, we will SKIP modifying attendees during simple update to avoid data loss.
-        // TODO: Implement full attendee sync for updates.
+        // ... (existing comments)
     }
 
     // Prepare data for native call
     const isAndroid = Platform.OS === 'android';
     const nativeEventData: any = {
         title: eventData.title,
-        notes: (eventData as any).description || (eventData as any).notes,
+        notes: (eventData as any).content || (eventData as any).description || (eventData as any).notes,
         allDay: eventData.allDay,
         location: eventData.location,
         alarms: eventData.alarms,

@@ -11,18 +11,9 @@ import dayjs from 'dayjs';
 import { RecurrenceScopeModal } from './RecurrenceScopeModal';
 import { useTasksStore, TaskWithSource } from '../store/tasks';
 import { TaskStatusIcon } from './ui/TaskStatusIcon';
+import { ColorPicker, PRESET_COLORS } from './ui/ColorPicker';
 
-const ZONE_COLORS = [
-    'rgba(239, 68, 68, 0.2)', // Red
-    'rgba(249, 115, 22, 0.2)', // Orange
-    'rgba(234, 179, 8, 0.2)', // Yellow
-    'rgba(34, 197, 94, 0.2)', // Green
-    'rgba(59, 130, 246, 0.2)', // Blue
-    'rgba(99, 102, 241, 0.2)', // Indigo
-    'rgba(168, 85, 247, 0.2)', // Purple
-    'rgba(236, 72, 153, 0.2)', // Pink
-    'rgba(100, 116, 139, 0.2)', // Slate
-];
+
 
 export interface EventSaveData {
     type: 'event' | 'reminder' | 'alarm' | 'zone';
@@ -88,7 +79,7 @@ export function EventFormModal({
     const [recurrenceInterval, setRecurrenceInterval] = useState<string>('1');
     const [persistent, setPersistent] = useState<string>(''); // For Alarm
     const [content, setContent] = useState('');
-    const [color, setColor] = useState(ZONE_COLORS[3]); // Default Green
+    const [color, setColor] = useState(PRESET_COLORS[0]); // Default Red
 
     // UI State
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -136,7 +127,7 @@ export function EventFormModal({
                 setAllDay(initialEvent.allDay || false);
                 setIsWork(initialEvent.isWork || false);
                 setContent(initialEvent.originalEvent?.content || '');
-                setColor(initialEvent.color || ZONE_COLORS[3]);
+                setColor(initialEvent.color || PRESET_COLORS[0]);
 
                 // Recurrence
                 // Check if it's a calendar recurrence object or a reminder string
@@ -189,7 +180,7 @@ export function EventFormModal({
                 setPersistent('');
                 setIsCustomDuration(false);
                 setContent('');
-                setColor(ZONE_COLORS[3]);
+                setColor(PRESET_COLORS[0]);
             }
         }
     }, [visible, initialDate, initialEvent, initialType]);
@@ -408,17 +399,11 @@ export function EventFormModal({
                                 {/* Color Picker (Zone Only) */}
                                 {isZone && (
                                     <View className="mb-4">
-                                        <Text className="text-indigo-200 mb-2 font-medium">Color</Text>
-                                        <View className="flex-row flex-wrap gap-2">
-                                            {ZONE_COLORS.map((c) => (
-                                                <TouchableOpacity
-                                                    key={c}
-                                                    onPress={() => setColor(c)}
-                                                    className={`w-8 h-8 rounded-full border-2 ${color === c ? 'border-white' : 'border-transparent'}`}
-                                                    style={{ backgroundColor: c }}
-                                                />
-                                            ))}
-                                        </View>
+                                        <ColorPicker
+                                            value={color}
+                                            onChange={setColor}
+                                            label="Color"
+                                        />
                                     </View>
                                 )}
 

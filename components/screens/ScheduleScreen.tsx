@@ -605,8 +605,21 @@ export default function ScheduleScreen() {
                     const rawStartDate = editingEvent.originalEvent?.startDate;
                     const instanceStartDate = rawStartDate ? new Date(rawStartDate) : undefined;
 
+                    let finalTitle = data.title;
+                    if (editingEvent.type === 'zone' && !finalTitle.startsWith('[Zone] ')) {
+                        finalTitle = `[Zone] ${finalTitle}`;
+                    }
+                    
+                    // Handle Zone Color Update
+                    // We need to pass the content with the color tag to the update function
+                    let finalContent = editingEvent.originalEvent?.content;
+                    if (data.type === 'zone' && data.color) {
+                         const baseContent = (finalContent || '').replace(/\[color::.*?\]/g, '').trim();
+                         finalContent = baseContent + `\n[color::${data.color}]`;
+                    }
+
                     await updateCalendarEvent(targetId, {
-                       title: data.title,
+                       title: finalTitle,
                        startDate: data.startDate,
                        endDate: data.endDate,
                        allDay: data.allDay,
@@ -616,7 +629,8 @@ export default function ScheduleScreen() {
                            frequency: (data.recurrenceRule.frequency as any)
                        } : undefined,
                        editScope: data.editScope,
-                       instanceStartDate: instanceStartDate
+                       instanceStartDate: instanceStartDate,
+                       content: finalContent // Pass updated content
                     });
 
                     // Re-sync
@@ -1196,6 +1210,8 @@ export default function ScheduleScreen() {
                             onPressEvent={(evt) => {
                                 const event = evt as any;
                                 if (event.type === 'marker') {
+                                    setEditingEvent(event);
+                                } else if (event.type === 'zone') {
                                     setEditingEvent(event);
                                 } else {
                                     setSelectedEvent({ title: event.title, start: event.start, end: event.end, ...event }); // Spread all props to include color/typeTag
