@@ -102,6 +102,7 @@ jobs:
     if: cancelled() == false
     needs: build
     runs-on: ubuntu-latest
+    environment: Firebase
     steps:
       - uses: up9cloud/action-notify@master
         env:
