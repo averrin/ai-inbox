@@ -29,34 +29,36 @@ export function useOptimisticReminders() {
         }
 
         const tempId = `temp-${Date.now()}`;
-        // Use local ISO format for storage/display
-        const { toLocalISOString, getUniqueFilename } = await import('../services/reminderService');
-        const timeStr = toLocalISOString(date);
 
-        // 1. Determine Target Folder
-        let targetUri = vaultUri;
-        const { checkDirectoryExists } = await import('../utils/saf');
+        try {
+            // Use local ISO format for storage/display
+            const { toLocalISOString, getUniqueFilename } = await import('../services/reminderService');
+            const timeStr = toLocalISOString(date);
 
-        if (defaultReminderFolder && defaultReminderFolder.trim()) {
-            const folderUri = await checkDirectoryExists(vaultUri, defaultReminderFolder.trim());
-            if (folderUri) targetUri = folderUri;
-        } else if (remindersScanFolder && remindersScanFolder.trim()) {
-            const folderUri = await checkDirectoryExists(vaultUri, remindersScanFolder.trim());
-            if (folderUri) targetUri = folderUri;
-        }
+            // 1. Determine Target Folder
+            let targetUri = vaultUri;
+            const { checkDirectoryExists } = await import('../utils/saf');
 
-        // 2. Generate Unique Filename
-        const fileName = await getUniqueFilename(targetUri, title);
+            if (defaultReminderFolder && defaultReminderFolder.trim()) {
+                const folderUri = await checkDirectoryExists(vaultUri, defaultReminderFolder.trim());
+                if (folderUri) targetUri = folderUri;
+            } else if (remindersScanFolder && remindersScanFolder.trim()) {
+                const folderUri = await checkDirectoryExists(vaultUri, remindersScanFolder.trim());
+                if (folderUri) targetUri = folderUri;
+            }
 
-        // 3. Optimistic Update
-        const newReminder: Reminder = {
-            fileUri: tempId, // Temporary ID/URI
-            fileName: fileName,
-            reminderTime: timeStr,
-            recurrenceRule: recurrence || undefined,
-            alarm: alarm,
-            persistent: persistent,
-            content: `---
+            // 2. Generate Unique Filename
+            const fileName = await getUniqueFilename(targetUri, title);
+
+            // 3. Optimistic Update
+            const newReminder: Reminder = {
+                fileUri: tempId, // Temporary ID/URI
+                fileName: fileName,
+                reminderTime: timeStr,
+                recurrenceRule: recurrence || undefined,
+                alarm: alarm,
+                persistent: persistent,
+                content: `---
 reminder_datetime: ${timeStr}
 ${recurrence ? `reminder_recurrent: ${recurrence}` : ''}
 ${alarm ? `reminder_alarm: true` : ''}
@@ -65,24 +67,28 @@ ${persistent ? `reminder_persistent: ${persistent}` : ''}
 # ${title}
 
 Created via Reminders App.`
-        };
+            };
 
-        const previousReminders = [...(cachedReminders || [])];
-        setCachedReminders([...previousReminders, newReminder]);
-        setPendingOperations(prev => prev + 1);
+            const previousReminders = [...(cachedReminders || [])];
+            setCachedReminders([...previousReminders, newReminder]);
+            setPendingOperations(prev => prev + 1);
 
-        try {
-            // 4. Perform Actual Operation using shared service
-            const { createStandaloneReminder } = await import('../services/reminderService');
-            await createStandaloneReminder(timeStr, title, recurrence, alarm, persistent);
-            // Reconcile is handled inside createStandaloneReminder
+            try {
+                // 4. Perform Actual Operation using shared service
+                const { createStandaloneReminder } = await import('../services/reminderService');
+                await createStandaloneReminder(timeStr, title, recurrence, alarm, persistent);
+                // Reconcile is handled inside createStandaloneReminder
+            } catch (e) {
+                console.error(e);
+                // 6. Rollback
+                setCachedReminders(previousReminders);
+                Toast.show({ type: 'error', text1: 'Failed to create reminder' });
+            } finally {
+                setPendingOperations(prev => prev - 1);
+            }
         } catch (e) {
-            console.error(e);
-            // 6. Rollback
-            setCachedReminders(previousReminders);
-            Toast.show({ type: 'error', text1: 'Failed to create reminder' });
-        } finally {
-            setPendingOperations(prev => prev - 1);
+            console.error("Initialization failed in addReminder:", e);
+            Toast.show({ type: 'error', text1: 'Failed to initialize reminder creation' });
         }
     }, [cachedReminders, setCachedReminders, vaultUri, remindersScanFolder, defaultReminderFolder]);
 
