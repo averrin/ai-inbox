@@ -101,7 +101,7 @@ interface CalendarBodyProps<T extends ICalendarEventBase> {
   eventsAreSorted?: boolean
   timeslots?: number
   timeslotHeight?: number
-  onQuickAction?: (action: 'event' | 'reminder', date: Date) => void
+  onQuickAction?: (action: 'event' | 'reminder' | 'zone', date: Date) => void
   onEventDrop?: (event: T, newDate: Date) => void
   refreshing?: boolean
   onRefresh?: () => void
@@ -196,7 +196,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
   )
 
   const handleQuickActionTrigger = React.useCallback(
-    (action: 'event' | 'reminder', date: Date) => {
+    (action: 'event' | 'reminder' | 'zone', date: Date) => {
       onQuickAction?.(action, date)
     },
     [onQuickAction]
@@ -258,7 +258,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
       })
   }, [gestureActive, touchY, touchX, handleLongPressStart, handleGestureEnd])
 
-  const handleMenuAction = (action: 'event' | 'reminder') => {
+  const handleMenuAction = (action: 'event' | 'reminder' | 'zone') => {
     setMenuVisible(false)
     if (selectedDateForAction) {
       onQuickAction?.(action, selectedDateForAction)

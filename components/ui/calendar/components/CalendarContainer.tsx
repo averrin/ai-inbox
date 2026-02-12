@@ -178,7 +178,7 @@ export interface CalendarContainerProps<T extends ICalendarEventBase> {
   /**
    * Callback when a quick action is triggered via long-press
    */
-  onQuickAction?: (action: 'event' | 'reminder', date: Date) => void
+  onQuickAction?: (action: 'event' | 'reminder' | 'zone', date: Date) => void
   onEventDrop?: (event: T, newDate: Date) => void
   refreshing?: boolean
   onRefresh?: () => void
