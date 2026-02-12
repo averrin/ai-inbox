@@ -54,7 +54,7 @@ export default function ScheduleScreen() {
     const [summaryModalVisible, setSummaryModalVisible] = useState(false);
     const [summaryData, setSummaryData] = useState<{ breakdown: DayBreakdown, status: any, date: Date } | null>(null);
     const [creatingEventDate, setCreatingEventDate] = useState<Date | null>(null);
-    const [creatingEventType, setCreatingEventType] = useState<'event' | 'reminder' | 'alarm'>('event');
+    const [creatingEventType, setCreatingEventType] = useState<'event' | 'reminder' | 'alarm' | 'zone'>('event');
     const [editingEvent, setEditingEvent] = useState<any | null>(null);
     const [editingTask, setEditingTask] = useState<TaskWithSource | null>(null);
     const [moodModalVisible, setMoodModalVisible] = useState(false);
@@ -220,18 +220,34 @@ export default function ScheduleScreen() {
                 const sourceName = calDetailsMap[evt.calendarId]?.source || '';
                 const uniqueSourceCalendars = Array.from(new Set([(evt as any).calendarTitle || evt.calendarId])).filter(Boolean);
 
+                let isZone = false;
+                let zoneColor = color;
+                let displayTitle = evt.title;
+
+                if (evt.title && evt.title.startsWith('[Zone] ')) {
+                    isZone = true;
+                    displayTitle = evt.title.substring(7); // Remove '[Zone] '
+                    const notes = (evt as any).notes || (evt as any).description || '';
+                    const colorMatch = notes.match(/\[color::(.*?)\]/);
+                    if (colorMatch) {
+                        zoneColor = colorMatch[1];
+                    }
+                }
+
                 return {
-                    title: evt.title,
+                    title: displayTitle,
                     start: new Date(evt.startDate),
                     end: new Date(evt.endDate),
-                    color: color,
+                    color: zoneColor,
+                    type: isZone ? 'zone' : undefined,
                     originalEvent: {
                         ...evt,
                         ids: mergedIds,
                         source: { name: sourceName },
-                        currentUserRSVP
+                        currentUserRSVP,
+                        color: zoneColor
                     },
-                    typeTag: assignedType ? assignedType.title : null,
+                    typeTag: isZone ? 'ZONE' : (assignedType ? assignedType.title : null),
                     difficulty: difficultyResult,
                     isEnglish: flags?.isEnglish,
                     movable: flags?.movable || isPersonal,
@@ -292,12 +308,15 @@ export default function ScheduleScreen() {
         }
     }, [visibleCalendarIds, date, viewMode, assignments, eventTypes, difficulties, eventFlags, eventIcons, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes]);
 
-    const handleQuickAction = useCallback((action: 'event' | 'reminder', date: Date) => {
+    const handleQuickAction = useCallback((action: 'event' | 'reminder' | 'zone', date: Date) => {
         if (action === 'reminder') {
             setCreatingEventType('reminder');
             setCreatingEventDate(date);
         } else if (action === 'event') {
             setCreatingEventType('event');
+            setCreatingEventDate(date);
+        } else if (action === 'zone') {
+            setCreatingEventType('zone');
             setCreatingEventDate(date);
         }
     }, [setCreatingEventDate, setCreatingEventType]);
@@ -586,8 +605,21 @@ export default function ScheduleScreen() {
                     const rawStartDate = editingEvent.originalEvent?.startDate;
                     const instanceStartDate = rawStartDate ? new Date(rawStartDate) : undefined;
 
+                    let finalTitle = data.title;
+                    if (editingEvent.type === 'zone' && !finalTitle.startsWith('[Zone] ')) {
+                        finalTitle = `[Zone] ${finalTitle}`;
+                    }
+                    
+                    // Handle Zone Color Update
+                    // We need to pass the content with the color tag to the update function
+                    let finalContent = editingEvent.originalEvent?.content;
+                    if (data.type === 'zone' && data.color) {
+                         const baseContent = (finalContent || '').replace(/\[color::.*?\]/g, '').trim();
+                         finalContent = baseContent + `\n[color::${data.color}]`;
+                    }
+
                     await updateCalendarEvent(targetId, {
-                       title: data.title,
+                       title: finalTitle,
                        startDate: data.startDate,
                        endDate: data.endDate,
                        allDay: data.allDay,
@@ -597,7 +629,8 @@ export default function ScheduleScreen() {
                            frequency: (data.recurrenceRule.frequency as any)
                        } : undefined,
                        editScope: data.editScope,
-                       instanceStartDate: instanceStartDate
+                       instanceStartDate: instanceStartDate,
+                       content: finalContent // Pass updated content
                     });
 
                     // Re-sync
@@ -614,17 +647,39 @@ export default function ScheduleScreen() {
         }
 
         // 3. Handle Create
+        let finalTitle = data.title;
+        let finalContent = undefined;
+        let internalMarkerType: 'event' | 'zone' = 'event';
+        let optimisticColor = '#818cf8'; // Default blue
+
+        if (data.type === 'zone') {
+             finalTitle = `[Zone] ${data.title}`;
+             // Only append color if present
+             if (data.color) {
+                 // Clean existing color tags to prevent duplication
+                 const baseContent = (data.content || '').replace(/\[color::.*?\]/g, '').trim();
+                 finalContent = baseContent + `\n[color::${data.color}]`;
+                 optimisticColor = data.color;
+             } else {
+                 finalContent = data.content;
+                 optimisticColor = data.color || 'rgba(234, 179, 8, 0.2)';
+             }
+             internalMarkerType = 'zone';
+        }
+
         // Optimistic Update
         const tempEvent = {
             title: data.title,
             start: data.startDate,
             end: data.endDate,
-            color: '#818cf8', // Default blue
-            type: 'event', // Internal marker
+            color: optimisticColor,
+            type: internalMarkerType,
+            typeTag: data.type === 'zone' ? 'ZONE' : undefined,
             originalEvent: {
-                title: data.title,
+                title: finalTitle,
                 startDate: data.startDate.toISOString(),
-                endDate: data.endDate.toISOString()
+                endDate: data.endDate.toISOString(),
+                color: optimisticColor
             }
         };
 
@@ -666,10 +721,11 @@ export default function ScheduleScreen() {
                 }
 
                 const eventPayload: any = {
-                    title: data.title,
+                    title: finalTitle,
                     startDate: data.startDate,
                     endDate: data.endDate,
                     allDay: data.allDay,
+                    description: finalContent,
                     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     isWork: data.isWork, // calendarService will use this for auto-invites
                     recurrenceRule: data.recurrenceRule
@@ -1154,6 +1210,8 @@ export default function ScheduleScreen() {
                             onPressEvent={(evt) => {
                                 const event = evt as any;
                                 if (event.type === 'marker') {
+                                    setEditingEvent(event);
+                                } else if (event.type === 'zone') {
                                     setEditingEvent(event);
                                 } else {
                                     setSelectedEvent({ title: event.title, start: event.start, end: event.end, ...event }); // Spread all props to include color/typeTag
