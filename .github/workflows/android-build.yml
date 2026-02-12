@@ -12,6 +12,7 @@ jobs:
   build:
     name: Build APK
     runs-on: ubuntu-latest
+    environment: Firebase
     defaults:
       run:
         working-directory: ./
