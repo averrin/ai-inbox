@@ -9,9 +9,10 @@ interface LinksListProps {
     isRefreshing: boolean;
     onRefresh: () => void;
     onDelete: (link: LinkWithSource) => void;
+    onTagPress: (tag: string) => void;
 }
 
-export function LinksList({ links, isLoading, isRefreshing, onRefresh, onDelete }: LinksListProps) {
+export function LinksList({ links, isLoading, isRefreshing, onRefresh, onDelete, onTagPress }: LinksListProps) {
     if (isLoading && !isRefreshing && links.length === 0) {
         return (
             <View className="flex-1 justify-center items-center">
@@ -36,7 +37,7 @@ export function LinksList({ links, isLoading, isRefreshing, onRefresh, onDelete 
             data={links}
             keyExtractor={(item) => `${item.fileUri}:${item.blockStartLine}`}
             renderItem={({ item }) => (
-                <LinkItem link={item} onDelete={onDelete} />
+                <LinkItem link={item} onDelete={onDelete} onTagPress={onTagPress} />
             )}
             contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
             refreshControl={
