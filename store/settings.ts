@@ -313,3 +313,5 @@ export const useSettingsStore = create<SettingsState>()(
         }
     )
 );
+
+// End of store definition

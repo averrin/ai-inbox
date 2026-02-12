@@ -20,6 +20,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Decode Google Services JSON
+        env:
+          GOOGLE_SERVICES_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          echo $GOOGLE_SERVICES_BASE64 | base64 --decode > app/google-services.json
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -72,3 +78,15 @@ jobs:
         with:
           name: app-release
           path: android/app/build/outputs/apk/release/app-release.apk
+
+  notify:
+    if: cancelled() == false
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: up9cloud/action-notify@master
+        env:
+          GITHUB_JOB_STATUS: ${{ needs.build.result }}
+          TELEGRAM_BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN}}
+          TELEGRAM_CHAT_ID: ${{secrets.TELEGRAM_CHAT_ID}}
+          CUSTOM_VAR1: ${{github.repository_owner}}

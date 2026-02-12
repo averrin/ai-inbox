@@ -4,7 +4,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ShareIntentProvider } from "expo-share-intent";
 import { StatusBar } from "expo-status-bar";
 import * as Notifications from 'expo-notifications';
+import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useRef } from "react";
+
+WebBrowser.maybeCompleteAuthSession();
 import { registerReminderTask, scanForReminders, Reminder, getHash } from "../services/reminderService";
 import { registerJulesTask, unregisterJulesTask } from "../services/jules";
 import { useSettingsStore } from "../store/settings";
@@ -12,12 +15,17 @@ import { ReminderModalProvider, useReminderModal } from "../utils/reminderModalC
 import { ReminderModal } from "../components/ReminderModal";
 import Toast, { BaseToast, ErrorToast, ToastConfig } from 'react-native-toast-message';
 import { LogBox, View, Text, Platform } from 'react-native';
+import { SyncService } from "../services/syncService";
 
 // Suppress deprecation warnings from dependencies
 LogBox.ignoreLogs([
   'SafeAreaView has been deprecated',
   'expo-av: Expo AV has been deprecated',
   'expo-background-fetch: This library is deprecated',
+  'React Native Firebase namespaced API',
+  'Method called was onAuthStateChanged',
+  'Method called was initializeApp',
+  'getApp() instead',
 ]);
 
 // Configure notifications handler
@@ -105,6 +113,9 @@ function AppContent() {
   }, [lastNotificationResponse]);
 
   useEffect(() => {
+    // Initialize SyncService
+    SyncService.getInstance();
+
     // Register background task on app launch
     registerReminderTask();
 
