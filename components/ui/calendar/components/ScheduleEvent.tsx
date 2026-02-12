@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import dayjs from 'dayjs';
 import { Ionicons } from '@expo/vector-icons';
+import { UniversalIcon } from '../../UniversalIcon';
 import { useTheme } from '../theme/ThemeContext';
 import { useEventTypesStore } from '../../../../store/eventTypes';
 import { useRelationsStore } from '../../../../store/relations';
@@ -198,8 +199,8 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
                     </TouchableOpacity>
                 )}
                 {evt.icon && (
-                    <Ionicons
-                        name={evt.icon as any}
+                    <UniversalIcon
+                        name={evt.icon}
                         size={isUltraCompact ? 10 : 14}
                         color={textColor}
                         style={{ marginRight: isUltraCompact ? 2 : 4 }}
