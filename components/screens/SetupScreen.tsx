@@ -25,20 +25,20 @@ import { TasksSettings } from '../settings/TasksSettings';
 import { TagPropertySettings } from '../settings/TagPropertySettings';
 import { ContactsSettings } from '../settings/ContactsSettings';
 import { ForecastSettings } from '../settings/ForecastSettings';
+import { CloudSyncSettings } from '../settings/CloudSyncSettings';
 import { scanForReminders } from '../../services/reminderService';
 import { useEventTypesStore } from '../../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../../utils/debugUtils';
 import gitInfo from '../../git-info.json';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
     const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, julesNotificationsEnabled, setJulesNotificationsEnabled, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret, linksRoot, setLinksRoot } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
-    const [androidIdInput, setAndroidIdInput] = useState(googleAndroidClientId || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
     const [modelInput, setModelInput] = useState(selectedModel);
     const [rootFolderInput, setRootFolderInput] = useState(contextRootFolder || '');
@@ -128,19 +128,29 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         setLinksRootStatus(exists ? 'valid' : 'invalid');
     };
 
-    // Reactive folder validation
+    // Sync store -> local inputs on mount or when store values first appear (hydration)
+    // This prevents the auto-save effect from overwriting hydrated keys with empty defaults.
+    const hasInitialSynced = useRef(false);
     useEffect(() => {
-        if (!vaultUri || !rootFolderInput) {
-            setFolderStatus('neutral');
-            return;
+        if (!hasInitialSynced.current) {
+            if (apiKey || githubClientId || julesGoogleApiKey || vaultUri) {
+                setKeyInput(apiKey || '');
+                setPromptPathInput(customPromptPath || '');
+                setModelInput(selectedModel);
+                setRootFolderInput(contextRootFolder || '');
+                setLinksRootInput(linksRoot || '');
+                setJulesKeyInput(julesApiKey || '');
+                setJulesWorkflowInput(julesWorkflow || '');
+                setJulesGoogleKeyInput(julesGoogleApiKey || '');
+                setGithubClientIdInput(githubClientId || '');
+                setGithubClientSecretInput(githubClientSecret || '');
+                hasInitialSynced.current = true;
+                console.log('[SetupScreen] Initial inputs synced from store');
+            }
         }
+    }, [apiKey, githubClientId, julesGoogleApiKey, vaultUri]);
 
-        const timer = setTimeout(() => {
-            checkFolder();
-        }, 500); // Debounce 500ms
-
-        return () => clearTimeout(timer);
-    }, [rootFolderInput, vaultUri]);
+    // Check folder validity
 
     useEffect(() => {
         if (!vaultUri || !linksRootInput) {
@@ -210,7 +220,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         setSelectedModel(modelInput);
         setContextRootFolder(rootFolderInput);
         setLinksRoot(linksRootInput);
-        setGoogleAndroidClientId(androidIdInput);
         setGithubClientId(githubClientIdInput || null);
         setGithubClientSecret(githubClientSecretInput || null);
         if (onClose) onClose();
@@ -226,7 +235,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             setSelectedModel(modelInput);
             setContextRootFolder(rootFolderInput);
             setLinksRoot(linksRootInput);
-            setGoogleAndroidClientId(androidIdInput);
             setJulesApiKey(julesKeyInput || null);
             setJulesWorkflow(julesWorkflowInput || null);
             setJulesGoogleApiKey(julesGoogleKeyInput || null);
@@ -242,13 +250,11 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         modelInput,
         rootFolderInput,
         linksRootInput,
-        androidIdInput,
         setApiKey,
         setCustomPromptPath,
         setSelectedModel,
         setContextRootFolder,
         setLinksRoot,
-        setGoogleAndroidClientId,
         julesKeyInput,
         julesWorkflowInput,
         julesGoogleKeyInput,
@@ -445,6 +451,10 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     );
 
 
+    const renderCloudSyncSettings = () => {
+        return <CloudSyncSettings />;
+    };
+
     const renderJulesSettings = () => (
         <Card>
             <View className="mb-4">
@@ -579,25 +589,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                         variant="secondary"
                     />
                 </View>
-
-                {/* Legacy Google Integration */}
-                <View className="mt-6 pt-4 border-t border-slate-700">
-                    <Text className="text-indigo-200 mb-2 font-semibold">Legacy Google Integration</Text>
-                    <Text className="text-slate-400 text-sm mb-4">
-                        Google Calendar REST API configuration. Currently bypassed by native services.
-                    </Text>
-                    <Input
-                        label="Android Client ID"
-                        value={androidIdInput}
-                        onChangeText={setAndroidIdInput}
-                        placeholder="...apps.googleusercontent.com"
-                    />
-                    <View className="mt-2">
-                        <GoogleSettings
-                            androidClientId={androidIdInput}
-                        />
-                    </View>
-                </View>
             </View>
         </Card>
     );
@@ -627,6 +618,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "settings-outline",
                 () => setActiveSection('general'),
                 "API Keys, Vault, Model"
+            )}
+            {renderMenuButton(
+                "Cloud Sync",
+                "cloud-upload-outline",
+                () => setActiveSection('cloud-sync'),
+                "Sync settings across devices"
             )}
             {renderMenuButton(
                 "Calendars",
@@ -831,6 +828,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("General", () => setActiveSection('root'))}
                                 <View className="px-0">{renderGeneralSettings()}</View>
+                            </>
+                        )}
+                        {activeSection === 'cloud-sync' && (
+                            <>
+                                {renderHeader("Cloud Sync", () => setActiveSection('root'))}
+                                <View className="px-0">{renderCloudSyncSettings()}</View>
                             </>
                         )}
                         {activeSection === 'calendars' && (

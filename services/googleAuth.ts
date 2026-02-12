@@ -7,32 +7,29 @@ const DISCOVERY = {
     tokenEndpoint: 'https://oauth2.googleapis.com/token',
     revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
 };
+const googleAndroidClientId = "761766309334-kqgseihn4uua35rr6pk3q5nod5l0ad3h.apps.googleusercontent.com";
 
 export class GoogleAuthService {
 
     static getConfig(): AuthRequestConfig {
-        const { googleAndroidClientId, googleIosClientId, googleWebClientId } = useSettingsStore.getState();
+        // Hardcoded IDs to ensure reliability across the app
+
         return {
-            clientId: googleWebClientId || '',
+            clientId: googleAndroidClientId,
             // @ts-ignore
-            iosClientId: googleIosClientId || undefined,
-            // @ts-ignore
-            androidClientId: googleAndroidClientId || undefined,
-            scopes: ['https://www.googleapis.com/auth/tasks'],
+            androidClientId: googleAndroidClientId,
+            scopes: ['openid', 'https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/tasks'],
             responseType: ResponseType.Code,
-            redirectUri: makeRedirectUri({
-                scheme: 'com.aiinbox.mobile'
-            }),
+            redirectUri: 'com.aiinbox.mobile:/oauthredirect', // Use single slash as verified working
             usePKCE: true,
         };
     }
 
     static async refreshTokens(): Promise<string | null> {
         const { refreshToken, setAuth, clearAuth } = useGoogleStore.getState();
-        const { googleWebClientId } = useSettingsStore.getState();
 
-        if (!refreshToken || !googleWebClientId) {
-            if (!googleWebClientId) console.warn('Cannot refresh token: Missing Web Client ID.');
+        if (!refreshToken || !googleAndroidClientId) {
+            if (!googleAndroidClientId) console.warn('Cannot refresh token: Missing Web Client ID.');
             clearAuth();
             return null;
         }
@@ -40,9 +37,9 @@ export class GoogleAuthService {
         try {
             const response = await refreshAsync(
                 {
-                    clientId: googleWebClientId,
+                    clientId: googleAndroidClientId,
                     refreshToken,
-                    scopes: ['https://www.googleapis.com/auth/tasks'],
+                    scopes: ['openid', 'https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/tasks'],
                 },
                 DISCOVERY
             );

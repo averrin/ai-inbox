@@ -25,6 +25,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "googleServicesFile": "./google-services.json",
       "package": "com.aiinbox.mobile",
       "permissions": [
         "android.permission.SCHEDULE_EXACT_ALARM",
@@ -38,6 +39,7 @@
     },
     "plugins": [
       "expo-router",
+      "@react-native-firebase/app",
       [
         "expo-share-intent",
         {
