@@ -22,7 +22,7 @@ jobs:
 
       - name: Decode Google Services JSON
         env:
-          GOOGLE_SERVICES_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          GOOGLE_SERVICES_BASE64: ${{ secrets.GOOGLE_SERVICES_BASE64 }}
         run: |
           if [ -n "$GOOGLE_SERVICES_BASE64" ]; then
             echo "Decoding GOOGLE_SERVICES_BASE64..."
