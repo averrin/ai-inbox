@@ -66,7 +66,7 @@ interface ScheduleProps<T extends ICalendarEventBase> {
   | undefined
   locale: string
   scheduleMonthSeparatorStyle?: TextStyle
-  onQuickAction?: (action: 'event' | 'reminder', date: Date) => void
+  onQuickAction?: (action: 'event' | 'reminder' | 'zone', date: Date) => void
 }
 
 function _Schedule<T extends ICalendarEventBase>({

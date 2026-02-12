@@ -80,6 +80,24 @@ export function CalendarZone<T extends ICalendarEventBase>({
         style={StyleSheet.absoluteFill}
       />
 
+      {/* Title (for non-FREE_TIME zones) */}
+      {(event as any).typeTag !== 'FREE_TIME' && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 4,
+            left: 4,
+            paddingHorizontal: 4,
+            paddingVertical: 2,
+            zIndex: 10000,
+          }}
+        >
+          <Text style={{ color: borderColor || '#334155', fontSize: 11, fontWeight: 'bold', opacity: 0.9 }} numberOfLines={1}>
+            {event.title}
+          </Text>
+        </View>
+      )}
+
       {/* Duration Badge */}
       <View
         style={{
