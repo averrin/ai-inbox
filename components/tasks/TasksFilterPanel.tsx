@@ -25,7 +25,7 @@ export function TasksFilterPanel({
 }: TasksFilterPanelProps) {
     const [showMenu, setShowMenu] = useState(false);
     return (
-        <View className="p-4 pb-2 bg-transparent border-b border-slate-700">
+        <View className="p-4 pb-2 bg-transparent border-b border-slate-700 z-50">
             <View className="flex-row items-center bg-slate-800 rounded-xl px-4 py-2 mb-3">
                 <Ionicons name="search-outline" size={20} color="#64748b" />
                 <TextInput
