@@ -23,6 +23,7 @@ interface RichTaskItemProps {
     isLastInFile?: boolean;
     selectionMode?: boolean;
     isSelected?: boolean;
+    onTagPress?: (tag: string) => void;
 }
 
 export function RichTaskItem({ 
@@ -39,7 +40,8 @@ export function RichTaskItem({
     isFirstInFile,
     isLastInFile,
     selectionMode,
-    isSelected
+    isSelected,
+    onTagPress
 }: RichTaskItemProps) {
     const { tagConfig, propertyConfig } = useSettingsStore();
 
@@ -149,13 +151,14 @@ export function RichTaskItem({
                 const textStyle = config?.color ? { color: config.color } : undefined;
 
                 return (
-                    <View 
+                    <TouchableOpacity
                         key={`tag-${tag}`} 
+                        onPress={() => onTagPress?.(tag)}
                         className="bg-indigo-900/30 px-1.5 py-0.5 rounded border border-indigo-500/30"
                         style={customStyle}
                     >
                         <Text className="text-indigo-300 text-[10px]" style={textStyle}>#{tag}</Text>
-                    </View>
+                    </TouchableOpacity>
                 );
             })}
         </View>

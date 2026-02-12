@@ -23,6 +23,7 @@ interface TasksListProps {
     selectionMode?: boolean;
     selectedIds?: string[]; // Use fileUri + originalLine as unique ID
     onToggleSelection?: (task: TaskWithSource) => void;
+    onTagPress?: (tag: string) => void;
 }
 
 const STATUS_OPTIONS: SelectionOption[] = [
@@ -52,7 +53,8 @@ export function TasksList({
     onUpdate,
     selectionMode = false,
     selectedIds = [],
-    onToggleSelection
+    onToggleSelection,
+    onTagPress
 }: TasksListProps) {
     const [activeTaskForSheet, setActiveTaskForSheet] = useState<TaskWithSource | null>(null);
     const [isStatusSheetVisible, setIsStatusSheetVisible] = useState(false);
@@ -120,6 +122,7 @@ export function TasksList({
                             isLastInFile={item.isLastInFile}
                             selectionMode={selectionMode}
                             isSelected={isSelected}
+                            onTagPress={!selectionMode ? onTagPress : undefined}
                             // Disable long press actions in selection mode
                             onStatusLongPress={!selectionMode ? () => {
                                 setActiveTaskForSheet(item);
