@@ -183,9 +183,29 @@ export function RichTaskItem({
 
     return (
         <View className="flex-row items-start relative">
+            <View className={`flex-1 ${showGuide ? 'pr-10' : ''}`}>
+                <BaseListItem
+                    leftIcon={leftIcon}
+                    selectionComponent={selectionComponent}
+                    hideIconBackground={true}
+                    title={
+                        <Text
+                            className={`text-sm font-medium ${task.status === 'x' || task.status === '-' ? 'text-slate-500 line-through' : 'text-white'}`}
+                            numberOfLines={1}
+                        >
+                            {task.title}
+                        </Text>
+                    }
+                    subtitle={subtitle || (Object.keys(task.properties).length > 0 || task.tags.length > 0 ? metadataSubtitle : undefined)}
+                    onPress={selectionMode ? onToggle : onEdit}
+                    onLongPress={handleBodyLongPress}
+                    rightActions={rightActions}
+                    containerStyle={task.status === 'x' || task.status === '-' ? { opacity: 0.8 } : undefined}
+                />
+            </View>
             {showGuide && (
                 <View
-                    style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 40, alignItems: 'center', justifyContent: 'center' }}
+                    style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 40, alignItems: 'center', justifyContent: 'center' }}
                     pointerEvents="none"
                 >
                     <View
@@ -217,26 +237,6 @@ export function RichTaskItem({
                     )}
                 </View>
             )}
-            <View className={`flex-1 ${showGuide ? 'pl-10' : ''}`}>
-                <BaseListItem
-                    leftIcon={leftIcon}
-                    selectionComponent={selectionComponent}
-                    hideIconBackground={true}
-                    title={
-                        <Text 
-                            className={`text-sm font-medium ${task.status === 'x' || task.status === '-' ? 'text-slate-500 line-through' : 'text-white'}`}
-                            numberOfLines={1}
-                        >
-                            {task.title}
-                        </Text>
-                    }
-                    subtitle={subtitle || (Object.keys(task.properties).length > 0 || task.tags.length > 0 ? metadataSubtitle : undefined)}
-                    onPress={selectionMode ? onToggle : onEdit}
-                    onLongPress={handleBodyLongPress}
-                    rightActions={rightActions}
-                    containerStyle={task.status === 'x' || task.status === '-' ? { opacity: 0.8 } : undefined}
-                />
-            </View>
         </View>
     );
 }
