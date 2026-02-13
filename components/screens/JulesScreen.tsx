@@ -37,7 +37,7 @@ function getBestArtifact(artifacts: Artifact[]): Artifact | null {
     return sorted[0];
 }
 
-function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onDelete?: () => void, onRefresh?: () => void, julesGoogleApiKey?: string }) {
+function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey, refreshTrigger }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onDelete?: () => void, onRefresh?: () => void, julesGoogleApiKey?: string, refreshTrigger?: number }) {
     const [ghRun, setGhRun] = useState<WorkflowRun | null>(null);
     const [loadingGh, setLoadingGh] = useState(false);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
@@ -82,6 +82,15 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
         inputRange: [0, 1],
         outputRange: ['0deg', '360deg']
     });
+
+    const fetchArtifactsData = useCallback(() => {
+        if (ghToken && owner && repo && ghRun) {
+            setArtifactsLoading(true);
+            fetchArtifacts(ghToken, owner, repo, ghRun.id)
+                .then(setArtifacts)
+                .finally(() => setArtifactsLoading(false));
+        }
+    }, [ghToken, owner, repo, ghRun]);
 
     useEffect(() => {
         setGhRun(null);
@@ -136,7 +145,7 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
                     .catch(err => console.error("Fetch PR detail error:", err));
             }
         }
-    }, [ghToken, owner, repo, prNumber, branch]);
+    }, [ghToken, owner, repo, prNumber, branch, refreshTrigger]);
 
     const handleDownloadArtifact = async () => {
         console.log(`[JulesScreen] handleDownloadArtifact called. ghRun: ${!!ghRun}, artifacts: ${artifacts?.length}, token: ${!!ghToken}`);
@@ -350,9 +359,12 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
                         <ActivityIndicator size="small" color="#94a3b8" />
                     </View>
                 ) : ghRun?.conclusion === 'success' ? (
-                     <View className="flex-1 bg-slate-800/50 py-2 rounded-lg items-center justify-center border border-slate-700">
+                     <TouchableOpacity
+                        onPress={fetchArtifactsData}
+                        className="flex-1 bg-slate-800/50 py-2 rounded-lg items-center justify-center border border-slate-700"
+                     >
                         <Text className="text-slate-500 text-[10px] italic">No Artifacts</Text>
-                    </View>
+                    </TouchableOpacity>
                 ) : null}
 
                 {(session.state === 'COMPLETED' || session.state === 'FAILED' || prInactive) && onDelete && (
@@ -504,7 +516,7 @@ function CheckStatusItem({ check }: { check: CheckRun }) {
     );
 }
 
-function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run: WorkflowRun, token: string, owner: string, repo: string, initialExpanded?: boolean }) {
+function SessionItem({ run, token, owner, repo, initialExpanded = false, refreshTrigger }: { run: WorkflowRun, token: string, owner: string, repo: string, initialExpanded?: boolean, refreshTrigger?: number }) {
     const [checks, setChecks] = useState<CheckRun[] | null>(null);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
     const [isDownloading, setIsDownloading] = useState(false);
@@ -518,6 +530,15 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
 
     // Some runs have pull_requests populated, others don't.
     const pr = run.pull_requests && run.pull_requests.length > 0 ? run.pull_requests[0] : null;
+
+    useEffect(() => {
+        if (refreshTrigger && refreshTrigger > 0) {
+             setChecks(null);
+             setArtifacts(null);
+             setChecksLoading(false);
+             setArtifactsLoading(false);
+        }
+    }, [refreshTrigger]);
 
     useEffect(() => {
         if (pr) {
@@ -554,6 +575,14 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
         outputRange: ['0deg', '360deg']
     });
 
+    const fetchArtifactsData = useCallback(() => {
+        setArtifactsLoading(true);
+        fetchArtifacts(token, owner, repo, run.id)
+            .then(setArtifacts)
+            .catch(err => console.error("Artifacts fetch error:", err))
+            .finally(() => setArtifactsLoading(false));
+    }, [token, owner, repo, run.id]);
+
     useEffect(() => {
         if (expanded) {
             if (!checks && !checksLoading) {
@@ -565,14 +594,10 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
             }
 
             if (!artifacts && !artifactsLoading) {
-                setArtifactsLoading(true);
-                fetchArtifacts(token, owner, repo, run.id)
-                    .then(setArtifacts)
-                    .catch(err => console.error("Artifacts fetch error:", err))
-                    .finally(() => setArtifactsLoading(false));
+                fetchArtifactsData();
             }
         }
-    }, [expanded, run.head_sha, run.id, token, owner, repo, checks, artifacts, checksLoading, artifactsLoading]);
+    }, [expanded, run.head_sha, run.id, token, owner, repo, checks, artifacts, checksLoading, artifactsLoading, fetchArtifactsData]);
 
     const handleDownloadArtifact = async () => {
         console.log(`[JulesSessionItem] handleDownloadArtifact called. ghRun: ${!!run}, artifacts: ${artifacts?.length}, token: ${!!token}`);
@@ -714,9 +739,12 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
                                 <ActivityIndicator size="small" color="#94a3b8" />
                              </View>
                         ) : (
-                            <View className="flex-1 bg-slate-800/50 py-2 rounded-lg items-center justify-center border border-slate-700">
+                            <TouchableOpacity
+                                onPress={fetchArtifactsData}
+                                className="flex-1 bg-slate-800/50 py-2 rounded-lg items-center justify-center border border-slate-700"
+                            >
                                 <Text className="text-slate-500 text-[10px] italic">No Artifacts</Text>
-                            </View>
+                            </TouchableOpacity>
                         )}
                     </View>
 
@@ -746,6 +774,7 @@ export default function JulesScreen() {
     const [julesSessions, setJulesSessions] = useState<JulesSession[]>([]);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [showRepoSelector, setShowRepoSelector] = useState(false);
 
@@ -834,6 +863,7 @@ export default function JulesScreen() {
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
+        setRefreshTrigger(t => t + 1);
         loadData().finally(() => setRefreshing(false));
     }, [loadData]);
 
@@ -950,6 +980,7 @@ export default function JulesScreen() {
                             owner={julesOwner!}
                             repo={julesRepo!}
                             initialExpanded={index === 0}
+                            refreshTrigger={refreshTrigger}
                         />
                     ))
                 ) : (
@@ -992,6 +1023,7 @@ export default function JulesScreen() {
                             }}
                             onRefresh={onRefresh}
                             julesGoogleApiKey={julesGoogleApiKey || undefined}
+                            refreshTrigger={refreshTrigger}
                         />
                     ))
                     }</>
