@@ -9,6 +9,9 @@ import { useSettingsStore } from '../../store/settings';
 import { requestVaultAccess } from '../../utils/saf';
 import { fetchAvailableModels } from '../../services/models';
 import { useState, useEffect, useRef } from 'react';
+import { useAuthRequest, makeRedirectUri } from 'expo-auth-session';
+import { exchangeGithubToken, fetchGithubUser } from '../../services/jules';
+import { IntegrationsSettings } from '../settings/IntegrationsSettings';
 import { FolderInput } from '../ui/FolderInput';
 import { FileInput } from '../ui/FileInput';
 import { openInObsidian } from '../../utils/obsidian';
@@ -32,7 +35,7 @@ import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../../utils/debugUtils';
 import gitInfo from '../../git-info.json';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -54,6 +57,61 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const [linksRootStatus, setLinksRootStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [promptFileStatus, setPromptFileStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [isGeneratingSnapshot, setIsGeneratingSnapshot] = useState(false);
+
+    // GitHub Auth Request
+    const [githubRequest, githubResponse, githubPromptAsync] = useAuthRequest(
+        {
+            clientId: githubClientId || 'placeholder',
+            scopes: ['repo', 'read:user', 'workflow'],
+            redirectUri: makeRedirectUri({
+                scheme: 'com.aiinbox.mobile'
+            }),
+        },
+        {
+            authorizationEndpoint: 'https://github.com/login/oauth/authorize',
+            tokenEndpoint: 'https://github.com/login/oauth/access_token',
+            revocationEndpoint: 'https://github.com/settings/connections/applications/' + (githubClientId || ''),
+        }
+    );
+    const [lastGithubCode, setLastGithubCode] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (githubResponse?.type === 'success') {
+            const { code } = githubResponse.params;
+            if (code && githubClientId && githubClientSecret && code !== lastGithubCode) {
+                setLastGithubCode(code);
+                exchangeGithubToken(githubClientId, githubClientSecret, code, makeRedirectUri({ scheme: 'com.aiinbox.mobile' }), githubRequest?.codeVerifier || undefined)
+                    .then(async token => {
+                        setJulesApiKey(token);
+                        try {
+                            const user = await fetchGithubUser(token);
+                            if (user && user.login) {
+                                useSettingsStore.getState().setJulesOwner(user.login);
+                            }
+                        } catch (e) {
+                            console.error("Failed to fetch user details after login", e);
+                        }
+                        Alert.alert("Success", "Logged in with GitHub!");
+                    })
+                    .catch(err => {
+                        console.error("OAuth exchange error:", err);
+                        Alert.alert("Login Failed", err.message);
+                        setLastGithubCode(null);
+                    });
+            }
+        }
+    }, [githubResponse]);
+
+    const loginWithGithub = () => {
+        if (!githubClientIdInput || !githubClientSecretInput) {
+             Alert.alert("Configuration Missing", "Please enter GitHub Client ID and Secret.");
+             return;
+        }
+        // Force update inputs to store just in case
+        setGithubClientId(githubClientIdInput);
+        setGithubClientSecret(githubClientSecretInput);
+        githubPromptAsync();
+    };
 
     // Navigation state for settings mode
     const [activeSection, setActiveSection] = useState<SettingsSection>('root');
@@ -280,13 +338,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
 
     const renderGeneralSettings = () => (
         <Card>
-            <Input
-                label="Gemini API Key"
-                value={keyInput}
-                onChangeText={setKeyInput}
-                placeholder="AIza..."
-            />
-
             <View className="mb-4">
                 <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">AI Model</Text>
                 <TouchableOpacity
@@ -451,80 +502,58 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     );
 
 
-    const renderCloudSyncSettings = () => {
-        return <CloudSyncSettings />;
-    };
+    const renderIntegrationsSettings = () => {
+        const isGithubConfigDirty = (githubClientIdInput || '') !== (githubClientId || '') || (githubClientSecretInput || '') !== (githubClientSecret || '');
 
-    const renderJulesSettings = () => (
-        <Card>
-            <View className="mb-4">
-                <Text className="text-indigo-200 mb-2 font-semibold">GitHub Integration</Text>
-                <Text className="text-slate-400 text-sm mb-4">
-                    Configure access to your GitHub repository to view Jules sessions and artifacts.
-                </Text>
-                <Input
-                    label="GitHub Client ID"
-                    value={githubClientIdInput}
-                    onChangeText={setGithubClientIdInput}
-                    placeholder="Client ID for OAuth"
+        return (
+            <View>
+                <IntegrationsSettings
+                    apiKey={keyInput}
+                    onChangeApiKey={setKeyInput}
+                    githubClientId={githubClientIdInput}
+                    onChangeGithubClientId={setGithubClientIdInput}
+                    githubClientSecret={githubClientSecretInput}
+                    onChangeGithubClientSecret={setGithubClientSecretInput}
+                    julesGoogleApiKey={julesGoogleKeyInput}
+                    onChangeJulesGoogleApiKey={setJulesGoogleKeyInput}
+                    julesApiKey={julesKeyInput}
+                    onLoginGithub={loginWithGithub}
+                    githubRequest={githubRequest}
+                    isGithubConfigDirty={isGithubConfigDirty}
                 />
-                <Input
-                    label="GitHub Client Secret"
-                    value={githubClientSecretInput}
-                    onChangeText={setGithubClientSecretInput}
-                    placeholder="Client Secret for OAuth"
-                    secureTextEntry
-                />
-                <Input
-                    label="GitHub Personal Access Token (Optional)"
-                    value={julesKeyInput}
-                    onChangeText={setJulesKeyInput}
-                    placeholder="ghp_... (Leave empty if using OAuth)"
-                />
-
-                <Text className="text-indigo-200 mt-6 mb-2 font-semibold">Google Jules API</Text>
-                <Text className="text-slate-400 text-sm mb-4">
-                    Direct integration with the Google Jules REST API.
-                </Text>
-                <Input
-                    label="Google Jules API Key"
-                    value={julesGoogleKeyInput}
-                    onChangeText={setJulesGoogleKeyInput}
-                    placeholder="AQ..."
-                    secureTextEntry
-                />
-
-                <Text className="text-indigo-200 mt-6 mb-2 font-semibold">Notifications</Text>
-                <TouchableOpacity
-                    onPress={async () => {
-                        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-                        let finalStatus = existingStatus;
-                        if (existingStatus !== 'granted') {
-                            const { status } = await Notifications.requestPermissionsAsync();
-                            finalStatus = status;
-                        }
-                        if (finalStatus !== 'granted') {
-                            Alert.alert('Permission required', 'Please enable notifications in settings to receive Jules artifact updates.');
-                            return;
-                        }
-                        setJulesNotificationsEnabled(!julesNotificationsEnabled);
-                    }}
-                    className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
-                >
-                    <View className="flex-row items-center flex-1">
-                        <Ionicons name="notifications-outline" size={20} color="#818cf8" />
-                        <View className="ml-3 flex-1">
-                            <Text className="text-white font-medium">Artifact Notifications</Text>
-                            <Text className="text-slate-400 text-xs">Notify when build finishes</Text>
+                <Card>
+                    <Text className="text-indigo-200 mb-2 font-semibold px-1 pt-1">Notifications</Text>
+                    <TouchableOpacity
+                        onPress={async () => {
+                            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+                            let finalStatus = existingStatus;
+                            if (existingStatus !== 'granted') {
+                                const { status } = await Notifications.requestPermissionsAsync();
+                                finalStatus = status;
+                            }
+                            if (finalStatus !== 'granted') {
+                                Alert.alert('Permission required', 'Please enable notifications in settings to receive Jules artifact updates.');
+                                return;
+                            }
+                            setJulesNotificationsEnabled(!julesNotificationsEnabled);
+                        }}
+                        className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
+                    >
+                        <View className="flex-row items-center flex-1">
+                            <Ionicons name="notifications-outline" size={20} color="#818cf8" />
+                            <View className="ml-3 flex-1">
+                                <Text className="text-white font-medium">Artifact Notifications</Text>
+                                <Text className="text-slate-400 text-xs">Notify when build finishes</Text>
+                            </View>
                         </View>
-                    </View>
-                    <View className={`w-12 h-6 rounded-full px-1 justify-center ${julesNotificationsEnabled ? 'bg-indigo-600' : 'bg-slate-700'}`}>
-                        <View className={`w-4 h-4 rounded-full bg-white ${julesNotificationsEnabled ? 'self-end' : 'self-start'}`} />
-                    </View>
-                </TouchableOpacity>
+                        <View className={`w-12 h-6 rounded-full px-1 justify-center ${julesNotificationsEnabled ? 'bg-indigo-600' : 'bg-slate-700'}`}>
+                            <View className={`w-4 h-4 rounded-full bg-white ${julesNotificationsEnabled ? 'self-end' : 'self-start'}`} />
+                        </View>
+                    </TouchableOpacity>
+                </Card>
             </View>
-        </Card>
-    );
+        );
+    };
 
     const renderAdvancedSettings = () => (
         <Card>
@@ -620,10 +649,10 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "API Keys, Vault, Model"
             )}
             {renderMenuButton(
-                "Cloud Sync",
-                "cloud-upload-outline",
-                () => setActiveSection('cloud-sync'),
-                "Sync settings across devices"
+                "Integrations",
+                "grid-outline",
+                () => setActiveSection('integrations'),
+                "Gemini, Cloud Sync, GitHub & Jules"
             )}
             {renderMenuButton(
                 "Calendars",
@@ -680,12 +709,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "Daily Forecast Prompt"
             )}
             {renderMenuButton(
-                "Jules Integration",
-                "logo-github",
-                () => setActiveSection('jules'),
-                "Sessions & Artifacts"
-            )}
-            {renderMenuButton(
                 "Advanced",
                 "construct-outline",
                 () => setActiveSection('advanced'),
@@ -710,7 +733,11 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 <Text className="text-3xl font-bold text-white mb-2 text-center">Welcome</Text>
                 <Text className="text-indigo-200 text-center">Setup your AI Inbox</Text>
             </View>
+            <Text className="text-xl font-bold text-white px-4 mt-6 mb-2">General</Text>
             {renderGeneralSettings()}
+
+            <Text className="text-xl font-bold text-white px-4 mt-6 mb-2">Integrations</Text>
+            {renderIntegrationsSettings()}
 
             <View className="mt-8 mb-8 px-4">
                 <Button title="Save & Continue" onPress={handleSave} disabled={!keyInput || !vaultUri} />
@@ -830,10 +857,10 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                 <View className="px-0">{renderGeneralSettings()}</View>
                             </>
                         )}
-                        {activeSection === 'cloud-sync' && (
+                        {activeSection === 'integrations' && (
                             <>
-                                {renderHeader("Cloud Sync", () => setActiveSection('root'))}
-                                <View className="px-0">{renderCloudSyncSettings()}</View>
+                                {renderHeader("Integrations", () => setActiveSection('root'))}
+                                <View className="px-0">{renderIntegrationsSettings()}</View>
                             </>
                         )}
                         {activeSection === 'calendars' && (
@@ -895,12 +922,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("Weather", () => setActiveSection('root'))}
                                 <View className="px-0"><WeatherSettings /></View>
-                            </>
-                        )}
-                        {activeSection === 'jules' && (
-                            <>
-                                {renderHeader("Jules Integration", () => setActiveSection('root'))}
-                                <View className="px-0">{renderJulesSettings()}</View>
                             </>
                         )}
                         {activeSection === 'advanced' && (
