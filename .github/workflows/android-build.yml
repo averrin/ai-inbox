@@ -12,6 +12,7 @@ jobs:
   build:
     name: Build APK
     runs-on: ubuntu-latest
+    environment: Firebase
     defaults:
       run:
         working-directory: ./
@@ -83,6 +84,7 @@ jobs:
     if: cancelled() == false
     needs: build
     runs-on: ubuntu-latest
+    environment: Notify
     steps:
       - uses: up9cloud/action-notify@master
         env:
