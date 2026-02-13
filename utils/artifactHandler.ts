@@ -6,10 +6,12 @@ export async function downloadAndInstallArtifact(
     token: string,
     branch: string,
     setDownloading: (downloading: boolean) => void,
+    onProgress: (progress: number) => void,
     deps: ArtifactDeps
 ) {
     if (!artifact) return;
     setDownloading(true);
+    onProgress(0);
 
     try {
         console.log(`[Artifact] Starting download for ${artifact.name} from ${artifact.archive_download_url}`);
@@ -48,7 +50,11 @@ export async function downloadAndInstallArtifact(
         const downloadResumable = deps.FileSystem.createDownloadResumable(
             finalUrl,
             zipFileUri,
-            {}
+            {},
+            (progress) => {
+                const percent = progress.totalBytesWritten / progress.totalBytesExpectedToWrite;
+                onProgress(percent);
+            }
         );
 
         const result = await downloadResumable.downloadAsync();
@@ -56,6 +62,8 @@ export async function downloadAndInstallArtifact(
         if (!result || !result.uri) {
             throw new Error("Download failed");
         }
+
+        onProgress(1); // Ensure 100%
 
         // 2. Check if we should try to install it (Android + app-release)
         if (deps.Platform.OS === 'android' && artifact.name === 'app-release') {

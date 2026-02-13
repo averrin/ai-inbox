@@ -1,10 +1,10 @@
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, Alert, ActivityIndicator, StyleSheet, Modal, FlatList, TextInput } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, Alert, ActivityIndicator, StyleSheet, Modal, FlatList, TextInput, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Layout } from '../ui/Layout';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
-import { useEffect, useState, useCallback } from 'react';
-import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest, sendMessageToSession, exchangeGithubToken, fetchGithubRepos, fetchGithubUser, GithubRepo } from '../../services/jules';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest, exchangeGithubToken, fetchGithubRepos, fetchGithubUser, GithubRepo } from '../../services/jules';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import * as WebBrowser from 'expo-web-browser';
@@ -43,16 +43,45 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
     const [artifactsLoading, setArtifactsLoading] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
+    const [progress, setProgress] = useState<number | null>(null);
     const [isMerging, setIsMerging] = useState(false);
-    const [isResolving, setIsResolving] = useState(false);
     const [prInactive, setPrInactive] = useState(false);
     const [mergeable, setMergeable] = useState<boolean | null>(null);
+
+    const spinValue = useRef(new Animated.Value(0)).current;
 
     const metadata = session.githubMetadata;
     const owner = metadata?.owner || defaultOwner;
     const repo = metadata?.repo || defaultRepo;
     const prNumber = metadata?.pullRequestNumber;
     const branch = metadata?.branch;
+
+    useEffect(() => {
+        const isActive = session.state === 'IN_PROGRESS' || session.state === 'PLANNING' || session.state === 'QUEUED';
+        let animation: Animated.CompositeAnimation | null = null;
+        if (isActive) {
+            animation = Animated.loop(
+                Animated.timing(spinValue, {
+                    toValue: 1,
+                    duration: 2000,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                })
+            );
+            animation.start();
+        } else {
+            spinValue.setValue(0);
+        }
+
+        return () => {
+            if (animation) animation.stop();
+        };
+    }, [session.state]);
+
+    const spin = spinValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg']
+    });
 
     useEffect(() => {
         setGhRun(null);
@@ -119,13 +148,16 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
         console.log(`[JulesScreen] Best artifact: ${artifact?.name}`);
         if (!artifact) return;
 
+        setProgress(0);
         await downloadAndInstallArtifact(
             artifact,
             ghToken,
             branch || 'unknown',
             setIsDownloading,
+            (p) => setProgress(p),
             artifactDeps
         );
+        setProgress(null);
     };
 
     const handleMerge = async () => {
@@ -141,24 +173,6 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
             Alert.alert("Error", "Failed to merge Pull Request");
         } finally {
             setIsMerging(false);
-        }
-    };
-
-    const handleResolveConflict = async () => {
-        if (!julesGoogleApiKey) {
-            Alert.alert("Error", "Jules API key missing");
-            return;
-        }
-
-        try {
-            setIsResolving(true);
-            await sendMessageToSession(julesGoogleApiKey, session.name, "merge master, resolve conflicts and push");
-            Alert.alert("Request Sent", "Asked Jules to resolve conflicts.");
-        } catch (e) {
-            console.error(e);
-            Alert.alert("Error", "Failed to send resolution request");
-        } finally {
-            setIsResolving(false);
         }
     };
 
@@ -229,7 +243,11 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
         >
             <View className="flex-row items-center justify-between mb-1">
                 <View className="flex-row items-center flex-1">
-                    <Ionicons name={statusObj.icon as any} size={24} color={statusObj.color} />
+                     <TouchableOpacity onPress={() => Linking.openURL(ghRun?.html_url || webUrl)}>
+                        <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                            <Ionicons name={statusObj.icon as any} size={24} color={statusObj.color} />
+                        </Animated.View>
+                    </TouchableOpacity>
                     <View className="ml-3 flex-1">
                         <View className="flex-row items-center">
                             <Text className="text-white font-bold text-base flex-1" numberOfLines={1}>{session.title || session.id}</Text>
@@ -267,6 +285,16 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
                     <Text className="text-white text-xs font-semibold ml-2">Web</Text>
                 </TouchableOpacity>
 
+                {ghRun && (
+                    <TouchableOpacity
+                        onPress={() => Linking.openURL(ghRun.html_url)}
+                        className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
+                    >
+                        <Ionicons name="logo-github" size={14} color="white" />
+                        <Text className="text-white text-xs font-semibold ml-2">Run</Text>
+                    </TouchableOpacity>
+                )}
+
                 {prUrl && (
                     <TouchableOpacity
                         onPress={() => Linking.openURL(prUrl)}
@@ -279,17 +307,17 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
 
                 {session.state === 'COMPLETED' && ghRun?.conclusion === 'success' && prNumber && !prInactive && (
                     <TouchableOpacity
-                        onPress={mergeable === false ? handleResolveConflict : handleMerge}
-                        disabled={isMerging || isResolving}
-                        className={`flex-1 py-2 rounded-lg flex-row items-center justify-center ${mergeable === false ? 'bg-orange-600' : 'bg-green-600'}`}
+                        onPress={mergeable === false ? undefined : handleMerge}
+                        disabled={isMerging || mergeable === false}
+                        className={`flex-1 py-2 rounded-lg flex-row items-center justify-center ${mergeable === false ? 'bg-red-900/50 border border-red-500/50' : 'bg-green-600'}`}
                     >
-                        {isMerging || isResolving ? (
+                        {isMerging ? (
                             <ActivityIndicator size="small" color="white" />
                         ) : (
                             <>
-                                <Ionicons name={mergeable === false ? "hammer-outline" : "git-merge-outline"} size={14} color="white" />
-                                <Text className="text-white text-xs font-semibold ml-2">
-                                    {mergeable === false ? "Resolve" : "Merge"}
+                                <Ionicons name={mergeable === false ? "alert-circle-outline" : "git-merge-outline"} size={14} color={mergeable === false ? "#f87171" : "white"} />
+                                <Text className={`text-xs font-semibold ml-2 ${mergeable === false ? 'text-red-400' : 'text-white'}`}>
+                                    {mergeable === false ? "Conflict" : "Merge"}
                                 </Text>
                             </>
                         )}
@@ -300,10 +328,13 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
                     <TouchableOpacity
                         onPress={handleDownloadArtifact}
                         disabled={isDownloading}
-                        className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
+                        className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center overflow-hidden"
                     >
                         {isDownloading ? (
-                            <ActivityIndicator size="small" color="white" />
+                            <View className="flex-row items-center">
+                                <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
+                                <Text className="text-white text-xs font-semibold z-10">{Math.round((progress || 0) * 100)}%</Text>
+                            </View>
                         ) : (
                             <>
                                 <Ionicons name="download-outline" size={14} color="white" />
@@ -404,14 +435,83 @@ function RepoSelector({ visible, onClose, onSelect, token }: { visible: boolean,
     );
 }
 
+function CheckStatusItem({ check }: { check: CheckRun }) {
+    const spinValue = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        const isActive = check.status === 'in_progress' || check.status === 'queued';
+        let animation: Animated.CompositeAnimation | null = null;
+        if (isActive) {
+            animation = Animated.loop(
+                Animated.timing(spinValue, {
+                    toValue: 1,
+                    duration: 1000,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                })
+            );
+            animation.start();
+        } else {
+            spinValue.setValue(0);
+        }
+
+        return () => {
+            if (animation) animation.stop();
+        };
+    }, [check.status]);
+
+    const spin = spinValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg']
+    });
+
+    const getIcon = () => {
+        if (check.status === 'queued') return 'time-outline';
+        if (check.status === 'in_progress') return 'sync';
+        if (check.conclusion === 'success') return 'checkmark';
+        if (check.conclusion === 'failure') return 'close';
+        return 'ellipse';
+    };
+
+    const getColor = () => {
+         if (check.status === 'queued') return '#94a3b8';
+         if (check.status === 'in_progress') return '#60a5fa';
+         if (check.conclusion === 'success') return '#4ade80';
+         if (check.conclusion === 'failure') return '#f87171';
+         return '#94a3b8';
+    };
+
+    return (
+        <TouchableOpacity
+            onPress={() => Linking.openURL(check.html_url)}
+            className="flex-row items-center justify-between mb-1"
+        >
+            <View className="flex-row items-center flex-1">
+                <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                    <Ionicons
+                        name={getIcon() as any}
+                        size={14}
+                        color={getColor()}
+                    />
+                </Animated.View>
+                <Text className="text-slate-300 text-xs ml-2 flex-1" numberOfLines={1}>{check.name}</Text>
+            </View>
+            <Text className="text-slate-500 text-xs">{check.status}</Text>
+        </TouchableOpacity>
+    );
+}
+
 function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run: WorkflowRun, token: string, owner: string, repo: string, initialExpanded?: boolean }) {
     const [checks, setChecks] = useState<CheckRun[] | null>(null);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
     const [isDownloading, setIsDownloading] = useState(false);
+    const [progress, setProgress] = useState<number | null>(null);
     const [checksLoading, setChecksLoading] = useState(false);
     const [artifactsLoading, setArtifactsLoading] = useState(false);
     const [expanded, setExpanded] = useState(initialExpanded);
     const [prInactive, setPrInactive] = useState(false);
+
+    const spinValue = useRef(new Animated.Value(0)).current;
 
     // Some runs have pull_requests populated, others don't.
     const pr = run.pull_requests && run.pull_requests.length > 0 ? run.pull_requests[0] : null;
@@ -423,6 +523,33 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
                 .catch(err => console.error("Fetch PR detail error:", err));
         }
     }, [pr, token, owner, repo]);
+
+    useEffect(() => {
+        const isActive = run.status === 'in_progress' || run.status === 'queued';
+        let animation: Animated.CompositeAnimation | null = null;
+        if (isActive) {
+            animation = Animated.loop(
+                Animated.timing(spinValue, {
+                    toValue: 1,
+                    duration: 2000,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                })
+            );
+            animation.start();
+        } else {
+            spinValue.setValue(0);
+        }
+
+        return () => {
+            if (animation) animation.stop();
+        };
+    }, [run.status]);
+
+    const spin = spinValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg']
+    });
 
     useEffect(() => {
         if (expanded) {
@@ -454,13 +581,16 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
         console.log(`[JulesSessionItem] Best artifact: ${artifact?.name}`);
         if (!artifact) return;
 
+        setProgress(0);
         await downloadAndInstallArtifact(
             artifact,
             token,
             run.head_branch || 'unknown',
             setIsDownloading,
+            (p) => setProgress(p),
             artifactDeps
         );
+        setProgress(null);
     };
 
     const getStatusInfo = () => {
@@ -515,7 +645,11 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
         >
             <TouchableOpacity onPress={() => setExpanded(!expanded)} className="flex-row items-center justify-between mb-1">
                 <View className="flex-row items-center flex-1">
-                    <Ionicons name={statusInfo.icon as any} size={24} color={statusInfo.color} />
+                    <TouchableOpacity onPress={() => Linking.openURL(run.html_url)}>
+                        <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                            <Ionicons name={statusInfo.icon as any} size={24} color={statusInfo.color} />
+                        </Animated.View>
+                    </TouchableOpacity>
                     <View className="ml-3 flex-1">
                         <View className="flex-row items-center">
                             <Text className="text-white font-bold text-base flex-1" numberOfLines={1}>{run.name}</Text>
@@ -533,7 +667,15 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
                 <View className="mt-2 border-t border-slate-700 pt-2">
                     {/* Actions Row */}
                     <View className="flex-row gap-1 mb-3">
-                        {prUrl ? (
+                        <TouchableOpacity
+                            onPress={() => Linking.openURL(run.html_url)}
+                            className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
+                        >
+                            <Ionicons name="logo-github" size={16} color="white" />
+                            <Text className="text-white font-semibold ml-2">Open Run</Text>
+                        </TouchableOpacity>
+
+                        {prUrl && (
                             <TouchableOpacity
                                 onPress={() => Linking.openURL(prUrl)}
                                 className="flex-1 bg-indigo-600 py-2 rounded-lg flex-row items-center justify-center"
@@ -541,24 +683,19 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
                                 <Ionicons name="git-pull-request" size={16} color="white" />
                                 <Text className="text-white font-semibold ml-2">Open PR #{pr?.number}</Text>
                             </TouchableOpacity>
-                        ) : (
-                            <TouchableOpacity
-                                onPress={() => Linking.openURL(run.html_url)}
-                                className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
-                            >
-                                <Ionicons name="logo-github" size={16} color="white" />
-                                <Text className="text-white font-semibold ml-2">Open Run</Text>
-                            </TouchableOpacity>
                         )}
 
                         {artifacts && artifacts.length > 0 ? (
                             <TouchableOpacity
                                 onPress={handleDownloadArtifact}
                                 disabled={isDownloading}
-                                className={`flex-1 ${isDownloading ? 'bg-slate-600' : 'bg-slate-700'} py-2 rounded-lg flex-row items-center justify-center`}
+                                className={`flex-1 ${isDownloading ? 'bg-slate-600' : 'bg-slate-700'} py-2 rounded-lg flex-row items-center justify-center overflow-hidden`}
                             >
                                 {isDownloading ? (
-                                    <ActivityIndicator size="small" color="white" />
+                                    <View className="flex-row items-center">
+                                        <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
+                                        <Text className="text-white text-xs font-semibold z-10">{Math.round((progress || 0) * 100)}%</Text>
+                                    </View>
                                 ) : (
                                     <>
                                         <Ionicons name="download-outline" size={16} color="white" />
@@ -584,17 +721,7 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
                     ) : checks && checks.length > 0 ? (
                         <View>
                             {checks.map(check => (
-                                <View key={check.id} className="flex-row items-center justify-between mb-1">
-                                    <View className="flex-row items-center flex-1">
-                                        <Ionicons
-                                            name={check.conclusion === 'success' ? 'checkmark' : check.conclusion === 'failure' ? 'close' : 'ellipse'}
-                                            size={14}
-                                            color={check.conclusion === 'success' ? '#4ade80' : check.conclusion === 'failure' ? '#f87171' : '#94a3b8'}
-                                        />
-                                        <Text className="text-slate-300 text-xs ml-2 flex-1" numberOfLines={1}>{check.name}</Text>
-                                    </View>
-                                    <Text className="text-slate-500 text-xs">{check.status}</Text>
-                                </View>
+                                <CheckStatusItem key={check.id} check={check} />
                             ))}
                         </View>
                     ) : (
