@@ -518,6 +518,10 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     onChangeJulesGoogleApiKey={setJulesGoogleKeyInput}
                     julesApiKey={julesKeyInput}
                     onLoginGithub={loginWithGithub}
+                    onLogoutGithub={() => {
+                        setJulesApiKey(null);
+                        setJulesKeyInput('');
+                    }}
                     githubRequest={githubRequest}
                     isGithubConfigDirty={isGithubConfigDirty}
                 />
