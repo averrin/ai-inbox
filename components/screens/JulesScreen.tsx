@@ -734,7 +734,7 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
 }
 
 export default function JulesScreen() {
-    const { julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesWorkflow, julesGoogleApiKey, julesNotificationsEnabled, githubClientId, githubClientSecret } = useSettingsStore();
+    const { julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesWorkflow, julesGoogleApiKey, githubClientId, githubClientSecret } = useSettingsStore();
     const [mode, setMode] = useState<'jules' | 'github'>('jules');
     const [runs, setRuns] = useState<WorkflowRun[]>([]);
     const [julesSessions, setJulesSessions] = useState<JulesSession[]>([]);
@@ -1000,12 +1000,6 @@ export default function JulesScreen() {
                 <View className="flex-row items-center justify-between mb-4">
                     <View className="flex-row items-center">
                         <Text className="text-2xl font-bold text-white mr-2">Jules Activities</Text>
-                        {julesNotificationsEnabled && (
-                            <View className="bg-green-600/20 px-2 py-0.5 rounded-full border border-green-500/30 flex-row items-center">
-                                <View className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5" />
-                                <Text className="text-green-400 text-[10px] font-bold uppercase tracking-wider">Live Monitoring</Text>
-                            </View>
-                        )}
                     </View>
                     <View className="flex-row items-center">
                         {mode === 'github' && julesApiKey && (
