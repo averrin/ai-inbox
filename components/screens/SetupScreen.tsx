@@ -28,13 +28,14 @@ import { TagPropertySettings } from '../settings/TagPropertySettings';
 import { ContactsSettings } from '../settings/ContactsSettings';
 import { ForecastSettings } from '../settings/ForecastSettings';
 import { CloudSyncSettings } from '../settings/CloudSyncSettings';
+import { LogsSettings } from '../settings/LogsSettings';
 import { scanForReminders } from '../../services/reminderService';
 import { useEventTypesStore } from '../../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../../utils/debugUtils';
 import gitInfo from '../../git-info.json';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -590,6 +591,13 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                         }}
                         variant="secondary"
                     />
+                    <View className="mt-4">
+                        <Button
+                            title="View Console Logs"
+                            onPress={() => setActiveSection('logs')}
+                            variant="secondary"
+                        />
+                    </View>
                 </View>
             </View>
         </Card>
@@ -823,6 +831,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     }}
                     pointerEvents={activeSection !== 'root' ? 'auto' : 'none'}
                 >
+                    {activeSection === 'logs' ? (
+                        <View className="flex-1">
+                            {renderHeader("Console Logs", () => setActiveSection('root'))}
+                            <LogsSettings />
+                        </View>
+                    ) : (
                     <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="always">
                         {activeSection === 'general' && (
                             <>
@@ -904,6 +918,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             </>
                         )}
                     </ScrollView>
+                    )}
                 </Animated.View>
 
             </View>
