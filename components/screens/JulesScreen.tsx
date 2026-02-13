@@ -328,19 +328,22 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
                     <TouchableOpacity
                         onPress={handleDownloadArtifact}
                         disabled={isDownloading}
-                        className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center overflow-hidden"
+                        className="flex-1 bg-slate-700 rounded-lg justify-center overflow-hidden relative"
+                        style={{ height: 32 }}
                     >
-                        {isDownloading ? (
-                            <View className="flex-row items-center">
-                                <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
-                                <Text className="text-white text-xs font-semibold z-10">{Math.round((progress || 0) * 100)}%</Text>
-                            </View>
-                        ) : (
-                            <>
-                                <Ionicons name="download-outline" size={14} color="white" />
-                                <Text className="text-white text-xs font-semibold ml-2">Artifact</Text>
-                            </>
+                        {isDownloading && (
+                             <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
                         )}
+                        <View className="flex-row items-center justify-center w-full h-full">
+                            {isDownloading ? (
+                                <Text className="text-white text-xs font-semibold">{Math.round((progress || 0) * 100)}%</Text>
+                            ) : (
+                                <>
+                                    <Ionicons name="download-outline" size={14} color="white" />
+                                    <Text className="text-white text-xs font-semibold ml-2">Artifact</Text>
+                                </>
+                            )}
+                        </View>
                     </TouchableOpacity>
                 ) : artifactsLoading ? (
                     <View className="flex-1 bg-slate-800/50 py-2 rounded-lg items-center justify-center">
@@ -689,19 +692,22 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
                             <TouchableOpacity
                                 onPress={handleDownloadArtifact}
                                 disabled={isDownloading}
-                                className={`flex-1 ${isDownloading ? 'bg-slate-600' : 'bg-slate-700'} py-2 rounded-lg flex-row items-center justify-center overflow-hidden`}
+                                className={`flex-1 ${isDownloading ? 'bg-slate-600' : 'bg-slate-700'} rounded-lg justify-center overflow-hidden relative`}
+                                style={{ height: 36 }}
                             >
-                                {isDownloading ? (
-                                    <View className="flex-row items-center">
-                                        <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
-                                        <Text className="text-white text-xs font-semibold z-10">{Math.round((progress || 0) * 100)}%</Text>
-                                    </View>
-                                ) : (
-                                    <>
-                                        <Ionicons name="download-outline" size={16} color="white" />
-                                        <Text className="text-white font-semibold ml-2">Artifact</Text>
-                                    </>
+                                {isDownloading && (
+                                    <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
                                 )}
+                                <View className="flex-row items-center justify-center w-full h-full">
+                                    {isDownloading ? (
+                                        <Text className="text-white text-xs font-semibold">{Math.round((progress || 0) * 100)}%</Text>
+                                    ) : (
+                                        <>
+                                            <Ionicons name="download-outline" size={16} color="white" />
+                                            <Text className="text-white font-semibold ml-2">Artifact</Text>
+                                        </>
+                                    )}
+                                </View>
                             </TouchableOpacity>
                         ) : artifactsLoading ? (
                              <View className="flex-1 bg-slate-800/50 py-2 rounded-lg items-center justify-center">
