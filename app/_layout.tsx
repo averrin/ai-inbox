@@ -1,4 +1,8 @@
 import "../global.css";
+import { initLogger } from "../utils/logger";
+// Initialize logger early
+initLogger();
+
 import { Slot } from "expo-router";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ShareIntentProvider } from "expo-share-intent";
