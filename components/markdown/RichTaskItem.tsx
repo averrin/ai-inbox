@@ -8,6 +8,26 @@ import { useSettingsStore } from '../../store/settings';
 import { REMINDER_PROPERTY_KEY } from '../../services/reminderService';
 import { TaskStatusIcon } from '../ui/TaskStatusIcon';
 
+const FILE_COLORS = [
+    '#ef4444', // red-500
+    '#f97316', // orange-500
+    '#eab308', // yellow-500
+    '#22c55e', // green-500
+    '#06b6d4', // cyan-500
+    '#3b82f6', // blue-500
+    '#8b5cf6', // violet-500
+    '#d946ef', // fuchsia-500
+];
+
+function getColorForFilename(filename: string): string {
+    let hash = 0;
+    for (let i = 0; i < filename.length; i++) {
+        hash = filename.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % FILE_COLORS.length;
+    return FILE_COLORS[index];
+}
+
 interface RichTaskItemProps {
     task: RichTask;
     onToggle: () => void;
@@ -181,62 +201,34 @@ export function RichTaskItem({
         </View>
     ) : null;
 
-    return (
-        <View className="flex-row items-start relative">
-            <View className={`flex-1 ${showGuide ? 'pr-10' : ''}`}>
-                <BaseListItem
-                    leftIcon={leftIcon}
-                    selectionComponent={selectionComponent}
-                    hideIconBackground={true}
-                    title={
-                        <Text
-                            className={`text-sm font-medium ${task.status === 'x' || task.status === '-' ? 'text-slate-500 line-through' : 'text-white'}`}
-                            numberOfLines={1}
-                        >
-                            {task.title}
-                        </Text>
-                    }
-                    subtitle={subtitle || (Object.keys(task.properties).length > 0 || task.tags.length > 0 ? metadataSubtitle : undefined)}
-                    onPress={selectionMode ? onToggle : onEdit}
-                    onLongPress={handleBodyLongPress}
-                    rightActions={rightActions}
-                    containerStyle={task.status === 'x' || task.status === '-' ? { opacity: 0.8 } : undefined}
-                />
-            </View>
-            {showGuide && (
-                <View
-                    style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 40, alignItems: 'center', justifyContent: 'center' }}
-                    pointerEvents="none"
-                >
-                    <View
-                        className={`absolute w-0.5 bg-indigo-500/30 ${isFirstInFile ? 'top-6' : 'top-0'} ${isLastInFile ? 'bottom-6' : 'bottom-0'}`}
-                        style={{ left: 19 }}
-                    />
+    const fileColor = fileName ? getColorForFilename(fileName) : undefined;
 
-                    {isFirstInFile && fileName && (
+    return (
+        <BaseListItem
+            leftIcon={leftIcon}
+            selectionComponent={selectionComponent}
+            hideIconBackground={true}
+            title={
+                <View className="flex-row items-center">
+                    <Text
+                        className={`text-sm font-medium ${task.status === 'x' || task.status === '-' ? 'text-slate-500 line-through' : 'text-white'} flex-shrink`}
+                        numberOfLines={1}
+                    >
+                        {task.title}
+                    </Text>
+                    {fileName && fileColor && (
                         <View
-                            style={{
-                                position: 'absolute',
-                                top: '50%',
-                                left: -40,
-                                width: 120,
-                                height: 20,
-                                transform: [{ translateY: -10 }, { rotate: '90deg' }],
-                                zIndex: 10,
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <Text
-                                className="text-slate-500 text-[8px] font-bold uppercase tracking-[2px] text-center"
-                                numberOfLines={1}
-                            >
-                                {fileName}
-                            </Text>
-                        </View>
+                            className="ml-2 w-2 h-2 rounded-full"
+                            style={{ backgroundColor: fileColor }}
+                        />
                     )}
                 </View>
-            )}
-        </View>
+            }
+            subtitle={subtitle || (Object.keys(task.properties).length > 0 || task.tags.length > 0 ? metadataSubtitle : undefined)}
+            onPress={selectionMode ? onToggle : onEdit}
+            onLongPress={handleBodyLongPress}
+            rightActions={rightActions}
+            containerStyle={task.status === 'x' || task.status === '-' ? { opacity: 0.8 } : undefined}
+        />
     );
 }
