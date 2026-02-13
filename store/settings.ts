@@ -97,8 +97,6 @@ interface SettingsState {
     setJulesWorkflow: (workflow: string | null) => void;
     julesGoogleApiKey: string | null;
     setJulesGoogleApiKey: (key: string | null) => void;
-    julesNotificationsEnabled: boolean;
-    setJulesNotificationsEnabled: (enabled: boolean) => void;
     githubClientId: string | null;
     setGithubClientId: (id: string | null) => void;
     githubClientSecret: string | null;
@@ -242,8 +240,6 @@ export const useSettingsStore = create<SettingsState>()(
             setJulesWorkflow: (workflow) => set({ julesWorkflow: workflow }),
             julesGoogleApiKey: null,
             setJulesGoogleApiKey: (key) => set({ julesGoogleApiKey: key }),
-            julesNotificationsEnabled: true,
-            setJulesNotificationsEnabled: (enabled) => set({ julesNotificationsEnabled: enabled }),
             githubClientId: null,
             setGithubClientId: (id) => set({ githubClientId: id }),
             githubClientSecret: null,

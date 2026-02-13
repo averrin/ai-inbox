@@ -1,6 +1,5 @@
 import { View, Text, Alert, TouchableOpacity, Modal, ScrollView, BackHandler, Animated, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Notifications from 'expo-notifications';
 import { Layout } from '../ui/Layout';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -40,7 +39,7 @@ type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
-    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, julesNotificationsEnabled, setJulesNotificationsEnabled, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret, linksRoot, setLinksRoot } = useSettingsStore();
+    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret, linksRoot, setLinksRoot } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
     const [modelInput, setModelInput] = useState(selectedModel);
@@ -525,36 +524,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     githubRequest={githubRequest}
                     isGithubConfigDirty={isGithubConfigDirty}
                 />
-                <Card>
-                    <Text className="text-indigo-200 mb-2 font-semibold px-1 pt-1">Notifications</Text>
-                    <TouchableOpacity
-                        onPress={async () => {
-                            const { status: existingStatus } = await Notifications.getPermissionsAsync();
-                            let finalStatus = existingStatus;
-                            if (existingStatus !== 'granted') {
-                                const { status } = await Notifications.requestPermissionsAsync();
-                                finalStatus = status;
-                            }
-                            if (finalStatus !== 'granted') {
-                                Alert.alert('Permission required', 'Please enable notifications in settings to receive Jules artifact updates.');
-                                return;
-                            }
-                            setJulesNotificationsEnabled(!julesNotificationsEnabled);
-                        }}
-                        className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
-                    >
-                        <View className="flex-row items-center flex-1">
-                            <Ionicons name="notifications-outline" size={20} color="#818cf8" />
-                            <View className="ml-3 flex-1">
-                                <Text className="text-white font-medium">Artifact Notifications</Text>
-                                <Text className="text-slate-400 text-xs">Notify when build finishes</Text>
-                            </View>
-                        </View>
-                        <View className={`w-12 h-6 rounded-full px-1 justify-center ${julesNotificationsEnabled ? 'bg-indigo-600' : 'bg-slate-700'}`}>
-                            <View className={`w-4 h-4 rounded-full bg-white ${julesNotificationsEnabled ? 'self-end' : 'self-start'}`} />
-                        </View>
-                    </TouchableOpacity>
-                </Card>
             </View>
         );
     };
