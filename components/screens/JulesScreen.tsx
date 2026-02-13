@@ -4,7 +4,7 @@ import { Layout } from '../ui/Layout';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest, sendMessageToSession, exchangeGithubToken, fetchGithubRepos, fetchGithubUser, GithubRepo } from '../../services/jules';
+import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest, exchangeGithubToken, fetchGithubRepos, fetchGithubUser, GithubRepo } from '../../services/jules';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import * as WebBrowser from 'expo-web-browser';
@@ -58,18 +58,24 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
 
     useEffect(() => {
         const isActive = session.state === 'IN_PROGRESS' || session.state === 'PLANNING' || session.state === 'QUEUED';
+        let animation: Animated.CompositeAnimation | null = null;
         if (isActive) {
-            Animated.loop(
+            animation = Animated.loop(
                 Animated.timing(spinValue, {
                     toValue: 1,
                     duration: 2000,
                     easing: Easing.linear,
                     useNativeDriver: true,
                 })
-            ).start();
+            );
+            animation.start();
         } else {
             spinValue.setValue(0);
         }
+
+        return () => {
+            if (animation) animation.stop();
+        };
     }, [session.state]);
 
     const spin = spinValue.interpolate({
@@ -429,6 +435,72 @@ function RepoSelector({ visible, onClose, onSelect, token }: { visible: boolean,
     );
 }
 
+function CheckStatusItem({ check }: { check: CheckRun }) {
+    const spinValue = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        const isActive = check.status === 'in_progress' || check.status === 'queued';
+        let animation: Animated.CompositeAnimation | null = null;
+        if (isActive) {
+            animation = Animated.loop(
+                Animated.timing(spinValue, {
+                    toValue: 1,
+                    duration: 1000,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                })
+            );
+            animation.start();
+        } else {
+            spinValue.setValue(0);
+        }
+
+        return () => {
+            if (animation) animation.stop();
+        };
+    }, [check.status]);
+
+    const spin = spinValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg']
+    });
+
+    const getIcon = () => {
+        if (check.status === 'queued') return 'time-outline';
+        if (check.status === 'in_progress') return 'sync';
+        if (check.conclusion === 'success') return 'checkmark';
+        if (check.conclusion === 'failure') return 'close';
+        return 'ellipse';
+    };
+
+    const getColor = () => {
+         if (check.status === 'queued') return '#94a3b8';
+         if (check.status === 'in_progress') return '#60a5fa';
+         if (check.conclusion === 'success') return '#4ade80';
+         if (check.conclusion === 'failure') return '#f87171';
+         return '#94a3b8';
+    };
+
+    return (
+        <TouchableOpacity
+            onPress={() => Linking.openURL(check.html_url)}
+            className="flex-row items-center justify-between mb-1"
+        >
+            <View className="flex-row items-center flex-1">
+                <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                    <Ionicons
+                        name={getIcon() as any}
+                        size={14}
+                        color={getColor()}
+                    />
+                </Animated.View>
+                <Text className="text-slate-300 text-xs ml-2 flex-1" numberOfLines={1}>{check.name}</Text>
+            </View>
+            <Text className="text-slate-500 text-xs">{check.status}</Text>
+        </TouchableOpacity>
+    );
+}
+
 function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run: WorkflowRun, token: string, owner: string, repo: string, initialExpanded?: boolean }) {
     const [checks, setChecks] = useState<CheckRun[] | null>(null);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
@@ -454,18 +526,24 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
 
     useEffect(() => {
         const isActive = run.status === 'in_progress' || run.status === 'queued';
+        let animation: Animated.CompositeAnimation | null = null;
         if (isActive) {
-            Animated.loop(
+            animation = Animated.loop(
                 Animated.timing(spinValue, {
                     toValue: 1,
                     duration: 2000,
                     easing: Easing.linear,
                     useNativeDriver: true,
                 })
-            ).start();
+            );
+            animation.start();
         } else {
             spinValue.setValue(0);
         }
+
+        return () => {
+            if (animation) animation.stop();
+        };
     }, [run.status]);
 
     const spin = spinValue.interpolate({
@@ -643,17 +721,7 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false }: { run
                     ) : checks && checks.length > 0 ? (
                         <View>
                             {checks.map(check => (
-                                <View key={check.id} className="flex-row items-center justify-between mb-1">
-                                    <View className="flex-row items-center flex-1">
-                                        <Ionicons
-                                            name={check.conclusion === 'success' ? 'checkmark' : check.conclusion === 'failure' ? 'close' : 'ellipse'}
-                                            size={14}
-                                            color={check.conclusion === 'success' ? '#4ade80' : check.conclusion === 'failure' ? '#f87171' : '#94a3b8'}
-                                        />
-                                        <Text className="text-slate-300 text-xs ml-2 flex-1" numberOfLines={1}>{check.name}</Text>
-                                    </View>
-                                    <Text className="text-slate-500 text-xs">{check.status}</Text>
-                                </View>
+                                <CheckStatusItem key={check.id} check={check} />
                             ))}
                         </View>
                     ) : (
