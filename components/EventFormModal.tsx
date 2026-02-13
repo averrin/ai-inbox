@@ -434,19 +434,32 @@ export function EventFormModal({
                                 <View className="mb-6">
                                     <Text className="text-indigo-200 mb-2 font-medium">Time</Text>
 
-                                    {/* Date Picker */}
-                                    <TouchableOpacity
-                                        onPress={() => setShowDatePicker(true)}
-                                        className="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-3 flex-row justify-between items-center"
-                                    >
-                                        <View className="flex-row items-center">
-                                            <Ionicons name="calendar-outline" size={20} color="#818cf8" />
-                                            <Text className="text-white font-bold text-lg ml-3">
-                                                {startDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                                            </Text>
-                                        </View>
-                                        <Ionicons name="chevron-forward" size={16} color="#64748b" />
-                                    </TouchableOpacity>
+                                    {/* Date Picker Row */}
+                                    <View className="flex-row gap-3 mb-3">
+                                        <TouchableOpacity
+                                            onPress={() => setShowDatePicker(true)}
+                                            className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row justify-between items-center"
+                                        >
+                                            <View className="flex-row items-center">
+                                                <Ionicons name="calendar-outline" size={20} color="#818cf8" />
+                                                <Text className="text-white font-bold text-lg ml-3">
+                                                    {startDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                                </Text>
+                                            </View>
+                                            <Ionicons name="chevron-forward" size={16} color="#64748b" />
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                const nextDay = new Date(startDate);
+                                                nextDay.setDate(nextDay.getDate() + 1);
+                                                setStartDate(nextDay);
+                                            }}
+                                            className="bg-slate-800 p-4 rounded-xl border border-slate-700 items-center justify-center"
+                                        >
+                                            <Text className="text-indigo-400 font-bold text-lg">+1d</Text>
+                                        </TouchableOpacity>
+                                    </View>
 
                                     {/* Time Row */}
                                     {(!allDay || (!isEvent && !isZone)) && (

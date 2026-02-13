@@ -1,5 +1,5 @@
 diff --git a/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarModule.kt b/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarModule.kt
-index 5579727..1a55f9b 100644
+index 5579727..4cb4b29 100644
 --- a/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarModule.kt
 +++ b/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarModule.kt
 @@ -134,11 +134,12 @@ class CalendarModule : Module() {
@@ -8,7 +8,7 @@ index 5579727..1a55f9b 100644
  
 -    AsyncFunction("saveEventAsync") { details: ReadableArguments, _: ReadableArguments?, promise: Promise ->
 +    AsyncFunction("saveEventAsync") { details: ReadableArguments, options: ReadableArguments?, promise: Promise ->
-+      Log.e(TAG, "saveEventAsync called with options: $options")
++      Log.e(TAG, "saveEventAsync (patched) called with options: $options")
        withPermissions(promise) {
          launchAsyncWithModuleScope(promise) {
            try {
