@@ -1,23 +1,16 @@
-import { View, Text, TouchableOpacity } from 'react-native';
-import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
-import { Ionicons } from '@expo/vector-icons';
+import { ServiceAuth } from './ServiceAuth';
 import { SyncService } from '../../services/syncService';
 import { firebaseAuth } from '../../services/firebase';
 import { useState, useEffect } from 'react';
 import * as Google from 'expo-auth-session/providers/google';
-import { useSettingsStore } from '../../store/settings';
-import * as WebBrowser from 'expo-web-browser';
 import { GoogleAuthService } from '../../services/googleAuth';
 import { onAuthStateChanged } from 'firebase/auth';
-
-import { makeRedirectUri } from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export const CloudSyncSettings = () => {
     const [user, setUser] = useState(firebaseAuth.currentUser);
-
     const [request, response, promptAsync] = Google.useAuthRequest(GoogleAuthService.getConfig());
 
     useEffect(() => {
@@ -110,48 +103,31 @@ export const CloudSyncSettings = () => {
         SyncService.getInstance().signOut();
     };
 
+    const handleConnect = () => {
+        console.log('[CloudSyncSettings] Button pressed, calling promptAsync...');
+        promptAsync()
+            .then(res => {
+                console.log('[CloudSyncSettings] promptAsync finished with type:', res?.type);
+                handleResponse(res);
+            })
+            .catch(err => {
+                console.error('[CloudSyncSettings] promptAsync error:', err);
+            });
+    };
+
     return (
-        <View className="mb-4 p-4 bg-slate-800/80 rounded-2xl border border-white/10 m-2">
-            <View className="mb-4">
-                <Text className="text-indigo-200 mb-2 font-semibold">Cloud Sync (Experimental)</Text>
-                <Text className="text-slate-400 text-sm mb-4">
-                    Sync your settings and API keys across devices using your Google Account.
-                </Text>
-                
-                {user ? (
-                    <View>
-                        <View className="flex-row items-center mb-4 bg-slate-900/50 p-3 rounded-xl border border-slate-700">
-                             <Ionicons name="cloud-done" size={24} color="#4ade80" />
-                             <View className="ml-3">
-                                 <Text className="text-white font-medium">Synced as {user.email}</Text>
-                             </View>
-                        </View>
-                        <Button
-                            title="Sign Out"
-                            onPress={handleSignOut}
-                            variant="secondary"
-                        />
-                    </View>
-                ) : (
-                    <View>
-                        <Button
-                            title="Connect Google Account"
-                            onPress={() => {
-                                console.log('[CloudSyncSettings] Button pressed, calling promptAsync...');
-                                promptAsync()
-                                    .then(res => {
-                                        console.log('[CloudSyncSettings] promptAsync finished with type:', res?.type);
-                                        handleResponse(res);
-                                    })
-                                    .catch(err => {
-                                        console.error('[CloudSyncSettings] promptAsync error:', err);
-                                    });
-                            }}
-                            disabled={!request}
-                        />
-                    </View>
-                )}
-            </View>
-        </View>
+        <ServiceAuth
+            title="Cloud Sync (Experimental)"
+            description="Sync your settings and API keys across devices using your Google Account."
+            icon="cloud-circle"
+            isConnected={!!user}
+            connectedText={`Synced as ${user?.email}`}
+            onConnect={handleConnect}
+            onDisconnect={handleSignOut}
+            connectButtonText="Connect Google Account"
+            disconnectButtonText="Sign Out"
+            isDisabled={!request}
+            iconColor="#60a5fa"
+        />
     );
 }
