@@ -1,0 +1,9 @@
+{
+  "name": "apk-installer",
+  "version": "1.0.0",
+  "description": "Local module for installing APKs",
+  "main": "index.js",
+  "peerDependencies": {
+    "react-native": "*"
+  }
+}

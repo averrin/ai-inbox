@@ -1,0 +1,25 @@
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath "com.android.tools.build:gradle:8.0.0"
+  }
+}
+
+apply plugin: "com.android.library"
+
+android {
+  namespace "com.aiinbox.mobile.apkinstaller"
+  compileSdkVersion 34
+
+  defaultConfig {
+    minSdkVersion 23
+    targetSdkVersion 34
+  }
+}
+
+dependencies {
+  implementation "com.facebook.react:react-native:+"
+}
