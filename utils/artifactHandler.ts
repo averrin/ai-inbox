@@ -16,8 +16,9 @@ export async function downloadAndInstallArtifact(
     try {
         console.log(`[Artifact] Starting download for ${artifact.name} from ${artifact.archive_download_url}`);
         const sanitizedBranch = (branch || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
-        const zipFilename = `${artifact.name}-${sanitizedBranch}.zip`;
-        const zipFileUri = deps.FileSystem.documentDirectory + zipFilename;
+        const sanitizedArtifactName = artifact.name.replace(/[^a-zA-Z0-9-_]/g, '_');
+        const zipFilename = `${sanitizedArtifactName}-${sanitizedBranch}.zip`;
+        const zipFileUri = deps.FileSystem.cacheDirectory + zipFilename;
 
         // 1. Download the zip
         // GitHub artifact API returns a 302 redirect to Azure Blob Storage.
@@ -61,6 +62,15 @@ export async function downloadAndInstallArtifact(
         console.log(`[Artifact] Download finished: ${result?.uri}`);
         if (!result || !result.uri) {
             throw new Error("Download failed");
+        }
+
+        try {
+            const fileInfo = await deps.FileSystem.getInfoAsync(result.uri);
+            if (fileInfo.exists) {
+                console.log(`[Artifact] Downloaded file size: ${fileInfo.size} bytes`);
+            }
+        } catch (e) {
+            console.warn("[Artifact] Failed to get file info", e);
         }
 
         onProgress(1); // Ensure 100%
