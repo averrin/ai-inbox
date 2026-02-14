@@ -11,14 +11,14 @@ import * as WebBrowser from 'expo-web-browser';
 dayjs.extend(relativeTime);
 
 export default function NewsScreen() {
-    const { newsTopics } = useSettingsStore();
+    const { newsTopics, newsApiKey } = useSettingsStore();
     const [articles, setArticles] = useState<Article[]>([]);
     const [loading, setLoading] = useState(false);
 
     const loadNews = async () => {
         setLoading(true);
         try {
-            const data = await fetchNews(newsTopics);
+            const data = await fetchNews(newsTopics, newsApiKey);
             setArticles(data);
         } catch (e) {
             console.error(e);
@@ -29,7 +29,7 @@ export default function NewsScreen() {
 
     useEffect(() => {
         loadNews();
-    }, [newsTopics]); // Reload when topics change
+    }, [newsTopics, newsApiKey]); // Reload when topics or key change
 
     const handleOpenArticle = (url: string) => {
         if (url) {
@@ -69,7 +69,13 @@ export default function NewsScreen() {
             <View className="flex-1 px-4 pt-4">
                 <Text className="text-2xl font-bold text-white mb-4">News Feed</Text>
 
-                {newsTopics.length === 0 ? (
+                {(!newsApiKey && !process.env.NEWSAPI_KEY) ? (
+                    <View className="flex-1 justify-center items-center">
+                        <Ionicons name="key-outline" size={64} color="#475569" />
+                        <Text className="text-slate-400 mt-4 text-center">News API Key Missing.</Text>
+                        <Text className="text-slate-500 text-sm mt-1 text-center">Please configure a News API Key in Settings.</Text>
+                    </View>
+                ) : newsTopics.length === 0 ? (
                     <View className="flex-1 justify-center items-center">
                         <Ionicons name="newspaper-outline" size={64} color="#475569" />
                         <Text className="text-slate-400 mt-4 text-center">No topics configured.</Text>

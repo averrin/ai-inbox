@@ -17,6 +17,7 @@ const SENSITIVE_KEYS = [
     'personalAccountId',
     'githubClientId',
     'githubClientSecret',
+    'newsApiKey',
 ];
 
 export interface Contact {
@@ -117,6 +118,8 @@ interface SettingsState {
     setForecastPrompt: (prompt: string | null) => void;
     newsTopics: string[];
     setNewsTopics: (topics: string[]) => void;
+    newsApiKey: string | null;
+    setNewsApiKey: (key: string | null) => void;
 }
 
 export interface MetadataConfig {
@@ -273,6 +276,8 @@ export const useSettingsStore = create<SettingsState>()(
             setForecastPrompt: (prompt) => set({ forecastPrompt: prompt }),
             newsTopics: ['Technology', 'AI', 'Science'],
             setNewsTopics: (topics) => set({ newsTopics: topics }),
+            newsApiKey: null,
+            setNewsApiKey: (key) => set({ newsApiKey: key }),
         }),
         {
             name: 'ai-inbox-settings',

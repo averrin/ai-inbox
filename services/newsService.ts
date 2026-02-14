@@ -12,12 +12,12 @@ export interface Article {
     content: string | null;
 }
 
-export async function fetchNews(topics: string[]): Promise<Article[]> {
+export async function fetchNews(topics: string[], explicitApiKey?: string | null): Promise<Article[]> {
     if (!topics || topics.length === 0) {
         return [];
     }
 
-    const apiKey = process.env.NEWSAPI_KEY;
+    const apiKey = explicitApiKey || process.env.NEWSAPI_KEY;
     if (!apiKey) {
         console.warn('NEWSAPI_KEY is missing in environment variables.');
         // For development/testing if env is missing, you might want to return empty or mock

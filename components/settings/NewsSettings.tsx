@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Card } from '../ui/Card';
 
 export function NewsSettings() {
-    const { newsTopics, setNewsTopics } = useSettingsStore();
+    const { newsTopics, setNewsTopics, newsApiKey, setNewsApiKey } = useSettingsStore();
     const [newTopic, setNewTopic] = useState('');
 
     const handleAddTopic = () => {
@@ -23,6 +23,21 @@ export function NewsSettings() {
 
     return (
         <Card>
+            <View className="mb-6">
+                <Text className="text-indigo-200 mb-2 font-semibold">News API Key</Text>
+                <TextInput
+                    className="bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3 mb-2"
+                    placeholder="Enter NewsAPI Key"
+                    placeholderTextColor="#64748b"
+                    secureTextEntry
+                    value={newsApiKey || ''}
+                    onChangeText={setNewsApiKey}
+                />
+                <Text className="text-slate-500 text-xs">
+                    Get your key from <Text className="text-indigo-400 underline">newsapi.org</Text>
+                </Text>
+            </View>
+
             <View className="mb-4">
                 <Text className="text-indigo-200 mb-2 font-semibold">Configured Topics</Text>
                 <Text className="text-slate-400 text-sm mb-4">
