@@ -10,9 +10,10 @@ export interface Article {
     urlToImage: string | null;
     publishedAt: string;
     content: string | null;
+    matchedTopic?: string;
 }
 
-export async function fetchNews(topics: string[], explicitApiKey?: string | null): Promise<Article[]> {
+export async function fetchNews(topics: string[], explicitApiKey?: string | null, page: number = 1): Promise<Article[]> {
     if (!topics || topics.length === 0) {
         return [];
     }
@@ -28,7 +29,7 @@ export async function fetchNews(topics: string[], explicitApiKey?: string | null
     const query = topics.map(t => `"${t}"`).join(' OR ');
 
     // Using 'everything' endpoint to search for topics
-    const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sortBy=publishedAt&language=en&pageSize=20&apiKey=${apiKey}`;
+    const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sortBy=publishedAt&language=en&pageSize=20&page=${page}&apiKey=${apiKey}`;
 
     try {
         const response = await fetch(url);
