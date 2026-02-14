@@ -29,13 +29,14 @@ import { ContactsSettings } from '../settings/ContactsSettings';
 import { ForecastSettings } from '../settings/ForecastSettings';
 import { CloudSyncSettings } from '../settings/CloudSyncSettings';
 import { LogsSettings } from '../settings/LogsSettings';
+import { NewsSettings } from '../settings/NewsSettings';
 import { scanForReminders } from '../../services/reminderService';
 import { useEventTypesStore } from '../../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../../utils/debugUtils';
 import gitInfo from '../../git-info.json';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -636,6 +637,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "Gemini, Cloud Sync, GitHub & Jules"
             )}
             {renderMenuButton(
+                "News Topics",
+                "newspaper-outline",
+                () => setActiveSection('news'),
+                "Configure your feed"
+            )}
+            {renderMenuButton(
                 "Calendars",
                 "calendar-outline",
                 () => setActiveSection('calendars'),
@@ -848,6 +855,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("Integrations", () => setActiveSection('root'))}
                                 <View className="px-0">{renderIntegrationsSettings()}</View>
+                            </>
+                        )}
+                        {activeSection === 'news' && (
+                            <>
+                                {renderHeader("News Topics", () => setActiveSection('root'))}
+                                <View className="px-0"><NewsSettings /></View>
                             </>
                         )}
                         {activeSection === 'calendars' && (

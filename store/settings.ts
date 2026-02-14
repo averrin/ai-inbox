@@ -115,6 +115,8 @@ interface SettingsState {
     setDaySummaryPrompt: (prompt: string | null) => void;
     forecastPrompt: string | null;
     setForecastPrompt: (prompt: string | null) => void;
+    newsTopics: string[];
+    setNewsTopics: (topics: string[]) => void;
 }
 
 export interface MetadataConfig {
@@ -269,6 +271,8 @@ export const useSettingsStore = create<SettingsState>()(
             setDaySummaryPrompt: (prompt) => set({ daySummaryPrompt: prompt }),
             forecastPrompt: null,
             setForecastPrompt: (prompt) => set({ forecastPrompt: prompt }),
+            newsTopics: ['Technology', 'AI', 'Science'],
+            setNewsTopics: (topics) => set({ newsTopics: topics }),
         }),
         {
             name: 'ai-inbox-settings',

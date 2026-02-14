@@ -6,6 +6,7 @@ import TasksScreen from '../screens/TasksScreen';
 import LinksScreen from '../screens/LinksScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SetupScreen from '../screens/SetupScreen';
+import NewsScreen from '../screens/NewsScreen';
 import JulesScreen from '../screens/JulesScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect } from 'react';
@@ -148,6 +149,16 @@ function InnerTabNavigator({
           options={{
             tabBarIcon: ({ color }) => (
               <Ionicons name="logo-github" size={24} color={color} />
+            ),
+          }}
+        />
+
+        <Tab.Screen
+          name="News"
+          component={NewsScreen}
+          options={{
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="newspaper-outline" size={24} color={color} />
             ),
           }}
         />
