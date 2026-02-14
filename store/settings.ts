@@ -29,6 +29,15 @@ export interface Contact {
     isWife?: boolean;
 }
 
+export interface NewsArticle {
+    title: string;
+    description: string | null;
+    url: string;
+    urlToImage: string | null;
+    publishedAt: string;
+    source: { name: string; id: string | null };
+}
+
 interface SettingsState {
     apiKey: string | null;
     vaultUri: string | null;
@@ -120,6 +129,10 @@ interface SettingsState {
     setNewsTopics: (topics: string[]) => void;
     newsApiKey: string | null;
     setNewsApiKey: (key: string | null) => void;
+    hiddenArticles: string[]; // List of URLs
+    readArticles: NewsArticle[]; // List of full articles saved for later
+    hideArticle: (url: string) => void;
+    markArticleAsRead: (article: NewsArticle) => void;
 }
 
 export interface MetadataConfig {
@@ -278,6 +291,14 @@ export const useSettingsStore = create<SettingsState>()(
             setNewsTopics: (topics) => set({ newsTopics: topics }),
             newsApiKey: null,
             setNewsApiKey: (key) => set({ newsApiKey: key }),
+            hiddenArticles: [],
+            readArticles: [],
+            hideArticle: (url) => set((state) => ({
+                hiddenArticles: state.hiddenArticles.includes(url) ? state.hiddenArticles : [...state.hiddenArticles, url]
+            })),
+            markArticleAsRead: (article) => set((state) => ({
+                readArticles: state.readArticles.some(a => a.url === article.url) ? state.readArticles : [...state.readArticles, article]
+            })),
         }),
         {
             name: 'ai-inbox-settings',
