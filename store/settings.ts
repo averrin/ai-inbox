@@ -129,6 +129,8 @@ interface SettingsState {
     setForecastPrompt: (prompt: string | null) => void;
     newsTopics: string[];
     setNewsTopics: (topics: string[]) => void;
+    rssFeeds: string[];
+    setRssFeeds: (feeds: string[]) => void;
     newsApiKey: string | null;
     setNewsApiKey: (key: string | null) => void;
     hiddenArticles: string[]; // List of URLs
@@ -295,6 +297,8 @@ export const useSettingsStore = create<SettingsState>()(
             setForecastPrompt: (prompt) => set({ forecastPrompt: prompt }),
             newsTopics: ['Technology', 'AI', 'Science'],
             setNewsTopics: (topics) => set({ newsTopics: topics }),
+            rssFeeds: [],
+            setRssFeeds: (feeds) => set({ rssFeeds: feeds }),
             newsApiKey: null,
             setNewsApiKey: (key) => set({ newsApiKey: key }),
             hiddenArticles: [],
