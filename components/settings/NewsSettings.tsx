@@ -7,10 +7,12 @@ import { Card } from '../ui/Card';
 export function NewsSettings() {
     const {
         newsTopics, setNewsTopics,
+        rssFeeds, setRssFeeds,
         newsApiKey, setNewsApiKey,
         ignoredHostnames, setIgnoredHostnames
     } = useSettingsStore();
     const [newTopic, setNewTopic] = useState('');
+    const [newRssFeed, setNewRssFeed] = useState('');
     const [newHostname, setNewHostname] = useState('');
 
     const handleAddTopic = () => {
@@ -24,6 +26,19 @@ export function NewsSettings() {
 
     const handleDeleteTopic = (topic: string) => {
         setNewsTopics(newsTopics.filter(t => t !== topic));
+    };
+
+    const handleAddRssFeed = () => {
+        if (newRssFeed.trim()) {
+            if (!rssFeeds.includes(newRssFeed.trim())) {
+                setRssFeeds([...rssFeeds, newRssFeed.trim()]);
+                setNewRssFeed('');
+            }
+        }
+    };
+
+    const handleDeleteRssFeed = (feed: string) => {
+        setRssFeeds(rssFeeds.filter(f => f !== feed));
     };
 
     const handleAddHostname = () => {
@@ -89,6 +104,48 @@ export function NewsSettings() {
                         onPress={handleAddTopic}
                         className="bg-indigo-600 p-3 rounded-xl"
                         disabled={!newTopic.trim()}
+                    >
+                        <Ionicons name="add" size={24} color="white" />
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            <View className="mb-4">
+                <Text className="text-indigo-200 mb-2 font-semibold">RSS Feeds</Text>
+                <Text className="text-slate-400 text-sm mb-4">
+                    Add RSS feed URLs to include in your news feed.
+                </Text>
+
+                <View className="flex-col gap-2 mb-4">
+                    {rssFeeds.map((feed) => (
+                        <View key={feed} className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 flex-row items-center justify-between">
+                            <Text className="text-white flex-1 mr-2" numberOfLines={1}>{feed}</Text>
+                            <TouchableOpacity onPress={() => handleDeleteRssFeed(feed)}>
+                                <Ionicons name="close-circle" size={20} color="#ef4444" />
+                            </TouchableOpacity>
+                        </View>
+                    ))}
+                    {rssFeeds.length === 0 && (
+                        <Text className="text-slate-500 italic">No RSS feeds added.</Text>
+                    )}
+                </View>
+
+                <View className="flex-row items-center gap-2">
+                    <TextInput
+                        className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3"
+                        placeholder="Add RSS URL"
+                        placeholderTextColor="#64748b"
+                        value={newRssFeed}
+                        onChangeText={setNewRssFeed}
+                        onSubmitEditing={handleAddRssFeed}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        keyboardType="url"
+                    />
+                    <TouchableOpacity
+                        onPress={handleAddRssFeed}
+                        className="bg-indigo-600 p-3 rounded-xl"
+                        disabled={!newRssFeed.trim()}
                     >
                         <Ionicons name="add" size={24} color="white" />
                     </TouchableOpacity>

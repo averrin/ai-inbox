@@ -129,6 +129,8 @@ interface SettingsState {
     setForecastPrompt: (prompt: string | null) => void;
     newsTopics: string[];
     setNewsTopics: (topics: string[]) => void;
+    rssFeeds: string[];
+    setRssFeeds: (feeds: string[]) => void;
     newsApiKey: string | null;
     setNewsApiKey: (key: string | null) => void;
     hiddenArticles: string[]; // List of URLs
@@ -137,6 +139,9 @@ interface SettingsState {
     setIgnoredHostnames: (hostnames: string[]) => void;
     hideArticle: (url: string) => void;
     markArticleAsRead: (article: NewsArticle) => void;
+    viewedArticles: string[]; // List of URLs that have been opened
+    markArticleAsViewed: (url: string) => void;
+    hideArticles: (urls: string[]) => void; // Bulk hide
 }
 
 export interface MetadataConfig {
@@ -295,6 +300,8 @@ export const useSettingsStore = create<SettingsState>()(
             setForecastPrompt: (prompt) => set({ forecastPrompt: prompt }),
             newsTopics: ['Technology', 'AI', 'Science'],
             setNewsTopics: (topics) => set({ newsTopics: topics }),
+            rssFeeds: [],
+            setRssFeeds: (feeds) => set({ rssFeeds: feeds }),
             newsApiKey: null,
             setNewsApiKey: (key) => set({ newsApiKey: key }),
             hiddenArticles: [],
@@ -306,6 +313,13 @@ export const useSettingsStore = create<SettingsState>()(
             })),
             markArticleAsRead: (article) => set((state) => ({
                 readArticles: state.readArticles.some(a => a.url === article.url) ? state.readArticles : [...state.readArticles, article]
+            })),
+            viewedArticles: [],
+            markArticleAsViewed: (url) => set((state) => ({
+                viewedArticles: state.viewedArticles.includes(url) ? state.viewedArticles : [...state.viewedArticles, url]
+            })),
+            hideArticles: (urls) => set((state) => ({
+                hiddenArticles: [...state.hiddenArticles, ...urls.filter(u => !state.hiddenArticles.includes(u))]
             })),
         }),
         {
