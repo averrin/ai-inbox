@@ -28,6 +28,7 @@ import { TaskWithSource } from '../../store/tasks';
 import { createCalendarEvent, getWritableCalendars, updateCalendarEvent, deleteCalendarEvent } from '../../services/calendarService';
 
 import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../services/weatherService';
+import { updateUserLocation } from '../../utils/locationUtils';
 import { useMoodStore } from '../../store/moodStore';
 import { MoodEvaluationModal } from '../MoodEvaluationModal';
 import { WeatherForecastModal } from '../WeatherForecastModal';
@@ -35,7 +36,7 @@ import { RecurrenceScopeModal } from '../RecurrenceScopeModal';
 
 
 export default function ScheduleScreen() {
-    const { vaultUri, visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes, personalCalendarIds, workCalendarIds } = useSettingsStore();
+    const { vaultUri, visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes, personalCalendarIds, workCalendarIds, useCurrentLocation } = useSettingsStore();
     const { assignments, difficulties, eventTypes, eventFlags, eventIcons, ranges, loadConfig, completedEvents, toggleCompleted } = useEventTypesStore();
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
@@ -761,7 +762,10 @@ export default function ScheduleScreen() {
     useFocusEffect(
         useCallback(() => {
             fetchEvents();
-        }, [fetchEvents])
+            if (useCurrentLocation) {
+                updateUserLocation();
+            }
+        }, [fetchEvents, useCurrentLocation])
     );
 
     // Calculate date range for the hook (using same week logic as fetchEvents)
