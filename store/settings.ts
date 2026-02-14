@@ -133,6 +133,8 @@ interface SettingsState {
     setNewsApiKey: (key: string | null) => void;
     hiddenArticles: string[]; // List of URLs
     readArticles: NewsArticle[]; // List of full articles saved for later
+    ignoredHostnames: string[];
+    setIgnoredHostnames: (hostnames: string[]) => void;
     hideArticle: (url: string) => void;
     markArticleAsRead: (article: NewsArticle) => void;
 }
@@ -297,6 +299,8 @@ export const useSettingsStore = create<SettingsState>()(
             setNewsApiKey: (key) => set({ newsApiKey: key }),
             hiddenArticles: [],
             readArticles: [],
+            ignoredHostnames: [],
+            setIgnoredHostnames: (hostnames) => set({ ignoredHostnames: hostnames }),
             hideArticle: (url) => set((state) => ({
                 hiddenArticles: state.hiddenArticles.includes(url) ? state.hiddenArticles : [...state.hiddenArticles, url]
             })),
@@ -312,7 +316,7 @@ export const useSettingsStore = create<SettingsState>()(
                 const { cachedReminders, ...rest } = state;
                 return rest;
             },
-            version: 5,
+            version: 6,
             migrate: (persistedState: any, version: number) => {
                 if (version === 0) {
                     if (persistedState.defaultCalendarId && !persistedState.defaultCreateCalendarId) {
@@ -337,6 +341,9 @@ export const useSettingsStore = create<SettingsState>()(
                             persistedState.workAccountId = persistedState.myEmails[1];
                         }
                     }
+                }
+                if (version < 6) {
+                    persistedState.ignoredHostnames = persistedState.ignoredHostnames || [];
                 }
                 return persistedState;
             },
