@@ -17,6 +17,7 @@ const SENSITIVE_KEYS = [
     'personalAccountId',
     'githubClientId',
     'githubClientSecret',
+    'newsApiKey',
 ];
 
 export interface Contact {
@@ -26,6 +27,15 @@ export interface Contact {
     color?: string;
     icon?: string;
     isWife?: boolean;
+}
+
+export interface NewsArticle {
+    title: string;
+    description: string | null;
+    url: string;
+    urlToImage: string | null;
+    publishedAt: string;
+    source: { name: string; id: string | null };
 }
 
 interface SettingsState {
@@ -117,6 +127,14 @@ interface SettingsState {
     setDaySummaryPrompt: (prompt: string | null) => void;
     forecastPrompt: string | null;
     setForecastPrompt: (prompt: string | null) => void;
+    newsTopics: string[];
+    setNewsTopics: (topics: string[]) => void;
+    newsApiKey: string | null;
+    setNewsApiKey: (key: string | null) => void;
+    hiddenArticles: string[]; // List of URLs
+    readArticles: NewsArticle[]; // List of full articles saved for later
+    hideArticle: (url: string) => void;
+    markArticleAsRead: (article: NewsArticle) => void;
 }
 
 export interface MetadataConfig {
@@ -273,6 +291,18 @@ export const useSettingsStore = create<SettingsState>()(
             setDaySummaryPrompt: (prompt) => set({ daySummaryPrompt: prompt }),
             forecastPrompt: null,
             setForecastPrompt: (prompt) => set({ forecastPrompt: prompt }),
+            newsTopics: ['Technology', 'AI', 'Science'],
+            setNewsTopics: (topics) => set({ newsTopics: topics }),
+            newsApiKey: null,
+            setNewsApiKey: (key) => set({ newsApiKey: key }),
+            hiddenArticles: [],
+            readArticles: [],
+            hideArticle: (url) => set((state) => ({
+                hiddenArticles: state.hiddenArticles.includes(url) ? state.hiddenArticles : [...state.hiddenArticles, url]
+            })),
+            markArticleAsRead: (article) => set((state) => ({
+                readArticles: state.readArticles.some(a => a.url === article.url) ? state.readArticles : [...state.readArticles, article]
+            })),
         }),
         {
             name: 'ai-inbox-settings',
