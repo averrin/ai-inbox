@@ -13,6 +13,7 @@ import { useEffect } from 'react';
 import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View } from 'react-native';
+import { useSettingsStore } from '../../store/settings';
 
 const TransparentTheme = {
   ...DefaultTheme,
@@ -48,6 +49,30 @@ function InnerTabNavigator({
   onReset: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const { navConfig } = useSettingsStore();
+
+  const SCREEN_CONFIG: Record<string, any> = {
+    Schedule: { component: ScheduleScreen, options: { swipeEnabled: false } },
+    Input: { children: () => <ProcessingScreen shareIntent={shareIntent} onReset={onReset} />, options: { tabBarLabel: 'Note' } },
+    Tasks: { component: TasksScreen },
+    Links: { component: LinksScreen },
+    Reminders: { component: RemindersListScreen },
+    Jules: { component: JulesScreen },
+    News: { component: NewsScreen },
+    Settings: { children: () => <SetupScreen canClose={true} /> }
+  };
+
+  // Fallback if navConfig is empty (migration issue)
+  const activeConfig = (navConfig && navConfig.length > 0) ? navConfig : [
+    { id: 'Schedule', visible: true, title: 'Schedule', icon: 'calendar-outline' },
+    { id: 'Input', visible: true, title: 'Note', icon: 'create-outline' },
+    { id: 'Tasks', visible: true, title: 'Tasks', icon: 'list-outline' },
+    { id: 'Links', visible: true, title: 'Links', icon: 'link-outline' },
+    { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline' },
+    { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github' },
+    { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline' },
+    { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline' },
+  ];
 
   return (
     <View style={{ flex: 1 }}>
@@ -79,100 +104,27 @@ function InnerTabNavigator({
         }}
         initialRouteName="Schedule"
       >
+        {activeConfig.filter(item => item.visible).map(item => {
+          const config = SCREEN_CONFIG[item.id];
+          if (!config) return null;
 
-        <Tab.Screen
-          name="Schedule"
-          component={ScheduleScreen}
-          options={{
-            swipeEnabled: false, // CRITICAL: Disable swipe for this tab to avoid conflict with calendar gestures
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="calendar-outline" size={24} color={color} />
-            ),
-          }}
-        />
-
-        <Tab.Screen
-          name="Input"
-          options={{
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="create-outline" size={24} color={color} />
-            ),
-            tabBarLabel: 'Note',
-          }}
-        >
-          {() => <ProcessingScreen shareIntent={shareIntent} onReset={onReset} />}
-        </Tab.Screen>
-
-        <Tab.Screen
-          name="Tasks"
-          component={TasksScreen}
-          options={{
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="list-outline" size={24} color={color} />
-            ),
-          }}
-        />
-
-        <Tab.Screen
-          name="Links"
-          component={LinksScreen}
-          options={{
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="link-outline" size={24} color={color} />
-            ),
-          }}
-        />
-
-        {/* <Tab.Screen
-          name="Dump"
-          component={DumpScreen}
-          options={{
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="journal-outline" size={24} color={color} />
-            ),
-          }}
-        /> */}
-
-        <Tab.Screen
-          name="Reminders"
-          component={RemindersListScreen}
-          options={{
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="alarm-outline" size={24} color={color} />
-            ),
-          }}
-        />
-
-        <Tab.Screen
-          name="Jules"
-          component={JulesScreen}
-          options={{
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="logo-github" size={24} color={color} />
-            ),
-          }}
-        />
-
-        <Tab.Screen
-          name="News"
-          component={NewsScreen}
-          options={{
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="newspaper-outline" size={24} color={color} />
-            ),
-          }}
-        />
-
-        <Tab.Screen
-          name="Settings"
-          options={{
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="settings-outline" size={24} color={color} />
-            ),
-          }}
-        >
-          {() => <SetupScreen canClose={true} />}
-        </Tab.Screen>
+          return (
+            <Tab.Screen
+              key={item.id}
+              name={item.id}
+              component={config.component}
+              children={config.children}
+              options={{
+                ...config.options,
+                tabBarLabel: item.title,
+                tabBarIcon: ({ color }) => (
+                  // @ts-ignore
+                  <Ionicons name={item.icon} size={24} color={color} />
+                ),
+              }}
+            />
+          );
+        })}
       </Tab.Navigator>
     </View>
   );

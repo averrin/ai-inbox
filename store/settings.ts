@@ -38,6 +38,13 @@ export interface NewsArticle {
     source: { name: string; id: string | null };
 }
 
+export interface NavItemConfig {
+    id: string; // 'Schedule', 'Input', 'Tasks', 'Links', 'Reminders', 'Jules', 'News', 'Settings'
+    visible: boolean;
+    title: string;
+    icon: string; // Ionicons name
+}
+
 interface SettingsState {
     apiKey: string | null;
     vaultUri: string | null;
@@ -142,6 +149,8 @@ interface SettingsState {
     viewedArticles: string[]; // List of URLs that have been opened
     markArticleAsViewed: (url: string) => void;
     hideArticles: (urls: string[]) => void; // Bulk hide
+    navConfig: NavItemConfig[];
+    setNavConfig: (config: NavItemConfig[]) => void;
 }
 
 export interface MetadataConfig {
@@ -321,6 +330,17 @@ export const useSettingsStore = create<SettingsState>()(
             hideArticles: (urls) => set((state) => ({
                 hiddenArticles: [...state.hiddenArticles, ...urls.filter(u => !state.hiddenArticles.includes(u))]
             })),
+            navConfig: [
+                { id: 'Schedule', visible: true, title: 'Schedule', icon: 'calendar-outline' },
+                { id: 'Input', visible: true, title: 'Note', icon: 'create-outline' },
+                { id: 'Tasks', visible: true, title: 'Tasks', icon: 'list-outline' },
+                { id: 'Links', visible: true, title: 'Links', icon: 'link-outline' },
+                { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline' },
+                { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github' },
+                { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline' },
+                { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline' },
+            ],
+            setNavConfig: (config) => set({ navConfig: config }),
         }),
         {
             name: 'ai-inbox-settings',
@@ -330,8 +350,42 @@ export const useSettingsStore = create<SettingsState>()(
                 const { cachedReminders, ...rest } = state;
                 return rest;
             },
-            version: 6,
+            version: 8,
             migrate: (persistedState: any, version: number) => {
+                if (version < 6) {
+                    persistedState.navConfig = persistedState.navConfig || [
+                        { id: 'Schedule', visible: true, title: 'Schedule', icon: 'calendar-outline' },
+                        { id: 'Input', visible: true, title: 'Note', icon: 'create-outline' },
+                        { id: 'Tasks', visible: true, title: 'Tasks', icon: 'list-outline' },
+                        { id: 'Links', visible: true, title: 'Links', icon: 'link-outline' },
+                        { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline' },
+                        { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github' },
+                        { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline' },
+                        { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline' },
+                    ];
+                }
+                // Add News tab to existing navConfig if missing (for users upgrading from version 6-7)
+                if (version >= 6 && version < 8) {
+                    if (persistedState.navConfig && !persistedState.navConfig.some((item: any) => item.id === 'News')) {
+                        // Insert News before Settings
+                        const settingsIndex = persistedState.navConfig.findIndex((item: any) => item.id === 'Settings');
+                        if (settingsIndex !== -1) {
+                            persistedState.navConfig.splice(settingsIndex, 0, {
+                                id: 'News',
+                                visible: true,
+                                title: 'News',
+                                icon: 'newspaper-outline'
+                            });
+                        } else {
+                            persistedState.navConfig.push({
+                                id: 'News',
+                                visible: true,
+                                title: 'News',
+                                icon: 'newspaper-outline'
+                            });
+                        }
+                    }
+                }
                 if (version === 0) {
                     if (persistedState.defaultCalendarId && !persistedState.defaultCreateCalendarId) {
                         persistedState.defaultCreateCalendarId = persistedState.defaultCalendarId;
