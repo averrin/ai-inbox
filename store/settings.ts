@@ -139,6 +139,9 @@ interface SettingsState {
     setIgnoredHostnames: (hostnames: string[]) => void;
     hideArticle: (url: string) => void;
     markArticleAsRead: (article: NewsArticle) => void;
+    viewedArticles: string[]; // List of URLs that have been opened
+    markArticleAsViewed: (url: string) => void;
+    hideArticles: (urls: string[]) => void; // Bulk hide
 }
 
 export interface MetadataConfig {
@@ -310,6 +313,13 @@ export const useSettingsStore = create<SettingsState>()(
             })),
             markArticleAsRead: (article) => set((state) => ({
                 readArticles: state.readArticles.some(a => a.url === article.url) ? state.readArticles : [...state.readArticles, article]
+            })),
+            viewedArticles: [],
+            markArticleAsViewed: (url) => set((state) => ({
+                viewedArticles: state.viewedArticles.includes(url) ? state.viewedArticles : [...state.viewedArticles, url]
+            })),
+            hideArticles: (urls) => set((state) => ({
+                hiddenArticles: [...state.hiddenArticles, ...urls.filter(u => !state.hiddenArticles.includes(u))]
             })),
         }),
         {
