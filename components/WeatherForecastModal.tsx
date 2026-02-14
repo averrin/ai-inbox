@@ -83,7 +83,7 @@ export function WeatherForecastModal({ visible, onClose, weatherData, currentDat
                                         <View className="flex-row items-center gap-3">
                                             <View className="items-end">
                                                 <Text className="text-white font-bold text-sm">
-                                                    {Math.round(weather.maxTemp)}°
+                                                    {Math.round(weather.maxTemp)}°C
                                                 </Text>
                                                 <Text className="text-slate-500 text-xs">
                                                     High
@@ -92,7 +92,7 @@ export function WeatherForecastModal({ visible, onClose, weatherData, currentDat
                                             <View className="w-[1px] h-6 bg-slate-800" />
                                             <View className="items-end">
                                                 <Text className="text-slate-300 font-bold text-sm">
-                                                    {Math.round(weather.minTemp)}°
+                                                    {Math.round(weather.minTemp)}°C
                                                 </Text>
                                                 <Text className="text-slate-500 text-xs">
                                                     Low

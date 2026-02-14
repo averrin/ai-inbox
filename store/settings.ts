@@ -101,8 +101,10 @@ interface SettingsState {
     setGithubClientId: (id: string | null) => void;
     githubClientSecret: string | null;
     setGithubClientSecret: (secret: string | null) => void;
-    weatherLocation: { lat: number, lon: number };
-    setWeatherLocation: (location: { lat: number, lon: number }) => void;
+    weatherLocation: { lat: number, lon: number, city?: string };
+    setWeatherLocation: (location: { lat: number, lon: number, city?: string }) => void;
+    useCurrentLocation: boolean;
+    setUseCurrentLocation: (use: boolean) => void;
     tagConfig: Record<string, MetadataConfig>;
     propertyConfig: Record<string, MetadataConfig>;
     setTagConfig: (tag: string, config: MetadataConfig) => void;
@@ -244,8 +246,10 @@ export const useSettingsStore = create<SettingsState>()(
             setGithubClientId: (id) => set({ githubClientId: id }),
             githubClientSecret: null,
             setGithubClientSecret: (secret) => set({ githubClientSecret: secret }),
-            weatherLocation: { lat: 37.7749, lon: -122.4194 },
+            weatherLocation: { lat: 37.7749, lon: -122.4194, city: 'San Francisco' },
             setWeatherLocation: (location) => set({ weatherLocation: location }),
+            useCurrentLocation: false,
+            setUseCurrentLocation: (use) => set({ useCurrentLocation: use }),
             tagConfig: {},
             propertyConfig: {},
             setTagConfig: (tag, config) => set((state) => ({
