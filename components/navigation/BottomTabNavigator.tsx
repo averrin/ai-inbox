@@ -13,7 +13,8 @@ import { useEffect } from 'react';
 import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View } from 'react-native';
-import { useSettingsStore } from '../../store/settings';
+import { useSettingsStore, NavItemConfig } from '../../store/settings';
+import { GroupMenu } from './GroupMenu';
 
 const TransparentTheme = {
   ...DefaultTheme,
@@ -63,16 +64,23 @@ function InnerTabNavigator({
   };
 
   // Fallback if navConfig is empty (migration issue)
-  const activeConfig = (navConfig && navConfig.length > 0) ? navConfig : [
-    { id: 'Schedule', visible: true, title: 'Schedule', icon: 'calendar-outline' },
-    { id: 'Input', visible: true, title: 'Note', icon: 'create-outline' },
-    { id: 'Tasks', visible: true, title: 'Tasks', icon: 'list-outline' },
-    { id: 'Links', visible: true, title: 'Links', icon: 'link-outline' },
-    { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline' },
-    { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github' },
-    { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline' },
-    { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline' },
+  const activeConfig: NavItemConfig[] = (navConfig && navConfig.length > 0) ? navConfig : [
+    { id: 'Schedule', visible: true, title: 'Schedule', icon: 'calendar-outline', type: 'screen' },
+    { id: 'Input', visible: true, title: 'Note', icon: 'create-outline', type: 'screen' },
+    { id: 'Tasks', visible: true, title: 'Tasks', icon: 'list-outline', type: 'screen' },
+    { id: 'Links', visible: true, title: 'Links', icon: 'link-outline', type: 'screen' },
+    { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline', type: 'screen' },
+    { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github', type: 'screen' },
+    { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline', type: 'screen' },
+    { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline', type: 'screen' },
   ];
+
+  const renderedScreenIds = new Set<string>();
+  activeConfig.forEach(item => {
+    if (item.visible && item.type !== 'group') {
+      renderedScreenIds.add(item.id);
+    }
+  });
 
   return (
     <View style={{ flex: 1 }}>
@@ -105,25 +113,60 @@ function InnerTabNavigator({
         initialRouteName="Schedule"
       >
         {activeConfig.filter(item => item.visible).map(item => {
-          const config = SCREEN_CONFIG[item.id];
-          if (!config) return null;
+          if (item.type === 'group') {
+            return (
+              <Tab.Screen
+                key={item.id}
+                name={item.id}
+                children={(props) => <GroupMenu {...props} config={item} />}
+                options={{
+                  tabBarLabel: item.title,
+                  tabBarIcon: ({ color }) => (
+                    // @ts-ignore
+                    <Ionicons name={item.icon} size={24} color={color} />
+                  ),
+                }}
+              />
+            );
+          } else {
+            const config = SCREEN_CONFIG[item.id];
+            if (!config) return null;
 
-          return (
-            <Tab.Screen
-              key={item.id}
-              name={item.id}
-              component={config.component}
-              children={config.children}
-              options={{
-                ...config.options,
-                tabBarLabel: item.title,
-                tabBarIcon: ({ color }) => (
-                  // @ts-ignore
-                  <Ionicons name={item.icon} size={24} color={color} />
-                ),
-              }}
-            />
-          );
+            return (
+              <Tab.Screen
+                key={item.id}
+                name={item.id}
+                component={config.component}
+                children={config.children}
+                options={{
+                  ...config.options,
+                  tabBarLabel: item.title,
+                  tabBarIcon: ({ color }) => (
+                    // @ts-ignore
+                    <Ionicons name={item.icon} size={24} color={color} />
+                  ),
+                }}
+              />
+            );
+          }
+        })}
+
+        {/* Render hidden tabs for screens not in the main bar (e.g. inside groups or hidden) */}
+        {Object.keys(SCREEN_CONFIG).filter(id => !renderedScreenIds.has(id)).map(id => {
+            const config = SCREEN_CONFIG[id];
+            return (
+                <Tab.Screen
+                    key={id}
+                    name={id}
+                    component={config.component}
+                    children={config.children}
+                    options={{
+                        ...config.options,
+                        tabBarItemStyle: { display: 'none' }, // Hide from bar
+                        tabBarLabel: id // Fallback label
+                    }}
+                />
+            );
         })}
       </Tab.Navigator>
     </View>

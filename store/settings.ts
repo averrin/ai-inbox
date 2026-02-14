@@ -39,10 +39,12 @@ export interface NewsArticle {
 }
 
 export interface NavItemConfig {
-    id: string; // 'Schedule', 'Input', 'Tasks', 'Links', 'Reminders', 'Jules', 'News', 'Settings'
+    id: string; // 'Schedule', 'Input', 'Tasks', 'Links', 'Reminders', 'Jules', 'News', 'Settings' OR a custom group ID
+    type?: 'screen' | 'group'; // Defaults to 'screen' if undefined (migration)
     visible: boolean;
     title: string;
     icon: string; // Ionicons name
+    children?: NavItemConfig[]; // For groups
 }
 
 interface SettingsState {
@@ -354,15 +356,24 @@ export const useSettingsStore = create<SettingsState>()(
             migrate: (persistedState: any, version: number) => {
                 if (version < 6) {
                     persistedState.navConfig = persistedState.navConfig || [
-                        { id: 'Schedule', visible: true, title: 'Schedule', icon: 'calendar-outline' },
-                        { id: 'Input', visible: true, title: 'Note', icon: 'create-outline' },
-                        { id: 'Tasks', visible: true, title: 'Tasks', icon: 'list-outline' },
-                        { id: 'Links', visible: true, title: 'Links', icon: 'link-outline' },
-                        { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline' },
-                        { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github' },
-                        { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline' },
-                        { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline' },
+                        { id: 'Schedule', visible: true, title: 'Schedule', icon: 'calendar-outline', type: 'screen' },
+                        { id: 'Input', visible: true, title: 'Note', icon: 'create-outline', type: 'screen' },
+                        { id: 'Tasks', visible: true, title: 'Tasks', icon: 'list-outline', type: 'screen' },
+                        { id: 'Links', visible: true, title: 'Links', icon: 'link-outline', type: 'screen' },
+                        { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline', type: 'screen' },
+                        { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github', type: 'screen' },
+                        { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline', type: 'screen' },
+                        { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline', type: 'screen' },
                     ];
+                }
+                if (version < 7) {
+                    // Migrate navConfig to include type: 'screen'
+                    if (persistedState.navConfig) {
+                        persistedState.navConfig = persistedState.navConfig.map((item: any) => ({
+                            ...item,
+                            type: item.type || 'screen'
+                        }));
+                    }
                 }
                 // Add News tab to existing navConfig if missing (for users upgrading from version 6-7)
                 if (version >= 6 && version < 8) {
@@ -374,14 +385,16 @@ export const useSettingsStore = create<SettingsState>()(
                                 id: 'News',
                                 visible: true,
                                 title: 'News',
-                                icon: 'newspaper-outline'
+                                icon: 'newspaper-outline',
+                                type: 'screen'
                             });
                         } else {
                             persistedState.navConfig.push({
                                 id: 'News',
                                 visible: true,
                                 title: 'News',
-                                icon: 'newspaper-outline'
+                                icon: 'newspaper-outline',
+                                type: 'screen'
                             });
                         }
                     }
