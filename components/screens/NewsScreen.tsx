@@ -11,21 +11,33 @@ import * as WebBrowser from 'expo-web-browser';
 dayjs.extend(relativeTime);
 
 export default function NewsScreen() {
-    const { newsTopics, newsApiKey, hiddenArticles, readArticles, hideArticle, markArticleAsRead } = useSettingsStore();
+    const { newsTopics, newsApiKey, hiddenArticles, readArticles, hideArticle, markArticleAsRead, ignoredHostnames } = useSettingsStore();
     const [articles, setArticles] = useState<Article[]>([]);
     const [loading, setLoading] = useState(false);
+    const [page, setPage] = useState(1);
     const [selectedFilter, setSelectedFilter] = useState<string | null>(null); // null = All
     const [customQuery, setCustomQuery] = useState('');
     const [showCustomInput, setShowCustomInput] = useState(false);
 
     // Derived filtered list to exclude hidden/read articles
-    const visibleArticles = articles.filter(a =>
-        !hiddenArticles.includes(a.url) &&
-        !readArticles.some(r => r.url === a.url)
-    );
+    const visibleArticles = articles.filter(a => {
+        const isHidden = hiddenArticles.includes(a.url);
+        const isRead = readArticles.some(r => r.url === a.url);
+        const isIgnored = ignoredHostnames.some(hostname => {
+            try {
+                return new URL(a.url).hostname.includes(hostname);
+            } catch {
+                return false;
+            }
+        });
+        return !isHidden && !isRead && !isIgnored;
+    });
 
-    const loadNews = async () => {
+    const loadNews = async (reset = false) => {
+        if (loading) return;
         setLoading(true);
+        const targetPage = reset ? 1 : page + 1;
+
         try {
             let query: string[] = [];
 
@@ -37,8 +49,22 @@ export default function NewsScreen() {
                 query = newsTopics;
             }
 
-            const data = await fetchNews(query, newsApiKey);
-            setArticles(data);
+            const data = await fetchNews(query, newsApiKey, targetPage);
+
+            // Assign badges based on topic matching
+            const processedData = data.map(article => {
+                const combinedText = `${article.title} ${article.description || ''}`.toLowerCase();
+                const matched = newsTopics.find(topic => combinedText.includes(topic.toLowerCase()));
+                return matched ? { ...article, matchedTopic: matched } : article;
+            });
+
+            if (reset) {
+                setArticles(processedData);
+                setPage(1);
+            } else {
+                setArticles(prev => [...prev, ...processedData]);
+                setPage(targetPage);
+            }
         } catch (e) {
             console.error(e);
         } finally {
@@ -48,13 +74,13 @@ export default function NewsScreen() {
 
     // Reload when filter changes or active query/topics change
     useEffect(() => {
-        loadNews();
+        loadNews(true);
     }, [newsTopics, newsApiKey, selectedFilter, showCustomInput]);
 
     // Handle Custom Input submission
     const handleCustomSubmit = () => {
         if (customQuery.trim()) {
-            loadNews();
+            loadNews(true);
         }
     };
 
@@ -76,7 +102,14 @@ export default function NewsScreen() {
                 )}
                 <View className="p-4">
                     <View className="flex-row justify-between items-start mb-2">
-                        <Text className="text-xs text-indigo-400 font-bold uppercase">{item.source.name}</Text>
+                        <View className="flex-row items-center gap-2">
+                            <Text className="text-xs text-indigo-400 font-bold uppercase">{item.source.name}</Text>
+                            {item.matchedTopic && (
+                                <View className="bg-indigo-900/50 px-2 py-0.5 rounded-md border border-indigo-500/30">
+                                    <Text className="text-[10px] text-indigo-300 font-medium">{item.matchedTopic}</Text>
+                                </View>
+                            )}
+                        </View>
                         <Text className="text-xs text-slate-500">{dayjs(item.publishedAt).fromNow()}</Text>
                     </View>
                     <Text className="text-white text-lg font-bold mb-2 leading-6">{item.title}</Text>
@@ -197,15 +230,30 @@ export default function NewsScreen() {
                             <FlatList
                                 data={visibleArticles}
                                 renderItem={renderItem}
-                                keyExtractor={(item) => item.url}
+                                keyExtractor={(item, index) => `${item.url}-${index}`}
                                 contentContainerStyle={{ paddingBottom: 80 }}
                                 refreshControl={
                                     <RefreshControl
                                         refreshing={loading}
-                                        onRefresh={loadNews}
+                                        onRefresh={() => loadNews(true)}
                                         tintColor="#818cf8"
                                         colors={["#818cf8"]}
                                     />
+                                }
+                                ListFooterComponent={
+                                    articles.length > 0 ? (
+                                        <View className="p-4 items-center">
+                                            <TouchableOpacity
+                                                onPress={() => loadNews(false)}
+                                                className="bg-slate-800 px-6 py-3 rounded-full border border-slate-700 active:bg-slate-700"
+                                                disabled={loading}
+                                            >
+                                                <Text className="text-slate-300 font-medium">
+                                                    {loading ? 'Loading...' : 'Load More'}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    ) : null
                                 }
                                 ListEmptyComponent={
                                     !loading ? (
