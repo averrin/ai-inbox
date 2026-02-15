@@ -1457,9 +1457,9 @@ export default function ScheduleScreen() {
                                             console.error('[ScheduleScreen] Failed to resolve target file URI');
                                             Alert.alert("Error", "Could not determine where to save the task.");
                                         }
-                                    } catch (e) {
-                                        console.error("Failed to create task", e);
-                                        Alert.alert("Error", "Failed to create task.");
+                                    } catch (e: any) {
+                                        console.error("Failed to create task", JSON.stringify(e), e.message);
+                                        Alert.alert("Error", `Failed to create task: ${e.message || 'Unknown error'}`);
                                     }
                                 }
                                 setEditingTask(null);
