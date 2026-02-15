@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useSettingsStore, NavItemConfig, DEFAULT_NAV_ITEMS } from '../../store/settings';
 import { GroupMenuOverlay } from './GroupMenuOverlay';
+import { useUIStore } from '../../store/ui';
 
 const TransparentTheme = {
   ...DefaultTheme,
@@ -46,36 +47,29 @@ function NavigationHandler({ shareIntent }: { shareIntent: ShareIntent }) {
 
 function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }: any) {
     const insets = useSafeAreaInsets();
+    const { fab } = useUIStore();
 
     // Filter to show ONLY visible items from config
     const visibleItems = navConfig.filter((item: NavItemConfig) => item.visible);
 
-    // Split items into Left and Right groups
-    const rightGroupIds = ['Jules', 'Input'];
-    const rightItems = visibleItems.filter((item: NavItemConfig) => rightGroupIds.includes(item.id));
-    const leftItems = visibleItems.filter((item: NavItemConfig) => !rightGroupIds.includes(item.id));
-
-    // Sort Right Group: Jules first, then Input
-    rightItems.sort((a: NavItemConfig, b: NavItemConfig) => {
-        if (a.id === 'Jules') return -1;
-        if (b.id === 'Jules') return 1;
-        return 0;
-    });
-
-    // Sort Left Group: Schedule, Tasks, Reminders, others...
-    // REMOVED: Allow user defined order via settings
-    // const leftOrder = ['Schedule', 'Tasks', 'Reminders'];
-    // leftItems.sort((a: NavItemConfig, b: NavItemConfig) => {
-    //     const ia = leftOrder.indexOf(a.id);
-    //     const ib = leftOrder.indexOf(b.id);
-    //     if (ia === -1 && ib === -1) return 0; // Keep original order for others
-    //     if (ia === -1) return 1; // Put known items first
-    //     if (ib === -1) return -1;
-    //     return ia - ib;
-    // });
+    // Split items into Left and Right groups based on 'segment' property
+    const leftItems = visibleItems.filter((item: NavItemConfig) => item.segment !== 'right'); // Default to left
+    const rightItems = visibleItems.filter((item: NavItemConfig) => item.segment === 'right');
 
     const renderItem = (item: NavItemConfig) => {
+        const isFocused = state.index === state.routes.findIndex((r: any) => r.name === item.id);
+
+        // FAB Logic for 'Input' item (or any item configured to act as "Add")
+        // Check if this item is the designated FAB carrier. Usually 'Input'.
+        const isFabItem = item.id === 'Input';
+        const showFab = isFabItem && fab.visible && fab.onPress;
+
         const onPress = () => {
+            if (showFab && fab.onPress) {
+                fab.onPress();
+                return;
+            }
+
             if (item.type === 'group') {
                 onOpenGroup(item);
             } else {
@@ -85,7 +79,6 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
                     return;
                 }
 
-                const isFocused = state.index === routeIndex;
                 const event = navigation.emit({
                     type: 'tabPress',
                     target: state.routes[routeIndex].key,
@@ -98,11 +91,9 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
             }
         };
 
-        const routeIndex = state.routes.findIndex((r: any) => r.name === item.id);
-        const isFocused = item.type !== 'group' && routeIndex !== -1 && state.index === routeIndex;
-
         // Custom Render: Jules (Gradient Ring)
-        if (item.id === 'Jules') {
+        // Only if icon is default 'logo-github'
+        if (item.id === 'Jules' && item.icon === 'logo-github') {
             return (
                 <TouchableOpacity
                     key={item.id}
@@ -134,8 +125,12 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
             );
         }
 
-        // Custom Render: Input (Plus Button)
-        if (item.id === 'Input') {
+        // Custom Render: Input / FAB (Plus Button)
+        // If showing FAB, use FAB icon. If Input and icon is 'add', use white circle style.
+        // Otherwise use standard styling.
+        if (showFab || (item.id === 'Input' && item.icon === 'add')) {
+             const displayIcon = showFab ? fab.icon : item.icon;
+
              return (
                 <TouchableOpacity
                     key={item.id}
@@ -152,33 +147,23 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
                         width: 34,
                         height: 34,
                         borderRadius: 17,
-                        backgroundColor: 'white',
+                        backgroundColor: showFab && fab.color ? fab.color : 'white', // Use FAB color if provided
                         justifyContent: 'center',
                         alignItems: 'center'
                     }}>
-                         <Ionicons name="add" size={24} color="black" />
+                         <Ionicons name={displayIcon as any} size={24} color="black" />
                     </View>
                 </TouchableOpacity>
             );
         }
 
-        // Standard Items (Left Island)
+        // Standard Items
         let iconName = item.icon;
         let activeIconName = item.icon;
 
-        // Override icons to match screenshot visual mapping
-        if (item.id === 'Schedule') {
-            iconName = 'home-outline';
-            activeIconName = 'home';
-        } else if (item.id === 'Tasks') {
-            iconName = 'checkbox-outline';
-            activeIconName = 'checkbox';
-        } else if (item.id === 'Reminders') {
-            iconName = 'calendar-clear-outline'; // Grid calendar
-            activeIconName = 'calendar-clear';
-        } else {
-             // Default: strip -outline suffix for active state
-             activeIconName = (item.icon as string).replace('-outline', '');
+        // Auto-filled/outline logic if user hasn't picked a specific filled variant
+        if (iconName.endsWith('-outline')) {
+             activeIconName = iconName.replace('-outline', '');
         }
 
         return (
@@ -199,7 +184,7 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
                     // @ts-ignore
                     name={isFocused ? activeIconName : iconName}
                     size={24}
-                    color={isFocused ? '#3b82f6' : '#94a3b8'} // Blue-500 active, Slate-400 inactive
+                    color={isFocused ? '#3b82f6' : '#94a3b8'}
                 />
             </TouchableOpacity>
         );

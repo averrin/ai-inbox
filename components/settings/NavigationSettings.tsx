@@ -13,66 +13,79 @@ export function NavigationSettings() {
     const [editingGroup, setEditingGroup] = useState<NavItemConfig | null>(null);
     const [iconPickerTarget, setIconPickerTarget] = useState<{ id: string } | null>(null);
 
-    // Filter Config
-    const fixedIds = ['Jules', 'Input'];
-    const mainItems = navConfig.filter(i => !fixedIds.includes(i.id));
-    const actionItems = navConfig.filter(i => fixedIds.includes(i.id));
+    // Filter Config by Segment
+    const leftItems = navConfig.filter(i => i.segment !== 'right');
+    const rightItems = navConfig.filter(i => i.segment === 'right');
 
-    // Sort Action Items: Jules first, then Input (to match UI assumption)
-    actionItems.sort((a, b) => {
-        if (a.id === 'Jules') return -1;
-        if (b.id === 'Jules') return 1;
-        return 0;
-    });
-
-    const updateConfig = (newMain: NavItemConfig[], newActions: NavItemConfig[]) => {
-        // Reconstruct full config: Main items first, then Action items
-        setNavConfig([...newMain, ...newActions]);
+    const updateConfig = (newLeft: NavItemConfig[], newRight: NavItemConfig[]) => {
+        // Reconstruct full config
+        setNavConfig([...newLeft, ...newRight]);
     };
 
-    const handleMoveMain = (index: number, direction: 'up' | 'down') => {
-        const newMain = [...mainItems];
+    const handleMove = (id: string, direction: 'up' | 'down') => {
+        const isRight = rightItems.some(i => i.id === id);
+        const list = isRight ? [...rightItems] : [...leftItems];
+        const index = list.findIndex(i => i.id === id);
+
         const swapIndex = direction === 'up' ? index - 1 : index + 1;
 
-        if (swapIndex < 0 || swapIndex >= newMain.length) return;
+        if (swapIndex < 0 || swapIndex >= list.length) return;
 
-        [newMain[index], newMain[swapIndex]] = [newMain[swapIndex], newMain[index]];
-        updateConfig(newMain, actionItems);
+        [list[index], list[swapIndex]] = [list[swapIndex], list[index]];
+
+        if (isRight) updateConfig(leftItems, list);
+        else updateConfig(list, rightItems);
+    };
+
+    const handleSwitchSegment = (id: string) => {
+        const item = navConfig.find(i => i.id === id);
+        if (!item) return;
+
+        const isRight = item.segment === 'right';
+        const newSegment = isRight ? 'left' : 'right';
+
+        const newItem = { ...item, segment: newSegment as 'left' | 'right' };
+
+        // Remove from old list, add to new list
+        const newLeft = isRight ? [...leftItems, newItem] : leftItems.filter(i => i.id !== id);
+        const newRight = isRight ? rightItems.filter(i => i.id !== id) : [...rightItems, newItem];
+
+        updateConfig(newLeft, newRight);
     };
 
     const handleUpdate = (id: string, field: keyof NavItemConfig, value: any) => {
-        const newMain = mainItems.map(i => i.id === id ? { ...i, [field]: value } : i);
-        const newActions = actionItems.map(i => i.id === id ? { ...i, [field]: value } : i);
-        updateConfig(newMain, newActions);
+        const newConfig = navConfig.map(i => i.id === id ? { ...i, [field]: value } : i);
+        setNavConfig(newConfig);
     };
 
-    const handleAddGroup = () => {
+    const handleAddGroup = (segment: 'left' | 'right') => {
         const newGroup: NavItemConfig = {
             id: Crypto.randomUUID(),
             type: 'group',
             visible: true,
             title: 'New Group',
             icon: 'grid-outline',
-            children: []
+            children: [],
+            segment
         };
-        updateConfig([...mainItems, newGroup], actionItems);
+        setNavConfig([...navConfig, newGroup]);
     };
 
     const handleDeleteGroup = (id: string) => {
-        const groupIndex = mainItems.findIndex(i => i.id === id);
+        const groupIndex = navConfig.findIndex(i => i.id === id);
         if (groupIndex === -1) return;
 
-        const group = mainItems[groupIndex];
-        const newMain = [...mainItems];
+        const group = navConfig[groupIndex];
+        const newConfig = [...navConfig];
 
         if (group.children && group.children.length > 0) {
-            // Move children back to root (at end of main list)
-            newMain.splice(groupIndex, 1);
-            newMain.push(...group.children);
+            // Move children back to root (in same segment)
+            const childrenWithSegment = group.children.map(c => ({ ...c, segment: group.segment }));
+            newConfig.splice(groupIndex, 1, ...childrenWithSegment);
         } else {
-            newMain.splice(groupIndex, 1);
+            newConfig.splice(groupIndex, 1);
         }
-        updateConfig(newMain, actionItems);
+        setNavConfig(newConfig);
     };
 
     const handleReset = () => {
@@ -101,43 +114,39 @@ export function NavigationSettings() {
 
         const toggleScreenInGroup = (screenId: string) => {
             // Logic works on global navConfig to find items
-            // But we must respect the main/action split constraints?
-            // Action items cannot be in groups.
-            if (fixedIds.includes(screenId)) return;
 
             const currentChildren = editingGroup.children || [];
             const isPresent = currentChildren.some(c => c.id === screenId);
 
             let newChildren: NavItemConfig[];
-            let newMain = [...mainItems];
+            let newConfig = [...navConfig];
 
             if (isPresent) {
                 // Remove from group, add to root (Main)
                 const childToRemove = currentChildren.find(c => c.id === screenId)!;
                 newChildren = currentChildren.filter(c => c.id !== screenId);
 
-                if (!newMain.some(i => i.id === screenId)) {
-                    newMain.push(childToRemove);
+                if (!newConfig.some(i => i.id === screenId)) {
+                    // When returning to root, inherit segment from group
+                    newConfig.push({ ...childToRemove, segment: editingGroup.segment });
                 }
             } else {
-                // Add to group, remove from root (Main)
-                const screenConfig = newMain.find(i => i.id === screenId);
+                // Add to group, remove from root
+                const screenConfig = newConfig.find(i => i.id === screenId);
 
                 if (screenConfig) {
                     newChildren = [...currentChildren, screenConfig];
-                    newMain = newMain.filter(i => i.id !== screenId);
+                    newConfig = newConfig.filter(i => i.id !== screenId);
                 } else {
-                    // Item might be in default but not current config?
-                    // Or implicitly supported. For now only allow moving from root.
                     return;
                 }
             }
 
-            // Update the group itself within newMain
-            const groupIndex = newMain.findIndex(i => i.id === editingGroup.id);
+            // Update the group itself within newConfig
+            const groupIndex = newConfig.findIndex(i => i.id === editingGroup.id);
             if (groupIndex !== -1) {
-                newMain[groupIndex] = { ...newMain[groupIndex], children: newChildren };
-                updateConfig(newMain, actionItems);
+                newConfig[groupIndex] = { ...newConfig[groupIndex], children: newChildren };
+                setNavConfig(newConfig);
                 setEditingGroup({ ...editingGroup, children: newChildren });
             }
         };
@@ -155,10 +164,10 @@ export function NavigationSettings() {
                     <Text className="text-slate-400 mb-4">Select screens to include in this group menu.</Text>
 
                     <ScrollView>
-                        {DEFAULT_NAV_ITEMS.filter(s => !fixedIds.includes(s.id)).map(screen => {
+                        {DEFAULT_NAV_ITEMS.map(screen => {
                             const isSelected = editingGroup.children?.some(c => c.id === screen.id);
                             // Check if locked in another group
-                            const isLocked = !isSelected && !mainItems.some(i => i.id === screen.id) && mainItems.find(i => i.id !== editingGroup.id && i.children?.some(c => c.id === screen.id));
+                            const isLocked = !isSelected && !navConfig.some(i => i.id === screen.id) && navConfig.find(i => i.id !== editingGroup.id && i.children?.some(c => c.id === screen.id));
 
                             return (
                                 <TouchableOpacity
@@ -189,31 +198,29 @@ export function NavigationSettings() {
         );
     };
 
-    const renderItem = (item: NavItemConfig, index: number, isAction: boolean) => {
+    const renderItem = (item: NavItemConfig, index: number, listLength: number) => {
         const isGroup = item.type === 'group';
+        const isRight = item.segment === 'right';
 
         return (
             <View key={item.id} className={`border rounded-xl p-3 mb-3 ${isGroup ? 'bg-indigo-900/20 border-indigo-500/30' : 'bg-slate-800 border-slate-700'}`}>
                 <View className="flex-row items-center justify-between mb-2">
                     <View className="flex-row items-center gap-2">
-                        {!isAction && (
-                            <>
-                                <TouchableOpacity
-                                    onPress={() => handleMoveMain(index, 'up')}
-                                    disabled={index === 0}
-                                    className={`p-1 rounded ${index === 0 ? 'opacity-30' : 'bg-slate-700'}`}
-                                >
-                                    <Ionicons name="arrow-up" size={16} color="white" />
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => handleMoveMain(index, 'down')}
-                                    disabled={index === mainItems.length - 1}
-                                    className={`p-1 rounded ${index === mainItems.length - 1 ? 'opacity-30' : 'bg-slate-700'}`}
-                                >
-                                    <Ionicons name="arrow-down" size={16} color="white" />
-                                </TouchableOpacity>
-                            </>
-                        )}
+                        <TouchableOpacity
+                            onPress={() => handleMove(item.id, 'up')}
+                            disabled={index === 0}
+                            className={`p-1 rounded ${index === 0 ? 'opacity-30' : 'bg-slate-700'}`}
+                        >
+                            <Ionicons name="arrow-up" size={16} color="white" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => handleMove(item.id, 'down')}
+                            disabled={index === listLength - 1}
+                            className={`p-1 rounded ${index === listLength - 1 ? 'opacity-30' : 'bg-slate-700'}`}
+                        >
+                            <Ionicons name="arrow-down" size={16} color="white" />
+                        </TouchableOpacity>
+
                         <View className="flex-row items-center">
                             {isGroup && <Ionicons name="folder-outline" size={14} color="#818cf8" style={{ marginRight: 4 }} />}
                             <Text className="text-slate-500 text-xs font-mono ml-1" numberOfLines={1} style={{ maxWidth: 100 }}>
@@ -222,13 +229,20 @@ export function NavigationSettings() {
                         </View>
                     </View>
                     <View className="flex-row items-center gap-2">
+                        <TouchableOpacity
+                             onPress={() => handleSwitchSegment(item.id)}
+                             className="bg-slate-700 px-2 py-1 rounded"
+                        >
+                             <Text className="text-xs text-white">Move to {isRight ? 'Left' : 'Right'}</Text>
+                        </TouchableOpacity>
+
                         {isGroup ? (
                             <View className="flex-row gap-2 items-center">
                                     <TouchableOpacity
                                     onPress={() => setEditingGroup(item)}
                                     className="bg-indigo-600 px-3 py-1 rounded-full h-6 justify-center"
                                 >
-                                    <Text className="text-white text-xs font-bold">Edit Group</Text>
+                                    <Text className="text-white text-xs font-bold">Edit</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     onPress={() => handleDeleteGroup(item.id)}
@@ -254,39 +268,27 @@ export function NavigationSettings() {
                 <View className="flex-row gap-2">
                     <View className="flex-1">
                         <Text className="text-slate-500 text-[10px] mb-1 uppercase">Title</Text>
-                        {isAction ? (
-                             <View className="bg-slate-900/30 px-3 py-2 h-10 rounded-lg border border-slate-700/50 justify-center">
-                                <Text className="text-slate-500 text-sm italic">{item.title}</Text>
-                             </View>
-                        ) : (
-                            <TextInput
-                                value={item.title}
-                                onChangeText={(text) => handleUpdate(item.id, 'title', text)}
-                                className="bg-slate-900/50 text-white px-3 py-2 h-10 rounded-lg border border-slate-700 text-sm"
-                            />
-                        )}
+                        <TextInput
+                            value={item.title}
+                            onChangeText={(text) => handleUpdate(item.id, 'title', text)}
+                            className="bg-slate-900/50 text-white px-3 py-2 h-10 rounded-lg border border-slate-700 text-sm"
+                        />
                     </View>
                     <View className="flex-1">
                         <Text className="text-slate-500 text-[10px] mb-1 uppercase">Icon</Text>
-                        {isAction ? (
-                            <View className="bg-slate-900/30 px-3 py-2 h-10 rounded-lg border border-slate-700/50 flex-row items-center">
-                                <Text className="text-slate-500 text-sm italic flex-1">Custom</Text>
-                            </View>
-                        ) : (
-                            <TouchableOpacity
-                                onPress={() => setIconPickerTarget({ id: item.id })}
-                                className="flex-row items-center bg-slate-900/50 rounded-lg border border-slate-700 px-3 py-2 h-10"
-                            >
-                                <Ionicons
-                                    // @ts-ignore
-                                    name={item.icon}
-                                    size={20}
-                                    color="#818cf8"
-                                    style={{ marginRight: 8 }}
-                                />
-                                <Text className="text-slate-400 text-sm flex-1" numberOfLines={1}>{item.icon}</Text>
-                            </TouchableOpacity>
-                        )}
+                        <TouchableOpacity
+                            onPress={() => setIconPickerTarget({ id: item.id })}
+                            className="flex-row items-center bg-slate-900/50 rounded-lg border border-slate-700 px-3 py-2 h-10"
+                        >
+                            <Ionicons
+                                // @ts-ignore
+                                name={item.icon}
+                                size={20}
+                                color="#818cf8"
+                                style={{ marginRight: 8 }}
+                            />
+                            <Text className="text-slate-400 text-sm flex-1" numberOfLines={1}>{item.icon}</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </View>
@@ -297,28 +299,27 @@ export function NavigationSettings() {
         <ScrollView>
             <Card>
                 <View className="mb-6">
-                    <Text className="text-indigo-200 mb-2 font-semibold">Main Navigation (Left)</Text>
-                    <Text className="text-slate-400 text-sm mb-4">
-                        Reorder tabs, create groups, and customize icons for the left navigation island.
-                    </Text>
-
-                    {mainItems.map((item, index) => renderItem(item, index, false))}
+                    <Text className="text-indigo-200 mb-2 font-semibold">Left Segment</Text>
+                    {leftItems.map((item, index) => renderItem(item, index, leftItems.length))}
 
                     <Button
-                        title="+ Add Group"
-                        onPress={handleAddGroup}
+                        title="+ Add Group (Left)"
+                        onPress={() => handleAddGroup('left')}
                         variant="primary"
                         className="mt-2"
                     />
                 </View>
 
                 <View className="mb-4 pt-4 border-t border-slate-700">
-                    <Text className="text-indigo-200 mb-2 font-semibold">Action Buttons (Right)</Text>
-                    <Text className="text-slate-400 text-sm mb-4">
-                        Toggle visibility for fixed action buttons.
-                    </Text>
+                    <Text className="text-indigo-200 mb-2 font-semibold">Right Segment</Text>
+                    {rightItems.map((item, index) => renderItem(item, index, rightItems.length))}
 
-                    {actionItems.map((item, index) => renderItem(item, index, true))}
+                     <Button
+                        title="+ Add Group (Right)"
+                        onPress={() => handleAddGroup('right')}
+                        variant="primary"
+                        className="mt-2"
+                    />
                 </View>
 
                 <View className="mt-4 pt-4 border-t border-slate-700">
