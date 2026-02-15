@@ -6,7 +6,7 @@ import { Input } from '../ui/Input';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
 import { requestVaultAccess } from '../../utils/saf';
-import { fetchAvailableModels } from '../../services/models';
+import { fetchAvailableModels, fetchAvailableImageModels } from '../../services/models';
 import { useState, useEffect, useRef } from 'react';
 import { useAuthRequest, makeRedirectUri } from 'expo-auth-session';
 import { exchangeGithubToken, fetchGithubUser } from '../../services/jules';
@@ -42,8 +42,6 @@ type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const AVAILABLE_IMAGE_MODELS = ['imagen-3.0-generate-001', 'imagen-3.0-fast-generate-001'];
-
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
     const { apiKey, vaultUri, customPromptPath, selectedModel, selectedImageModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setSelectedImageModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret, linksRoot, setLinksRoot } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
@@ -58,6 +56,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const [githubClientIdInput, setGithubClientIdInput] = useState(githubClientId || '');
     const [githubClientSecretInput, setGithubClientSecretInput] = useState(githubClientSecret || '');
     const [availableModels, setAvailableModels] = useState<string[]>(['gemini-2.0-flash-exp']);
+    const [availableImageModels, setAvailableImageModels] = useState<string[]>(['imagen-3.0-generate-001']);
     const [showModelPicker, setShowModelPicker] = useState(false);
     const [showImageModelPicker, setShowImageModelPicker] = useState(false);
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
@@ -169,6 +168,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     useEffect(() => {
         if (keyInput && keyInput.length > 30) {
             fetchAvailableModels(keyInput).then(setAvailableModels);
+            fetchAvailableImageModels(keyInput).then(setAvailableImageModels);
         }
     }, [keyInput]);
 
@@ -1020,7 +1020,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             </TouchableOpacity>
                         </View>
                         <ScrollView>
-                            {AVAILABLE_IMAGE_MODELS.map((model) => (
+                            {availableImageModels.map((model) => (
                                 <TouchableOpacity
                                     key={model}
                                     onPress={() => {
