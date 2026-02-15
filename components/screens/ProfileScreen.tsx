@@ -20,11 +20,6 @@ export default function ProfileScreen() {
         updateConfig
     } = useProfileStore();
 
-    const [settingsVisible, setSettingsVisible] = useState(false);
-    const [targetTopic, setTargetTopic] = useState(config.targetTopic || '');
-    const [forbiddenTopics, setForbiddenTopics] = useState(config.forbiddenTopics.join(', '));
-    const [questionCount, setQuestionCount] = useState(config.questionCount.toString());
-
     useEffect(() => {
         loadFromVault();
     }, []);
@@ -37,23 +32,6 @@ export default function ProfileScreen() {
 
     const isAllAnswered = dailyQuestions.length > 0 && dailyQuestions.every(q => answers[q] && answers[q].trim().length > 0);
 
-    const handleSaveSettings = () => {
-        const count = parseInt(questionCount);
-        if (isNaN(count) || count < 1) {
-            Alert.alert('Invalid Input', 'Question count must be a number greater than 0');
-            return;
-        }
-
-        const forbidden = forbiddenTopics.split(',').map(t => t.trim()).filter(t => t.length > 0);
-
-        updateConfig({
-            targetTopic: targetTopic.trim() || undefined,
-            questionCount: count,
-            forbiddenTopics: forbidden
-        });
-        setSettingsVisible(false);
-    };
-
     return (
         <SafeAreaView className="flex-1 bg-slate-950" edges={['top', 'left', 'right']}>
             <View className="flex-row items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/50">
@@ -61,17 +39,7 @@ export default function ProfileScreen() {
                     <Ionicons name="person-outline" size={20} color="#818cf8" />
                     <Text className="text-slate-100 font-bold text-lg">Profile Builder</Text>
                 </View>
-                <TouchableOpacity
-                    className="p-2 bg-slate-800 rounded-full"
-                    onPress={() => {
-                        setTargetTopic(config.targetTopic || '');
-                        setForbiddenTopics(config.forbiddenTopics.join(', '));
-                        setQuestionCount(config.questionCount.toString());
-                        setSettingsVisible(true);
-                    }}
-                >
-                    <Ionicons name="settings-outline" size={20} color="#94a3b8" />
-                </TouchableOpacity>
+                {/* Settings button removed - settings are now in the main Settings screen */}
             </View>
 
             <KeyboardAvoidingView
@@ -177,78 +145,6 @@ export default function ProfileScreen() {
                     )}
                 </ScrollView>
             </KeyboardAvoidingView>
-
-            {/* Settings Modal */}
-            <Modal
-                visible={settingsVisible}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setSettingsVisible(false)}
-            >
-                <View className="flex-1 bg-black/80 justify-center items-center p-4">
-                    <View className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 overflow-hidden">
-                        <View className="px-4 py-3 border-b border-slate-800 flex-row justify-between items-center bg-slate-800">
-                            <Text className="text-slate-100 font-bold text-lg">Configuration</Text>
-                            <TouchableOpacity onPress={() => setSettingsVisible(false)}>
-                                <Ionicons name="close" size={24} color="#94a3b8" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <ScrollView className="p-4 space-y-4">
-                            <View>
-                                <Text className="text-slate-400 text-xs font-bold uppercase mb-2">Target Topic (Optional)</Text>
-                                <TextInput
-                                    className="bg-slate-950 text-slate-100 p-3 rounded-lg border border-slate-700"
-                                    placeholder="e.g., Childhood, Career"
-                                    placeholderTextColor="#475569"
-                                    value={targetTopic}
-                                    onChangeText={setTargetTopic}
-                                />
-                                <Text className="text-slate-600 text-[10px] mt-1">
-                                    Leave empty to let the Architect decide based on gaps.
-                                </Text>
-                            </View>
-
-                            <View>
-                                <Text className="text-slate-400 text-xs font-bold uppercase mb-2">Daily Questions</Text>
-                                <TextInput
-                                    className="bg-slate-950 text-slate-100 p-3 rounded-lg border border-slate-700"
-                                    placeholder="3"
-                                    placeholderTextColor="#475569"
-                                    keyboardType="numeric"
-                                    value={questionCount}
-                                    onChangeText={setQuestionCount}
-                                />
-                            </View>
-
-                            <View>
-                                <Text className="text-slate-400 text-xs font-bold uppercase mb-2">Forbidden Topics</Text>
-                                <TextInput
-                                    className="bg-slate-950 text-slate-100 p-3 rounded-lg border border-slate-700 h-24"
-                                    placeholder="Politics, Religion..."
-                                    placeholderTextColor="#475569"
-                                    multiline
-                                    textAlignVertical="top"
-                                    value={forbiddenTopics}
-                                    onChangeText={setForbiddenTopics}
-                                />
-                                <Text className="text-slate-600 text-[10px] mt-1">
-                                    Comma separated list of topics to avoid.
-                                </Text>
-                            </View>
-                        </ScrollView>
-
-                        <View className="p-4 border-t border-slate-800">
-                            <TouchableOpacity
-                                className="bg-indigo-600 py-3 rounded-xl items-center"
-                                onPress={handleSaveSettings}
-                            >
-                                <Text className="text-white font-bold">Save Changes</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
         </SafeAreaView>
     );
 }
