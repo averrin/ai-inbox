@@ -119,6 +119,8 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
     const [isMerging, setIsMerging] = useState(false);
     const [prInactive, setPrInactive] = useState(false);
     const [mergeable, setMergeable] = useState<boolean | null>(null);
+    const [isMerged, setIsMerged] = useState(false);
+    const [isClosed, setIsClosed] = useState(false);
     const [menuVisible, setMenuVisible] = useState(false);
     const [messageVisible, setMessageVisible] = useState(false);
     const [sendingMessage, setSendingMessage] = useState(false);
@@ -214,7 +216,11 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
             if (prNumber) {
                 fetchPullRequest(ghToken, owner, repo, prNumber)
                     .then(pr => {
-                        setPrInactive(pr.merged || pr.state === 'merged' || pr.state === 'closed');
+                        const merged = pr.merged || pr.state === 'merged';
+                        const closed = pr.state === 'closed';
+                        setIsMerged(merged);
+                        setIsClosed(closed && !merged);
+                        setPrInactive(merged || closed);
                         setMergeable(pr.mergeable);
                     })
                     .catch(err => console.error("Fetch PR detail error:", err));
@@ -415,19 +421,28 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
                     </TouchableOpacity>
                 )}
 
-                {session.state === 'COMPLETED' && ghRun?.conclusion === 'success' && prNumber && !prInactive && (
+                {prNumber && (
                     <TouchableOpacity
-                        onPress={mergeable === false ? undefined : handleMerge}
-                        disabled={isMerging || mergeable === false}
-                        className={`flex-1 py-2 rounded-lg flex-row items-center justify-center ${mergeable === false ? 'bg-red-900/50 border border-red-500/50' : 'bg-green-600'}`}
+                        onPress={(!isMerged && !isClosed && mergeable !== false) ? handleMerge : undefined}
+                        disabled={isMerging || isMerged || isClosed || mergeable === false}
+                        className={`flex-1 py-2 rounded-lg flex-row items-center justify-center ${
+                            isMerged ? 'bg-purple-600/50' :
+                            isClosed ? 'bg-slate-600/50' :
+                            mergeable === false ? 'bg-red-900/50 border border-red-500/50' :
+                            'bg-green-600'
+                        }`}
                     >
                         {isMerging ? (
                             <ActivityIndicator size="small" color="white" />
                         ) : (
                             <>
-                                <Ionicons name={mergeable === false ? "alert-circle-outline" : "git-merge-outline"} size={14} color={mergeable === false ? "#f87171" : "white"} />
+                                <Ionicons
+                                    name={isMerged ? "git-merge" : isClosed ? "close-circle" : mergeable === false ? "alert-circle-outline" : "git-merge-outline"}
+                                    size={14}
+                                    color={mergeable === false ? "#f87171" : "white"}
+                                />
                                 <Text className={`text-xs font-semibold ml-2 ${mergeable === false ? 'text-red-400' : 'text-white'}`}>
-                                    {mergeable === false ? "Conflict" : "Merge"}
+                                    {isMerged ? "Merged" : isClosed ? "Closed" : mergeable === false ? "Conflict" : "Merge"}
                                 </Text>
                             </>
                         )}

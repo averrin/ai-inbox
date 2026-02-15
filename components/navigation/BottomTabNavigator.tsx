@@ -10,12 +10,12 @@ import NewsScreen from '../screens/NewsScreen';
 import JulesScreen from '../screens/JulesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { ShareIntent } from 'expo-share-intent';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useSettingsStore, NavItemConfig, DEFAULT_NAV_ITEMS } from '../../store/settings';
-import { GroupMenu } from './GroupMenu';
+import { GroupMenuOverlay } from './GroupMenuOverlay';
 
 const TransparentTheme = {
   ...DefaultTheme,
@@ -43,6 +43,78 @@ function NavigationHandler({ shareIntent }: { shareIntent: ShareIntent }) {
   return null;
 }
 
+function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }: any) {
+    const insets = useSafeAreaInsets();
+
+    // Filter to show ONLY visible items from config
+    const visibleItems = navConfig.filter((item: NavItemConfig) => item.visible);
+
+    return (
+        <View style={{
+            flexDirection: 'row',
+            backgroundColor: '#0f172a', // slate-900
+            borderTopColor: '#334155', // slate-700
+            borderTopWidth: 1,
+            paddingBottom: insets.bottom,
+            height: 62 + insets.bottom,
+        }}>
+            {visibleItems.map((item: NavItemConfig, index: number) => {
+                const onPress = () => {
+                    if (item.type === 'group') {
+                        onOpenGroup(item);
+                    } else {
+                        // Find the route index for this item if it exists in state
+                        const routeIndex = state.routes.findIndex((r: any) => r.name === item.id);
+                        if (routeIndex === -1) {
+                            console.warn(`[CustomTabBar] Route not found for item: ${item.id}`);
+                            return;
+                        }
+
+                        const isFocused = state.index === routeIndex;
+                        const event = navigation.emit({
+                            type: 'tabPress',
+                            target: state.routes[routeIndex].key,
+                            canPreventDefault: true,
+                        });
+
+                        if (!isFocused && !event.defaultPrevented) {
+                            navigation.navigate(item.id);
+                        }
+                    }
+                };
+
+                // Determine focused state safely
+                const routeIndex = state.routes.findIndex((r: any) => r.name === item.id);
+                const isFocused = item.type !== 'group' && routeIndex !== -1 && state.index === routeIndex;
+
+                return (
+                    <TouchableOpacity
+                        key={item.id}
+                        onPress={onPress}
+                        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', height: 62 }}
+                    >
+                        <Ionicons
+                            // @ts-ignore
+                            name={item.icon}
+                            size={24}
+                            color={isFocused ? '#818cf8' : '#64748b'}
+                        />
+                        <Text style={{
+                            color: isFocused ? '#818cf8' : '#64748b',
+                            fontSize: 10,
+                            fontWeight: '600',
+                            marginTop: 4,
+                            textTransform: 'none'
+                        }}>
+                            {item.title}
+                        </Text>
+                    </TouchableOpacity>
+                );
+            })}
+        </View>
+    );
+}
+
 function InnerTabNavigator({
   shareIntent,
   onReset
@@ -52,6 +124,7 @@ function InnerTabNavigator({
 }) {
   const insets = useSafeAreaInsets();
   const { navConfig, setNavConfig } = useSettingsStore();
+  const [activeGroup, setActiveGroup] = useState<NavItemConfig | null>(null);
 
   const SCREEN_CONFIG: Record<string, any> = {
     Schedule: { component: ScheduleScreen, options: { swipeEnabled: false } },
@@ -96,84 +169,19 @@ function InnerTabNavigator({
   // Fallback if navConfig is empty (migration issue)
   const activeConfig: NavItemConfig[] = (navConfig && navConfig.length > 0) ? navConfig : DEFAULT_NAV_ITEMS;
 
-  const renderedScreenIds = new Set<string>();
-  activeConfig.forEach(item => {
-    if (item.visible && item.type !== 'group') {
-      renderedScreenIds.add(item.id);
-    }
-  });
-
   return (
     <View style={{ flex: 1 }}>
       <Tab.Navigator
         tabBarPosition="bottom"
+        tabBar={(props) => <CustomTabBar {...props} navConfig={activeConfig} onOpenGroup={setActiveGroup} />}
         screenOptions={{
-          tabBarStyle: {
-            backgroundColor: '#0f172a', // slate-900
-            borderTopColor: '#334155', // slate-700
-            borderTopWidth: 1,
-            height: 62 + insets.bottom,
-            paddingBottom: insets.bottom,
-            paddingTop: 0,
-          },
-          tabBarIndicatorStyle: {
-            height: 0, // Hide the material indicator line
-          },
-          tabBarActiveTintColor: '#818cf8', // indigo-400
-          tabBarInactiveTintColor: '#64748b', // slate-500
-          tabBarLabelStyle: {
-            textTransform: 'none',
-            fontSize: 10,
-            fontWeight: '600',
-            marginTop: 0,
-          },
-          tabBarShowIcon: true,
-          swipeEnabled: true,
+          swipeEnabled: false, // Disable swipe globally to prevent leaking into hidden tabs
           animationEnabled: true,
         }}
         initialRouteName="Schedule"
       >
-        {activeConfig.filter(item => item.visible).map(item => {
-          if (item.type === 'group') {
-            return (
-              <Tab.Screen
-                key={item.id}
-                name={item.id}
-                children={(props) => <GroupMenu {...props} config={item} />}
-                options={{
-                  tabBarLabel: item.title,
-                  tabBarIcon: ({ color }) => (
-                    // @ts-ignore
-                    <Ionicons name={item.icon} size={24} color={color} />
-                  ),
-                }}
-              />
-            );
-          } else {
-            const config = SCREEN_CONFIG[item.id];
-            if (!config) return null;
-
-            return (
-              <Tab.Screen
-                key={item.id}
-                name={item.id}
-                component={config.component}
-                children={config.children}
-                options={{
-                  ...config.options,
-                  tabBarLabel: item.title,
-                  tabBarIcon: ({ color }) => (
-                    // @ts-ignore
-                    <Ionicons name={item.icon} size={24} color={color} />
-                  ),
-                }}
-              />
-            );
-          }
-        })}
-
-        {/* Render hidden tabs for screens not in the main bar (e.g. inside groups or hidden) */}
-        {Object.keys(SCREEN_CONFIG).filter(id => !renderedScreenIds.has(id)).map(id => {
+        {/* Register ALL screens so they are navigable */}
+        {Object.keys(SCREEN_CONFIG).map(id => {
             const config = SCREEN_CONFIG[id];
             return (
                 <Tab.Screen
@@ -181,15 +189,17 @@ function InnerTabNavigator({
                     name={id}
                     component={config.component}
                     children={config.children}
-                    options={{
-                        ...config.options,
-                        tabBarItemStyle: { display: 'none' }, // Hide from bar
-                        tabBarLabel: id // Fallback label
-                    }}
+                    options={config.options}
                 />
             );
         })}
       </Tab.Navigator>
+
+      <GroupMenuOverlay
+        visible={!!activeGroup}
+        config={activeGroup}
+        onClose={() => setActiveGroup(null)}
+      />
     </View>
   );
 }
