@@ -27,7 +27,11 @@ export class TaskService {
                 const decoded = decodeURIComponent(uri);
                 const parts = decoded.split('/');
                 const lastPart = parts[parts.length - 1];
-                const name = lastPart.includes(':') ? lastPart.split(':').pop()! : lastPart;
+                let name = lastPart.includes(':') ? lastPart.split(':').pop()! : lastPart;
+                // Ensure name is just the folder name, not a path
+                if (name.includes('/')) {
+                    name = name.split('/').pop()!;
+                }
 
                 // Try reading as dir to confirm it's a folder
                 try {
@@ -62,7 +66,11 @@ export class TaskService {
                 const decoded = decodeURIComponent(childUri);
                 const parts = decoded.split('/');
                 const lastPart = parts[parts.length - 1];
-                const name = lastPart.includes(':') ? lastPart.split(':').pop()! : lastPart;
+                let name = lastPart.includes(':') ? lastPart.split(':').pop()! : lastPart;
+                // Ensure name is just the file/folder name
+                if (name.includes('/')) {
+                    name = name.split('/').pop()!;
+                }
 
                 try {
                     // Recurse if directory
