@@ -1,19 +1,103 @@
 import { Artifact } from '../services/julesApi';
 import type { ArtifactDeps } from './artifactDeps';
 
+export async function ensureArtifactsDirectory(deps: ArtifactDeps) {
+    const dir = deps.FileSystem.documentDirectory + 'artifacts/';
+    const info = await deps.FileSystem.getInfoAsync(dir);
+    if (!info.exists) {
+        await deps.FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+    }
+    return dir;
+}
+
+export async function isArtifactCached(artifact: Artifact, deps: ArtifactDeps): Promise<string | null> {
+    const dir = deps.FileSystem.documentDirectory + 'artifacts/';
+    const path = dir + `${artifact.id}.apk`;
+    const info = await deps.FileSystem.getInfoAsync(path);
+    if (info.exists) {
+        return path;
+    }
+    return null;
+}
+
+export async function installCachedArtifact(apkUri: string, deps: ArtifactDeps) {
+    console.log(`[Artifact] Installing cached artifact from ${apkUri}`);
+    // Get content URI
+    const contentUri = await deps.FileSystem.getContentUriAsync(apkUri);
+    console.log(`[Artifact] Launching intent for: ${contentUri}`);
+
+    try {
+        await deps.ApkInstaller.install(contentUri);
+        console.log(`[Artifact] Launched package installer via ApkInstaller native module`);
+    } catch (installError: any) {
+        if (installError?.code === 'APK_PERMISSION_NEEDED') {
+            deps.Alert.alert(
+                "Permission Required",
+                "Please enable 'Install unknown apps' for AI Inbox in the settings screen that just opened, then try again."
+            );
+        } else {
+            throw installError;
+        }
+    }
+}
+
+async function manageCache(deps: ArtifactDeps) {
+    const dir = deps.FileSystem.documentDirectory + 'artifacts/';
+    try {
+        const files = await deps.FileSystem.readDirectoryAsync(dir);
+        const apkFiles = files.filter(f => f.endsWith('.apk'));
+
+        if (apkFiles.length <= 5) return;
+
+        const fileInfos = await Promise.all(apkFiles.map(async (file) => {
+            const path = dir + file;
+            const info = await deps.FileSystem.getInfoAsync(path);
+            return {
+                path,
+                modificationTime: info.exists ? info.modificationTime || 0 : 0
+            };
+        }));
+
+        // Sort by modification time descending (newest first)
+        fileInfos.sort((a, b) => b.modificationTime - a.modificationTime);
+
+        // Keep top 5, delete the rest
+        const toDelete = fileInfos.slice(5);
+        for (const file of toDelete) {
+            console.log(`[Artifact] Deleting old cached artifact: ${file.path}`);
+            await deps.FileSystem.deleteAsync(file.path, { idempotent: true });
+        }
+    } catch (e) {
+        console.warn("[Artifact] Failed to manage cache:", e);
+    }
+}
+
 export async function downloadAndInstallArtifact(
     artifact: Artifact,
     token: string,
     branch: string,
     setDownloading: (downloading: boolean) => void,
     onProgress: (progress: number) => void,
-    deps: ArtifactDeps
+    deps: ArtifactDeps,
+    onStatus?: (status: string) => void
 ) {
     if (!artifact) return;
     setDownloading(true);
     onProgress(0);
+    if (onStatus) onStatus("Checking cache...");
 
     try {
+        // Check cache first
+        const cachedPath = await isArtifactCached(artifact, deps);
+        if (cachedPath) {
+            console.log(`[Artifact] Found cached artifact at ${cachedPath}`);
+            if (onStatus) onStatus("Installing...");
+            await installCachedArtifact(cachedPath, deps);
+            setDownloading(false);
+            return;
+        }
+
+        if (onStatus) onStatus("Resolving URL...");
         console.log(`[Artifact] Starting download for ${artifact.name} from ${artifact.archive_download_url}`);
         const sanitizedBranch = (branch || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
         const sanitizedArtifactName = artifact.name.replace(/[^a-zA-Z0-9-_]/g, '_');
@@ -21,11 +105,6 @@ export async function downloadAndInstallArtifact(
         const zipFileUri = deps.FileSystem.cacheDirectory + zipFilename;
 
         // 1. Download the zip
-        // GitHub artifact API returns a 302 redirect to Azure Blob Storage.
-        // If we send the Authorization header to the redirect target, the download
-        // returns corrupted data (Azure rejects/ignores the Bearer token).
-        // We resolve the final URL by following the redirect with fetch, then
-        // re-download from that URL without the auth header.
         console.log(`[Artifact] Resolving redirect for artifact URL...`);
         const redirectResponse = await fetch(artifact.archive_download_url, {
             headers: {
@@ -33,19 +112,17 @@ export async function downloadAndInstallArtifact(
                 'Accept': 'application/vnd.github+json',
             },
         });
-        // response.url gives us the final URL after all redirects
         const finalUrl = redirectResponse.url;
         const wasRedirected = finalUrl !== artifact.archive_download_url;
         console.log(`[Artifact] Resolved download URL (redirected: ${wasRedirected})`);
 
-        // Abort the body — we only needed the final URL
         try { await redirectResponse.body?.cancel(); } catch (_) {}
 
         if (!wasRedirected) {
-            // No redirect happened — the response itself may contain the data.
-            // This shouldn't normally happen with the GitHub API, but handle it.
             console.warn(`[Artifact] No redirect detected, status: ${redirectResponse.status}`);
         }
+
+        if (onStatus) onStatus("Downloading...");
 
         // Download from the final (Azure) URL without auth headers
         const downloadResumable = deps.FileSystem.createDownloadResumable(
@@ -64,37 +141,25 @@ export async function downloadAndInstallArtifact(
             throw new Error("Download failed");
         }
 
-        try {
-            const fileInfo = await deps.FileSystem.getInfoAsync(result.uri);
-            if (fileInfo.exists) {
-                console.log(`[Artifact] Downloaded file size: ${fileInfo.size} bytes`);
-            }
-        } catch (e) {
-            console.warn("[Artifact] Failed to get file info", e);
-        }
-
         onProgress(1); // Ensure 100%
 
         // 2. Check if we should try to install it (Android + app-release)
         if (deps.Platform.OS === 'android' && artifact.name === 'app-release') {
+            if (onStatus) onStatus("Unzipping...");
             console.log(`[Artifact] Android app-release detected, unzipping...`);
             try {
-                // Use native unzip instead of in-memory JSZip to avoid OOM
                 const unzipPath = deps.FileSystem.cacheDirectory + 'unzipped/';
 
-                // Ensure directory exists or is clean
                 const info = await deps.FileSystem.getInfoAsync(unzipPath);
                 if (info.exists) {
                     await deps.FileSystem.deleteAsync(unzipPath, { idempotent: true });
                 }
                 await deps.FileSystem.makeDirectoryAsync(unzipPath, { intermediates: true });
 
-                // Native unzip — react-native-zip-archive requires raw paths, not file:// URIs
                 const stripFileUri = (uri: string) => uri.replace(/^file:\/\//, '');
                 await deps.unzip(stripFileUri(result.uri), stripFileUri(unzipPath));
                 console.log(`[Artifact] Unzip complete`);
 
-                // Find APK in the unzipped folder (search root and subfolders)
                 const findApk = async (dir: string, depth = 0): Promise<string | null> => {
                     if (depth > 5) return null; // Safety limit
 
@@ -122,37 +187,21 @@ export async function downloadAndInstallArtifact(
                 const apkSourceUri = await findApk(unzipPath);
 
                 if (apkSourceUri) {
-                    const apkTargetUri = deps.FileSystem.cacheDirectory + 'app-release.apk';
-                    console.log(`[Artifact] Found APK at ${apkSourceUri}, copying to ${apkTargetUri}`);
+                    await ensureArtifactsDirectory(deps);
+                    const apkTargetUri = deps.FileSystem.documentDirectory + 'artifacts/' + `${artifact.id}.apk`;
+                    console.log(`[Artifact] Found APK at ${apkSourceUri}, copying to cache: ${apkTargetUri}`);
 
-                    // Move/copy to a predictable name for install
+                    // Copy to persistent cache
                     await deps.FileSystem.copyAsync({
                         from: apkSourceUri,
                         to: apkTargetUri
                     });
 
-                    // Get content URI
-                    const contentUri = await deps.FileSystem.getContentUriAsync(apkTargetUri);
-                    console.log(`[Artifact] Launching intent for: ${contentUri}`);
+                    // Manage cache size
+                    await manageCache(deps);
 
-                    // Use native ApkInstaller module which calls startActivity (fire-and-forget)
-                    // with proper MIME type. IntentLauncher uses startActivityForResult which
-                    // causes the package installer to return immediately without showing UI,
-                    // and Linking.openURL doesn't set the MIME type needed for content:// URIs.
-                    try {
-                        await deps.ApkInstaller.install(contentUri);
-                        console.log(`[Artifact] Launched package installer via ApkInstaller native module`);
-                    } catch (installError: any) {
-                        if (installError?.code === 'APK_PERMISSION_NEEDED') {
-                            deps.Alert.alert(
-                                "Permission Required",
-                                "Please enable 'Install unknown apps' for AI Inbox in the settings screen that just opened, then try downloading again."
-                            );
-                        } else {
-                            throw installError;
-                        }
-                    }
-
+                    if (onStatus) onStatus("Installing...");
+                    await installCachedArtifact(apkTargetUri, deps);
                     setDownloading(false);
                     return;
                 } else {

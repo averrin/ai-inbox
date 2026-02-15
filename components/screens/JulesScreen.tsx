@@ -13,7 +13,7 @@ import { useAuthRequest, makeRedirectUri, ResponseType } from 'expo-auth-session
 WebBrowser.maybeCompleteAuthSession();
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useNavigation } from '@react-navigation/native';
-import { downloadAndInstallArtifact } from '../../utils/artifactHandler';
+import { downloadAndInstallArtifact, isArtifactCached, installCachedArtifact } from '../../utils/artifactHandler';
 import { artifactDeps } from '../../utils/artifactDeps';
 
 dayjs.extend(relativeTime);
@@ -116,6 +116,8 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
     const [artifactsLoading, setArtifactsLoading] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [progress, setProgress] = useState<number | null>(null);
+    const [status, setStatus] = useState<string | null>(null);
+    const [cachedArtifactPath, setCachedArtifactPath] = useState<string | null>(null);
     const [isMerging, setIsMerging] = useState(false);
     const [prInactive, setPrInactive] = useState(false);
     const [mergeable, setMergeable] = useState<boolean | null>(null);
@@ -168,6 +170,17 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
                 .finally(() => setArtifactsLoading(false));
         }
     }, [ghToken, owner, repo, ghRun]);
+
+    useEffect(() => {
+        if (artifacts && artifacts.length > 0) {
+            const artifact = getBestArtifact(artifacts);
+            if (artifact) {
+                isArtifactCached(artifact, artifactDeps).then(setCachedArtifactPath);
+            }
+        } else {
+            setCachedArtifactPath(null);
+        }
+    }, [artifacts]);
 
     useEffect(() => {
         setGhRun(null);
@@ -238,16 +251,25 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
         console.log(`[JulesScreen] Best artifact: ${artifact?.name}`);
         if (!artifact) return;
 
+        if (cachedArtifactPath) {
+            await installCachedArtifact(cachedArtifactPath, artifactDeps);
+            return;
+        }
+
         setProgress(0);
+        setStatus("Starting...");
         await downloadAndInstallArtifact(
             artifact,
             ghToken,
             branch || 'unknown',
             setIsDownloading,
             (p) => setProgress(p),
-            artifactDeps
+            artifactDeps,
+            setStatus
         );
         setProgress(null);
+        setStatus(null);
+        isArtifactCached(artifact, artifactDeps).then(setCachedArtifactPath);
     };
 
     const handleMerge = async () => {
@@ -337,8 +359,10 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
             onPress: () => Linking.openURL(ghRun.html_url)
         }] : []),
         ...(artifacts && artifacts.length > 0 ? [{
-            label: `Download Artifact ${progress ? `(${Math.round(progress*100)}%)` : ''}`,
-            icon: "download-outline",
+            label: cachedArtifactPath
+                ? "Install Artifact"
+                : (isDownloading ? (status || `Downloading ${Math.round((progress || 0)*100)}%`) : "Download Artifact"),
+            icon: cachedArtifactPath ? "construct-outline" : "download-outline",
             onPress: handleDownloadArtifact,
             disabled: isDownloading
         }] : []),
@@ -621,6 +645,8 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false, refresh
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
     const [isDownloading, setIsDownloading] = useState(false);
     const [progress, setProgress] = useState<number | null>(null);
+    const [status, setStatus] = useState<string | null>(null);
+    const [cachedArtifactPath, setCachedArtifactPath] = useState<string | null>(null);
     const [checksLoading, setChecksLoading] = useState(false);
     const [artifactsLoading, setArtifactsLoading] = useState(false);
     const [expanded, setExpanded] = useState(initialExpanded);
@@ -684,6 +710,17 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false, refresh
     }, [token, owner, repo, run.id]);
 
     useEffect(() => {
+        if (artifacts && artifacts.length > 0) {
+            const artifact = getBestArtifact(artifacts);
+            if (artifact) {
+                isArtifactCached(artifact, artifactDeps).then(setCachedArtifactPath);
+            }
+        } else {
+            setCachedArtifactPath(null);
+        }
+    }, [artifacts]);
+
+    useEffect(() => {
         if (expanded) {
             if (!checks && !checksLoading) {
                 setChecksLoading(true);
@@ -709,16 +746,25 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false, refresh
         console.log(`[JulesSessionItem] Best artifact: ${artifact?.name}`);
         if (!artifact) return;
 
+        if (cachedArtifactPath) {
+            await installCachedArtifact(cachedArtifactPath, artifactDeps);
+            return;
+        }
+
         setProgress(0);
+        setStatus("Starting...");
         await downloadAndInstallArtifact(
             artifact,
             token,
             run.head_branch || 'unknown',
             setIsDownloading,
             (p) => setProgress(p),
-            artifactDeps
+            artifactDeps,
+            setStatus
         );
         setProgress(null);
+        setStatus(null);
+        isArtifactCached(artifact, artifactDeps).then(setCachedArtifactPath);
     };
 
     const getStatusInfo = () => {
@@ -825,11 +871,14 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false, refresh
                                 )}
                                 <View className="flex-row items-center justify-center w-full h-full">
                                     {isDownloading ? (
-                                        <Text className="text-white text-xs font-semibold">{Math.round((progress || 0) * 100)}%</Text>
+                                        <>
+                                            <ActivityIndicator size="small" color="white" style={{ transform: [{ scale: 0.7 }] }} className="mr-2" />
+                                            <Text className="text-white text-xs font-semibold">{status || `${Math.round((progress || 0) * 100)}%`}</Text>
+                                        </>
                                     ) : (
                                         <>
-                                            <Ionicons name="download-outline" size={16} color="white" />
-                                            <Text className="text-white font-semibold ml-2">Artifact</Text>
+                                            <Ionicons name={cachedArtifactPath ? "construct-outline" : "download-outline"} size={16} color="white" />
+                                            <Text className="text-white font-semibold ml-2">{cachedArtifactPath ? "Install" : "Artifact"}</Text>
                                         </>
                                     )}
                                 </View>
