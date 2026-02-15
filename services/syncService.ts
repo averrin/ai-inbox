@@ -99,7 +99,6 @@ export class SyncService {
         console.log('[SyncService] Listening to:', docRef.path);
 
         this.unsubscribeFirestore = onSnapshot(docRef, { includeMetadataChanges: true }, (snapshot) => {
-            console.log(`[SyncService] Snapshot: exists=${snapshot.exists()}, fromCache=${snapshot.metadata.fromCache}, hasPendingWrites=${snapshot.metadata.hasPendingWrites}`);
 
             // Ignore updates that were triggered by local writes
             if (snapshot.metadata.hasPendingWrites) {
@@ -150,7 +149,6 @@ export class SyncService {
             });
 
             const docRef = doc(firebaseDb, 'users', user.uid, 'settings', 'current');
-            console.log('[SyncService] Attempting to push to:', docRef.path);
 
             // Wrap in race to detect hanging setDoc
             const timeoutPromise = new Promise((_, reject) =>
@@ -194,10 +192,8 @@ export class SyncService {
             ]) as any;
 
             if (docSnap.exists()) {
-                console.log('[SyncService] Remote state found on SERVER (pull successful)');
                 this.handleRemoteUpdate(docSnap.data());
             } else {
-                console.log('[SyncService] No remote state found on SERVER (first sync or new user)');
             }
         } catch (e: any) {
             console.error('[SyncService] Pull FAILED:', e.message || e);
@@ -250,7 +246,6 @@ export class SyncService {
                         }, 50);
                     }
                 } else {
-                    console.log('[SyncService] Remote state matches local (RECOGNIZED no-op)');
                 }
             }
         } catch (e) {

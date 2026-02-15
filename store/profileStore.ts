@@ -8,11 +8,12 @@ interface ProfileConfig {
     targetTopic?: string;
     questionCount: number;
     forbiddenTopics: string[];
+    abstractionLevel: number; // 0 (Low/Fact) to 1 (High/Philosophy)
 }
 
 interface ProfileState {
     profile: ProfileData;
-    dailyQuestions: string[];
+    dailyQuestions: { text: string; level: number }[];
     dailyReasoning: string;
     answers: Record<string, string>;
     lastGeneratedDate: string;
@@ -21,10 +22,12 @@ interface ProfileState {
 
     // Actions
     loadFromVault: () => Promise<void>;
-    generateQuestions: () => Promise<void>;
+    generateQuestions: (force?: boolean) => Promise<void>;
     submitAnswers: () => Promise<void>;
     updateConfig: (config: Partial<ProfileConfig>) => void;
     setAnswer: (question: string, text: string) => void;
+    deleteFact: (key: string) => Promise<void>;
+    updateFact: (key: string, value: any) => Promise<void>;
     resetDaily: () => void;
 }
 
@@ -39,7 +42,8 @@ export const useProfileStore = create<ProfileState>()(
             isLoading: false,
             config: {
                 questionCount: 3,
-                forbiddenTopics: []
+                forbiddenTopics: [],
+                abstractionLevel: 0.5
             },
 
             loadFromVault: async () => {
@@ -56,13 +60,13 @@ export const useProfileStore = create<ProfileState>()(
                 }
             },
 
-            generateQuestions: async () => {
-                const { apiKey } = useSettingsStore.getState();
+            generateQuestions: async (force: boolean = false) => {
+                const { apiKey, selectedModel } = useSettingsStore.getState();
                 const { profile, config, dailyQuestions, lastGeneratedDate } = get();
 
                 // Check if already generated today
                 const today = new Date().toISOString().split('T')[0];
-                if (lastGeneratedDate === today) {
+                if (!force && lastGeneratedDate === today) {
                     return;
                 }
 
@@ -73,13 +77,10 @@ export const useProfileStore = create<ProfileState>()(
 
                 set({ isLoading: true });
                 try {
-                    // Use question history (maybe from previous days? or just current session?)
-                    // The prompt asks for "Interaction History".
-                    // For now, we can pass recent questions from the profile if we stored them,
-                    // or just empty if it's a new day.
                     const history: string[] = [];
 
                     const result = await ProfileService.generateDailyQuestions(
+                        selectedModel,
                         apiKey,
                         profile,
                         history,
@@ -100,7 +101,7 @@ export const useProfileStore = create<ProfileState>()(
             },
 
             submitAnswers: async () => {
-                const { apiKey, vaultUri } = useSettingsStore.getState();
+                const { apiKey, vaultUri, selectedModel } = useSettingsStore.getState();
                 const { profile, dailyQuestions, answers } = get();
 
                 if (!apiKey || !vaultUri) return;
@@ -108,9 +109,10 @@ export const useProfileStore = create<ProfileState>()(
                 set({ isLoading: true });
                 try {
                     const updatedProfile = await ProfileService.processAnswers(
+                        selectedModel,
                         apiKey,
                         profile,
-                        dailyQuestions,
+                        dailyQuestions.map(q => q.text),
                         answers
                     );
 
@@ -140,18 +142,68 @@ export const useProfileStore = create<ProfileState>()(
                 }));
             },
 
+            deleteFact: async (key: string) => {
+                const { profile } = get();
+                const { vaultUri } = useSettingsStore.getState();
+                if (!vaultUri) return;
+
+                const newFacts = { ...profile.facts };
+                delete newFacts[key];
+
+                const updatedProfile = { ...profile, facts: newFacts, lastUpdated: new Date().toISOString() };
+
+                set({ isLoading: true });
+                try {
+                    await ProfileService.saveProfile(vaultUri, updatedProfile);
+                    set({ profile: updatedProfile, isLoading: false });
+                } catch (e) {
+                    console.error('[ProfileStore] Failed to delete fact', e);
+                    set({ isLoading: false });
+                }
+            },
+
+            updateFact: async (key: string, value: any) => {
+                const { profile } = get();
+                const { vaultUri } = useSettingsStore.getState();
+                if (!vaultUri) return;
+
+                const newFacts = { ...profile.facts, [key]: value };
+                const updatedProfile = { ...profile, facts: newFacts, lastUpdated: new Date().toISOString() };
+
+                set({ isLoading: true });
+                try {
+                    await ProfileService.saveProfile(vaultUri, updatedProfile);
+                    set({ profile: updatedProfile, isLoading: false });
+                } catch (e) {
+                    console.error('[ProfileStore] Failed to update fact', e);
+                    set({ isLoading: false });
+                }
+            },
+
             resetDaily: () => {
-                 set({
+                set({
                     dailyQuestions: [],
                     dailyReasoning: '',
                     answers: {},
                     lastGeneratedDate: ''
-                 });
+                });
             }
         }),
         {
             name: 'profile-storage',
             storage: createJSONStorage(() => AsyncStorage),
+            version: 1,
+            migrate: (persistedState: any, version: number) => {
+                if (version === 0) {
+                    // Migrate dailyQuestions from string[] to { text: string, level: number }[]
+                    if (Array.isArray(persistedState.dailyQuestions)) {
+                        persistedState.dailyQuestions = persistedState.dailyQuestions.map((q: any) =>
+                            typeof q === 'string' ? { text: q, level: 0.5 } : q
+                        );
+                    }
+                }
+                return persistedState;
+            },
             partialize: (state) => ({
                 profile: state.profile,
                 dailyQuestions: state.dailyQuestions,

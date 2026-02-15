@@ -115,13 +115,16 @@ export async function saveToVault(
 
         const existingFileUri = await findFile(targetUri, filename);
         if (existingFileUri) {
-            await writeSafe(existingFileUri, content);
-            return existingFileUri;
-        } else {
-            const fileUri = await StorageAccessFramework.createFileAsync(targetUri, filename, mimeType);
-            await writeSafe(fileUri, content);
-            return fileUri;
+            try {
+                await StorageAccessFramework.deleteAsync(existingFileUri);
+            } catch (e) {
+                console.warn('[saveToVault] Failed to delete existing file, will try direct write', e);
+            }
         }
+
+        const fileUri = await StorageAccessFramework.createFileAsync(targetUri, filename, mimeType);
+        await StorageAccessFramework.writeAsStringAsync(fileUri, content);
+        return fileUri;
     } catch (e) {
         console.error('[saveToVault] Error:', e);
         throw e;
@@ -246,10 +249,10 @@ export async function readVaultStructure(
             // 2. Implicit fields "key:: value" on their own line or at start of line (allowing indentation/bullets)
             const implicitRegex = /^(?:[ \t-]*)?([a-zA-Z0-9_%-]+)::[ \t]*(.+)$/gm;
             while ((match = implicitRegex.exec(bodyContent)) !== null) {
-                 const key = match[1].trim();
-                 const value = match[2].trim();
+                const key = match[1].trim();
+                const value = match[2].trim();
 
-                 if (key !== 'tags' && key !== 'icon') {
+                if (key !== 'tags' && key !== 'icon') {
                     if (!frontmatterKeys.includes(key)) frontmatterKeys.push(key);
                     if (frontmatter[key] === undefined) frontmatter[key] = value;
                 }

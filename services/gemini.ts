@@ -267,7 +267,7 @@ export async function processContent(apiKey: string, content: string, promptOver
     }
 }
 
-export async function transcribeAudio(apiKey: string, base64Audio: string, mimeType: string, model: string = "gemini-1.5-flash"): Promise<string | null> {
+export async function transcribeAudio(apiKey: string, base64Audio: string, mimeType: string, model: string = "gemini-3-flash-preview"): Promise<string | null> {
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
         const genModel = genAI.getGenerativeModel({ model });
