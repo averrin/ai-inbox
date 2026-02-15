@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 import { ProfileService, ProfileData, DEFAULT_PROFILE } from '../services/profileService';
 import { useSettingsStore } from './settings';
+import { generateImage } from '../services/gemini';
 
 interface ProfileConfig {
     targetTopic?: string;
@@ -18,12 +20,14 @@ interface ProfileState {
     answers: Record<string, string>;
     lastGeneratedDate: string;
     isLoading: boolean;
+    isGeneratingImage: boolean;
     config: ProfileConfig;
 
     // Actions
     loadFromVault: () => Promise<void>;
     generateQuestions: (force?: boolean) => Promise<void>;
     submitAnswers: () => Promise<void>;
+    generateProfileImage: () => Promise<void>;
     updateConfig: (config: Partial<ProfileConfig>) => void;
     setAnswer: (question: string, text: string) => void;
     deleteFact: (key: string) => Promise<void>;
@@ -40,6 +44,7 @@ export const useProfileStore = create<ProfileState>()(
             answers: {},
             lastGeneratedDate: '',
             isLoading: false,
+            isGeneratingImage: false,
             config: {
                 questionCount: 3,
                 forbiddenTopics: [],
@@ -124,9 +129,53 @@ export const useProfileStore = create<ProfileState>()(
                         answers: {},
                         isLoading: false
                     });
+
+                    // Trigger image regeneration
+                    get().generateProfileImage();
                 } catch (e) {
                     console.error('[ProfileStore] Failed to submit answers', e);
                     set({ isLoading: false });
+                }
+            },
+
+            generateProfileImage: async () => {
+                const { apiKey, selectedImageModel, vaultUri } = useSettingsStore.getState();
+                const { profile } = get();
+
+                if (!apiKey || !selectedImageModel) {
+                    console.warn('[ProfileStore] Missing API key or Image Model');
+                    return;
+                }
+
+                set({ isGeneratingImage: true });
+
+                try {
+                    const prompt = ProfileService.generateProfileImagePrompt(profile);
+                    const base64 = await generateImage(apiKey, prompt, selectedImageModel);
+
+                    if (base64) {
+                        // Save to document directory
+                        const fileName = 'profile_context.png';
+                        const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+
+                        await FileSystem.writeAsStringAsync(fileUri, base64, {
+                            encoding: FileSystem.EncodingType.Base64
+                        });
+
+                        // Update profile with new URI
+                        const updatedProfile = { ...profile, profileImage: fileUri, lastUpdated: new Date().toISOString() };
+
+                        set({ profile: updatedProfile });
+
+                        // Save profile metadata to vault
+                        if (vaultUri) {
+                            await ProfileService.saveProfile(vaultUri, updatedProfile);
+                        }
+                    }
+                } catch (e) {
+                    console.error('[ProfileStore] Failed to generate profile image', e);
+                } finally {
+                    set({ isGeneratingImage: false });
                 }
             },
 
@@ -156,6 +205,8 @@ export const useProfileStore = create<ProfileState>()(
                 try {
                     await ProfileService.saveProfile(vaultUri, updatedProfile);
                     set({ profile: updatedProfile, isLoading: false });
+                    // Trigger image regeneration
+                    get().generateProfileImage();
                 } catch (e) {
                     console.error('[ProfileStore] Failed to delete fact', e);
                     set({ isLoading: false });
@@ -174,6 +225,8 @@ export const useProfileStore = create<ProfileState>()(
                 try {
                     await ProfileService.saveProfile(vaultUri, updatedProfile);
                     set({ profile: updatedProfile, isLoading: false });
+                    // Trigger image regeneration
+                    get().generateProfileImage();
                 } catch (e) {
                     console.error('[ProfileStore] Failed to update fact', e);
                     set({ isLoading: false });
