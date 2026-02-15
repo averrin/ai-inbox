@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, LayoutAnimation, Platform, UIManager, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import { useTasksStore, TaskWithSource } from '../../store/tasks';
@@ -106,18 +107,29 @@ export const TodaysTasksPanel = ({ date, events, onAdd }: TodaysTasksPanelProps)
     if (!vaultUri) return;
     try {
         await TaskService.syncTaskUpdate(vaultUri, original, updated);
-        // Store update is handled via file watcher usually, but we can optimistically update
-        // Actually TaskService.syncTaskUpdate might trigger reload or we might need to update store manually
-        // For now, let's assume store reloads or we do nothing (optimistic update is tricky with file sync)
-        // But we can update local state in store for immediate feedback
+        // Optimistic update
         const newTasks = tasks.map(t =>
             (t.filePath === original.filePath && t.originalLine === original.originalLine)
             ? { ...t, ...updated }
             : t
         );
         setTasks(newTasks);
-    } catch (e) {
+    } catch (e: any) {
         console.error("Failed to update task", e);
+        if (e.message === 'FILE_NOT_FOUND') {
+            // Remove orphan task
+            const newTasks = tasks.filter(t =>
+                !(t.filePath === original.filePath && t.originalLine === original.originalLine)
+            );
+            setTasks(newTasks);
+            Toast.show({
+                type: 'error',
+                text1: 'Task file missing',
+                text2: 'Removed orphan task from list.'
+            });
+        } else {
+            Alert.alert("Error", "Failed to update task");
+        }
     }
   };
 

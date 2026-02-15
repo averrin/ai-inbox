@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, RefreshControl, Platform, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import { Calendar as BigCalendar, CalendarRef } from '../ui/calendar';
 import dayjs from 'dayjs';
 import { Ionicons } from '@expo/vector-icons';
@@ -1374,7 +1375,26 @@ export default function ScheduleScreen() {
                             if (vaultUri) {
                                 if (editingTask.fileUri) {
                                     // Existing Task
-                                    await TaskService.syncTaskUpdate(vaultUri, editingTask, updatedTask);
+                                    try {
+                                        await TaskService.syncTaskUpdate(vaultUri, editingTask, updatedTask);
+                                    } catch (e: any) {
+                                        if (e.message === 'FILE_NOT_FOUND') {
+                                            // Remove from store
+                                            const { tasks } = useTasksStore.getState();
+                                            const newTasks = tasks.filter(t =>
+                                                !(t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
+                                            );
+                                            useTasksStore.getState().setTasks(newTasks);
+                                            Toast.show({
+                                                type: 'error',
+                                                text1: 'Task file missing',
+                                                text2: 'Removed orphan task.'
+                                            });
+                                            // Don't re-throw, just close modal
+                                        } else {
+                                            throw e; // Let outer catch handle it
+                                        }
+                                    }
                                 } else {
                                     // New Task
                                     try {

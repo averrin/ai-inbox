@@ -143,7 +143,7 @@ export class TaskService {
 
             if (!content) {
                 console.error(`[TaskService] Could not read file content for ${task.title}`);
-                throw e;
+                throw new Error('FILE_NOT_FOUND');
             }
         }
 
