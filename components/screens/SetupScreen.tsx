@@ -31,13 +31,14 @@ import { CloudSyncSettings } from '../settings/CloudSyncSettings';
 import { LogsSettings } from '../settings/LogsSettings';
 import { NewsSettings } from '../settings/NewsSettings';
 import { NavigationSettings } from '../settings/NavigationSettings';
+import { ProfileSettings } from '../settings/ProfileSettings';
 import { scanForReminders } from '../../services/reminderService';
 import { useEventTypesStore } from '../../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../../utils/debugUtils';
 import gitInfo from '../../git-info.json';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -650,6 +651,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "Configure your feed"
             )}
             {renderMenuButton(
+                "Profile Builder",
+                "person-outline",
+                () => setActiveSection('profile'),
+                "Daily questions configuration"
+            )}
+            {renderMenuButton(
                 "Calendars",
                 "calendar-outline",
                 () => setActiveSection('calendars'),
@@ -874,6 +881,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("News Topics", () => setActiveSection('root'))}
                                 <View className="px-0"><NewsSettings /></View>
+                            </>
+                        )}
+                        {activeSection === 'profile' && (
+                            <>
+                                {renderHeader("Profile Settings", () => setActiveSection('root'))}
+                                <View className="px-0"><ProfileSettings /></View>
                             </>
                         )}
                         {activeSection === 'calendars' && (
