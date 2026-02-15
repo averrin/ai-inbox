@@ -6,12 +6,28 @@ export { ProfileData, DEFAULT_PROFILE };
 export class ProfileService {
     static async loadProfile(vaultUri: string): Promise<ProfileData> {
         try {
+            // Migration check: Look for Profile.json.md (mistakenly created)
+            const existsMd = await checkFileExists(vaultUri, 'Profile.json.md');
+            if (existsMd) {
+                try {
+                    const content = await readFileContent(vaultUri, 'Profile.json.md');
+                    const parsed = JSON.parse(content);
+
+                    // Save correctly
+                    await this.saveProfile(vaultUri, parsed);
+                } catch (migErr) {
+                    console.error('[ProfileService] Migration failed:', migErr);
+                }
+            }
+
             const exists = await checkFileExists(vaultUri, 'Profile.json');
+
             if (!exists) {
                 return DEFAULT_PROFILE;
             }
             const content = await readFileContent(vaultUri, 'Profile.json');
-            return JSON.parse(content);
+            const parsed = JSON.parse(content);
+            return parsed;
         } catch (e) {
             console.error('[ProfileService] Failed to load profile:', e);
             return DEFAULT_PROFILE;
@@ -20,7 +36,8 @@ export class ProfileService {
 
     static async saveProfile(vaultUri: string, profile: ProfileData): Promise<void> {
         try {
-            await saveToVault(vaultUri, 'Profile.json', JSON.stringify(profile, null, 2));
+            // Explicitly use application/json to prevent .md extension
+            await saveToVault(vaultUri, 'Profile.json', JSON.stringify(profile, null, 2), undefined, 'application/json');
         } catch (e) {
             console.error('[ProfileService] Failed to save profile:', e);
             throw e;
@@ -28,20 +45,22 @@ export class ProfileService {
     }
 
     static async generateDailyQuestions(
+        modelName: string,
         apiKey: string,
         profile: ProfileData,
         history: string[],
-        config: { targetTopic?: string, questionCount: number, forbiddenTopics: string[] }
-    ): Promise<{ questions: string[], reasoning: string }> {
-        return ProfileLogic.generateDailyQuestions(apiKey, profile, history, config);
+        config: { targetTopic?: string, questionCount: number, forbiddenTopics: string[], abstractionLevel: number }
+    ): Promise<{ questions: { text: string; level: number }[], reasoning: string }> {
+        return ProfileLogic.generateDailyQuestions(modelName, apiKey, profile, history, config);
     }
 
     static async processAnswers(
+        modelName: string,
         apiKey: string,
         profile: ProfileData,
         questions: string[],
         answers: Record<string, string>
     ): Promise<ProfileData> {
-        return ProfileLogic.processAnswers(apiKey, profile, questions, answers);
+        return ProfileLogic.processAnswers(modelName, apiKey, profile, questions, answers);
     }
 }
