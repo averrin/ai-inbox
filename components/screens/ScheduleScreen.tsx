@@ -1370,10 +1370,76 @@ export default function ScheduleScreen() {
                         task={editingTask}
                         onSave={async (updatedTask) => {
                             const { TaskService } = await import('../../services/taskService');
+                            const { findFile, ensureDirectory } = await import('../../utils/saf');
                             if (vaultUri) {
-                                await TaskService.syncTaskUpdate(vaultUri, editingTask, updatedTask);
+                                if (editingTask.fileUri) {
+                                    // Existing Task
+                                    await TaskService.syncTaskUpdate(vaultUri, editingTask, updatedTask);
+                                } else {
+                                    // New Task
+                                    try {
+                                        // Default to Tasks.md in tasksRoot, or Inbox.md
+                                        // Simple logic: Use tasksRoot/Inbox.md. Create if needed.
+                                        const { tasksRoot } = useSettingsStore.getState();
+                                        // tasksRoot is usually a path relative to vaultUri
+                                        // Let's resolve the URI for tasksRoot
+                                        let targetFileUri = null;
+
+                                        // Try to find a sensible default file
+                                        // For "Today's Tasks", maybe we should use a daily note?
+                                        // But for simplicity, let's use Inbox.md in the root or tasks folder.
+
+                                        // Assuming tasksRoot is a folder path
+                                        let folderUri = vaultUri;
+                                        if (tasksRoot) {
+                                            // tasksRoot might be "Work/Tasks"
+                                            const parts = tasksRoot.split('/').filter(p => p);
+                                            for (const part of parts) {
+                                                folderUri = await ensureDirectory(folderUri, part);
+                                            }
+                                        }
+
+                                        // Look for Inbox.md or Tasks.md
+                                        const inbox = await findFile(folderUri, 'Inbox.md');
+                                        if (inbox) targetFileUri = inbox;
+                                        else {
+                                            const tasksFile = await findFile(folderUri, 'Tasks.md');
+                                            if (tasksFile) targetFileUri = tasksFile;
+                                        }
+
+                                        // If still null, create Inbox.md
+                                        if (!targetFileUri) {
+                                            // Use saveToVault to create
+                                            const { saveToVault } = await import('../../utils/saf');
+                                            targetFileUri = await saveToVault(vaultUri, 'Inbox.md', '', tasksRoot || '');
+                                        }
+
+                                        if (targetFileUri) {
+                                            await TaskService.addTask(vaultUri, targetFileUri, updatedTask);
+                                        } else {
+                                            Alert.alert("Error", "Could not determine where to save the task.");
+                                        }
+                                    } catch (e) {
+                                        console.error("Failed to create task", e);
+                                        Alert.alert("Error", "Failed to create task.");
+                                    }
+                                }
                                 setEditingTask(null);
-                                fetchEvents(); // Refresh to catch changes
+                                // For new tasks, we might need to re-scan.
+                                // TaskService operations generally don't auto-trigger store update unless watcher is active.
+                                // We can trigger a quick scan of the specific file if we knew it, or just rely on manual refresh/watcher.
+                                // fetchEvents() refreshes calendar events, not tasks.
+                                // Task store refresh?
+                                const { TaskService: TS } = await import('../../services/taskService');
+                                const { tasksRoot, setTasks } = useTasksStore.getState();
+                                // Full scan is expensive. Maybe optimistically add to store?
+                                // For now, let's trigger scan if possible, or just optimistic add.
+                                // Optimistic add is hard because we need fileUri for the new task item to be editable later.
+                                // Scan is safer.
+                                if (tasksRoot) {
+                                    // This is heavy, but ensures consistency
+                                    TS.scanTasksInFolder(vaultUri, tasksRoot).then(t => setTasks(t));
+                                }
                             }
                         }}
                         onCancel={() => setEditingTask(null)}

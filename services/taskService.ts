@@ -1,5 +1,5 @@
 import { StorageAccessFramework } from 'expo-file-system/legacy';
-import { readFileContent, saveToVault, checkDirectoryExists, writeSafe } from '../utils/saf';
+import { readFileContent, saveToVault, checkDirectoryExists, writeSafe, findFile } from '../utils/saf';
 import { parseTaskLine, RichTask, updateTaskInText, removeTaskFromText, serializeTaskLine } from '../utils/taskParser';
 import { TaskWithSource } from '../store/tasks';
 
@@ -102,11 +102,56 @@ export class TaskService {
      * Updates an existing task in its source file.
      */
     static async syncTaskUpdate(vaultUri: string, task: TaskWithSource, updatedTask: RichTask): Promise<void> {
+        let uri = task.fileUri;
+        let content = '';
+
+        // 1. Try Read
         try {
-            const content = await StorageAccessFramework.readAsStringAsync(task.fileUri);
+            content = await StorageAccessFramework.readAsStringAsync(uri);
+        } catch (e) {
+            console.warn(`[TaskService] Failed to read task file at ${uri}, attempting resolution via path`, e);
+            // Attempt recovery via path
+            if (task.filePath) {
+                try {
+                    // Try to resolve based on vaultUri + relative path logic
+                    // We don't have a direct "resolve path" helper that is super robust for full paths,
+                    // but we can try checkDirectoryExists logic if we split path.
+                    // Or more simply: if we assume standard structure.
+                    // But `findFile` searches in a parent.
+
+                    // Let's assume filePath is relative to vault root?
+                    // TaskWithSource.filePath usually includes folders.
+
+                    const parts = task.filePath.split('/').filter(p => p);
+                    const filename = parts.pop();
+                    if (filename) {
+                        const dirPath = parts.join('/');
+                        const parentUri = await checkDirectoryExists(vaultUri, dirPath);
+                        if (parentUri) {
+                            const foundUri = await findFile(parentUri, filename);
+                            if (foundUri) {
+                                uri = foundUri;
+                                content = await StorageAccessFramework.readAsStringAsync(uri);
+                                console.log(`[TaskService] Recovered file URI: ${uri}`);
+                            }
+                        }
+                    }
+                } catch (recoveryErr) {
+                    console.error('[TaskService] Recovery failed', recoveryErr);
+                }
+            }
+
+            if (!content) {
+                console.error(`[TaskService] Could not read file content for ${task.title}`);
+                throw e;
+            }
+        }
+
+        // 2. Update & Write
+        try {
             // ensure we use the content from the file to avoid stale references, but we already read it above.
             const newContent = updateTaskInText(content, task, updatedTask);
-            await writeSafe(task.fileUri, newContent);
+            await writeSafe(uri, newContent);
         } catch (e) {
             console.error(`[TaskService] Failed to sync update for ${task.title}`, e);
             throw e;
