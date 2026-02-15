@@ -9,12 +9,12 @@ import SetupScreen from '../screens/SetupScreen';
 import NewsScreen from '../screens/NewsScreen';
 import JulesScreen from '../screens/JulesScreen';
 import { ShareIntent } from 'expo-share-intent';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View } from 'react-native';
 import { useSettingsStore, NavItemConfig } from '../../store/settings';
-import { GroupMenu } from './GroupMenu';
+import { GroupMenuOverlay } from './GroupMenuOverlay';
 
 const TransparentTheme = {
   ...DefaultTheme,
@@ -51,6 +51,7 @@ function InnerTabNavigator({
 }) {
   const insets = useSafeAreaInsets();
   const { navConfig } = useSettingsStore();
+  const [activeGroup, setActiveGroup] = useState<NavItemConfig | null>(null);
 
   const SCREEN_CONFIG: Record<string, any> = {
     Schedule: { component: ScheduleScreen, options: { swipeEnabled: false } },
@@ -118,7 +119,13 @@ function InnerTabNavigator({
               <Tab.Screen
                 key={item.id}
                 name={item.id}
-                children={(props) => <GroupMenu {...props} config={item} />}
+                children={() => <View />}
+                listeners={{
+                  tabPress: (e) => {
+                    e.preventDefault();
+                    setActiveGroup(item);
+                  },
+                }}
                 options={{
                   tabBarLabel: item.title,
                   tabBarIcon: ({ color }) => (
@@ -162,13 +169,18 @@ function InnerTabNavigator({
                     children={config.children}
                     options={{
                         ...config.options,
-                        tabBarItemStyle: { display: 'none' }, // Hide from bar
+                        tabBarItemStyle: { display: 'none', width: 0, height: 0, overflow: 'hidden' }, // Hide from bar
                         tabBarLabel: id // Fallback label
                     }}
                 />
             );
         })}
       </Tab.Navigator>
+      <GroupMenuOverlay
+        visible={!!activeGroup}
+        config={activeGroup}
+        onClose={() => setActiveGroup(null)}
+      />
     </View>
   );
 }
