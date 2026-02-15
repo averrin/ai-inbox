@@ -108,6 +108,32 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
                             </View>
                         </View>
 
+                        {/* Property Type */}
+                        {type === 'properties' && (
+                            <View className="bg-slate-800 p-4 rounded-xl mb-4 border border-slate-700">
+                                <Text className="text-white font-medium text-base mb-2">Property Type</Text>
+                                <View className="flex-row gap-2">
+                                    {['text', 'date', 'number', 'boolean'].map((t) => (
+                                        <TouchableOpacity
+                                            key={t}
+                                            onPress={() => updateFn(item, { ...config, type: t as any })}
+                                            className={`px-3 py-2 rounded-lg border ${
+                                                (config.type || 'text') === t
+                                                    ? 'bg-indigo-600 border-indigo-500'
+                                                    : 'bg-slate-700 border-slate-600'
+                                            }`}
+                                        >
+                                            <Text className={`text-xs font-medium ${
+                                                (config.type || 'text') === t ? 'text-white' : 'text-slate-300'
+                                            }`}>
+                                                {t.charAt(0).toUpperCase() + t.slice(1)}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+                        )}
+
                         {/* Default Color */}
                         <View className="bg-slate-800 p-4 rounded-xl mb-4 border border-slate-700">
                             <Text className="text-white font-medium text-base mb-1">Default Color</Text>
