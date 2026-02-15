@@ -1,5 +1,6 @@
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import ProcessingScreen from '../screens/ProcessingScreen';
 import RemindersListScreen from '../screens/RemindersListScreen';
 import TasksScreen from '../screens/TasksScreen';
@@ -49,68 +50,206 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
     // Filter to show ONLY visible items from config
     const visibleItems = navConfig.filter((item: NavItemConfig) => item.visible);
 
+    // Split items into Left and Right groups
+    const rightGroupIds = ['Jules', 'Input'];
+    const rightItems = visibleItems.filter((item: NavItemConfig) => rightGroupIds.includes(item.id));
+    const leftItems = visibleItems.filter((item: NavItemConfig) => !rightGroupIds.includes(item.id));
+
+    // Sort Right Group: Jules first, then Input
+    rightItems.sort((a: NavItemConfig, b: NavItemConfig) => {
+        if (a.id === 'Jules') return -1;
+        if (b.id === 'Jules') return 1;
+        return 0;
+    });
+
+    // Sort Left Group: Schedule, Tasks, Reminders, others...
+    const leftOrder = ['Schedule', 'Tasks', 'Reminders'];
+    leftItems.sort((a: NavItemConfig, b: NavItemConfig) => {
+        const ia = leftOrder.indexOf(a.id);
+        const ib = leftOrder.indexOf(b.id);
+        if (ia === -1 && ib === -1) return 0; // Keep original order for others
+        if (ia === -1) return 1; // Put known items first
+        if (ib === -1) return -1;
+        return ia - ib;
+    });
+
+    const renderItem = (item: NavItemConfig) => {
+        const onPress = () => {
+            if (item.type === 'group') {
+                onOpenGroup(item);
+            } else {
+                const routeIndex = state.routes.findIndex((r: any) => r.name === item.id);
+                if (routeIndex === -1) {
+                    console.warn(`[CustomTabBar] Route not found for item: ${item.id}`);
+                    return;
+                }
+
+                const isFocused = state.index === routeIndex;
+                const event = navigation.emit({
+                    type: 'tabPress',
+                    target: state.routes[routeIndex].key,
+                    canPreventDefault: true,
+                });
+
+                if (!isFocused && !event.defaultPrevented) {
+                    navigation.navigate(item.id);
+                }
+            }
+        };
+
+        const routeIndex = state.routes.findIndex((r: any) => r.name === item.id);
+        const isFocused = item.type !== 'group' && routeIndex !== -1 && state.index === routeIndex;
+
+        // Custom Render: Jules (Gradient Ring)
+        if (item.id === 'Jules') {
+            return (
+                <TouchableOpacity
+                    key={item.id}
+                    onPress={onPress}
+                    style={{
+                        width: 44,
+                        height: 44,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        marginHorizontal: 2
+                    }}
+                >
+                    <LinearGradient
+                        colors={['#06b6d4', '#ec4899', '#f59e0b']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: 17,
+                            padding: 3,
+                            justifyContent: 'center',
+                            alignItems: 'center'
+                        }}
+                    >
+                         <View style={{ flex: 1, backgroundColor: '#1e293b', borderRadius: 15, width: '100%', height: '100%' }} />
+                    </LinearGradient>
+                </TouchableOpacity>
+            );
+        }
+
+        // Custom Render: Input (Plus Button)
+        if (item.id === 'Input') {
+             return (
+                <TouchableOpacity
+                    key={item.id}
+                    onPress={onPress}
+                    style={{
+                        width: 44,
+                        height: 44,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        marginHorizontal: 2
+                    }}
+                >
+                    <View style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 17,
+                        backgroundColor: 'white',
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                    }}>
+                         <Ionicons name="add" size={24} color="black" />
+                    </View>
+                </TouchableOpacity>
+            );
+        }
+
+        // Standard Items (Left Island)
+        let iconName = item.icon;
+        let activeIconName = item.icon;
+
+        // Override icons to match screenshot visual mapping
+        if (item.id === 'Schedule') {
+            iconName = 'home-outline';
+            activeIconName = 'home';
+        } else if (item.id === 'Tasks') {
+            iconName = 'checkbox-outline';
+            activeIconName = 'checkbox';
+        } else if (item.id === 'Reminders') {
+            iconName = 'calendar-clear-outline'; // Grid calendar
+            activeIconName = 'calendar-clear';
+        } else {
+             // Default: strip -outline suffix for active state
+             activeIconName = (item.icon as string).replace('-outline', '');
+        }
+
+        return (
+            <TouchableOpacity
+                key={item.id}
+                onPress={onPress}
+                style={{
+                    width: 44,
+                    height: 44,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: isFocused ? '#334155' : 'transparent',
+                    borderRadius: 22,
+                    marginHorizontal: 2
+                }}
+            >
+                <Ionicons
+                    // @ts-ignore
+                    name={isFocused ? activeIconName : iconName}
+                    size={24}
+                    color={isFocused ? '#3b82f6' : '#94a3b8'} // Blue-500 active, Slate-400 inactive
+                />
+            </TouchableOpacity>
+        );
+    };
+
     return (
         <View style={{
+            position: 'absolute',
+            bottom: insets.bottom + 10,
+            left: 0,
+            right: 0,
             flexDirection: 'row',
-            backgroundColor: '#0f172a', // slate-900
-            borderTopColor: '#334155', // slate-700
-            borderTopWidth: 1,
-            paddingBottom: insets.bottom,
-            height: 62 + insets.bottom,
+            justifyContent: 'space-between', // Push islands to edges
+            paddingHorizontal: 24, // Gap from screen edge
+            pointerEvents: 'box-none', // Allow clicks to pass through empty space
         }}>
-            {visibleItems.map((item: NavItemConfig, index: number) => {
-                const onPress = () => {
-                    if (item.type === 'group') {
-                        onOpenGroup(item);
-                    } else {
-                        // Find the route index for this item if it exists in state
-                        const routeIndex = state.routes.findIndex((r: any) => r.name === item.id);
-                        if (routeIndex === -1) {
-                            console.warn(`[CustomTabBar] Route not found for item: ${item.id}`);
-                            return;
-                        }
+            {/* Left Island */}
+            {leftItems.length > 0 && (
+                <View style={{
+                    flexDirection: 'row',
+                    backgroundColor: '#1e293b', // slate-800
+                    borderRadius: 30,
+                    padding: 4,
+                    alignItems: 'center',
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 4.65,
+                    elevation: 8,
+                }}>
+                    {leftItems.map(renderItem)}
+                </View>
+            )}
 
-                        const isFocused = state.index === routeIndex;
-                        const event = navigation.emit({
-                            type: 'tabPress',
-                            target: state.routes[routeIndex].key,
-                            canPreventDefault: true,
-                        });
-
-                        if (!isFocused && !event.defaultPrevented) {
-                            navigation.navigate(item.id);
-                        }
-                    }
-                };
-
-                // Determine focused state safely
-                const routeIndex = state.routes.findIndex((r: any) => r.name === item.id);
-                const isFocused = item.type !== 'group' && routeIndex !== -1 && state.index === routeIndex;
-
-                return (
-                    <TouchableOpacity
-                        key={item.id}
-                        onPress={onPress}
-                        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', height: 62 }}
-                    >
-                        <Ionicons
-                            // @ts-ignore
-                            name={item.icon}
-                            size={24}
-                            color={isFocused ? '#818cf8' : '#64748b'}
-                        />
-                        <Text style={{
-                            color: isFocused ? '#818cf8' : '#64748b',
-                            fontSize: 10,
-                            fontWeight: '600',
-                            marginTop: 4,
-                            textTransform: 'none'
-                        }}>
-                            {item.title}
-                        </Text>
-                    </TouchableOpacity>
-                );
-            })}
+            {/* Right Island */}
+            {rightItems.length > 0 && (
+                <View style={{
+                    flexDirection: 'row',
+                    backgroundColor: '#1e293b', // slate-800
+                    borderRadius: 30,
+                    padding: 4,
+                    alignItems: 'center',
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 4.65,
+                    elevation: 8,
+                }}>
+                    {rightItems.map(renderItem)}
+                </View>
+            )}
         </View>
     );
 }
