@@ -871,7 +871,10 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false, refresh
                                 )}
                                 <View className="flex-row items-center justify-center w-full h-full">
                                     {isDownloading ? (
-                                        <Text className="text-white text-xs font-semibold">{status || `${Math.round((progress || 0) * 100)}%`}</Text>
+                                        <>
+                                            <ActivityIndicator size="small" color="white" style={{ transform: [{ scale: 0.7 }] }} className="mr-2" />
+                                            <Text className="text-white text-xs font-semibold">{status || `${Math.round((progress || 0) * 100)}%`}</Text>
+                                        </>
                                     ) : (
                                         <>
                                             <Ionicons name={cachedArtifactPath ? "construct-outline" : "download-outline"} size={16} color="white" />
