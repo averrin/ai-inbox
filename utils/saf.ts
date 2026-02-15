@@ -229,14 +229,27 @@ export async function readVaultStructure(
 
             // Inline property scanner
             const bodyContent = frontmatterMatch ? content.slice(frontmatterMatch[0].length) : content;
-            const inlineRegex = /([a-zA-Z0-9_%-]+)::\s*([^\n\r]+)/g;
+
+            // 1. Bracketed properties [key:: value] - specific and safe
+            const bracketRegex = /\[([^:\]]+)::\s*([^\]]+)\]/g;
             let match;
-            while ((match = inlineRegex.exec(bodyContent)) !== null) {
+            while ((match = bracketRegex.exec(bodyContent)) !== null) {
                 const key = match[1].trim();
-                let value = match[2].trim();
-                if (value.endsWith(']')) value = value.slice(0, -1);
+                const value = match[2].trim();
 
                 if (key !== 'tags' && key !== 'icon') {
+                    if (!frontmatterKeys.includes(key)) frontmatterKeys.push(key);
+                    if (frontmatter[key] === undefined) frontmatter[key] = value;
+                }
+            }
+
+            // 2. Implicit fields "key:: value" on their own line or at start of line (allowing indentation/bullets)
+            const implicitRegex = /^(?:[ \t-]*)?([a-zA-Z0-9_%-]+)::[ \t]*(.+)$/gm;
+            while ((match = implicitRegex.exec(bodyContent)) !== null) {
+                 const key = match[1].trim();
+                 const value = match[2].trim();
+
+                 if (key !== 'tags' && key !== 'icon') {
                     if (!frontmatterKeys.includes(key)) frontmatterKeys.push(key);
                     if (frontmatter[key] === undefined) frontmatter[key] = value;
                 }
