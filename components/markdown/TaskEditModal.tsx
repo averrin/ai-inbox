@@ -22,7 +22,7 @@ import {
     updateReminder,
     formatRecurrenceForReminder
 } from '../../services/reminderService';
-import { getParentFolderUri, findFile, createFile } from '../../utils/saf';
+import { getParentFolderUri, findFile, createFile, ensureDirectory } from '../../utils/saf';
 import { TaskStatusIcon, getStatusConfig } from '../ui/TaskStatusIcon';
 import { SelectionSheet } from '../ui/SelectionSheet';
 import { TaskService, FolderGroup } from '../../services/taskService';
@@ -47,10 +47,10 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent, in
     const [showReminderModal, setShowReminderModal] = useState(false);
     const [linkedEvents, setLinkedEvents] = useState<{ id: string, title: string, date: Date }[]>([]);
     
-    // Project Selection
-    const [projects, setProjects] = useState<FolderGroup[]>([]);
-    const [selectedProject, setSelectedProject] = useState<FolderGroup | null>(null);
-    const [showProjectSheet, setShowProjectSheet] = useState(false);
+    // Folder Selection
+    const [allFolders, setAllFolders] = useState<FolderGroup[]>([]);
+    const [folderPath, setFolderPath] = useState<string>('');
+    const [showFolderSheet, setShowFolderSheet] = useState(false);
 
     // Derived from settings for autocomplete
     const keySuggestions = Object.keys(propertyConfig);
@@ -69,36 +69,28 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent, in
                 setTags([]);
             }
 
-            // Load Projects
+            // Load All Folders and set initial path
             if (vaultUri) {
                 const load = async () => {
-                    let groups: FolderGroup[] = [];
-                    if (tasksRoot) {
-                        groups = await TaskService.getFolderGroups(vaultUri, tasksRoot);
-                    }
+                    const folders = await TaskService.getAllFolders(vaultUri);
+                    setAllFolders(folders);
 
                     if (initialProjectUri) {
-                        const found = groups.find(g => g.uri === initialProjectUri);
+                        const found = folders.find(f => f.uri === initialProjectUri);
                         if (found) {
-                            setSelectedProject(found);
+                            setFolderPath(found.path);
                         } else {
-                            // If initial project is not in list (e.g. subfolder or root), create synthetic option
-                            const synthetic: FolderGroup = { name: 'Current Folder', uri: initialProjectUri, path: '' };
-                            groups = [synthetic, ...groups];
-                            setSelectedProject(synthetic);
+                            // Can't resolve path from URI easily without mapping,
+                            // fallback to empty or tasksRoot if provided.
+                            // Assuming initialProjectUri is always one of the known folders if it comes from navigation.
+                            // If it comes from 'Current Folder' in dashboard, it should be in the list.
+                            // If not, we might default to tasksRoot.
+                            setFolderPath(tasksRoot || '');
                         }
                     } else if (!task?.fileUri) {
-                        // Creating new task from scratch
-                        if (groups.length === 0) {
-                            // If no tasksRoot or no folders found, allow saving to Vault Root
-                            const rootGroup: FolderGroup = { name: 'Vault Root', uri: vaultUri, path: '' };
-                            groups = [rootGroup];
-                            setSelectedProject(rootGroup);
-                        } else {
-                            setSelectedProject(null);
-                        }
+                        // New task, no context
+                        setFolderPath(tasksRoot || '');
                     }
-                    setProjects(groups);
                 };
                 load();
             }
@@ -195,46 +187,48 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent, in
             return;
         }
 
-        // Validate Project if new task
+        // Validate Folder if new task
         let targetFileUri = undefined;
         let targetFileName = undefined;
         let targetFilePath = undefined;
 
         if (!task?.fileUri) {
-            if (!selectedProject) {
-                Alert.alert('Validation', 'Please select a project folder.');
-                return;
-            }
-
-            // Resolve Target File
+            // Resolve Target Folder from Path
             try {
-                // Look for Inbox.md
-                const inbox = await findFile(selectedProject.uri, 'Inbox.md');
+                let targetUri = vaultUri;
+                const pathParts = folderPath.split('/').filter(p => p.trim());
+
+                // Recursively ensure directory exists
+                for (const part of pathParts) {
+                    targetUri = await ensureDirectory(targetUri, part);
+                }
+
+                // Look for Inbox.md or Tasks.md
+                const inbox = await findFile(targetUri, 'Inbox.md');
                 if (inbox) {
                     targetFileUri = inbox;
                     targetFileName = 'Inbox.md';
                 } else {
-                    const tasksFile = await findFile(selectedProject.uri, 'Tasks.md');
+                    const tasksFile = await findFile(targetUri, 'Tasks.md');
                     if (tasksFile) {
                         targetFileUri = tasksFile;
                         targetFileName = 'Tasks.md';
                     } else {
                         // Create Inbox.md
-                        targetFileUri = await createFile(selectedProject.uri, 'Inbox.md');
+                        targetFileUri = await createFile(targetUri, 'Inbox.md');
                         targetFileName = 'Inbox.md';
                     }
                 }
 
-                if (selectedProject.path) {
-                    targetFilePath = `${selectedProject.path}/${targetFileName}`;
+                if (folderPath) {
+                    targetFilePath = `${folderPath}/${targetFileName}`;
                 } else {
-                    // Fallback if synthetic group without path
                     targetFilePath = targetFileName;
                 }
 
             } catch (e) {
                 console.error("Failed to resolve target file", e);
-                Alert.alert('Error', 'Failed to resolve target file in project.');
+                Alert.alert('Error', 'Failed to resolve target folder.');
                 return;
             }
         }
@@ -389,19 +383,22 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent, in
                     <ScrollView showsVerticalScrollIndicator={false}>
                         {(!task?.fileUri) && (
                             <View className="mb-4">
-                                <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Project</Text>
-                                <TouchableOpacity
-                                    onPress={() => setShowProjectSheet(true)}
-                                    className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row justify-between items-center"
-                                >
-                                    <View className="flex-row items-center gap-2">
-                                        <Ionicons name="folder-open-outline" size={18} color="#818cf8" />
-                                        <Text className={selectedProject ? "text-white font-medium" : "text-slate-400"}>
-                                            {selectedProject ? selectedProject.name : "Select Project..."}
-                                        </Text>
-                                    </View>
-                                    <Ionicons name="chevron-down" size={16} color="#64748b" />
-                                </TouchableOpacity>
+                                <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Folder</Text>
+                                <View className="flex-row gap-2">
+                                    <TextInput
+                                        className="flex-1 bg-slate-800 text-white p-4 rounded-xl border border-slate-700 font-medium"
+                                        value={folderPath}
+                                        onChangeText={setFolderPath}
+                                        placeholder="Vault Root"
+                                        placeholderTextColor="#64748b"
+                                    />
+                                    <TouchableOpacity
+                                        onPress={() => setShowFolderSheet(true)}
+                                        className="bg-slate-800 p-4 rounded-xl border border-slate-700 justify-center items-center"
+                                    >
+                                        <Ionicons name="folder-open-outline" size={20} color="#818cf8" />
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                         )}
 
@@ -595,19 +592,18 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent, in
             />
 
             <SelectionSheet
-                visible={showProjectSheet}
-                title="Select Project"
-                options={projects.map(p => ({
-                    id: p.uri,
-                    label: p.name,
+                visible={showFolderSheet}
+                title="Select Folder"
+                options={allFolders.map(p => ({
+                    id: p.path, // Use path as ID for simplicity
+                    label: p.path || 'Vault Root',
                     icon: 'folder-outline'
                 }))}
                 onSelect={(opt) => {
-                    const found = projects.find(p => p.uri === opt.id);
-                    if (found) setSelectedProject(found);
-                    setShowProjectSheet(false);
+                    setFolderPath(opt.id);
+                    setShowFolderSheet(false);
                 }}
-                onClose={() => setShowProjectSheet(false)}
+                onClose={() => setShowFolderSheet(false)}
             />
         </Modal>
     );

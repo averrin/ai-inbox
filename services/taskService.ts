@@ -1,4 +1,5 @@
 import { StorageAccessFramework } from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system/legacy';
 import { readFileContent, saveToVault, checkDirectoryExists, writeSafe, findFile } from '../utils/saf';
 import { parseTaskLine, RichTask, updateTaskInText, removeTaskFromText, serializeTaskLine } from '../utils/taskParser';
 import { TaskWithSource } from '../store/tasks';
@@ -51,6 +52,51 @@ export class TaskService {
             console.error('[TaskService] Failed to get folder groups', e);
             return [];
         }
+    }
+
+    /**
+     * Recursively scans the vault for all folders up to a certain depth.
+     */
+    static async getAllFolders(vaultUri: string): Promise<FolderGroup[]> {
+        const groups: FolderGroup[] = [];
+
+        // Add root as an option
+        groups.push({ name: 'Vault Root', path: '', uri: vaultUri });
+
+        async function walk(uri: string, currentPath: string, depth: number) {
+             if (depth > 2) return; // Limit depth to avoid performance issues
+             try {
+                const children = await StorageAccessFramework.readDirectoryAsync(uri);
+                for (const childUri of children) {
+                    // Fast check if it's a directory
+                    const info = await FileSystem.getInfoAsync(childUri);
+                    if (info.exists && info.isDirectory) {
+                         // Extract name
+                        const decoded = decodeURIComponent(childUri);
+                        const parts = decoded.split('/');
+                        let name = parts[parts.length - 1];
+                        if (name.includes(':')) name = name.split(':').pop()!;
+                        if (name.includes('/')) name = name.split('/').pop()!;
+
+                        const newPath = currentPath ? `${currentPath}/${name}` : name;
+                        groups.push({ name: name, path: newPath, uri: childUri });
+
+                        await walk(childUri, newPath, depth + 1);
+                    }
+                }
+             } catch (e) {
+                 console.warn("[TaskService] Failed to walk folder:", uri, e);
+             }
+        }
+
+        await walk(vaultUri, "", 0);
+        // Sort by path length (shallowest first) then alphabetically
+        return groups.sort((a, b) => {
+            const depthA = a.path.split('/').length;
+            const depthB = b.path.split('/').length;
+            if (depthA !== depthB) return depthA - depthB;
+            return a.path.localeCompare(b.path);
+        });
     }
 
     /**
