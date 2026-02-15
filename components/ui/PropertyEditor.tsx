@@ -1,8 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import dayjs from 'dayjs';
 import { BaseEditor } from './BaseEditor';
 import { getPropertyKeysFromCache, getPropertyValuesFromCache } from '../../utils/propertyUtils';
+import { useSettingsStore } from '../../store/settings';
 
 interface PropertyEditorProps {
     properties: Record<string, any>;
@@ -17,11 +20,13 @@ export function PropertyEditor({
     label, 
     metadataCache = {}
 }: PropertyEditorProps) {
+    const { propertyConfig } = useSettingsStore();
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [tempKey, setTempKey] = useState('');
     const [tempValue, setTempValue] = useState('');
     const [editingKey, setEditingKey] = useState<string | null>(null);
     const [activeInput, setActiveInput] = useState<'key' | 'value' | null>(null);
+    const [showDatePicker, setShowDatePicker] = useState(false);
 
     const propertyItems = useMemo(() => Object.entries(properties), [properties]);
 
@@ -146,14 +151,65 @@ export function PropertyEditor({
                 </View>
                 <View>
                     <Text className="text-slate-400 text-[10px] uppercase font-bold mb-1 ml-1">Value</Text>
-                    <TextInput
-                        value={tempValue}
-                        onChangeText={setTempValue}
-                        onFocus={() => setActiveInput('value')}
-                        placeholder="Value..."
-                        placeholderTextColor="#64748b"
-                        className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white text-sm mb-2"
-                    />
+
+                    {(() => {
+                        const type = propertyConfig?.[tempKey]?.type || 'text';
+
+                        if (type === 'date') {
+                             return (
+                                <View>
+                                     <TouchableOpacity
+                                        onPress={() => setShowDatePicker(true)}
+                                        className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 mb-2"
+                                     >
+                                        <Text className={`text-sm ${tempValue ? "text-white" : "text-slate-500"}`}>
+                                            {tempValue || 'YYYY-MM-DD'}
+                                        </Text>
+                                     </TouchableOpacity>
+                                     {showDatePicker && (
+                                         <DateTimePicker
+                                             value={dayjs(tempValue).isValid() ? dayjs(tempValue).toDate() : new Date()}
+                                             mode="date"
+                                             display="default"
+                                             onChange={(event, date) => {
+                                                 setShowDatePicker(false);
+                                                 if (date && event.type !== 'dismissed') {
+                                                     setTempValue(dayjs(date).format('YYYY-MM-DD'));
+                                                 }
+                                             }}
+                                         />
+                                     )}
+                                </View>
+                             );
+                        }
+
+                        if (type === 'boolean') {
+                             return (
+                                 <View className="flex-row items-center justify-between bg-slate-800/50 border border-slate-700 rounded-xl p-3 mb-2">
+                                     <Text className="text-white text-sm">{tempValue === 'true' ? 'True' : 'False'}</Text>
+                                     <Switch
+                                         value={tempValue === 'true'}
+                                         onValueChange={(val) => setTempValue(val ? 'true' : 'false')}
+                                         trackColor={{ false: '#334155', true: '#6366f1' }}
+                                         thumbColor={tempValue === 'true' ? '#e0e7ff' : '#94a3b8'}
+                                     />
+                                 </View>
+                             );
+                        }
+
+                        return (
+                            <TextInput
+                                value={tempValue}
+                                onChangeText={setTempValue}
+                                onFocus={() => setActiveInput('value')}
+                                placeholder="Value..."
+                                placeholderTextColor="#64748b"
+                                className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white text-sm mb-2"
+                                keyboardType={type === 'number' ? 'numeric' : 'default'}
+                            />
+                        );
+                    })()}
+
                     {activeInput === 'value' && filteredValueSuggestions.length > 0 && (
                         <View className="flex-row flex-wrap gap-2 px-1">
                             {filteredValueSuggestions.map(suggestion => (
