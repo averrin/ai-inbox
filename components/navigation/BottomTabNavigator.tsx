@@ -1,5 +1,4 @@
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import ProcessingScreen from '../screens/ProcessingScreen';
 import RemindersListScreen from '../screens/RemindersListScreen';
@@ -11,9 +10,9 @@ import NewsScreen from '../screens/NewsScreen';
 import JulesScreen from '../screens/JulesScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect, useState } from 'react';
-import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
+import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme, useTheme } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { useSettingsStore, NavItemConfig } from '../../store/settings';
 import { GroupMenuOverlay } from './GroupMenuOverlay';
 
@@ -26,7 +25,6 @@ const TransparentTheme = {
 };
 
 const Tab = createMaterialTopTabNavigator();
-const Stack = createNativeStackNavigator();
 
 function NavigationHandler({ shareIntent }: { shareIntent: ShareIntent }) {
   const navigation = useNavigation();
@@ -44,15 +42,79 @@ function NavigationHandler({ shareIntent }: { shareIntent: ShareIntent }) {
   return null;
 }
 
-function MainTabs({
+function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }: any) {
+    const insets = useSafeAreaInsets();
+    const { colors } = useTheme();
+
+    // Filter to show ONLY visible items from config
+    const visibleItems = navConfig.filter((item: NavItemConfig) => item.visible);
+
+    return (
+        <View style={{
+            flexDirection: 'row',
+            backgroundColor: '#0f172a', // slate-900
+            borderTopColor: '#334155', // slate-700
+            borderTopWidth: 1,
+            paddingBottom: insets.bottom,
+            height: 62 + insets.bottom,
+        }}>
+            {visibleItems.map((item: NavItemConfig, index: number) => {
+                // Find the route index for this item if it exists in state
+                // Note: Group items don't have a direct route in state, screens do.
+                const routeIndex = state.routes.findIndex((r: any) => r.name === item.id);
+                const isFocused = state.index === routeIndex;
+
+                const onPress = () => {
+                    if (item.type === 'group') {
+                        onOpenGroup(item);
+                    } else {
+                        const event = navigation.emit({
+                            type: 'tabPress',
+                            target: state.routes[routeIndex].key,
+                            canPreventDefault: true,
+                        });
+
+                        if (!isFocused && !event.defaultPrevented) {
+                            navigation.navigate(item.id);
+                        }
+                    }
+                };
+
+                return (
+                    <TouchableOpacity
+                        key={item.id}
+                        onPress={onPress}
+                        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', height: 62 }}
+                    >
+                        <Ionicons
+                            // @ts-ignore
+                            name={item.icon}
+                            size={24}
+                            color={isFocused ? '#818cf8' : '#64748b'}
+                        />
+                        <Text style={{
+                            color: isFocused ? '#818cf8' : '#64748b',
+                            fontSize: 10,
+                            fontWeight: '600',
+                            marginTop: 4,
+                            textTransform: 'none'
+                        }}>
+                            {item.title}
+                        </Text>
+                    </TouchableOpacity>
+                );
+            })}
+        </View>
+    );
+}
+
+function InnerTabNavigator({
   shareIntent,
   onReset
 }: {
   shareIntent: ShareIntent;
   onReset: () => void;
 }) {
-  const insets = useSafeAreaInsets();
-  const layout = useWindowDimensions();
   const { navConfig } = useSettingsStore();
   const [activeGroup, setActiveGroup] = useState<NavItemConfig | null>(null);
 
@@ -79,138 +141,38 @@ function MainTabs({
     { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline', type: 'screen' },
   ];
 
-  const visibleItems = activeConfig.filter(item => item.visible);
-  const visibleCount = visibleItems.length;
-  const tabWidth = visibleCount > 0 ? layout.width / visibleCount : 0;
-
   return (
     <View style={{ flex: 1 }}>
       <Tab.Navigator
         tabBarPosition="bottom"
+        tabBar={(props) => <CustomTabBar {...props} navConfig={activeConfig} onOpenGroup={setActiveGroup} />}
         screenOptions={{
-          tabBarScrollEnabled: true,
-          tabBarStyle: {
-            backgroundColor: '#0f172a', // slate-900
-            borderTopColor: '#334155', // slate-700
-            borderTopWidth: 1,
-            height: 62 + insets.bottom,
-            paddingBottom: insets.bottom,
-            paddingTop: 0,
-          },
-          tabBarIndicatorStyle: { height: 0 },
-          tabBarActiveTintColor: '#818cf8', // indigo-400
-          tabBarInactiveTintColor: '#64748b', // slate-500
-          tabBarLabelStyle: {
-            textTransform: 'none',
-            fontSize: 10,
-            fontWeight: '600',
-            marginTop: 0,
-          },
-          tabBarShowIcon: true,
           swipeEnabled: true,
           animationEnabled: true,
         }}
         initialRouteName="Schedule"
       >
-        {visibleItems.map(item => {
-          if (item.type === 'group') {
+        {/* Register ALL screens so they are navigable */}
+        {Object.keys(SCREEN_CONFIG).map(id => {
+            const config = SCREEN_CONFIG[id];
             return (
-              <Tab.Screen
-                key={item.id}
-                name={item.id}
-                children={() => <View />}
-                listeners={{
-                  tabPress: (e) => {
-                    e.preventDefault();
-                    setActiveGroup(item);
-                  },
-                }}
-                options={{
-                  tabBarItemStyle: { width: tabWidth },
-                  tabBarLabel: item.title,
-                  tabBarIcon: ({ color }) => (
-                    // @ts-ignore
-                    <Ionicons name={item.icon} size={24} color={color} />
-                  ),
-                }}
-              />
+                <Tab.Screen
+                    key={id}
+                    name={id}
+                    component={config.component}
+                    children={config.children}
+                    options={config.options}
+                />
             );
-          } else {
-            const config = SCREEN_CONFIG[item.id];
-            if (!config) return null;
-
-            return (
-              <Tab.Screen
-                key={item.id}
-                name={item.id}
-                component={config.component}
-                children={config.children}
-                options={{
-                  ...config.options,
-                  tabBarItemStyle: { width: tabWidth },
-                  tabBarLabel: item.title,
-                  tabBarIcon: ({ color }) => (
-                    // @ts-ignore
-                    <Ionicons name={item.icon} size={24} color={color} />
-                  ),
-                }}
-              />
-            );
-          }
         })}
       </Tab.Navigator>
+
       <GroupMenuOverlay
         visible={!!activeGroup}
         config={activeGroup}
         onClose={() => setActiveGroup(null)}
       />
     </View>
-  );
-}
-
-function InnerNavigator(props: { shareIntent: ShareIntent; onReset: () => void }) {
-  const { navConfig } = useSettingsStore();
-
-  const SCREEN_CONFIG: Record<string, any> = {
-      Schedule: { component: ScheduleScreen, options: { swipeEnabled: false } },
-      Input: { children: () => <ProcessingScreen shareIntent={props.shareIntent} onReset={props.onReset} />, options: { tabBarLabel: 'Note' } },
-      Tasks: { component: TasksScreen },
-      Links: { component: LinksScreen },
-      Reminders: { component: RemindersListScreen },
-      Jules: { component: JulesScreen },
-      News: { component: NewsScreen },
-      Settings: { children: () => <SetupScreen canClose={true} /> }
-  };
-
-  const activeConfig = navConfig && navConfig.length > 0 ? navConfig : [];
-
-  // Identify visible screens to prevent duplicate registration
-  const visibleScreenIds = new Set(activeConfig.filter(i => i.visible && i.type !== 'group').map(i => i.id));
-
-  // Screens that are NOT visible in the main tabs (hidden or inside groups)
-  // These need to be registered in the Stack so they can be navigated to.
-  const hiddenScreenIds = Object.keys(SCREEN_CONFIG).filter(id => !visibleScreenIds.has(id));
-
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="MainTabs">
-        {() => <MainTabs {...props} />}
-      </Stack.Screen>
-
-      {/* Register hidden screens as stack siblings */}
-      {hiddenScreenIds.map(id => {
-          const config = SCREEN_CONFIG[id];
-          return (
-              <Stack.Screen
-                  key={id}
-                  name={id}
-                  component={config.component}
-                  // @ts-ignore
-                  children={config.children}
-              />
-          );
-      })}
-    </Stack.Navigator>
   );
 }
 
@@ -222,7 +184,7 @@ export default function BottomTabNavigator(props: {
     <NavigationIndependentTree>
       <NavigationContainer theme={TransparentTheme}>
         <NavigationHandler shareIntent={props.shareIntent} />
-        <InnerNavigator {...props} />
+        <InnerTabNavigator {...props} />
       </NavigationContainer>
     </NavigationIndependentTree>
   );
