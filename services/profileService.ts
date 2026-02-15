@@ -1,4 +1,4 @@
-import { readFileContent, saveToVault, checkFileExists } from "../utils/saf";
+import { readFileContent, saveToVault, checkFileExists, deleteFileByPath } from "../utils/saf";
 import { ProfileLogic, ProfileData, DEFAULT_PROFILE } from './profileLogic';
 
 export { ProfileData, DEFAULT_PROFILE };
@@ -15,6 +15,9 @@ export class ProfileService {
 
                     // Save correctly
                     await this.saveProfile(vaultUri, parsed);
+
+                    // Delete legacy file to prevent re-migration
+                    await deleteFileByPath(vaultUri, 'Profile.json.md');
                 } catch (migErr) {
                     console.error('[ProfileService] Migration failed:', migErr);
                 }

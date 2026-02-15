@@ -129,7 +129,7 @@ export default function ScheduleScreen() {
                 return;
             }
 
-            console.log('[ScheduleScreen] Fetching events for calendars:', safeCalendarIds);
+            // console.log('[ScheduleScreen] Fetching events for calendars:', safeCalendarIds);
 
             const nativeEvents = await getCalendarEvents(safeCalendarIds, startDate, endDate);
 
