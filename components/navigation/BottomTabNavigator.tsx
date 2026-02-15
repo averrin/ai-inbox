@@ -63,15 +63,16 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
     });
 
     // Sort Left Group: Schedule, Tasks, Reminders, others...
-    const leftOrder = ['Schedule', 'Tasks', 'Reminders'];
-    leftItems.sort((a: NavItemConfig, b: NavItemConfig) => {
-        const ia = leftOrder.indexOf(a.id);
-        const ib = leftOrder.indexOf(b.id);
-        if (ia === -1 && ib === -1) return 0; // Keep original order for others
-        if (ia === -1) return 1; // Put known items first
-        if (ib === -1) return -1;
-        return ia - ib;
-    });
+    // REMOVED: Allow user defined order via settings
+    // const leftOrder = ['Schedule', 'Tasks', 'Reminders'];
+    // leftItems.sort((a: NavItemConfig, b: NavItemConfig) => {
+    //     const ia = leftOrder.indexOf(a.id);
+    //     const ib = leftOrder.indexOf(b.id);
+    //     if (ia === -1 && ib === -1) return 0; // Keep original order for others
+    //     if (ia === -1) return 1; // Put known items first
+    //     if (ib === -1) return -1;
+    //     return ia - ib;
+    // });
 
     const renderItem = (item: NavItemConfig) => {
         const onPress = () => {
