@@ -34,3 +34,40 @@ export async function fetchAvailableModels(apiKey: string): Promise<string[]> {
         return ['gemini-2.0-flash-exp'];
     }
 }
+
+export async function fetchAvailableImageModels(apiKey: string): Promise<string[]> {
+    try {
+        // Use Google's REST API to list models
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+        );
+
+        if (!response.ok) {
+            throw new Error(`API returned ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Filter for image generation models (using heuristic: name contains 'imagen')
+        const modelNames = data.models
+            ?.filter((model: any) =>
+                model.name.toLowerCase().includes('imagen')
+            )
+            .map((model: any) => model.name.replace('models/', ''))
+            .sort() || [];
+
+        // console.log('[Models] Fetched Image Models from API:', modelNames);
+
+        if (modelNames.length > 0) {
+            return modelNames;
+        }
+
+        // Fallback if no models returned
+        console.warn('[Models] No image models returned from API, using fallback');
+        return ['imagen-3.0-generate-001'];
+    } catch (e) {
+        console.error("[Models] Error fetching image models from API:", e);
+        // Return fallback model if API call fails
+        return ['imagen-3.0-generate-001'];
+    }
+}
