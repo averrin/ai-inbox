@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, Animated, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NavItemConfig } from '../../store/settings';
@@ -15,9 +15,11 @@ export function GroupMenuOverlay({ visible, config, onClose }: Props) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     if (visible) {
+      setShowModal(true);
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 200,
@@ -28,7 +30,11 @@ export function GroupMenuOverlay({ visible, config, onClose }: Props) {
         toValue: 0,
         duration: 150,
         useNativeDriver: true,
-      }).start();
+      }).start(({ finished }) => {
+        if (finished) {
+          setShowModal(false);
+        }
+      });
     }
   }, [visible]);
 
@@ -43,7 +49,7 @@ export function GroupMenuOverlay({ visible, config, onClose }: Props) {
   return (
     <Modal
       transparent
-      visible={visible}
+      visible={showModal}
       animationType="none"
       onRequestClose={onClose}
     >

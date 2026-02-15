@@ -10,9 +10,9 @@ import NewsScreen from '../screens/NewsScreen';
 import JulesScreen from '../screens/JulesScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect, useState } from 'react';
-import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme, useTheme } from '@react-navigation/native';
+import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useSettingsStore, NavItemConfig } from '../../store/settings';
 import { GroupMenuOverlay } from './GroupMenuOverlay';
 
@@ -44,7 +44,6 @@ function NavigationHandler({ shareIntent }: { shareIntent: ShareIntent }) {
 
 function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }: any) {
     const insets = useSafeAreaInsets();
-    const { colors } = useTheme();
 
     // Filter to show ONLY visible items from config
     const visibleItems = navConfig.filter((item: NavItemConfig) => item.visible);
@@ -59,15 +58,18 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
             height: 62 + insets.bottom,
         }}>
             {visibleItems.map((item: NavItemConfig, index: number) => {
-                // Find the route index for this item if it exists in state
-                // Note: Group items don't have a direct route in state, screens do.
-                const routeIndex = state.routes.findIndex((r: any) => r.name === item.id);
-                const isFocused = state.index === routeIndex;
-
                 const onPress = () => {
                     if (item.type === 'group') {
                         onOpenGroup(item);
                     } else {
+                        // Find the route index for this item if it exists in state
+                        const routeIndex = state.routes.findIndex((r: any) => r.name === item.id);
+                        if (routeIndex === -1) {
+                            console.warn(`[CustomTabBar] Route not found for item: ${item.id}`);
+                            return;
+                        }
+
+                        const isFocused = state.index === routeIndex;
                         const event = navigation.emit({
                             type: 'tabPress',
                             target: state.routes[routeIndex].key,
@@ -79,6 +81,10 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
                         }
                     }
                 };
+
+                // Determine focused state safely
+                const routeIndex = state.routes.findIndex((r: any) => r.name === item.id);
+                const isFocused = item.type !== 'group' && routeIndex !== -1 && state.index === routeIndex;
 
                 return (
                     <TouchableOpacity
@@ -147,7 +153,7 @@ function InnerTabNavigator({
         tabBarPosition="bottom"
         tabBar={(props) => <CustomTabBar {...props} navConfig={activeConfig} onOpenGroup={setActiveGroup} />}
         screenOptions={{
-          swipeEnabled: true,
+          swipeEnabled: false, // Disable swipe globally to prevent leaking into hidden tabs
           animationEnabled: true,
         }}
         initialRouteName="Schedule"
