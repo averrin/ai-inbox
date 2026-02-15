@@ -235,16 +235,16 @@ export function NavigationSettings() {
                                 </View>
                                 <View className="flex-row items-center gap-2">
                                     {item.type === 'group' ? (
-                                        <View className="flex-row gap-2">
+                                        <View className="flex-row gap-2 items-center">
                                              <TouchableOpacity
                                                 onPress={() => setEditingGroup(item)}
-                                                className="bg-indigo-600 px-3 py-1 rounded-full"
+                                                className="bg-indigo-600 px-3 py-1 rounded-full h-6 justify-center"
                                             >
                                                 <Text className="text-white text-xs font-bold">Edit Group</Text>
                                             </TouchableOpacity>
                                             <TouchableOpacity
                                                 onPress={() => handleDeleteGroup(index)}
-                                                className="bg-red-500/20 p-1 rounded-full"
+                                                className="bg-red-500/20 w-6 h-6 items-center justify-center rounded-full"
                                             >
                                                 <Ionicons name="trash-outline" size={16} color="#ef4444" />
                                             </TouchableOpacity>
@@ -269,14 +269,14 @@ export function NavigationSettings() {
                                     <TextInput
                                         value={item.title}
                                         onChangeText={(text) => handleUpdate(index, 'title', text)}
-                                        className="bg-slate-900/50 text-white p-2 rounded-lg border border-slate-700 text-sm"
+                                        className="bg-slate-900/50 text-white px-3 py-2 h-10 rounded-lg border border-slate-700 text-sm"
                                     />
                                 </View>
                                 <View className="flex-1">
                                     <Text className="text-slate-500 text-[10px] mb-1 uppercase">Icon</Text>
                                     <TouchableOpacity
                                         onPress={() => setIconPickerTarget({ index })}
-                                        className="flex-row items-center bg-slate-900/50 rounded-lg border border-slate-700 p-2"
+                                        className="flex-row items-center bg-slate-900/50 rounded-lg border border-slate-700 px-3 py-2 h-10"
                                     >
                                         <Ionicons
                                             // @ts-ignore
