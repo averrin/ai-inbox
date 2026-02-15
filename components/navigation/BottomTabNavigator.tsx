@@ -14,7 +14,7 @@ import { useEffect } from 'react';
 import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View } from 'react-native';
-import { useSettingsStore, NavItemConfig } from '../../store/settings';
+import { useSettingsStore, NavItemConfig, DEFAULT_NAV_ITEMS } from '../../store/settings';
 import { GroupMenu } from './GroupMenu';
 
 const TransparentTheme = {
@@ -51,7 +51,7 @@ function InnerTabNavigator({
   onReset: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const { navConfig } = useSettingsStore();
+  const { navConfig, setNavConfig } = useSettingsStore();
 
   const SCREEN_CONFIG: Record<string, any> = {
     Schedule: { component: ScheduleScreen, options: { swipeEnabled: false } },
@@ -65,18 +65,36 @@ function InnerTabNavigator({
     Settings: { children: () => <SetupScreen canClose={true} /> }
   };
 
+  // Auto-merge new default tabs if missing
+  useEffect(() => {
+    if (navConfig && navConfig.length > 0) {
+        const existingIds = new Set<string>();
+        const collectIds = (items: NavItemConfig[]) => {
+            items.forEach(item => {
+                existingIds.add(item.id);
+                if (item.children) collectIds(item.children);
+            });
+        };
+        collectIds(navConfig);
+
+        const missing = DEFAULT_NAV_ITEMS.filter(d => !existingIds.has(d.id));
+        if (missing.length > 0) {
+            console.log('[BottomTabNavigator] Merging missing tabs:', missing.map(m => m.id));
+            const newConfig = [...navConfig];
+            // Insert before Settings if possible
+            const settingsIndex = newConfig.findIndex(i => i.id === 'Settings');
+            if (settingsIndex !== -1) {
+                newConfig.splice(settingsIndex, 0, ...missing);
+            } else {
+                newConfig.push(...missing);
+            }
+            setNavConfig(newConfig);
+        }
+    }
+  }, [navConfig, setNavConfig]);
+
   // Fallback if navConfig is empty (migration issue)
-  const activeConfig: NavItemConfig[] = (navConfig && navConfig.length > 0) ? navConfig : [
-    { id: 'Schedule', visible: true, title: 'Schedule', icon: 'calendar-outline', type: 'screen' },
-    { id: 'Input', visible: true, title: 'Note', icon: 'create-outline', type: 'screen' },
-    { id: 'Tasks', visible: true, title: 'Tasks', icon: 'list-outline', type: 'screen' },
-    { id: 'Links', visible: true, title: 'Links', icon: 'link-outline', type: 'screen' },
-    { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline', type: 'screen' },
-    { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github', type: 'screen' },
-    { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline', type: 'screen' },
-    { id: 'Profile', visible: true, title: 'Profile', icon: 'person-outline', type: 'screen' },
-    { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline', type: 'screen' },
-  ];
+  const activeConfig: NavItemConfig[] = (navConfig && navConfig.length > 0) ? navConfig : DEFAULT_NAV_ITEMS;
 
   const renderedScreenIds = new Set<string>();
   activeConfig.forEach(item => {
