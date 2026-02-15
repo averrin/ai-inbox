@@ -266,7 +266,7 @@ export async function sendMessageToSession(apiKey: string, sessionName: string, 
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            userInput: { text: message }
+            prompt: message
         })
     });
 
