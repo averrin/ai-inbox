@@ -287,9 +287,9 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
             >
                 <View className="bg-slate-900 w-full max-w-md p-6 rounded-3xl border border-slate-700 max-h-[80%]">
                     <View className="flex-row justify-between items-center mb-4">
-                        <Text className="text-white text-xl font-bold">{task ? 'Edit Task' : 'New Task'}</Text>
+                        <Text className="text-white text-xl font-bold">{(task && task.fileUri) ? 'Edit Task' : 'New Task'}</Text>
                         <View className="flex-row gap-2">
-                             {task && (
+                             {task && task.fileUri && (
                                 <TouchableOpacity onPress={handleOpenNote} className="p-2 bg-slate-800 rounded-lg">
                                     <Ionicons name="document-text-outline" size={20} color="#94a3b8" />
                                 </TouchableOpacity>
