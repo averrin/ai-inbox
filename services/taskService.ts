@@ -163,9 +163,17 @@ export class TaskService {
      */
     static async addTask(vaultUri: string, fileUri: string, task: RichTask): Promise<RichTask> {
         try {
-            const content = await StorageAccessFramework.readAsStringAsync(fileUri);
+            let content = '';
+            try {
+                content = await StorageAccessFramework.readAsStringAsync(fileUri);
+            } catch (readErr) {
+                // If read fails (e.g. empty file created by SAF), assume empty content
+                console.warn('[TaskService] Read failed in addTask, assuming empty/new file.', readErr);
+                content = '';
+            }
+
             const taskLine = serializeTaskLine(task);
-            const newContent = content.endsWith('\n') ? content + taskLine + '\n' : content + '\n' + taskLine + '\n';
+            const newContent = content.endsWith('\n') || content === '' ? content + taskLine + '\n' : content + '\n' + taskLine + '\n';
 
             await writeSafe(fileUri, newContent);
 

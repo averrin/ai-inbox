@@ -1436,6 +1436,19 @@ export default function ScheduleScreen() {
 
                                         if (targetFileUri) {
                                             await TaskService.addTask(vaultUri, targetFileUri, updatedTask);
+                                            // Optimistic add to store
+                                            const { tasks, setTasks } = useTasksStore.getState();
+                                            const newTask = {
+                                                ...updatedTask,
+                                                fileUri: targetFileUri,
+                                                filePath: tasksRoot ? `${tasksRoot}/${targetFileUri.split('%2F').pop() || 'Inbox.md'}` : 'Inbox.md',
+                                                fileName: targetFileUri.split('%2F').pop() || 'Inbox.md'
+                                            };
+                                            // Decode URI components for display
+                                            newTask.filePath = decodeURIComponent(newTask.filePath);
+                                            newTask.fileName = decodeURIComponent(newTask.fileName);
+
+                                            setTasks([...tasks, newTask as TaskWithSource]);
                                         } else {
                                             Alert.alert("Error", "Could not determine where to save the task.");
                                         }
@@ -1445,21 +1458,6 @@ export default function ScheduleScreen() {
                                     }
                                 }
                                 setEditingTask(null);
-                                // For new tasks, we might need to re-scan.
-                                // TaskService operations generally don't auto-trigger store update unless watcher is active.
-                                // We can trigger a quick scan of the specific file if we knew it, or just rely on manual refresh/watcher.
-                                // fetchEvents() refreshes calendar events, not tasks.
-                                // Task store refresh?
-                                const { TaskService: TS } = await import('../../services/taskService');
-                                const { tasksRoot, setTasks } = useTasksStore.getState();
-                                // Full scan is expensive. Maybe optimistically add to store?
-                                // For now, let's trigger scan if possible, or just optimistic add.
-                                // Optimistic add is hard because we need fileUri for the new task item to be editable later.
-                                // Scan is safer.
-                                if (tasksRoot) {
-                                    // This is heavy, but ensures consistency
-                                    TS.scanTasksInFolder(vaultUri, tasksRoot).then(t => setTasks(t));
-                                }
                             }
                         }}
                         onCancel={() => setEditingTask(null)}
