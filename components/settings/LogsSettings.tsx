@@ -8,6 +8,7 @@ import Toast from 'react-native-toast-message';
 
 export function LogsSettings() {
     const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         // Initial load
@@ -21,19 +22,41 @@ export function LogsSettings() {
         return () => clearInterval(interval);
     }, []);
 
+    const getLogKey = (log: LogEntry) => `${log.timestamp}-${log.message}`;
+
     const handleCopy = async () => {
-        const text = logs.map(l => `[${l.timestamp}] [${l.level.toUpperCase()}] ${l.message}`).join('\n');
+        let logsToCopy = logs;
+        if (selectedKeys.size > 0) {
+            logsToCopy = logs.filter((l: LogEntry) => selectedKeys.has(getLogKey(l)));
+        }
+
+        const text = logsToCopy.map((l: LogEntry) => `[${l.timestamp}] [${l.level.toUpperCase()}] ${l.message}`).join('\n');
         await Clipboard.setStringAsync(text);
         Toast.show({
             type: 'success',
             text1: 'Copied',
-            text2: 'Logs copied to clipboard'
+            text2: `${logsToCopy.length} logs copied to clipboard`
         });
+
+        if (selectedKeys.size > 0) {
+            setSelectedKeys(new Set());
+        }
     };
 
     const handleClear = () => {
         clearLogs();
         setLogs([]);
+        setSelectedKeys(new Set());
+    };
+
+    const toggleSelection = (key: string) => {
+        const newSet = new Set(selectedKeys);
+        if (newSet.has(key)) {
+            newSet.delete(key);
+        } else {
+            newSet.add(key);
+        }
+        setSelectedKeys(newSet);
     };
 
     const renderItem = ({ item }: { item: LogEntry }) => {
@@ -43,12 +66,26 @@ export function LogsSettings() {
         if (item.level === 'debug') color = 'text-slate-500';
 
         const time = item.timestamp.split('T')[1]?.replace('Z', '') || item.timestamp;
+        const key = getLogKey(item);
+        const isSelected = selectedKeys.has(key);
 
         return (
-            <View className="mb-2 border-b border-slate-800 pb-1">
-                <Text className="text-slate-500 text-[10px] font-mono">{time}</Text>
-                <Text className={`${color} font-mono text-xs`}>{item.message}</Text>
-            </View>
+            <TouchableOpacity
+                onPress={() => toggleSelection(key)}
+                className={`flex-row mb-2 border-b border-slate-800 pb-1 ${isSelected ? 'bg-slate-800/50' : ''}`}
+            >
+                <View className="mr-2 justify-center">
+                    <Ionicons
+                        name={isSelected ? "checkbox" : "square-outline"}
+                        size={16}
+                        color={isSelected ? "#818cf8" : "#64748b"}
+                    />
+                </View>
+                <View className="flex-1">
+                    <Text className="text-slate-500 text-[10px] font-mono">{time}</Text>
+                    <Text className={`${color} font-mono text-xs`}>{item.message}</Text>
+                </View>
+            </TouchableOpacity>
         );
     };
 
@@ -57,7 +94,7 @@ export function LogsSettings() {
             <View className="flex-row justify-end gap-2 mb-4">
                  <TouchableOpacity onPress={handleCopy} className="bg-slate-700 px-3 py-2 rounded flex-row items-center">
                     <Ionicons name="copy-outline" size={16} color="white" />
-                    <Text className="text-white ml-2 text-xs font-bold">Copy</Text>
+                    <Text className="text-white ml-2 text-xs font-bold">{selectedKeys.size > 0 ? `Copy (${selectedKeys.size})` : 'Copy All'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleClear} className="bg-red-900/50 px-3 py-2 rounded flex-row items-center">
                     <Ionicons name="trash-outline" size={16} color="white" />
@@ -67,7 +104,7 @@ export function LogsSettings() {
             <FlatList
                 data={logs}
                 renderItem={renderItem}
-                keyExtractor={(_, index) => index.toString()}
+                keyExtractor={getLogKey}
                 contentContainerStyle={{ paddingBottom: 20 }}
             />
         </View>
