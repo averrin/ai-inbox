@@ -290,6 +290,57 @@ export async function transcribeAudio(apiKey: string, base64Audio: string, mimeT
     }
 }
 
+export async function generateImage(apiKey: string, prompt: string, model: string): Promise<string | null> {
+    try {
+        // Use REST API for Imagen on AI Studio
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${apiKey}`;
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                instances: [
+                    { prompt: prompt }
+                ],
+                parameters: {
+                    sampleCount: 1
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[Gemini] Image generation failed: ${response.status}`, errorText);
+            return null;
+        }
+
+        const data = await response.json();
+
+        // Check for predictions
+        if (data.predictions && data.predictions.length > 0) {
+            const prediction = data.predictions[0];
+
+            // Imagen typically returns bytesBase64Encoded
+            if (prediction.bytesBase64Encoded) {
+                return prediction.bytesBase64Encoded;
+            }
+            // Some versions might just return bytesBase64
+            if (prediction.bytesBase64) {
+                return prediction.bytesBase64;
+            }
+        }
+
+        console.warn('[Gemini] Unexpected image response format:', JSON.stringify(data).substring(0, 200));
+        return null;
+
+    } catch (e) {
+        console.error("[Gemini] Image generation error:", e);
+        return null;
+    }
+}
+
 export async function rescheduleReminderWithAI(
     apiKey: string,
     type: 'later' | 'tomorrow',

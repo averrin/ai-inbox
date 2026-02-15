@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useProfileStore } from '../../store/profileStore';
@@ -15,10 +15,12 @@ export default function ProfileScreen() {
         dailyReasoning,
         answers,
         isLoading,
+        isGeneratingImage,
         config,
         loadFromVault,
         generateQuestions,
         submitAnswers,
+        generateProfileImage,
         setAnswer,
         updateConfig,
         deleteFact,
@@ -170,6 +172,37 @@ export default function ProfileScreen() {
                             ) : (
                                 /* Profile Summary Section */
                                 <View className="space-y-4">
+                                    {/* Profile Image / Diorama */}
+                                    <View className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden mb-2">
+                                        <View className="bg-slate-800/50 px-4 py-3 border-b border-slate-800 flex-row items-center justify-between">
+                                            <View className="flex-row items-center gap-2">
+                                                <Ionicons name="image-outline" size={16} color="#94a3b8" />
+                                                <Text className="text-slate-300 font-semibold">Inner World</Text>
+                                            </View>
+                                            <TouchableOpacity onPress={() => generateProfileImage()} disabled={isGeneratingImage}>
+                                                {isGeneratingImage ? (
+                                                    <ActivityIndicator size="small" color="#818cf8" />
+                                                ) : (
+                                                    <Ionicons name="refresh" size={16} color="#94a3b8" />
+                                                )}
+                                            </TouchableOpacity>
+                                        </View>
+
+                                        {profile.profileImage ? (
+                                            <Image
+                                                source={{ uri: profile.profileImage }}
+                                                style={{ width: '100%', height: 200 }}
+                                                resizeMode="cover"
+                                            />
+                                        ) : (
+                                            <View className="h-40 items-center justify-center bg-slate-950/50">
+                                                <Text className="text-slate-500 italic text-xs">
+                                                    {isGeneratingImage ? "Generating visualization..." : "No visualization generated yet"}
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </View>
+
                                     {/* Abstraction Level Selector */}
                                     <View className="bg-slate-900 rounded-xl border border-slate-800 p-4 mb-2">
                                         <View className="flex-row justify-between items-center mb-4">

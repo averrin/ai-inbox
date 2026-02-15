@@ -70,6 +70,7 @@ export interface ProfileData {
     topics: string[];
     recentQuestions: string[];
     traits?: string[]; // Added to accommodate AI findings
+    profileImage?: string; // Local URI to the generated image
     lastUpdated: string;
 }
 
@@ -78,6 +79,7 @@ export const DEFAULT_PROFILE: ProfileData = {
     topics: [],
     recentQuestions: [],
     traits: [],
+    profileImage: undefined,
     lastUpdated: new Date().toISOString()
 };
 
@@ -131,6 +133,19 @@ Target_Abstraction_Level: ${config.abstractionLevel}
         }
     }
 
+    static generateProfileImagePrompt(profile: ProfileData): string {
+        const facts = JSON.stringify(profile.facts).substring(0, 1000); // Truncate to avoid huge prompts
+        const traits = (profile.traits || []).join(', ');
+
+        return `A high quality, photorealistic diorama of a scenery representing the following person's inner world.
+        Facts: ${facts}
+        Traits: ${traits}
+        The style should be like a miniature bonsai garden or a detailed isometric room.
+        Lighting should be dramatic and cinematic.
+        The scene should be a visual metaphor for their personality and life.
+        No text, no labels.`;
+    }
+
     static async processAnswers(
         modelName: string,
         apiKey: string,
@@ -173,6 +188,7 @@ User Answers: ${JSON.stringify(answers)}
                 topics: updated.topics || profile.topics || [],
                 traits: updated.traits || profile.traits || [],
                 recentQuestions: newHistory,
+                profileImage: profile.profileImage, // Preserve existing image
                 lastUpdated: new Date().toISOString()
             };
 

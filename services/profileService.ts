@@ -66,4 +66,8 @@ export class ProfileService {
     ): Promise<ProfileData> {
         return ProfileLogic.processAnswers(modelName, apiKey, profile, questions, answers);
     }
+
+    static generateProfileImagePrompt(profile: ProfileData): string {
+        return ProfileLogic.generateProfileImagePrompt(profile);
+    }
 }
