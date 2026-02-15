@@ -4,7 +4,7 @@ import { Layout } from '../ui/Layout';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest, exchangeGithubToken, fetchGithubRepos, fetchGithubUser, GithubRepo } from '../../services/jules';
+import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest, exchangeGithubToken, fetchGithubRepos, fetchGithubUser, GithubRepo, sendMessageToSession } from '../../services/jules';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import * as WebBrowser from 'expo-web-browser';
@@ -37,6 +37,78 @@ function getBestArtifact(artifacts: Artifact[]): Artifact | null {
     return sorted[0];
 }
 
+function SessionActionMenu({ visible, onClose, actions }: { visible: boolean, onClose: () => void, actions: { label: string, icon: string, onPress: () => void, color?: string, disabled?: boolean }[] }) {
+    return (
+        <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+            <TouchableOpacity style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end'}} activeOpacity={1} onPress={onClose}>
+                <View className="bg-slate-900 rounded-t-2xl p-4 pb-10 border-t border-slate-700">
+                    <View className="items-center mb-4">
+                        <View className="w-10 h-1 bg-slate-700 rounded-full" />
+                    </View>
+                    {actions.map((action, index) => (
+                         <TouchableOpacity
+                            key={index}
+                            onPress={() => {
+                                if (!action.disabled) {
+                                    action.onPress();
+                                    onClose();
+                                }
+                            }}
+                            className={`flex-row items-center py-4 border-b border-slate-800 ${action.disabled ? 'opacity-50' : ''}`}
+                            disabled={action.disabled}
+                         >
+                            <Ionicons name={action.icon as any} size={20} color={action.color || "white"} style={{marginRight: 16}} />
+                            <Text className={`text-base font-medium ${action.color ? '' : 'text-white'}`} style={action.color ? {color: action.color} : {}}>{action.label}</Text>
+                        </TouchableOpacity>
+                    ))}
+                    <TouchableOpacity onPress={onClose} className="mt-4 py-3 bg-slate-800 rounded-xl items-center">
+                        <Text className="text-white font-bold">Cancel</Text>
+                    </TouchableOpacity>
+                </View>
+            </TouchableOpacity>
+        </Modal>
+    );
+}
+
+function MessageDialog({ visible, onClose, onSend, sending }: { visible: boolean, onClose: () => void, onSend: (message: string) => void, sending: boolean }) {
+    const [message, setMessage] = useState('');
+
+    const handleSend = () => {
+        if (message.trim()) {
+            onSend(message);
+            setMessage('');
+        }
+    };
+
+    return (
+        <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+             <View className="flex-1 bg-black/80 justify-center px-4">
+                <View className="bg-slate-900 rounded-2xl p-4 border border-slate-700">
+                    <Text className="text-white font-bold text-lg mb-4">Send Message to Session</Text>
+                    <TextInput
+                        className="bg-slate-800 text-white p-3 rounded-lg min-h-[100px] mb-4"
+                        placeholder="Type your message..."
+                        placeholderTextColor="#94a3b8"
+                        multiline
+                        textAlignVertical="top"
+                        value={message}
+                        onChangeText={setMessage}
+                        autoFocus
+                    />
+                    <View className="flex-row gap-2">
+                        <TouchableOpacity onPress={onClose} className="flex-1 bg-slate-800 py-3 rounded-xl items-center" disabled={sending}>
+                            <Text className="text-white font-bold">Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={handleSend} className="flex-1 bg-indigo-600 py-3 rounded-xl items-center" disabled={sending || !message.trim()}>
+                            {sending ? <ActivityIndicator size="small" color="white" /> : <Text className="text-white font-bold">Send</Text>}
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+        </Modal>
+    );
+}
+
 function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey, refreshTrigger }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onDelete?: () => void, onRefresh?: () => void, julesGoogleApiKey?: string, refreshTrigger?: number }) {
     const [ghRun, setGhRun] = useState<WorkflowRun | null>(null);
     const [loadingGh, setLoadingGh] = useState(false);
@@ -47,6 +119,9 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
     const [isMerging, setIsMerging] = useState(false);
     const [prInactive, setPrInactive] = useState(false);
     const [mergeable, setMergeable] = useState<boolean | null>(null);
+    const [menuVisible, setMenuVisible] = useState(false);
+    const [messageVisible, setMessageVisible] = useState(false);
+    const [sendingMessage, setSendingMessage] = useState(false);
 
     const spinValue = useRef(new Animated.Value(0)).current;
 
@@ -196,6 +271,21 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
         );
     };
 
+    const handleSendMessage = async (message: string) => {
+        if (!julesGoogleApiKey) return;
+        setSendingMessage(true);
+        try {
+            await sendMessageToSession(julesGoogleApiKey, session.name, message);
+            setMessageVisible(false);
+            Alert.alert("Success", "Message sent to session");
+        } catch (e: any) {
+            console.error("Failed to send message", e);
+            Alert.alert("Error", e.message || "Failed to send message");
+        } finally {
+            setSendingMessage(false);
+        }
+    };
+
     const getStatusIcon = (state: string) => {
         switch (state) {
             case 'COMPLETED': return { icon: 'checkmark-circle', color: '#4ade80' };
@@ -233,6 +323,27 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
             stripeLocations.push(i * step, (i + 1) * step);
         }
     }
+
+    const menuActions = [
+        ...(ghRun ? [{
+            label: "Open GitHub Run",
+            icon: "logo-github",
+            onPress: () => Linking.openURL(ghRun.html_url)
+        }] : []),
+        ...(artifacts && artifacts.length > 0 ? [{
+            label: `Download Artifact ${progress ? `(${Math.round(progress*100)}%)` : ''}`,
+            icon: "download-outline",
+            onPress: handleDownloadArtifact,
+            disabled: isDownloading
+        }] : []),
+        {
+            label: "Delete Session",
+            icon: "trash-outline",
+            color: "#f87171",
+            onPress: handleDelete,
+            disabled: !onDelete || !(session.state === 'COMPLETED' || session.state === 'FAILED' || prInactive)
+        }
+    ];
 
     return (
         <Card 
@@ -294,16 +405,6 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
                     <Text className="text-white text-xs font-semibold ml-2">Web</Text>
                 </TouchableOpacity>
 
-                {ghRun && (
-                    <TouchableOpacity
-                        onPress={() => Linking.openURL(ghRun.html_url)}
-                        className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
-                    >
-                        <Ionicons name="logo-github" size={14} color="white" />
-                        <Text className="text-white text-xs font-semibold ml-2">Run</Text>
-                    </TouchableOpacity>
-                )}
-
                 {prUrl && (
                     <TouchableOpacity
                         onPress={() => Linking.openURL(prUrl)}
@@ -333,50 +434,34 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
                     </TouchableOpacity>
                 )}
 
-                {artifacts && artifacts.length > 0 ? (
-                    <TouchableOpacity
-                        onPress={handleDownloadArtifact}
-                        disabled={isDownloading}
-                        className="flex-1 bg-slate-700 rounded-lg justify-center overflow-hidden relative"
-                        style={{ height: 32 }}
-                    >
-                        {isDownloading && (
-                             <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
-                        )}
-                        <View className="flex-row items-center justify-center w-full h-full">
-                            {isDownloading ? (
-                                <Text className="text-white text-xs font-semibold">{Math.round((progress || 0) * 100)}%</Text>
-                            ) : (
-                                <>
-                                    <Ionicons name="download-outline" size={14} color="white" />
-                                    <Text className="text-white text-xs font-semibold ml-2">Artifact</Text>
-                                </>
-                            )}
-                        </View>
-                    </TouchableOpacity>
-                ) : artifactsLoading ? (
-                    <View className="flex-1 bg-slate-800/50 py-2 rounded-lg items-center justify-center">
-                        <ActivityIndicator size="small" color="#94a3b8" />
-                    </View>
-                ) : ghRun?.conclusion === 'success' ? (
-                     <TouchableOpacity
-                        onPress={fetchArtifactsData}
-                        className="flex-1 bg-slate-800/50 py-2 rounded-lg items-center justify-center border border-slate-700"
-                     >
-                        <Text className="text-slate-500 text-[10px] italic">No Artifacts</Text>
-                    </TouchableOpacity>
-                ) : null}
+                <TouchableOpacity
+                    onPress={() => setMessageVisible(true)}
+                    className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
+                >
+                    <Ionicons name="chatbox-outline" size={14} color="white" />
+                    <Text className="text-white text-xs font-semibold ml-2">Msg</Text>
+                </TouchableOpacity>
 
-                {(session.state === 'COMPLETED' || session.state === 'FAILED' || prInactive) && onDelete && (
-                    <TouchableOpacity
-                        onPress={handleDelete}
-                        className="flex-1 bg-red-600/20 border border-red-500/30 py-2 rounded-lg flex-row items-center justify-center"
-                    >
-                        <Ionicons name="trash-outline" size={14} color="#f87171" />
-                        <Text className="text-red-400 text-xs font-semibold ml-2">Delete</Text>
-                    </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                    onPress={() => setMenuVisible(true)}
+                    className="bg-slate-700 py-2 px-3 rounded-lg flex-row items-center justify-center"
+                >
+                    <Ionicons name="ellipsis-horizontal" size={16} color="white" />
+                </TouchableOpacity>
             </View>
+
+            <SessionActionMenu
+                visible={menuVisible}
+                onClose={() => setMenuVisible(false)}
+                actions={menuActions}
+            />
+
+            <MessageDialog
+                visible={messageVisible}
+                onClose={() => setMessageVisible(false)}
+                onSend={handleSendMessage}
+                sending={sendingMessage}
+            />
         </Card>
     );
 }
