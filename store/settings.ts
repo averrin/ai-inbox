@@ -47,6 +47,18 @@ export interface NavItemConfig {
     children?: NavItemConfig[]; // For groups
 }
 
+export const DEFAULT_NAV_ITEMS: NavItemConfig[] = [
+    { id: 'Schedule', visible: true, title: 'Schedule', icon: 'calendar-outline', type: 'screen' },
+    { id: 'Input', visible: true, title: 'Note', icon: 'create-outline', type: 'screen' },
+    { id: 'Tasks', visible: true, title: 'Tasks', icon: 'list-outline', type: 'screen' },
+    { id: 'Links', visible: true, title: 'Links', icon: 'link-outline', type: 'screen' },
+    { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline', type: 'screen' },
+    { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github', type: 'screen' },
+    { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline', type: 'screen' },
+    { id: 'Profile', visible: true, title: 'Profile', icon: 'person-outline', type: 'screen' },
+    { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline', type: 'screen' },
+];
+
 interface SettingsState {
     apiKey: string | null;
     vaultUri: string | null;
@@ -333,17 +345,7 @@ export const useSettingsStore = create<SettingsState>()(
             hideArticles: (urls) => set((state) => ({
                 hiddenArticles: [...state.hiddenArticles, ...urls.filter(u => !state.hiddenArticles.includes(u))]
             })),
-            navConfig: [
-                { id: 'Schedule', visible: true, title: 'Schedule', icon: 'calendar-outline' },
-                { id: 'Input', visible: true, title: 'Note', icon: 'create-outline' },
-                { id: 'Tasks', visible: true, title: 'Tasks', icon: 'list-outline' },
-                { id: 'Links', visible: true, title: 'Links', icon: 'link-outline' },
-                { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline' },
-                { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github' },
-                { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline' },
-                { id: 'Profile', visible: true, title: 'Profile', icon: 'person-outline' },
-                { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline' },
-            ],
+            navConfig: DEFAULT_NAV_ITEMS,
             setNavConfig: (config) => set({ navConfig: config }),
         }),
         {
@@ -354,7 +356,7 @@ export const useSettingsStore = create<SettingsState>()(
                 const { cachedReminders, ...rest } = state;
                 return rest;
             },
-            version: 9,
+            version: 10,
             migrate: (persistedState: any, version: number) => {
                 if (version < 6) {
                     persistedState.navConfig = persistedState.navConfig || [
@@ -398,6 +400,31 @@ export const useSettingsStore = create<SettingsState>()(
                                 icon: 'newspaper-outline',
                                 type: 'screen'
                             });
+                        }
+                    }
+                }
+                // Generic Migration for Version 10: Ensure ALL DEFAULT_NAV_ITEMS exist
+                if (version < 10) {
+                    if (persistedState.navConfig) {
+                        const existingIds = new Set();
+                        const collectIds = (items: any[]) => {
+                            items.forEach(item => {
+                                existingIds.add(item.id);
+                                if (item.children) collectIds(item.children);
+                            });
+                        };
+                        collectIds(persistedState.navConfig);
+
+                        const missingItems = DEFAULT_NAV_ITEMS.filter(item => !existingIds.has(item.id));
+
+                        if (missingItems.length > 0) {
+                            // Insert missing items before 'Settings' if possible, otherwise at end
+                            const settingsIndex = persistedState.navConfig.findIndex((item: any) => item.id === 'Settings');
+                            if (settingsIndex !== -1) {
+                                persistedState.navConfig.splice(settingsIndex, 0, ...missingItems);
+                            } else {
+                                persistedState.navConfig.push(...missingItems);
+                            }
                         }
                     }
                 }

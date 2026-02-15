@@ -2,22 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Alert, ScrollView, Modal, FlatList } from 'react-native';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { useSettingsStore, NavItemConfig } from '../../store/settings';
+import { useSettingsStore, NavItemConfig, DEFAULT_NAV_ITEMS } from '../../store/settings';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import * as Crypto from 'expo-crypto';
 import { NavIconPicker } from '../ui/NavIconPicker';
-
-const ALL_POSSIBLE_SCREENS = [
-    { id: 'Schedule', defaultTitle: 'Schedule', defaultIcon: 'calendar-outline' },
-    { id: 'Input', defaultTitle: 'Note', defaultIcon: 'create-outline' },
-    { id: 'Tasks', defaultTitle: 'Tasks', defaultIcon: 'list-outline' },
-    { id: 'Links', defaultTitle: 'Links', defaultIcon: 'link-outline' },
-    { id: 'Reminders', defaultTitle: 'Reminders', defaultIcon: 'alarm-outline' },
-    { id: 'Jules', defaultTitle: 'Jules', defaultIcon: 'logo-github' },
-    { id: 'News', defaultTitle: 'News', defaultIcon: 'newspaper-outline' },
-    { id: 'Settings', defaultTitle: 'Settings', defaultIcon: 'settings-outline' },
-];
 
 export function NavigationSettings() {
     const { navConfig, setNavConfig } = useSettingsStore();
@@ -25,13 +14,7 @@ export function NavigationSettings() {
     const [iconPickerTarget, setIconPickerTarget] = useState<{ index: number, isGroupChild?: boolean, childId?: string } | null>(null);
 
     // Default config for reset
-    const DEFAULT_CONFIG: NavItemConfig[] = ALL_POSSIBLE_SCREENS.map(s => ({
-        id: s.id,
-        visible: true,
-        title: s.defaultTitle,
-        icon: s.defaultIcon,
-        type: 'screen'
-    }));
+    const DEFAULT_CONFIG = DEFAULT_NAV_ITEMS;
 
     const handleMove = (index: number, direction: 'up' | 'down') => {
         const newConfig = [...navConfig];
@@ -128,7 +111,7 @@ export function NavigationSettings() {
                     // Check other groups? For simplicity, only allow stealing from root.
                     // If complex moving is needed, reset first.
                     // Or create from default if missing entirely.
-                    const def = ALL_POSSIBLE_SCREENS.find(s => s.id === screenId);
+                    const def = DEFAULT_NAV_ITEMS.find(s => s.id === screenId);
                     if (def) {
                         screenConfig = { ...def, visible: true, type: 'screen' };
                     }
@@ -165,7 +148,7 @@ export function NavigationSettings() {
                     <Text className="text-slate-400 mb-4">Select screens to include in this group menu.</Text>
 
                     <ScrollView>
-                        {ALL_POSSIBLE_SCREENS.map(screen => {
+                        {DEFAULT_NAV_ITEMS.map(screen => {
                             const isSelected = editingGroup.children?.some(c => c.id === screen.id);
                             // Check if screen is in another group (locked)
                             const isLocked = !isSelected && !navConfig.some(i => i.id === screen.id) && navConfig.find(i => i.id !== editingGroup.id && i.children?.some(c => c.id === screen.id));
@@ -180,12 +163,12 @@ export function NavigationSettings() {
                                     <View className="flex-row items-center gap-3">
                                         <Ionicons
                                             // @ts-ignore
-                                            name={screen.defaultIcon}
+                                            name={screen.icon}
                                             size={20}
                                             color={isSelected ? '#818cf8' : '#94a3b8'}
                                         />
                                         <Text className={`font-medium ${isSelected ? 'text-white' : 'text-slate-400'}`}>
-                                            {screen.defaultTitle}
+                                            {screen.title}
                                         </Text>
                                     </View>
                                     {!!isLocked && <Text className="text-xs text-slate-500 italic">In another group</Text>}
