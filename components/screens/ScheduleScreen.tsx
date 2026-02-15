@@ -33,6 +33,10 @@ import { useMoodStore } from '../../store/moodStore';
 import { MoodEvaluationModal } from '../MoodEvaluationModal';
 import { WeatherForecastModal } from '../WeatherForecastModal';
 import { RecurrenceScopeModal } from '../RecurrenceScopeModal';
+import { DragDropProvider } from '../DragDropContext';
+import { DragOverlay } from '../DragOverlay';
+import { TodaysTasksPanel } from './TodaysTasksPanel';
+import { RelationService } from '../../services/relationService';
 
 
 export default function ScheduleScreen() {
@@ -58,6 +62,7 @@ export default function ScheduleScreen() {
     const [creatingEventType, setCreatingEventType] = useState<'event' | 'reminder' | 'alarm' | 'zone'>('event');
     const [editingEvent, setEditingEvent] = useState<any | null>(null);
     const [editingTask, setEditingTask] = useState<TaskWithSource | null>(null);
+    const [pendingLinkTask, setPendingLinkTask] = useState<TaskWithSource | null>(null);
     const [moodModalVisible, setMoodModalVisible] = useState(false);
     const [weatherModalVisible, setWeatherModalVisible] = useState(false);
     const [moodDate, setMoodDate] = useState<Date>(new Date());
@@ -321,6 +326,26 @@ export default function ScheduleScreen() {
             setCreatingEventDate(date);
         }
     }, [setCreatingEventDate, setCreatingEventType]);
+
+    const handleTaskDrop = useCallback((dropDate: Date, task: any) => {
+        setPendingLinkTask(task);
+        setCreatingEventDate(dropDate);
+        setCreatingEventType('event');
+    }, []);
+
+    const handleAddTask = useCallback(() => {
+        const newTaskTemplate = {
+            title: '',
+            status: ' ',
+            completed: false,
+            properties: { date: dayjs(date).format('YYYY-MM-DD') },
+            tags: [],
+            indentation: '',
+            bullet: '-',
+            originalLine: ''
+        };
+        setEditingTask(newTaskTemplate as any);
+    }, [date]);
 
     const handleDeleteEvent = async (options: DeleteOptions) => {
         // Reminder Deletion
@@ -747,6 +772,11 @@ export default function ScheduleScreen() {
 
                 const newEventId = await createCalendarEvent(targetCalendar.id, eventPayload);
 
+                if (pendingLinkTask && vaultUri) {
+                    await RelationService.linkTasksToEvent(vaultUri, newEventId, finalTitle, [pendingLinkTask]);
+                    setPendingLinkTask(null);
+                }
+
                 // 4. Re-sync to get real ID and finalized data
                 setTimeout(() => {
                     fetchEvents();
@@ -1154,6 +1184,7 @@ export default function ScheduleScreen() {
     };
 
     return (
+        <DragDropProvider>
         <View className="flex-1 bg-slate-950">
             <SafeAreaView className="flex-1" edges={['left', 'right', 'bottom']}>
                 <DateRuler
@@ -1164,6 +1195,12 @@ export default function ScheduleScreen() {
                     onToday={() => calendarRef.current?.goToDate(new Date())}
                     dayStatuses={dayStatuses}
                     onSync={fetchEvents}
+                />
+
+                <TodaysTasksPanel
+                    date={date}
+                    events={events}
+                    onAdd={handleAddTask}
                 />
 
                 {/* Calendar View */}
@@ -1245,6 +1282,7 @@ export default function ScheduleScreen() {
                                 />
                             )}
                             onQuickAction={handleQuickAction}
+                            onExternalDrop={handleTaskDrop}
                         />
                     </View>
                 )}
@@ -1302,10 +1340,12 @@ export default function ScheduleScreen() {
                         initialDate={creatingEventDate || undefined}
                         initialEvent={editingEvent}
                         initialType={creatingEventType}
+                        initialTitle={pendingLinkTask?.title}
                         timeFormat={timeFormat}
                         onCancel={() => {
                             setCreatingEventDate(null);
                             setEditingEvent(null);
+                            setPendingLinkTask(null);
                         }}
                         onSave={handleSaveEvent}
                         onDelete={handleDeleteEvent}
@@ -1359,8 +1399,11 @@ export default function ScheduleScreen() {
                     weatherData={weatherData}
                     currentDate={date}
                 />
+
+                <DragOverlay />
             </SafeAreaView>
         </View>
+        </DragDropProvider>
     );
 }
 

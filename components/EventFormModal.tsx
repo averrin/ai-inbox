@@ -46,6 +46,7 @@ interface EventFormModalProps {
     initialDate?: Date;
     initialEvent?: any; // Calendar event object for editing
     initialType?: 'event' | 'reminder' | 'alarm' | 'zone';
+    initialTitle?: string;
     onSave: (data: EventSaveData) => void;
     onDelete?: (options: DeleteOptions) => void;
     onCancel: () => void;
@@ -58,6 +59,7 @@ export function EventFormModal({
     initialDate,
     initialEvent,
     initialType,
+    initialTitle,
     onSave,
     onDelete,
     onCancel,
@@ -177,7 +179,7 @@ export function EventFormModal({
             } else {
                 // Create Mode
                 setStartDate(initialDate ? new Date(initialDate) : new Date());
-                setTitle('');
+                setTitle(initialTitle || '');
                 setDurationMinutes(60);
                 setAllDay(false);
                 setIsWork(false);
@@ -190,7 +192,7 @@ export function EventFormModal({
                 setIsNonFree(false);
             }
         }
-    }, [visible, initialDate, initialEvent, initialType]);
+    }, [visible, initialDate, initialEvent, initialType, initialTitle]);
 
     useEffect(() => {
         if (visible && initialEvent) {

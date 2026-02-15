@@ -19,7 +19,12 @@ import Animated, {
   withTiming,
   runOnJS,
   useDerivedValue,
+  useAnimatedReaction,
+  useAnimatedRef,
+  measure,
 } from 'react-native-reanimated'
+import { useContext } from 'react'
+import { DragDropContext } from '../../../DragDropContext'
 import { u } from '../commonStyles'
 import { useNow } from '../hooks/useNow'
 import { getNowIndicatorInfo } from '../utils/nowIndicator'
@@ -103,6 +108,7 @@ interface CalendarBodyProps<T extends ICalendarEventBase> {
   timeslotHeight?: number
   onQuickAction?: (action: 'event' | 'reminder' | 'zone', date: Date) => void
   onEventDrop?: (event: T, newDate: Date) => void
+  onExternalDrop?: (date: Date, data: any) => void
   refreshing?: boolean
   onRefresh?: () => void
 }
@@ -145,10 +151,13 @@ function _CalendarBody<T extends ICalendarEventBase>({
   timeslots = 0,
   onQuickAction,
   onEventDrop,
+  onExternalDrop,
   refreshing,
   onRefresh,
 }: CalendarBodyProps<T> & { refreshControl?: React.ReactElement<RefreshControlProps> }) {
   const scrollView = React.useRef<ScrollView>(null)
+  const containerRef = useAnimatedRef<Animated.View>()
+  const dragContext = useContext(DragDropContext)
   const [hasScrolled, setHasScrolled] = React.useState(false)
   const { now } = useNow(!hideNowIndicator)
   const difficulties = useEventTypesStore((s) => s.difficulties)
@@ -264,6 +273,58 @@ function _CalendarBody<T extends ICalendarEventBase>({
       onQuickAction?.(action, selectedDateForAction)
     }
   }
+
+  // --- External Drop Handling ---
+  const handleExternalDrop = React.useCallback(
+    (date: Date, data: any) => {
+      onExternalDrop?.(date, data)
+    },
+    [onExternalDrop]
+  )
+
+  // We need a stable JS callback that has access to current props
+  const resolveDrop = React.useCallback((dropX: number, dropY: number, pageX: number, pageY: number, width: number) => {
+      const relativeY = dropY - pageY
+      const hoursFromMinHour = relativeY / cellHeight
+      const totalMinutesFromStartOfDay = (minHour * 60) + (hoursFromMinHour * 60)
+
+      const relativeX = dropX - pageX
+      const leftOffset = (!hideHours || showWeekNumber) ? 50 : 0
+
+      if (relativeX < leftOffset) return
+
+      const availableWidth = width - leftOffset
+      const colWidth = availableWidth / dateRange.length
+      const colIndex = Math.floor((relativeX - leftOffset) / colWidth)
+
+      if (colIndex >= 0 && colIndex < dateRange.length) {
+          const baseDate = dateRange[colIndex]
+          const finalDate = baseDate.startOf('day').add(totalMinutesFromStartOfDay, 'minute').toDate()
+
+          if (dragContext?.dragData.value) {
+              onExternalDrop?.(finalDate, dragContext.dragData.value.payload)
+          }
+      }
+  }, [cellHeight, minHour, dateRange, hideHours, showWeekNumber, onExternalDrop, dragContext])
+
+  useAnimatedReaction(
+    () => dragContext?.isDragging.value,
+    (dragging, previous) => {
+      if (!dragContext) return
+      if (previous && !dragging && dragContext.dragData.value) {
+         const measurements = measure(containerRef)
+         if (!measurements) return
+         const { pageX, pageY, width } = measurements
+         const dropX = dragContext.dragX.value
+         const dropY = dragContext.dragY.value
+
+         if (dropX >= pageX && dropX <= pageX + width && dropY >= pageY && dropY <= pageY + measurements.height) {
+             runOnJS(resolveDrop)(dropX, dropY, pageX, pageY, width)
+         }
+      }
+    },
+    [dragContext] // Minimal dependencies for UI thread reaction
+  )
 
   // Pre-calculate offsets for all ranges (grouped by day)
   const rangeOffsetsByEvent = React.useMemo(() => {
@@ -671,7 +732,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
           ) : undefined)
         }
       >
-        <View style={[theme.isRTL ? u['flex-row-reverse'] : u['flex-row']]}>
+        <Animated.View ref={containerRef} style={[theme.isRTL ? u['flex-row-reverse'] : u['flex-row']]}>
           {(!hideHours || showWeekNumber) && (
             <View style={[u['z-20'], u['w-50']]}>
               {hours.map((hour) => (
@@ -800,7 +861,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
             </View>
           )}
 
-        </View>
+        </Animated.View>
       </ScrollView>
     </React.Fragment>
   )
