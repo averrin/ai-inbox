@@ -31,7 +31,7 @@ async function runTests() {
 
         const body = JSON.parse(options.body);
         assert.deepStrictEqual(body, {
-            userInput: { text: 'test message' }
+            prompt: 'test message'
         });
         console.log('PASS');
     } catch (e) {
