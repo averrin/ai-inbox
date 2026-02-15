@@ -9,6 +9,7 @@ import { ShareIntentProvider } from "expo-share-intent";
 import { StatusBar } from "expo-status-bar";
 import * as Notifications from 'expo-notifications';
 import * as WebBrowser from 'expo-web-browser';
+import { useKeepAwake } from "expo-keep-awake";
 import { useEffect, useRef } from "react";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -93,6 +94,7 @@ const toastConfig: ToastConfig = {
 };
 
 function AppContent() {
+  useKeepAwake();
   const { activeReminder, showReminder, closeReminder } = useReminderModal();
   const notificationListener = useRef<Notifications.Subscription | undefined>(undefined);
   const responseListener = useRef<Notifications.Subscription | undefined>(undefined);
