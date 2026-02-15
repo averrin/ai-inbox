@@ -1398,58 +1398,63 @@ export default function ScheduleScreen() {
                                 } else {
                                     // New Task
                                     try {
-                                        // Default to Tasks.md in tasksRoot, or Inbox.md
-                                        // Simple logic: Use tasksRoot/Inbox.md. Create if needed.
+                                        console.log('[ScheduleScreen] Creating new task...');
                                         const { tasksRoot } = useSettingsStore.getState();
-                                        // tasksRoot is usually a path relative to vaultUri
-                                        // Let's resolve the URI for tasksRoot
                                         let targetFileUri = null;
+                                        let finalFileName = 'Inbox.md';
 
-                                        // Try to find a sensible default file
-                                        // For "Today's Tasks", maybe we should use a daily note?
-                                        // But for simplicity, let's use Inbox.md in the root or tasks folder.
-
-                                        // Assuming tasksRoot is a folder path
+                                        // Resolve base folder URI
                                         let folderUri = vaultUri;
                                         if (tasksRoot) {
-                                            // tasksRoot might be "Work/Tasks"
-                                            const parts = tasksRoot.split('/').filter(p => p);
+                                            const parts = tasksRoot.split('/').filter(p => p.trim());
                                             for (const part of parts) {
                                                 folderUri = await ensureDirectory(folderUri, part);
                                             }
                                         }
 
-                                        // Look for Inbox.md or Tasks.md
+                                        // Look for existing Inbox.md or Tasks.md
                                         const inbox = await findFile(folderUri, 'Inbox.md');
-                                        if (inbox) targetFileUri = inbox;
-                                        else {
+                                        if (inbox) {
+                                            targetFileUri = inbox;
+                                            finalFileName = 'Inbox.md';
+                                        } else {
                                             const tasksFile = await findFile(folderUri, 'Tasks.md');
-                                            if (tasksFile) targetFileUri = tasksFile;
+                                            if (tasksFile) {
+                                                targetFileUri = tasksFile;
+                                                finalFileName = 'Tasks.md';
+                                            }
                                         }
 
-                                        // If still null, create Inbox.md
+                                        // If not found, create Inbox.md
                                         if (!targetFileUri) {
-                                            // Use saveToVault to create
+                                            console.log('[ScheduleScreen] Creating new Inbox.md');
                                             const { saveToVault } = await import('../../utils/saf');
+                                            // saveToVault handles directory creation internally if path is provided
                                             targetFileUri = await saveToVault(vaultUri, 'Inbox.md', '', tasksRoot || '');
                                         }
 
                                         if (targetFileUri) {
+                                            console.log('[ScheduleScreen] Adding task to:', targetFileUri);
                                             await TaskService.addTask(vaultUri, targetFileUri, updatedTask);
+
                                             // Optimistic add to store
                                             const { tasks, setTasks } = useTasksStore.getState();
-                                            const newTask = {
+                                            // Construct path for display (relative to vault)
+                                            const relativePath = tasksRoot
+                                                ? `${tasksRoot}/${finalFileName}`
+                                                : finalFileName;
+
+                                            const newTask: TaskWithSource = {
                                                 ...updatedTask,
                                                 fileUri: targetFileUri,
-                                                filePath: tasksRoot ? `${tasksRoot}/${targetFileUri.split('%2F').pop() || 'Inbox.md'}` : 'Inbox.md',
-                                                fileName: targetFileUri.split('%2F').pop() || 'Inbox.md'
+                                                filePath: relativePath,
+                                                fileName: finalFileName
                                             };
-                                            // Decode URI components for display
-                                            newTask.filePath = decodeURIComponent(newTask.filePath);
-                                            newTask.fileName = decodeURIComponent(newTask.fileName);
 
-                                            setTasks([...tasks, newTask as TaskWithSource]);
+                                            console.log('[ScheduleScreen] Optimistically adding task:', newTask.title);
+                                            setTasks([...tasks, newTask]);
                                         } else {
+                                            console.error('[ScheduleScreen] Failed to resolve target file URI');
                                             Alert.alert("Error", "Could not determine where to save the task.");
                                         }
                                     } catch (e) {
