@@ -12,7 +12,7 @@ import { ShareIntent } from 'expo-share-intent';
 import { useEffect, useState } from 'react';
 import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import { useSettingsStore, NavItemConfig } from '../../store/settings';
 import { GroupMenuOverlay } from './GroupMenuOverlay';
 
@@ -50,6 +50,7 @@ function InnerTabNavigator({
   onReset: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const layout = useWindowDimensions();
   const { navConfig } = useSettingsStore();
   const [activeGroup, setActiveGroup] = useState<NavItemConfig | null>(null);
 
@@ -77,6 +78,10 @@ function InnerTabNavigator({
   ];
 
   const renderedScreenIds = new Set<string>();
+  const visibleItems = activeConfig.filter(item => item.visible);
+  const visibleCount = visibleItems.length;
+  const tabWidth = visibleCount > 0 ? layout.width / visibleCount : 0;
+
   activeConfig.forEach(item => {
     if (item.visible && item.type !== 'group') {
       renderedScreenIds.add(item.id);
@@ -88,6 +93,7 @@ function InnerTabNavigator({
       <Tab.Navigator
         tabBarPosition="bottom"
         screenOptions={{
+          tabBarScrollEnabled: true,
           tabBarStyle: {
             backgroundColor: '#0f172a', // slate-900
             borderTopColor: '#334155', // slate-700
@@ -127,6 +133,7 @@ function InnerTabNavigator({
                   },
                 }}
                 options={{
+                  tabBarItemStyle: { width: tabWidth },
                   tabBarLabel: item.title,
                   tabBarIcon: ({ color }) => (
                     // @ts-ignore
@@ -147,6 +154,7 @@ function InnerTabNavigator({
                 children={config.children}
                 options={{
                   ...config.options,
+                  tabBarItemStyle: { width: tabWidth },
                   tabBarLabel: item.title,
                   tabBarIcon: ({ color }) => (
                     // @ts-ignore
