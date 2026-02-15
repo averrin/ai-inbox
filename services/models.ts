@@ -51,7 +51,7 @@ export async function fetchAvailableImageModels(apiKey: string): Promise<string[
         // Filter for image generation models (using heuristic: name contains 'imagen')
         const modelNames = data.models
             ?.filter((model: any) =>
-                model.name.toLowerCase().includes('imagen')
+                model.supportedGenerationMethods?.includes('generateContent')
             )
             .map((model: any) => model.name.replace('models/', ''))
             .sort() || [];
@@ -64,7 +64,7 @@ export async function fetchAvailableImageModels(apiKey: string): Promise<string[
 
         // Fallback if no models returned
         console.warn('[Models] No image models returned from API, using fallback');
-        return ['imagen-3.0-generate-001'];
+        return ['nano-banana-pro-preview'];
     } catch (e) {
         console.error("[Models] Error fetching image models from API:", e);
         // Return fallback model if API call fails
