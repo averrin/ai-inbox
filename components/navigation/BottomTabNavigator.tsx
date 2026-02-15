@@ -1,4 +1,5 @@
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import ProcessingScreen from '../screens/ProcessingScreen';
 import RemindersListScreen from '../screens/RemindersListScreen';
@@ -25,6 +26,7 @@ const TransparentTheme = {
 };
 
 const Tab = createMaterialTopTabNavigator();
+const Stack = createNativeStackNavigator();
 
 function NavigationHandler({ shareIntent }: { shareIntent: ShareIntent }) {
   const navigation = useNavigation();
@@ -42,7 +44,7 @@ function NavigationHandler({ shareIntent }: { shareIntent: ShareIntent }) {
   return null;
 }
 
-function InnerTabNavigator({
+function MainTabs({
   shareIntent,
   onReset
 }: {
@@ -65,7 +67,7 @@ function InnerTabNavigator({
     Settings: { children: () => <SetupScreen canClose={true} /> }
   };
 
-  // Fallback if navConfig is empty (migration issue)
+  // Fallback if navConfig is empty
   const activeConfig: NavItemConfig[] = (navConfig && navConfig.length > 0) ? navConfig : [
     { id: 'Schedule', visible: true, title: 'Schedule', icon: 'calendar-outline', type: 'screen' },
     { id: 'Input', visible: true, title: 'Note', icon: 'create-outline', type: 'screen' },
@@ -77,16 +79,9 @@ function InnerTabNavigator({
     { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline', type: 'screen' },
   ];
 
-  const renderedScreenIds = new Set<string>();
   const visibleItems = activeConfig.filter(item => item.visible);
   const visibleCount = visibleItems.length;
   const tabWidth = visibleCount > 0 ? layout.width / visibleCount : 0;
-
-  activeConfig.forEach(item => {
-    if (item.visible && item.type !== 'group') {
-      renderedScreenIds.add(item.id);
-    }
-  });
 
   return (
     <View style={{ flex: 1 }}>
@@ -102,9 +97,7 @@ function InnerTabNavigator({
             paddingBottom: insets.bottom,
             paddingTop: 0,
           },
-          tabBarIndicatorStyle: {
-            height: 0, // Hide the material indicator line
-          },
+          tabBarIndicatorStyle: { height: 0 },
           tabBarActiveTintColor: '#818cf8', // indigo-400
           tabBarInactiveTintColor: '#64748b', // slate-500
           tabBarLabelStyle: {
@@ -119,7 +112,7 @@ function InnerTabNavigator({
         }}
         initialRouteName="Schedule"
       >
-        {activeConfig.filter(item => item.visible).map(item => {
+        {visibleItems.map(item => {
           if (item.type === 'group') {
             return (
               <Tab.Screen
@@ -165,24 +158,6 @@ function InnerTabNavigator({
             );
           }
         })}
-
-        {/* Render hidden tabs for screens not in the main bar (e.g. inside groups or hidden) */}
-        {Object.keys(SCREEN_CONFIG).filter(id => !renderedScreenIds.has(id)).map(id => {
-            const config = SCREEN_CONFIG[id];
-            return (
-                <Tab.Screen
-                    key={id}
-                    name={id}
-                    component={config.component}
-                    children={config.children}
-                    options={{
-                        ...config.options,
-                        tabBarItemStyle: { display: 'none', width: 0, height: 0, overflow: 'hidden' }, // Hide from bar
-                        tabBarLabel: id // Fallback label
-                    }}
-                />
-            );
-        })}
       </Tab.Navigator>
       <GroupMenuOverlay
         visible={!!activeGroup}
@@ -190,6 +165,52 @@ function InnerTabNavigator({
         onClose={() => setActiveGroup(null)}
       />
     </View>
+  );
+}
+
+function InnerNavigator(props: { shareIntent: ShareIntent; onReset: () => void }) {
+  const { navConfig } = useSettingsStore();
+
+  const SCREEN_CONFIG: Record<string, any> = {
+      Schedule: { component: ScheduleScreen, options: { swipeEnabled: false } },
+      Input: { children: () => <ProcessingScreen shareIntent={props.shareIntent} onReset={props.onReset} />, options: { tabBarLabel: 'Note' } },
+      Tasks: { component: TasksScreen },
+      Links: { component: LinksScreen },
+      Reminders: { component: RemindersListScreen },
+      Jules: { component: JulesScreen },
+      News: { component: NewsScreen },
+      Settings: { children: () => <SetupScreen canClose={true} /> }
+  };
+
+  const activeConfig = navConfig && navConfig.length > 0 ? navConfig : [];
+
+  // Identify visible screens to prevent duplicate registration
+  const visibleScreenIds = new Set(activeConfig.filter(i => i.visible && i.type !== 'group').map(i => i.id));
+
+  // Screens that are NOT visible in the main tabs (hidden or inside groups)
+  // These need to be registered in the Stack so they can be navigated to.
+  const hiddenScreenIds = Object.keys(SCREEN_CONFIG).filter(id => !visibleScreenIds.has(id));
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MainTabs">
+        {() => <MainTabs {...props} />}
+      </Stack.Screen>
+
+      {/* Register hidden screens as stack siblings */}
+      {hiddenScreenIds.map(id => {
+          const config = SCREEN_CONFIG[id];
+          return (
+              <Stack.Screen
+                  key={id}
+                  name={id}
+                  component={config.component}
+                  // @ts-ignore
+                  children={config.children}
+              />
+          );
+      })}
+    </Stack.Navigator>
   );
 }
 
@@ -201,7 +222,7 @@ export default function BottomTabNavigator(props: {
     <NavigationIndependentTree>
       <NavigationContainer theme={TransparentTheme}>
         <NavigationHandler shareIntent={props.shareIntent} />
-        <InnerTabNavigator {...props} />
+        <InnerNavigator {...props} />
       </NavigationContainer>
     </NavigationIndependentTree>
   );
