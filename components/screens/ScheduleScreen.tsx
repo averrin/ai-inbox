@@ -1369,94 +1369,126 @@ export default function ScheduleScreen() {
                     <TaskEditModal
                         visible={!!editingTask}
                         task={editingTask}
-                        onSave={async (updatedTask) => {
+                        enableFolderSelection={true}
+                        initialFolder={editingTask.filePath && editingTask.filePath.includes('/')
+                            ? editingTask.filePath.substring(0, editingTask.filePath.lastIndexOf('/'))
+                            : ''}
+                        onSave={async (updatedTask, folderPath) => {
                             const { TaskService } = await import('../../services/taskService');
-                            const { findFile, ensureDirectory } = await import('../../utils/saf');
-                            if (vaultUri) {
-                                if (editingTask.fileUri) {
-                                    // Existing Task
-                                    try {
-                                        await TaskService.syncTaskUpdate(vaultUri, editingTask, updatedTask);
-                                    } catch (e: any) {
-                                        if (e.message === 'FILE_NOT_FOUND') {
-                                            // Remove from store
-                                            const { tasks } = useTasksStore.getState();
-                                            const newTasks = tasks.filter(t =>
-                                                !(t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
-                                            );
-                                            useTasksStore.getState().setTasks(newTasks);
-                                            Toast.show({
-                                                type: 'error',
-                                                text1: 'Task file missing',
-                                                text2: 'Removed orphan task.'
-                                            });
-                                            // Don't re-throw, just close modal
-                                        } else {
-                                            throw e; // Let outer catch handle it
-                                        }
-                                    }
-                                } else {
-                                    // New Task
-                                    try {
-                                        console.log('[ScheduleScreen] Creating new task...');
-                                        const { tasksRoot } = useSettingsStore.getState();
-                                        let targetFileUri = null;
-                                        let finalFileName = 'Inbox.md';
+                            const { ensureDirectory } = await import('../../utils/saf');
 
-                                        // Resolve base folder URI
-                                        let folderUri = vaultUri;
+                            if (vaultUri) {
+                                // 1. Resolve Target Folder URI
+                                let targetFolderUri = vaultUri;
+                                let resolvedFolderPath = folderPath || '';
+
+                                try {
+                                    if (folderPath && folderPath.trim()) {
+                                        const parts = folderPath.split('/').filter(p => p.trim());
+                                        for (const part of parts) {
+                                            targetFolderUri = await ensureDirectory(targetFolderUri, part);
+                                        }
+                                    } else {
+                                        // Fallback to tasksRoot only if explicitly Creating and no folder passed (though TaskEditModal usually passes one)
+                                        const { tasksRoot } = useSettingsStore.getState();
                                         if (tasksRoot) {
+                                            resolvedFolderPath = tasksRoot;
                                             const parts = tasksRoot.split('/').filter(p => p.trim());
                                             for (const part of parts) {
-                                                folderUri = await ensureDirectory(folderUri, part);
+                                                targetFolderUri = await ensureDirectory(targetFolderUri, part);
                                             }
                                         }
+                                    }
+                                } catch (e) {
+                                    console.error('[ScheduleScreen] Failed to resolve folder', e);
+                                    Alert.alert("Error", "Could not resolve target folder.");
+                                    return;
+                                }
 
-                                        // Look for existing Inbox.md or Tasks.md
-                                        const inbox = await findFile(folderUri, 'Inbox.md');
-                                        if (inbox) {
-                                            targetFileUri = inbox;
-                                            finalFileName = 'Inbox.md';
-                                        } else {
-                                            const tasksFile = await findFile(folderUri, 'Tasks.md');
-                                            if (tasksFile) {
-                                                targetFileUri = tasksFile;
-                                                finalFileName = 'Tasks.md';
-                                            }
-                                        }
+                                if (editingTask.fileUri) {
+                                    // === EXISTING TASK ===
 
-                                        // If not found, create Inbox.md
-                                        if (!targetFileUri) {
-                                            console.log('[ScheduleScreen] Creating new Inbox.md');
-                                            const { saveToVault } = await import('../../utils/saf');
-                                            // saveToVault handles directory creation internally if path is provided
-                                            targetFileUri = await saveToVault(vaultUri, 'Inbox.md', '', tasksRoot || '');
-                                        }
+                                    // Check if moved
+                                    const currentFolder = editingTask.filePath && editingTask.filePath.includes('/')
+                                        ? editingTask.filePath.substring(0, editingTask.filePath.lastIndexOf('/'))
+                                        : '';
 
-                                        if (targetFileUri) {
-                                            console.log('[ScheduleScreen] Adding task to:', targetFileUri);
-                                            await TaskService.addTask(vaultUri, targetFileUri, updatedTask);
+                                    // Normalize paths (trim slashes)
+                                    const normalizedCurrent = currentFolder.replace(/^\/+|\/+$/g, '');
+                                    const normalizedNew = resolvedFolderPath.replace(/^\/+|\/+$/g, '');
 
-                                            // Optimistic add to store
+                                    if (normalizedNew !== normalizedCurrent) {
+                                        // MOVE Logic
+                                        try {
+                                            // 1. Add to new location
+                                            const defaultFile = await TaskService.findDefaultTaskFile(targetFolderUri);
+                                            await TaskService.addTask(vaultUri, defaultFile.uri, updatedTask);
+
+                                            // 2. Delete from old location
+                                            await TaskService.syncTaskDeletion(vaultUri, editingTask);
+
+                                            // 3. Update Store (Remove old, Add new)
                                             const { tasks, setTasks } = useTasksStore.getState();
-                                            // Construct path for display (relative to vault)
-                                            const relativePath = tasksRoot
-                                                ? `${tasksRoot}/${finalFileName}`
-                                                : finalFileName;
+                                            const filteredTasks = tasks.filter(t =>
+                                                !(t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
+                                            );
 
                                             const newTask: TaskWithSource = {
                                                 ...updatedTask,
-                                                fileUri: targetFileUri,
-                                                filePath: relativePath,
-                                                fileName: finalFileName
+                                                fileUri: defaultFile.uri,
+                                                filePath: resolvedFolderPath ? `${resolvedFolderPath}/${defaultFile.name}` : defaultFile.name,
+                                                fileName: defaultFile.name
                                             };
 
-                                            console.log('[ScheduleScreen] Optimistically adding task:', newTask.title);
-                                            setTasks([...tasks, newTask]);
-                                        } else {
-                                            console.error('[ScheduleScreen] Failed to resolve target file URI');
-                                            Alert.alert("Error", "Could not determine where to save the task.");
+                                            setTasks([...filteredTasks, newTask]);
+                                            Toast.show({ type: 'success', text1: 'Task Moved' });
+
+                                        } catch (e: any) {
+                                            console.error("Failed to move task", e);
+                                            Alert.alert("Error", `Failed to move task: ${e.message}`);
                                         }
+                                    } else {
+                                        // UPDATE In-Place Logic
+                                        try {
+                                            await TaskService.syncTaskUpdate(vaultUri, editingTask, updatedTask);
+                                        } catch (e: any) {
+                                            if (e.message === 'FILE_NOT_FOUND') {
+                                                const { tasks } = useTasksStore.getState();
+                                                const newTasks = tasks.filter(t =>
+                                                    !(t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
+                                                );
+                                                useTasksStore.getState().setTasks(newTasks);
+                                                Toast.show({
+                                                    type: 'error',
+                                                    text1: 'Task file missing',
+                                                    text2: 'Removed orphan task.'
+                                                });
+                                            } else {
+                                                throw e;
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // === NEW TASK ===
+                                    try {
+                                        console.log('[ScheduleScreen] Creating new task in:', resolvedFolderPath);
+
+                                        const defaultFile = await TaskService.findDefaultTaskFile(targetFolderUri);
+
+                                        console.log('[ScheduleScreen] Adding task to:', defaultFile.uri);
+                                        await TaskService.addTask(vaultUri, defaultFile.uri, updatedTask);
+
+                                        // Optimistic add to store
+                                        const { tasks, setTasks } = useTasksStore.getState();
+                                        const newTask: TaskWithSource = {
+                                            ...updatedTask,
+                                            fileUri: defaultFile.uri,
+                                            filePath: resolvedFolderPath ? `${resolvedFolderPath}/${defaultFile.name}` : defaultFile.name,
+                                            fileName: defaultFile.name
+                                        };
+
+                                        console.log('[ScheduleScreen] Optimistically adding task:', newTask.title);
+                                        setTasks([...tasks, newTask]);
                                     } catch (e: any) {
                                         console.error("Failed to create task", JSON.stringify(e), e.message);
                                         Alert.alert("Error", `Failed to create task: ${e.message || 'Unknown error'}`);

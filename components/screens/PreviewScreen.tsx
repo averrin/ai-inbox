@@ -665,6 +665,7 @@ export function PreviewScreen({
             <TaskEditModal
                 visible={isTaskModalVisible}
                 task={editingTask}
+                enableFolderSelection={false}
                 onSave={handleSaveTask}
                 onCancel={() => setIsTaskModalVisible(false)}
             />
