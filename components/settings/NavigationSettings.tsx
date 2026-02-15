@@ -15,6 +15,7 @@ const ALL_POSSIBLE_SCREENS = [
     { id: 'Links', defaultTitle: 'Links', defaultIcon: 'link-outline' },
     { id: 'Reminders', defaultTitle: 'Reminders', defaultIcon: 'alarm-outline' },
     { id: 'Jules', defaultTitle: 'Jules', defaultIcon: 'logo-github' },
+    { id: 'News', defaultTitle: 'News', defaultIcon: 'newspaper-outline' },
     { id: 'Settings', defaultTitle: 'Settings', defaultIcon: 'settings-outline' },
 ];
 
