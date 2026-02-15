@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, RefreshControl, Platform, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import { Calendar as BigCalendar, CalendarRef } from '../ui/calendar';
 import dayjs from 'dayjs';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +34,10 @@ import { useMoodStore } from '../../store/moodStore';
 import { MoodEvaluationModal } from '../MoodEvaluationModal';
 import { WeatherForecastModal } from '../WeatherForecastModal';
 import { RecurrenceScopeModal } from '../RecurrenceScopeModal';
+import { DragDropProvider } from '../DragDropContext';
+import { DragOverlay } from '../DragOverlay';
+import { TodaysTasksPanel } from './TodaysTasksPanel';
+import { RelationService } from '../../services/relationService';
 
 
 export default function ScheduleScreen() {
@@ -58,6 +63,7 @@ export default function ScheduleScreen() {
     const [creatingEventType, setCreatingEventType] = useState<'event' | 'reminder' | 'alarm' | 'zone'>('event');
     const [editingEvent, setEditingEvent] = useState<any | null>(null);
     const [editingTask, setEditingTask] = useState<TaskWithSource | null>(null);
+    const [pendingLinkTask, setPendingLinkTask] = useState<TaskWithSource | null>(null);
     const [moodModalVisible, setMoodModalVisible] = useState(false);
     const [weatherModalVisible, setWeatherModalVisible] = useState(false);
     const [moodDate, setMoodDate] = useState<Date>(new Date());
@@ -321,6 +327,26 @@ export default function ScheduleScreen() {
             setCreatingEventDate(date);
         }
     }, [setCreatingEventDate, setCreatingEventType]);
+
+    const handleTaskDrop = useCallback((dropDate: Date, task: any) => {
+        setPendingLinkTask(task);
+        setCreatingEventDate(dropDate);
+        setCreatingEventType('event');
+    }, []);
+
+    const handleAddTask = useCallback(() => {
+        const newTaskTemplate = {
+            title: '',
+            status: ' ',
+            completed: false,
+            properties: { date: dayjs(date).format('YYYY-MM-DD') },
+            tags: [],
+            indentation: '',
+            bullet: '-',
+            originalLine: ''
+        };
+        setEditingTask(newTaskTemplate as any);
+    }, [date]);
 
     const handleDeleteEvent = async (options: DeleteOptions) => {
         // Reminder Deletion
@@ -747,6 +773,11 @@ export default function ScheduleScreen() {
 
                 const newEventId = await createCalendarEvent(targetCalendar.id, eventPayload);
 
+                if (pendingLinkTask && vaultUri) {
+                    await RelationService.linkTasksToEvent(vaultUri, newEventId, finalTitle, [pendingLinkTask]);
+                    setPendingLinkTask(null);
+                }
+
                 // 4. Re-sync to get real ID and finalized data
                 setTimeout(() => {
                     fetchEvents();
@@ -1154,6 +1185,7 @@ export default function ScheduleScreen() {
     };
 
     return (
+        <DragDropProvider>
         <View className="flex-1 bg-slate-950">
             <SafeAreaView className="flex-1" edges={['left', 'right', 'bottom']}>
                 <DateRuler
@@ -1164,6 +1196,12 @@ export default function ScheduleScreen() {
                     onToday={() => calendarRef.current?.goToDate(new Date())}
                     dayStatuses={dayStatuses}
                     onSync={fetchEvents}
+                />
+
+                <TodaysTasksPanel
+                    date={date}
+                    events={events}
+                    onAdd={handleAddTask}
                 />
 
                 {/* Calendar View */}
@@ -1245,6 +1283,7 @@ export default function ScheduleScreen() {
                                 />
                             )}
                             onQuickAction={handleQuickAction}
+                            onExternalDrop={handleTaskDrop}
                         />
                     </View>
                 )}
@@ -1302,10 +1341,12 @@ export default function ScheduleScreen() {
                         initialDate={creatingEventDate || undefined}
                         initialEvent={editingEvent}
                         initialType={creatingEventType}
+                        initialTitle={pendingLinkTask?.title}
                         timeFormat={timeFormat}
                         onCancel={() => {
                             setCreatingEventDate(null);
                             setEditingEvent(null);
+                            setPendingLinkTask(null);
                         }}
                         onSave={handleSaveEvent}
                         onDelete={handleDeleteEvent}
@@ -1330,10 +1371,98 @@ export default function ScheduleScreen() {
                         task={editingTask}
                         onSave={async (updatedTask) => {
                             const { TaskService } = await import('../../services/taskService');
+                            const { findFile, ensureDirectory } = await import('../../utils/saf');
                             if (vaultUri) {
-                                await TaskService.syncTaskUpdate(vaultUri, editingTask, updatedTask);
+                                if (editingTask.fileUri) {
+                                    // Existing Task
+                                    try {
+                                        await TaskService.syncTaskUpdate(vaultUri, editingTask, updatedTask);
+                                    } catch (e: any) {
+                                        if (e.message === 'FILE_NOT_FOUND') {
+                                            // Remove from store
+                                            const { tasks } = useTasksStore.getState();
+                                            const newTasks = tasks.filter(t =>
+                                                !(t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
+                                            );
+                                            useTasksStore.getState().setTasks(newTasks);
+                                            Toast.show({
+                                                type: 'error',
+                                                text1: 'Task file missing',
+                                                text2: 'Removed orphan task.'
+                                            });
+                                            // Don't re-throw, just close modal
+                                        } else {
+                                            throw e; // Let outer catch handle it
+                                        }
+                                    }
+                                } else {
+                                    // New Task
+                                    try {
+                                        console.log('[ScheduleScreen] Creating new task...');
+                                        const { tasksRoot } = useSettingsStore.getState();
+                                        let targetFileUri = null;
+                                        let finalFileName = 'Inbox.md';
+
+                                        // Resolve base folder URI
+                                        let folderUri = vaultUri;
+                                        if (tasksRoot) {
+                                            const parts = tasksRoot.split('/').filter(p => p.trim());
+                                            for (const part of parts) {
+                                                folderUri = await ensureDirectory(folderUri, part);
+                                            }
+                                        }
+
+                                        // Look for existing Inbox.md or Tasks.md
+                                        const inbox = await findFile(folderUri, 'Inbox.md');
+                                        if (inbox) {
+                                            targetFileUri = inbox;
+                                            finalFileName = 'Inbox.md';
+                                        } else {
+                                            const tasksFile = await findFile(folderUri, 'Tasks.md');
+                                            if (tasksFile) {
+                                                targetFileUri = tasksFile;
+                                                finalFileName = 'Tasks.md';
+                                            }
+                                        }
+
+                                        // If not found, create Inbox.md
+                                        if (!targetFileUri) {
+                                            console.log('[ScheduleScreen] Creating new Inbox.md');
+                                            const { saveToVault } = await import('../../utils/saf');
+                                            // saveToVault handles directory creation internally if path is provided
+                                            targetFileUri = await saveToVault(vaultUri, 'Inbox.md', '', tasksRoot || '');
+                                        }
+
+                                        if (targetFileUri) {
+                                            console.log('[ScheduleScreen] Adding task to:', targetFileUri);
+                                            await TaskService.addTask(vaultUri, targetFileUri, updatedTask);
+
+                                            // Optimistic add to store
+                                            const { tasks, setTasks } = useTasksStore.getState();
+                                            // Construct path for display (relative to vault)
+                                            const relativePath = tasksRoot
+                                                ? `${tasksRoot}/${finalFileName}`
+                                                : finalFileName;
+
+                                            const newTask: TaskWithSource = {
+                                                ...updatedTask,
+                                                fileUri: targetFileUri,
+                                                filePath: relativePath,
+                                                fileName: finalFileName
+                                            };
+
+                                            console.log('[ScheduleScreen] Optimistically adding task:', newTask.title);
+                                            setTasks([...tasks, newTask]);
+                                        } else {
+                                            console.error('[ScheduleScreen] Failed to resolve target file URI');
+                                            Alert.alert("Error", "Could not determine where to save the task.");
+                                        }
+                                    } catch (e: any) {
+                                        console.error("Failed to create task", JSON.stringify(e), e.message);
+                                        Alert.alert("Error", `Failed to create task: ${e.message || 'Unknown error'}`);
+                                    }
+                                }
                                 setEditingTask(null);
-                                fetchEvents(); // Refresh to catch changes
                             }
                         }}
                         onCancel={() => setEditingTask(null)}
@@ -1359,8 +1488,11 @@ export default function ScheduleScreen() {
                     weatherData={weatherData}
                     currentDate={date}
                 />
+
+                <DragOverlay />
             </SafeAreaView>
         </View>
+        </DragDropProvider>
     );
 }
 

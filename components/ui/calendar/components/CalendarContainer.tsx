@@ -180,6 +180,7 @@ export interface CalendarContainerProps<T extends ICalendarEventBase> {
    */
   onQuickAction?: (action: 'event' | 'reminder' | 'zone', date: Date) => void
   onEventDrop?: (event: T, newDate: Date) => void
+  onExternalDrop?: (date: Date, data: any) => void
   refreshing?: boolean
   onRefresh?: () => void
 }
@@ -260,6 +261,7 @@ function _CalendarContainer<T extends ICalendarEventBase>({
   imperativeRef,
   onQuickAction,
   onEventDrop,
+  onExternalDrop,
   refreshing,
   onRefresh,
 }: CalendarContainerProps<T>) {
@@ -607,6 +609,7 @@ function _CalendarContainer<T extends ICalendarEventBase>({
           onRefresh={onRefresh}
           onQuickAction={onQuickAction}
           onEventDrop={onEventDrop}
+          onExternalDrop={onExternalDrop}
         />
       </React.Fragment>
     ),
@@ -652,6 +655,7 @@ function _CalendarContainer<T extends ICalendarEventBase>({
       onRefresh,
       onQuickAction,
       onEventDrop,
+      onExternalDrop,
     ],
   )
 

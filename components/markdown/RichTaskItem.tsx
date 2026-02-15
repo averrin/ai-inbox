@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BaseListItem } from '../ui/BaseListItem';
 import { ActionButton } from '../ui/ActionButton';
@@ -110,7 +110,12 @@ export function RichTaskItem({
     );
 
     const metadataSubtitle = (
-        <View className="flex-row flex-wrap gap-1 mt-1 items-center">
+        <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 4, alignItems: 'center' }}
+            style={{ marginTop: 4, height: 22 }} // Fixed height for one line
+        >
             {task.properties[REMINDER_PROPERTY_KEY] && (
                 <View className="mr-1">
                     <Ionicons name="alarm" size={14} color="#fbbf24" />
@@ -146,7 +151,7 @@ export function RichTaskItem({
                 return (
                     <View 
                         key={`prop-${key}`} 
-                        className="bg-slate-700/50 px-1.5 py-0.5 rounded border border-slate-600/50 flex-row"
+                        className="bg-slate-700/50 px-1.5 py-0.5 rounded border border-slate-600/50 flex-row items-center"
                         style={customStyle}
                     >
                         {key === 'context' ? (
@@ -181,7 +186,7 @@ export function RichTaskItem({
                     </TouchableOpacity>
                 );
             })}
-        </View>
+        </ScrollView>
     );
 
     const rightActions = (onEdit || onDelete) ? (
