@@ -30,13 +30,14 @@ import { ForecastSettings } from '../settings/ForecastSettings';
 import { CloudSyncSettings } from '../settings/CloudSyncSettings';
 import { LogsSettings } from '../settings/LogsSettings';
 import { NewsSettings } from '../settings/NewsSettings';
+import { NavigationSettings } from '../settings/NavigationSettings';
 import { scanForReminders } from '../../services/reminderService';
 import { useEventTypesStore } from '../../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../../utils/debugUtils';
 import gitInfo from '../../git-info.json';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -631,6 +632,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "API Keys, Vault, Model"
             )}
             {renderMenuButton(
+                "Navigation",
+                "map-outline",
+                () => setActiveSection('navigation'),
+                "Tabs order & visibility"
+            )}
+            {renderMenuButton(
                 "Integrations",
                 "grid-outline",
                 () => setActiveSection('integrations'),
@@ -849,6 +856,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("General", () => setActiveSection('root'))}
                                 <View className="px-0">{renderGeneralSettings()}</View>
+                            </>
+                        )}
+                        {activeSection === 'navigation' && (
+                            <>
+                                {renderHeader("Navigation", () => setActiveSection('root'))}
+                                <View className="px-0"><NavigationSettings /></View>
                             </>
                         )}
                         {activeSection === 'integrations' && (
