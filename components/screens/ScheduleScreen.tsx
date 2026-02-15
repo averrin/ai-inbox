@@ -25,7 +25,7 @@ import { DaySummaryModal } from '../DaySummaryModal';
 import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder, formatRecurrenceForReminder } from '../../services/reminderService';
 import { EventFormModal, EventSaveData, DeleteOptions } from '../EventFormModal';
 import { TaskEditModal } from '../markdown/TaskEditModal';
-import { TaskWithSource } from '../../store/tasks';
+import { TaskWithSource, useTasksStore } from '../../store/tasks';
 import { createCalendarEvent, getWritableCalendars, updateCalendarEvent, deleteCalendarEvent } from '../../services/calendarService';
 
 import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../services/weatherService';
@@ -1369,9 +1369,9 @@ export default function ScheduleScreen() {
                     <TaskEditModal
                         visible={!!editingTask}
                         task={editingTask}
-                        onSave={async (updatedTask) => {
+                        onSave={async (updatedTask, targetFileUri, targetFilePath, targetFileName) => {
                             const { TaskService } = await import('../../services/taskService');
-                            const { findFile, ensureDirectory } = await import('../../utils/saf');
+
                             if (vaultUri) {
                                 if (editingTask.fileUri) {
                                     // Existing Task
@@ -1399,62 +1399,26 @@ export default function ScheduleScreen() {
                                     // New Task
                                     try {
                                         console.log('[ScheduleScreen] Creating new task...');
-                                        const { tasksRoot } = useSettingsStore.getState();
-                                        let targetFileUri = null;
-                                        let finalFileName = 'Inbox.md';
-
-                                        // Resolve base folder URI
-                                        let folderUri = vaultUri;
-                                        if (tasksRoot) {
-                                            const parts = tasksRoot.split('/').filter(p => p.trim());
-                                            for (const part of parts) {
-                                                folderUri = await ensureDirectory(folderUri, part);
-                                            }
-                                        }
-
-                                        // Look for existing Inbox.md or Tasks.md
-                                        const inbox = await findFile(folderUri, 'Inbox.md');
-                                        if (inbox) {
-                                            targetFileUri = inbox;
-                                            finalFileName = 'Inbox.md';
-                                        } else {
-                                            const tasksFile = await findFile(folderUri, 'Tasks.md');
-                                            if (tasksFile) {
-                                                targetFileUri = tasksFile;
-                                                finalFileName = 'Tasks.md';
-                                            }
-                                        }
-
-                                        // If not found, create Inbox.md
-                                        if (!targetFileUri) {
-                                            console.log('[ScheduleScreen] Creating new Inbox.md');
-                                            const { saveToVault } = await import('../../utils/saf');
-                                            // saveToVault handles directory creation internally if path is provided
-                                            targetFileUri = await saveToVault(vaultUri, 'Inbox.md', '', tasksRoot || '');
-                                        }
 
                                         if (targetFileUri) {
                                             console.log('[ScheduleScreen] Adding task to:', targetFileUri);
-                                            await TaskService.addTask(vaultUri, targetFileUri, updatedTask);
+                                            const savedTask = await TaskService.addTask(vaultUri, targetFileUri, updatedTask);
+                                            Toast.show({ type: 'success', text1: 'Task Created' });
 
-                                            // Optimistic add to store
-                                            const { tasks, setTasks } = useTasksStore.getState();
-                                            // Construct path for display (relative to vault)
-                                            const relativePath = tasksRoot
-                                                ? `${tasksRoot}/${finalFileName}`
-                                                : finalFileName;
-
-                                            const newTask: TaskWithSource = {
-                                                ...updatedTask,
-                                                fileUri: targetFileUri,
-                                                filePath: relativePath,
-                                                fileName: finalFileName
-                                            };
-
-                                            console.log('[ScheduleScreen] Optimistically adding task:', newTask.title);
-                                            setTasks([...tasks, newTask]);
+                                            // Optimistic Update
+                                            if (targetFilePath && targetFileName) {
+                                                const { tasks, setTasks } = useTasksStore.getState();
+                                                const newTaskWithSource: TaskWithSource = {
+                                                    ...savedTask, // has originalLine
+                                                    fileUri: targetFileUri,
+                                                    filePath: targetFilePath,
+                                                    fileName: targetFileName
+                                                };
+                                                setTasks([...tasks, newTaskWithSource]);
+                                            }
                                         } else {
-                                            console.error('[ScheduleScreen] Failed to resolve target file URI');
+                                            // Should be caught by validation in modal
+                                            console.error('[ScheduleScreen] No target file URI provided');
                                             Alert.alert("Error", "Could not determine where to save the task.");
                                         }
                                     } catch (e: any) {

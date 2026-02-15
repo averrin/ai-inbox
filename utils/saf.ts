@@ -318,6 +318,15 @@ export async function checkFileExists(parentUri: string, filePath: string): Prom
     }
 }
 
+export async function createFile(parentUri: string, filename: string, mimeType: string = 'text/markdown'): Promise<string> {
+    try {
+        return await StorageAccessFramework.createFileAsync(parentUri, filename, mimeType);
+    } catch (e) {
+        console.error('[saf] Failed to create file', e);
+        throw e;
+    }
+}
+
 export async function readFileContent(parentUri: string, filePath: string): Promise<string> {
     try {
         let fileUri: string | null = null;

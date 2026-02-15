@@ -84,36 +84,42 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
         setIsModalVisible(true);
     };
 
-    const handleSaveNewTask = async (newTask: RichTask) => {
+    const handleSaveNewTask = async (newTask: RichTask, targetFileUri?: string, targetFilePath?: string, targetFileName?: string) => {
         if (!vaultUri || !folderUri) return;
         
-        // Strategy: append to first file in folder or create tasks.md
-        let targetFileUri = '';
-        let targetFileName = 'tasks.md';
-        let targetFilePath = `${folderPath}/${targetFileName}`;
+        // Use provided target or fallback to auto-detection (though TaskEditModal usually provides it)
+        let resolvedFileUri = targetFileUri;
         
-        if (tasks.length > 0) {
-            targetFileUri = tasks[0].fileUri;
-            targetFileName = tasks[0].fileName;
-            targetFilePath = tasks[0].filePath;
-        } else {
-             if (tasks.length === 0) {
+        if (!resolvedFileUri) {
+            // Strategy: append to first file in folder or create tasks.md
+            if (tasks.length > 0) {
+                resolvedFileUri = tasks[0].fileUri;
+            } else {
                  Alert.alert("No File Found", "Please create a markdown file in this folder first to add tasks.");
                  return;
-             }
+            }
         }
         
         try {
-            const baseAddedTask = await TaskService.addTask(vaultUri, targetFileUri, newTask);
-            const addedTask: TaskWithSource = {
-                ...baseAddedTask,
-                filePath: targetFilePath,
-                fileName: targetFileName,
-                fileUri: targetFileUri
-            };
-            setTasks(prev => [...prev, addedTask]);
-            setIsModalVisible(false);
-            Toast.show({ type: 'success', text1: 'Task Created' });
+            if (resolvedFileUri) {
+                const savedTask = await TaskService.addTask(vaultUri, resolvedFileUri, newTask);
+                setIsModalVisible(false);
+                Toast.show({ type: 'success', text1: 'Task Created' });
+
+                // Optimistic Update
+                if (targetFilePath && targetFileName) {
+                     const newTaskWithSource: TaskWithSource = {
+                        ...savedTask, // has originalLine
+                        fileUri: resolvedFileUri,
+                        filePath: targetFilePath,
+                        fileName: targetFileName
+                    };
+                    setTasks(prev => [...prev, newTaskWithSource]);
+                } else {
+                    // Fallback to refresh if we don't have path info (should be rare with new modal)
+                    loadTasks(true);
+                }
+            }
         } catch (e) {
             Toast.show({ type: 'error', text1: 'Create Failed', text2: 'Could not save new task.' });
         }
@@ -282,11 +288,12 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                 <TaskEditModal
                     visible={isModalVisible}
                     task={editingTask}
+                    initialProjectUri={folderUri}
                     onCancel={() => {
                         setIsModalVisible(false);
                         setEditingTask(null);
                     }}
-                    onSave={editingTask ? handleSaveEdit : handleSaveNewTask}
+                    onSave={editingTask ? (task) => handleSaveEdit(task) : handleSaveNewTask}
                     onOpenEvent={(id) => {
                         setIsModalVisible(false);
                         Calendar.getEventAsync(id).then(evt => {

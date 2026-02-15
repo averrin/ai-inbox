@@ -22,19 +22,22 @@ import {
     updateReminder,
     formatRecurrenceForReminder
 } from '../../services/reminderService';
-import { getParentFolderUri, findFile } from '../../utils/saf';
+import { getParentFolderUri, findFile, createFile } from '../../utils/saf';
 import { TaskStatusIcon, getStatusConfig } from '../ui/TaskStatusIcon';
+import { SelectionSheet } from '../ui/SelectionSheet';
+import { TaskService, FolderGroup } from '../../services/taskService';
 
 interface TaskEditModalProps {
     visible: boolean;
     task: (RichTask & { fileUri?: string }) | null;
-    onSave: (task: RichTask) => void;
+    onSave: (task: RichTask, targetFileUri?: string, targetFilePath?: string, targetFileName?: string) => void;
     onCancel: () => void;
     onOpenEvent?: (id: string) => void;
+    initialProjectUri?: string;
 }
 
-export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: TaskEditModalProps) {
-    const { propertyConfig, vaultUri, timeFormat } = useSettingsStore();
+export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent, initialProjectUri }: TaskEditModalProps) {
+    const { propertyConfig, vaultUri, timeFormat, tasksRoot } = useSettingsStore();
     const { metadataCache } = useVaultStore();
     
     const [title, setTitle] = useState('');
@@ -44,6 +47,11 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
     const [showReminderModal, setShowReminderModal] = useState(false);
     const [linkedEvents, setLinkedEvents] = useState<{ id: string, title: string, date: Date }[]>([]);
     
+    // Project Selection
+    const [projects, setProjects] = useState<FolderGroup[]>([]);
+    const [selectedProject, setSelectedProject] = useState<FolderGroup | null>(null);
+    const [showProjectSheet, setShowProjectSheet] = useState(false);
+
     // Derived from settings for autocomplete
     const keySuggestions = Object.keys(propertyConfig);
 
@@ -60,8 +68,42 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
                 setProperties({});
                 setTags([]);
             }
+
+            // Load Projects
+            if (vaultUri) {
+                const load = async () => {
+                    let groups: FolderGroup[] = [];
+                    if (tasksRoot) {
+                        groups = await TaskService.getFolderGroups(vaultUri, tasksRoot);
+                    }
+
+                    if (initialProjectUri) {
+                        const found = groups.find(g => g.uri === initialProjectUri);
+                        if (found) {
+                            setSelectedProject(found);
+                        } else {
+                            // If initial project is not in list (e.g. subfolder or root), create synthetic option
+                            const synthetic: FolderGroup = { name: 'Current Folder', uri: initialProjectUri, path: '' };
+                            groups = [synthetic, ...groups];
+                            setSelectedProject(synthetic);
+                        }
+                    } else if (!task?.fileUri) {
+                        // Creating new task from scratch
+                        if (groups.length === 0) {
+                            // If no tasksRoot or no folders found, allow saving to Vault Root
+                            const rootGroup: FolderGroup = { name: 'Vault Root', uri: vaultUri, path: '' };
+                            groups = [rootGroup];
+                            setSelectedProject(rootGroup);
+                        } else {
+                            setSelectedProject(null);
+                        }
+                    }
+                    setProjects(groups);
+                };
+                load();
+            }
         }
-    }, [task, visible]);
+    }, [task, visible, vaultUri, tasksRoot, initialProjectUri]);
 
     useEffect(() => {
         const loadLinkedEvents = async () => {
@@ -151,6 +193,50 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
         if (!title.trim()) {
             Alert.alert('Validation', 'Task title cannot be empty.');
             return;
+        }
+
+        // Validate Project if new task
+        let targetFileUri = undefined;
+        let targetFileName = undefined;
+        let targetFilePath = undefined;
+
+        if (!task?.fileUri) {
+            if (!selectedProject) {
+                Alert.alert('Validation', 'Please select a project folder.');
+                return;
+            }
+
+            // Resolve Target File
+            try {
+                // Look for Inbox.md
+                const inbox = await findFile(selectedProject.uri, 'Inbox.md');
+                if (inbox) {
+                    targetFileUri = inbox;
+                    targetFileName = 'Inbox.md';
+                } else {
+                    const tasksFile = await findFile(selectedProject.uri, 'Tasks.md');
+                    if (tasksFile) {
+                        targetFileUri = tasksFile;
+                        targetFileName = 'Tasks.md';
+                    } else {
+                        // Create Inbox.md
+                        targetFileUri = await createFile(selectedProject.uri, 'Inbox.md');
+                        targetFileName = 'Inbox.md';
+                    }
+                }
+
+                if (selectedProject.path) {
+                    targetFilePath = `${selectedProject.path}/${targetFileName}`;
+                } else {
+                    // Fallback if synthetic group without path
+                    targetFilePath = targetFileName;
+                }
+
+            } catch (e) {
+                console.error("Failed to resolve target file", e);
+                Alert.alert('Error', 'Failed to resolve target file in project.');
+                return;
+            }
         }
 
         // Logic to extract task to file if it has a reminder and is not already a link
@@ -268,7 +354,7 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
             indentation: task?.indentation || '',
             originalLine: task?.originalLine || '',
         };
-        onSave(updatedTask);
+        onSave(updatedTask, targetFileUri, targetFilePath, targetFileName);
     };
 
     const handleOpenNote = () => {
@@ -301,6 +387,24 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
                     </View>
 
                     <ScrollView showsVerticalScrollIndicator={false}>
+                        {(!task?.fileUri) && (
+                            <View className="mb-4">
+                                <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Project</Text>
+                                <TouchableOpacity
+                                    onPress={() => setShowProjectSheet(true)}
+                                    className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row justify-between items-center"
+                                >
+                                    <View className="flex-row items-center gap-2">
+                                        <Ionicons name="folder-open-outline" size={18} color="#818cf8" />
+                                        <Text className={selectedProject ? "text-white font-medium" : "text-slate-400"}>
+                                            {selectedProject ? selectedProject.name : "Select Project..."}
+                                        </Text>
+                                    </View>
+                                    <Ionicons name="chevron-down" size={16} color="#64748b" />
+                                </TouchableOpacity>
+                            </View>
+                        )}
+
                         <View className="mb-4">
                             <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Title</Text>
                             <TextInput
@@ -488,6 +592,22 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
                 onSave={handleReminderSave}
                 onCancel={() => setShowReminderModal(false)}
                 timeFormat={timeFormat}
+            />
+
+            <SelectionSheet
+                visible={showProjectSheet}
+                title="Select Project"
+                options={projects.map(p => ({
+                    id: p.uri,
+                    label: p.name,
+                    icon: 'folder-outline'
+                }))}
+                onSelect={(opt) => {
+                    const found = projects.find(p => p.uri === opt.id);
+                    if (found) setSelectedProject(found);
+                    setShowProjectSheet(false);
+                }}
+                onClose={() => setShowProjectSheet(false)}
             />
         </Modal>
     );
