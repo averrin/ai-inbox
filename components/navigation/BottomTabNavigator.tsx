@@ -8,6 +8,7 @@ import ScheduleScreen from '../screens/ScheduleScreen';
 import SetupScreen from '../screens/SetupScreen';
 import NewsScreen from '../screens/NewsScreen';
 import JulesScreen from '../screens/JulesScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect } from 'react';
 import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
@@ -60,6 +61,7 @@ function InnerTabNavigator({
     Reminders: { component: RemindersListScreen },
     Jules: { component: JulesScreen },
     News: { component: NewsScreen },
+    Profile: { component: ProfileScreen },
     Settings: { children: () => <SetupScreen canClose={true} /> }
   };
 
@@ -72,6 +74,7 @@ function InnerTabNavigator({
     { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline', type: 'screen' },
     { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github', type: 'screen' },
     { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline', type: 'screen' },
+    { id: 'Profile', visible: true, title: 'Profile', icon: 'person-outline', type: 'screen' },
     { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline', type: 'screen' },
   ];
 

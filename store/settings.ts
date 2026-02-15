@@ -341,6 +341,7 @@ export const useSettingsStore = create<SettingsState>()(
                 { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline' },
                 { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github' },
                 { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline' },
+                { id: 'Profile', visible: true, title: 'Profile', icon: 'person-outline' },
                 { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline' },
             ],
             setNavConfig: (config) => set({ navConfig: config }),
@@ -353,7 +354,7 @@ export const useSettingsStore = create<SettingsState>()(
                 const { cachedReminders, ...rest } = state;
                 return rest;
             },
-            version: 8,
+            version: 9,
             migrate: (persistedState: any, version: number) => {
                 if (version < 6) {
                     persistedState.navConfig = persistedState.navConfig || [
@@ -395,6 +396,29 @@ export const useSettingsStore = create<SettingsState>()(
                                 visible: true,
                                 title: 'News',
                                 icon: 'newspaper-outline',
+                                type: 'screen'
+                            });
+                        }
+                    }
+                }
+                if (version < 9) {
+                     if (persistedState.navConfig && !persistedState.navConfig.some((item: any) => item.id === 'Profile')) {
+                        // Insert Profile before Settings
+                        const settingsIndex = persistedState.navConfig.findIndex((item: any) => item.id === 'Settings');
+                        if (settingsIndex !== -1) {
+                            persistedState.navConfig.splice(settingsIndex, 0, {
+                                id: 'Profile',
+                                visible: true,
+                                title: 'Profile',
+                                icon: 'person-outline',
+                                type: 'screen'
+                            });
+                        } else {
+                            persistedState.navConfig.push({
+                                id: 'Profile',
+                                visible: true,
+                                title: 'Profile',
+                                icon: 'person-outline',
                                 type: 'screen'
                             });
                         }
