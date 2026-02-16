@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
 import { Button } from '../ui/Button';
@@ -74,6 +75,7 @@ export function InputScreen({
     reminderData,
     onRemoveReminder,
 }: InputScreenProps) {
+    const insets = useSafeAreaInsets();
     const { editorType, timeFormat } = useSettingsStore();
 
     // Rich Task State
@@ -126,7 +128,7 @@ export function InputScreen({
                 {/* Main Content ScrollView */}
                 <ScrollView 
                     className="flex-1 px-4" 
-                    contentContainerStyle={{ paddingBottom: 40 }} 
+                    contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                 >
@@ -295,6 +297,7 @@ export function InputScreen({
             <TaskEditModal 
                 visible={isTaskModalVisible}
                 task={editingTask}
+                enableFolderSelection={false}
                 onSave={handleSaveTask}
                 onCancel={() => setIsTaskModalVisible(false)}
             />

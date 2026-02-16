@@ -24,17 +24,28 @@ import {
 } from '../../services/reminderService';
 import { getParentFolderUri, findFile } from '../../utils/saf';
 import { TaskStatusIcon, getStatusConfig } from '../ui/TaskStatusIcon';
+import { FolderInput } from '../ui/FolderInput';
 
 interface TaskEditModalProps {
     visible: boolean;
     task: (RichTask & { fileUri?: string }) | null;
-    onSave: (task: RichTask) => void;
+    onSave: (task: RichTask, folderPath?: string) => void;
     onCancel: () => void;
     onOpenEvent?: (id: string) => void;
+    initialFolder?: string;
+    enableFolderSelection?: boolean;
 }
 
-export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: TaskEditModalProps) {
-    const { propertyConfig, vaultUri, timeFormat } = useSettingsStore();
+export function TaskEditModal({
+    visible,
+    task,
+    onSave,
+    onCancel,
+    onOpenEvent,
+    initialFolder,
+    enableFolderSelection = true
+}: TaskEditModalProps) {
+    const { propertyConfig, vaultUri, timeFormat, tasksRoot } = useSettingsStore();
     const { metadataCache } = useVaultStore();
     
     const [title, setTitle] = useState('');
@@ -43,6 +54,7 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
     const [tags, setTags] = useState<string[]>([]);
     const [showReminderModal, setShowReminderModal] = useState(false);
     const [linkedEvents, setLinkedEvents] = useState<{ id: string, title: string, date: Date }[]>([]);
+    const [folder, setFolder] = useState('');
     
     // Derived from settings for autocomplete
     const keySuggestions = Object.keys(propertyConfig);
@@ -54,14 +66,41 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
                 setStatus(task.status);
                 setProperties({ ...task.properties }); // Clone to avoid mutation
                 setTags([...task.tags]);
+
+                // Initialize folder from task location if available
+                if ((task as any).filePath) {
+                    const fp = (task as any).filePath;
+                    const parts = fp.split('/');
+                    if (parts.length > 1) {
+                        parts.pop(); // Remove filename
+                        setFolder(parts.join('/'));
+                    } else {
+                        setFolder(''); // Root
+                    }
+                } else if (initialFolder !== undefined) {
+                    setFolder(initialFolder);
+                } else if (tasksRoot) {
+                    setFolder(tasksRoot);
+                } else {
+                    setFolder('');
+                }
             } else {
                 setTitle('');
                 setStatus(' ');
                 setProperties({});
                 setTags([]);
+
+                // New Task Folder
+                if (initialFolder !== undefined) {
+                    setFolder(initialFolder);
+                } else if (tasksRoot) {
+                    setFolder(tasksRoot);
+                } else {
+                    setFolder('');
+                }
             }
         }
-    }, [task, visible]);
+    }, [task, visible, initialFolder, tasksRoot]);
 
     useEffect(() => {
         const loadLinkedEvents = async () => {
@@ -207,7 +246,7 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
                     indentation: task?.indentation || '',
                     originalLine: task?.originalLine || '',
                 };
-                onSave(updatedTask);
+                onSave(updatedTask, folder);
                 return;
             } else {
                  Alert.alert("Error", "Failed to create reminder file.");
@@ -268,7 +307,7 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
             indentation: task?.indentation || '',
             originalLine: task?.originalLine || '',
         };
-        onSave(updatedTask);
+        onSave(updatedTask, folder);
     };
 
     const handleOpenNote = () => {
@@ -312,6 +351,17 @@ export function TaskEditModal({ visible, task, onSave, onCancel, onOpenEvent }: 
                                 multiline
                             />
                         </View>
+
+                        {enableFolderSelection && (
+                            <FolderInput
+                                label="Folder"
+                                value={folder}
+                                onChangeText={setFolder}
+                                vaultUri={vaultUri}
+                                placeholder="e.g., Inbox/Notes"
+                                compact={true}
+                            />
+                        )}
 
                         {linkedEvents.length > 0 && (
                             <View className="mb-4">

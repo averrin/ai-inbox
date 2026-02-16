@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settings';
 
 export default function ProfileScreen() {
+    const insets = useSafeAreaInsets();
     const [editingFact, setEditingFact] = useState<{ key: string, value: string } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -96,7 +97,7 @@ export default function ProfileScreen() {
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 className="flex-1"
             >
-                <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: 100 }}>
+                <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
 
                     {/* Status / Welcome */}
                     <View className="mb-6">

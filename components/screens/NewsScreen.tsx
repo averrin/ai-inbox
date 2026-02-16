@@ -1,4 +1,5 @@
 import { View, Text, FlatList, Image, TouchableOpacity, RefreshControl, ScrollView, TextInput, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettingsStore } from '../../store/settings';
 import { useEffect, useState, useRef } from 'react';
 import { Article, fetchNews } from '../../services/newsService';
@@ -11,6 +12,7 @@ import * as WebBrowser from 'expo-web-browser';
 dayjs.extend(relativeTime);
 
 export default function NewsScreen() {
+    const insets = useSafeAreaInsets();
     const {
         newsTopics, rssFeeds, newsApiKey,
         hiddenArticles, readArticles, hideArticle, markArticleAsRead,
@@ -323,7 +325,7 @@ export default function NewsScreen() {
                                 data={visibleArticles}
                                 renderItem={renderItem}
                                 keyExtractor={(item, index) => `${item.url}-${index}`}
-                                contentContainerStyle={{ paddingBottom: 80 }}
+                                contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
                                 refreshControl={
                                     <RefreshControl
                                         refreshing={loading}
