@@ -160,7 +160,7 @@ export const useProfileStore = create<ProfileState>()(
                         const fileUri = `${FileSystem.documentDirectory}${fileName}`;
 
                         await FileSystem.writeAsStringAsync(fileUri, base64, {
-                            encoding: FileSystem.EncodingType.Base64
+                            encoding: 'base64'
                         });
 
                         // Update profile with new URI
