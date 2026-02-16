@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Image, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Image, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layout } from '../ui/Layout';
 import * as ImagePicker from 'expo-image-picker';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -49,11 +50,29 @@ IMPORTANT: Return ONLY the JSON object. Do not wrap it in markdown code blocks.
 
 export default function AssistantScreen() {
     const { apiKey, vaultUri, selectedModel } = useSettingsStore();
+    const insets = useSafeAreaInsets();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [isKeyboardVisible, setKeyboardVisible] = useState(false);
     const flatListRef = useRef<FlatList>(null);
+
+    useEffect(() => {
+        const keyboardDidShowListener = Keyboard.addListener(
+            'keyboardDidShow',
+            () => setKeyboardVisible(true)
+        );
+        const keyboardDidHideListener = Keyboard.addListener(
+            'keyboardDidHide',
+            () => setKeyboardVisible(false)
+        );
+
+        return () => {
+            keyboardDidHideListener.remove();
+            keyboardDidShowListener.remove();
+        };
+    }, []);
 
     useEffect(() => {
         // Initial greeting
@@ -381,7 +400,10 @@ export default function AssistantScreen() {
                     onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
                 />
 
-                <View className="p-4 bg-slate-900 border-t border-slate-800 flex-row items-end gap-2">
+                <View
+                    className="p-4 bg-slate-900 border-t border-slate-800 flex-row items-end gap-2"
+                    style={{ paddingBottom: isKeyboardVisible ? 16 : (insets.bottom + 80) }}
+                >
                     <TouchableOpacity
                         onPress={pickImage}
                         className="p-2 bg-slate-800 rounded-full"
