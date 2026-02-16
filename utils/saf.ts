@@ -55,6 +55,15 @@ export async function findFile(parentUri: string, filename: string): Promise<str
     }
 }
 
+export async function createFile(parentUri: string, filename: string, mimeType: string = 'text/plain'): Promise<string> {
+    try {
+        return await StorageAccessFramework.createFileAsync(parentUri, filename, mimeType);
+    } catch (e) {
+        console.error(`[createFile] Error creating ${filename}:`, e);
+        throw e;
+    }
+}
+
 export async function requestVaultAccess() {
     try {
         const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
@@ -123,7 +132,9 @@ export async function saveToVault(
         }
 
         const fileUri = await StorageAccessFramework.createFileAsync(targetUri, filename, mimeType);
+        console.log('[saveToVault] Created file at URI:', fileUri);
         await StorageAccessFramework.writeAsStringAsync(fileUri, content);
+        console.log('[saveToVault] Successfully wrote content to:', fileUri);
         return fileUri;
     } catch (e) {
         console.error('[saveToVault] Error:', e);

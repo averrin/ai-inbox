@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import { useTasksStore, TaskWithSource } from '../../store/tasks';
 import { useSettingsStore } from '../../store/settings';
+import { useEventTypesStore } from '../../store/eventTypes';
 import { DraggableTaskItem } from '../DraggableTaskItem';
 import { RichTask } from '../../utils/taskParser';
 import { TaskService } from '../../services/taskService';
@@ -32,9 +33,10 @@ const PRIORITY_ORDER: Record<string, number> = {
   none: 0,
 };
 
-export const TodaysTasksPanel = ({ date, events, onAdd }: TodaysTasksPanelProps) => {
+export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd }: TodaysTasksPanelProps) => {
   const { tasks, setTasks } = useTasksStore();
   const { vaultUri } = useSettingsStore();
+  const { completedEvents, toggleCompleted } = useEventTypesStore();
   const [expanded, setExpanded] = useState(true);
 
   const toggleExpanded = () => {
@@ -42,72 +44,56 @@ export const TodaysTasksPanel = ({ date, events, onAdd }: TodaysTasksPanelProps)
     setExpanded(!expanded);
   };
 
-  const todaysTasks = useMemo(() => {
+  const displayItems = useMemo(() => {
     const targetDateStr = dayjs(date).format('YYYY-MM-DD');
-    const todayStr = dayjs().format('YYYY-MM-DD'); // "Today" in real time for overdue check
+    const todayStr = dayjs().format('YYYY-MM-DD');
 
-    // Get event IDs for current day
+    // 1. Filter Tasks
     const eventIds = new Set<string>();
-    events.forEach(e => {
+    calendarEvents.forEach(e => {
         if (e.originalEvent?.id) eventIds.add(e.originalEvent.id);
         if (e.id) eventIds.add(e.id);
     });
 
-    return tasks.filter(task => {
+    const filteredTasks = tasks.filter(task => {
         if (task.completed) return false;
-
         const props = task.properties;
-        const taskDate = props.date;
-        const taskStart = props.start;
-        const taskDue = props.due;
-        const eventIdStr = props.event_id;
-
-        // 1. Exact Date Match
-        if (taskDate === targetDateStr) return true;
-
-        // 2. Start-Due Range Match
-        if (taskStart && taskDue) {
-            // Is targetDate within [start, due]?
-            if (dayjs(targetDateStr).isBetween(taskStart, taskDue, 'day', '[]')) return true;
-        }
-
-        // 3. Overdue (Due < Today's Real Date) - Only show if we are looking at today or past?
-        // Requirement: "And overdue tasks."
-        // Usually overdue tasks are shown on "Today" view.
-        // If I'm looking at tomorrow, should I show overdue tasks? Probably not, unless they are rescheduled.
-        // Let's assume "Today's Tasks" implies tasks relevant to the *selected* date.
-        // If selected date is Today, show overdue.
-        if (targetDateStr === todayStr && taskDue && dayjs(taskDue).isBefore(todayStr, 'day')) {
-            return true;
-        }
-
-        // 4. Linked to Day's Events
-        if (eventIdStr) {
-            const ids = eventIdStr.split(',').map(s => s.trim());
-            if (ids.some(id => eventIds.has(id))) return true;
-        }
-
+        if (props.date === targetDateStr) return true;
+        if (props.start && props.due && dayjs(targetDateStr).isBetween(props.start, props.due, 'day', '[]')) return true;
+        if (targetDateStr === todayStr && props.due && dayjs(props.due).isBefore(todayStr, 'day')) return true;
+        if (props.event_id && props.event_id.split(',').some((id: string) => eventIds.has(id.trim()))) return true;
         return false;
-    }).sort((a, b) => {
-        // Sort by Priority
-        const pA = PRIORITY_ORDER[a.properties.priority || 'none'] || 0;
-        const pB = PRIORITY_ORDER[b.properties.priority || 'none'] || 0;
-        if (pA !== pB) return pB - pA; // Descending
+    }).map(t => ({ type: 'task' as const, data: t }));
 
-        // Then by Due Date (earlier first)
-        if (a.properties.due && b.properties.due) return a.properties.due.localeCompare(b.properties.due);
-        if (a.properties.due) return -1;
-        if (b.properties.due) return 1;
+    // 2. Filter Events for "Today" panel
+    // We only want "Real" events, not zones/markers that might be passed in
+    const filteredEvents = calendarEvents.filter(e => {
+        const isMarker = e.type === 'marker';
+        const isZone = e.type === 'zone';
+        if (isMarker || isZone) return false;
+        
+        // Only show events with the "checkbox" trait
+        if (!e.completable) return false;
 
-        return 0;
-    }).slice(0, 5); // Limit 5
-  }, [tasks, date, events]);
+        // Do not show completed events
+        const eventDateStr = dayjs(e.start).format('YYYY-MM-DD');
+        const key = `${e.title}::${eventDateStr}`;
+        if (completedEvents[key]) return false;
+
+        // Ensure it's for the selected date
+        return dayjs(e.start).isSame(dayjs(date), 'day');
+    }).map(e => ({ type: 'event' as const, data: e }));
+
+    // Combine and Sort
+    // Sort tasks by priority, then both by time?
+    // For now, let's just put events first, then tasks.
+    return [...filteredEvents, ...filteredTasks];
+  }, [tasks, date, calendarEvents]);
 
   const handleTaskUpdate = async (original: TaskWithSource, updated: RichTask) => {
     if (!vaultUri) return;
     try {
         await TaskService.syncTaskUpdate(vaultUri, original, updated);
-        // Optimistic update
         const newTasks = tasks.map(t =>
             (t.filePath === original.filePath && t.originalLine === original.originalLine)
             ? { ...t, ...updated }
@@ -117,28 +103,32 @@ export const TodaysTasksPanel = ({ date, events, onAdd }: TodaysTasksPanelProps)
     } catch (e: any) {
         console.error("Failed to update task", e);
         if (e.message === 'FILE_NOT_FOUND') {
-            // Remove orphan task
             const newTasks = tasks.filter(t =>
                 !(t.filePath === original.filePath && t.originalLine === original.originalLine)
             );
             setTasks(newTasks);
-            Toast.show({
-                type: 'error',
-                text1: 'Task file missing',
-                text2: 'Removed orphan task from list.'
-            });
+            Toast.show({ type: 'error', text1: 'Task file missing', text2: 'Removed orphan task.' });
         } else {
             Alert.alert("Error", "Failed to update task");
         }
     }
   };
 
-  const handleToggle = (task: TaskWithSource) => {
+  const handleToggleTask = (task: TaskWithSource) => {
       const newStatus = task.status === ' ' ? 'x' : ' ';
       handleTaskUpdate(task, { ...task, status: newStatus, completed: newStatus === 'x' });
   };
 
-  if (todaysTasks.length === 0 && !expanded) return null; // Hide if empty and collapsed? Or show "No tasks"
+  const handleToggleEvent = (event: any) => {
+      const dateStr = dayjs(event.start).format('YYYY-MM-DD');
+      toggleCompleted(event.title, dateStr);
+  };
+
+  const isEventCompleted = (event: any) => {
+      const dateStr = dayjs(event.start).format('YYYY-MM-DD');
+      const key = `${event.title}::${dateStr}`;
+      return !!completedEvents[key];
+  };
 
   return (
     <View className="mx-4 mt-2 mb-2 bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
@@ -149,11 +139,11 @@ export const TodaysTasksPanel = ({ date, events, onAdd }: TodaysTasksPanelProps)
         <View className="flex-row items-center gap-2">
             <Ionicons name="checkbox-outline" size={18} color="#818cf8" />
             <Text className="text-slate-200 font-semibold text-sm">
-                Tasks for {dayjs(date).format('MMM D')}
+                Focus for {dayjs(date).format('MMM D')}
             </Text>
-            {todaysTasks.length > 0 && (
+            {displayItems.length > 0 && (
                 <View className="bg-indigo-500/20 px-1.5 py-0.5 rounded">
-                    <Text className="text-indigo-400 text-[10px] font-bold">{todaysTasks.length}</Text>
+                    <Text className="text-indigo-400 text-[10px] font-bold">{displayItems.length}</Text>
                 </View>
             )}
         </View>
@@ -167,24 +157,54 @@ export const TodaysTasksPanel = ({ date, events, onAdd }: TodaysTasksPanelProps)
 
       {expanded && (
         <View className="p-2 gap-2">
-            {todaysTasks.length === 0 ? (
+            {displayItems.length === 0 ? (
                 <View className="p-4 items-center justify-center border border-dashed border-slate-700 rounded-lg">
-                    <Text className="text-slate-500 text-xs italic">No tasks for today</Text>
+                    <Text className="text-slate-500 text-xs italic">Nothing for today</Text>
                     <TouchableOpacity onPress={onAdd} className="mt-2">
                         <Text className="text-indigo-400 text-xs font-medium">Add a task</Text>
                     </TouchableOpacity>
                 </View>
             ) : (
-                todaysTasks.map((task, index) => (
-                    <DraggableTaskItem
-                        key={`${task.filePath}-${index}`} // Use a stable key if possible
-                        task={task}
-                        fileName={task.fileName}
-                        onToggle={() => handleToggle(task)}
-                        onUpdate={(updated) => handleTaskUpdate(task, updated)}
-                        onEdit={() => { /* Open edit modal? We need to pass onEdit to parent or handle it */ }}
-                    />
-                ))
+                displayItems.map((item, index) => {
+                    if (item.type === 'task') {
+                        return (
+                            <DraggableTaskItem
+                                key={`${item.data.filePath}-${index}`}
+                                task={item.data}
+                                fileName={item.data.fileName}
+                                onToggle={() => handleToggleTask(item.data)}
+                                onUpdate={(updated) => handleTaskUpdate(item.data, updated)}
+                                onEdit={() => {}}
+                            />
+                        );
+                    } else {
+                        const completed = isEventCompleted(item.data);
+                        return (
+                            <TouchableOpacity 
+                                key={`event-${index}`}
+                                className={`flex-row items-center p-3 bg-slate-800/30 rounded-lg border border-slate-800/50 ${completed ? 'opacity-40' : ''}`}
+                                onPress={() => handleToggleEvent(item.data)}
+                            >
+                                <View className={`w-5 h-5 rounded border items-center justify-center mr-3 ${completed ? 'bg-indigo-600 border-indigo-600' : 'border-slate-600'}`}>
+                                    {completed && <Ionicons name="checkmark" size={14} color="white" />}
+                                </View>
+                                <View className="flex-1">
+                                    <Text className={`text-sm font-medium ${completed ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                                        {item.data.title}
+                                    </Text>
+                                    <View className="flex-row items-center gap-2 mt-0.5">
+                                        <Text className="text-[10px] text-slate-500">
+                                            {dayjs(item.data.start).format('HH:mm')} - {dayjs(item.data.end).format('HH:mm')}
+                                        </Text>
+                                        <View className="w-1 h-1 rounded-full bg-slate-700" />
+                                        <Text className="text-[10px] text-indigo-400/80 font-bold uppercase tracking-tighter">Event</Text>
+                                    </View>
+                                </View>
+                                <Ionicons name="calendar-outline" size={14} color="#475569" />
+                            </TouchableOpacity>
+                        );
+                    }
+                })
             )}
         </View>
       )}

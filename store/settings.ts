@@ -41,6 +41,7 @@ export interface NewsArticle {
 export interface NavItemConfig {
     id: string; // 'Schedule', 'Input', 'Tasks', 'Links', 'Reminders', 'Jules', 'News', 'Settings' OR a custom group ID
     type?: 'screen' | 'group'; // Defaults to 'screen' if undefined (migration)
+    segment?: 'left' | 'right'; // Which island the item belongs to (default 'left')
     visible: boolean;
     title: string;
     icon: string; // Ionicons name
@@ -48,15 +49,19 @@ export interface NavItemConfig {
 }
 
 export const DEFAULT_NAV_ITEMS: NavItemConfig[] = [
-    { id: 'Schedule', visible: true, title: 'Schedule', icon: 'calendar-outline', type: 'screen' },
-    { id: 'Input', visible: true, title: 'Note', icon: 'create-outline', type: 'screen' },
-    { id: 'Tasks', visible: true, title: 'Tasks', icon: 'list-outline', type: 'screen' },
-    { id: 'Links', visible: true, title: 'Links', icon: 'link-outline', type: 'screen' },
-    { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline', type: 'screen' },
-    { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github', type: 'screen' },
-    { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline', type: 'screen' },
-    { id: 'Profile', visible: true, title: 'Profile', icon: 'person-outline', type: 'screen' },
-    { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline', type: 'screen' },
+    { id: 'Schedule', visible: true, title: 'Schedule', icon: 'home-outline', type: 'screen', segment: 'left' },
+    { id: 'Tasks', visible: true, title: 'Tasks', icon: 'checkbox-outline', type: 'screen', segment: 'left' },
+    { id: 'Reminders', visible: true, title: 'Reminders', icon: 'calendar-clear-outline', type: 'screen', segment: 'left' },
+
+    // Right
+    { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github', type: 'screen', segment: 'right' },
+    { id: 'Input', visible: true, title: 'Note', icon: 'add', type: 'screen', segment: 'right' },
+
+    // Others default to left usually, but let's put them explicitly
+    { id: 'Links', visible: true, title: 'Links', icon: 'link-outline', type: 'screen', segment: 'left' },
+    { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline', type: 'screen', segment: 'left' },
+    { id: 'Profile', visible: true, title: 'Profile', icon: 'person-outline', type: 'screen', segment: 'left' },
+    { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline', type: 'screen', segment: 'left' },
 ];
 
 interface SettingsState {
@@ -360,8 +365,33 @@ export const useSettingsStore = create<SettingsState>()(
                 const { cachedReminders, ...rest } = state;
                 return rest;
             },
-            version: 10,
+            version: 11,
             migrate: (persistedState: any, version: number) => {
+                // Migration logic for segments (v11)
+                if (version < 11) {
+                    if (persistedState.navConfig) {
+                        persistedState.navConfig = persistedState.navConfig.map((item: any) => {
+                            let segment = 'left';
+                            if (item.id === 'Jules' || item.id === 'Input') {
+                                segment = 'right';
+                            }
+
+                            // Also update icons to new defaults if they were using old defaults
+                            let icon = item.icon;
+                            if (item.id === 'Schedule' && icon === 'calendar-outline') icon = 'home-outline';
+                            if (item.id === 'Tasks' && icon === 'list-outline') icon = 'checkbox-outline';
+                            if (item.id === 'Reminders' && icon === 'alarm-outline') icon = 'calendar-clear-outline';
+                            if (item.id === 'Input' && icon === 'create-outline') icon = 'add';
+
+                            return {
+                                ...item,
+                                segment: item.segment || segment,
+                                icon: icon
+                            };
+                        });
+                    }
+                }
+
                 if (version < 6) {
                     persistedState.navConfig = persistedState.navConfig || [
                         { id: 'Schedule', visible: true, title: 'Schedule', icon: 'calendar-outline', type: 'screen' },
