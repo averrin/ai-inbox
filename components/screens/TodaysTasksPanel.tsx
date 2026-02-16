@@ -138,8 +138,6 @@ export const TodaysTasksPanel = ({ date, events, onAdd }: TodaysTasksPanelProps)
       handleTaskUpdate(task, { ...task, status: newStatus, completed: newStatus === 'x' });
   };
 
-  if (todaysTasks.length === 0 && !expanded) return null; // Hide if empty and collapsed? Or show "No tasks"
-
   return (
     <View className="mx-4 mt-2 mb-2 bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
       <TouchableOpacity
