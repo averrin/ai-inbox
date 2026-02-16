@@ -245,8 +245,39 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
     const { workAccountId } = useSettingsStore.getState();
 
     // Auto-invite work account logic (similar to create)
+    let attendeesToUpdate: Calendar.Attendee[] | undefined;
+
     if (data.isWork && workAccountId) {
-        // ... (existing comments)
+        try {
+            let currentAttendees: Calendar.Attendee[] = [];
+            if (Platform.OS === 'android') {
+                currentAttendees = await Calendar.getAttendeesForEventAsync(eventId);
+            } else {
+                const evt = await Calendar.getEventAsync(eventId);
+                currentAttendees = evt.attendees || [];
+            }
+
+            const alreadyAdded = currentAttendees.some(a => a.email?.toLowerCase() === workAccountId.toLowerCase());
+
+            if (!alreadyAdded) {
+                const newAttendee: Calendar.Attendee = {
+                    email: workAccountId,
+                    role: 'attendee',
+                    status: 'pending',
+                    type: 'person'
+                };
+
+                if (Platform.OS === 'android') {
+                    // Android: add directly
+                    await Calendar.createAttendeeAsync(eventId, newAttendee);
+                } else {
+                    // iOS: include in update payload
+                    attendeesToUpdate = [...currentAttendees, newAttendee];
+                }
+            }
+        } catch (e) {
+            console.warn("Failed to auto-invite work account during update", e);
+        }
     }
 
     // Prepare data for native call
@@ -274,6 +305,10 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
                 delete nativeEventData.duration;
             }
         }
+    }
+
+    if (attendeesToUpdate) {
+        nativeEventData.attendees = attendeesToUpdate;
     }
 
     // Handle recurrence
