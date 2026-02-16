@@ -1,5 +1,5 @@
 import { StorageAccessFramework } from 'expo-file-system/legacy';
-import { readFileContent, saveToVault, checkDirectoryExists, writeSafe, findFile } from '../utils/saf';
+import { readFileContent, saveToVault, checkDirectoryExists, writeSafe, findFile, createFile } from '../utils/saf';
 import { parseTaskLine, RichTask, updateTaskInText, removeTaskFromText, serializeTaskLine } from '../utils/taskParser';
 import { TaskWithSource } from '../store/tasks';
 
@@ -10,6 +10,32 @@ export interface FolderGroup {
 }
 
 export class TaskService {
+    /**
+     * Finds or creates a default file (Inbox.md or Tasks.md) in the given folder for storing new tasks.
+     */
+    static async findDefaultTaskFile(folderUri: string): Promise<{ uri: string, name: string }> {
+        // Look for existing Inbox.md
+        const inbox = await findFile(folderUri, 'Inbox.md');
+        if (inbox) {
+            return { uri: inbox, name: 'Inbox.md' };
+        }
+
+        // Look for existing Tasks.md
+        const tasksFile = await findFile(folderUri, 'Tasks.md');
+        if (tasksFile) {
+            return { uri: tasksFile, name: 'Tasks.md' };
+        }
+
+        // If not found, create Inbox.md
+        try {
+            const newFileUri = await createFile(folderUri, 'Inbox.md', 'text/markdown');
+            return { uri: newFileUri, name: 'Inbox.md' };
+        } catch (e) {
+            console.error('[TaskService] Failed to create default task file', e);
+            throw e;
+        }
+    }
+
     /**
      * Scans the tasks root for subfolders.
      */
