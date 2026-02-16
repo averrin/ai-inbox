@@ -7,7 +7,6 @@ import { TaskEditModal } from '../markdown/TaskEditModal';
 import { TasksFilterPanel } from './TasksFilterPanel';
 import { RichTask, serializeTaskLine } from '../../utils/taskParser';
 import Toast from 'react-native-toast-message';
-import { FloatingActionButton } from '../ui/FloatingActionButton';
 import { useFolderTasks } from '../../hooks/useFolderTasks';
 import { useFilteredTasks } from '../../hooks/useFilteredTasks';
 import { TasksList } from './TasksList';
@@ -15,6 +14,7 @@ import { SelectionSheet, SelectionOption } from '../ui/SelectionSheet';
 import { EventFormModal, EventSaveData } from '../EventFormModal';
 import * as Calendar from 'expo-calendar';
 import { ensureDirectory } from '../../utils/saf';
+import { useFab } from '../../hooks/useFab';
 
 
 interface TasksFolderViewProps {
@@ -84,6 +84,12 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
         setEditingTask(null); 
         setIsModalVisible(true);
     };
+
+   
+    useFab({
+        onPress: handleCreateTask,
+        icon: 'add'
+    });
 
     const handleSaveNewTask = async (newTask: RichTask, newFolderPath?: string) => {
         if (!vaultUri || !folderUri) return;
@@ -402,11 +408,6 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                     }}
                 />
             )}
-
-            <FloatingActionButton 
-                onPress={handleCreateTask}
-                style={{ position: 'absolute', bottom: 24, right: 24 }}
-            />
 
             {/* Merge Filename Prompt Modal */}
             <Modal

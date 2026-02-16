@@ -38,6 +38,7 @@ import { DragDropProvider } from '../DragDropContext';
 import { DragOverlay } from '../DragOverlay';
 import { TodaysTasksPanel } from './TodaysTasksPanel';
 import { RelationService } from '../../services/relationService';
+import { useFab } from '../../hooks/useFab';
 
 
 export default function ScheduleScreen() {
@@ -347,6 +348,25 @@ export default function ScheduleScreen() {
         };
         setEditingTask(newTaskTemplate as any);
     }, [date]);
+
+    const handleFabPress = useCallback(() => {
+         // Default FAB action on Schedule: Create Event at current time
+         const now = new Date();
+         // Round to next 30 min
+         const minutes = now.getMinutes();
+         const rounded = new Date(now);
+         rounded.setMinutes(minutes > 30 ? 60 : 30);
+         rounded.setSeconds(0);
+         rounded.setMilliseconds(0);
+
+         setCreatingEventDate(rounded);
+         setCreatingEventType('event');
+    }, []);
+
+    useFab({
+        onPress: handleFabPress,
+        icon: 'add'
+    });
 
     const handleDeleteEvent = async (options: DeleteOptions) => {
         // Reminder Deletion
