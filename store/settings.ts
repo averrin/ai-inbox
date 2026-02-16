@@ -69,11 +69,13 @@ interface SettingsState {
     vaultUri: string | null;
     customPromptPath: string | null;
     selectedModel: string;
+    selectedImageModel: string;
     contextRootFolder: string;
     setApiKey: (key: string) => void;
     setVaultUri: (uri: string) => void;
     setCustomPromptPath: (path: string) => void;
     setSelectedModel: (model: string) => void;
+    setSelectedImageModel: (model: string) => void;
     setContextRootFolder: (folder: string) => void;
     googleAndroidClientId: string | null;
     googleIosClientId: string | null;
@@ -232,11 +234,13 @@ export const useSettingsStore = create<SettingsState>()(
             vaultUri: null,
             customPromptPath: null,
             selectedModel: 'gemini-3-flash-preview',
+            selectedImageModel: 'imagen-3.0-generate-001',
             contextRootFolder: '',
             setApiKey: (key) => set({ apiKey: key }),
             setVaultUri: (uri) => set({ vaultUri: uri }),
             setCustomPromptPath: (path) => set({ customPromptPath: path }),
             setSelectedModel: (model) => set({ selectedModel: model }),
+            setSelectedImageModel: (model) => set({ selectedImageModel: model }),
             setContextRootFolder: (folder) => set({ contextRootFolder: folder }),
             googleAndroidClientId: null,
             googleIosClientId: null,

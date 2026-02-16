@@ -290,6 +290,72 @@ export async function transcribeAudio(apiKey: string, base64Audio: string, mimeT
     }
 }
 
+export async function generateImage(apiKey: string, prompt: string, model: string): Promise<string | null> {
+    try {
+        // Use correct endpoint based on model type
+        const isImagen = model.toLowerCase().includes('imagen');
+        const url = isImagen
+            ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${apiKey}`
+            : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+        const body = isImagen
+            ? JSON.stringify({
+                instances: [{ prompt: prompt }],
+                parameters: { sampleCount: 1 }
+            })
+            : JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            });
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: body
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[Gemini] Image generation failed: ${response.status} ${response.statusText}`, errorText);
+            return null;
+        }
+
+        const data = await response.json();
+
+        // Handle Imagen Response
+        if (isImagen) {
+            if (data.predictions && data.predictions.length > 0) {
+                const prediction = data.predictions[0];
+                if (prediction.bytesBase64Encoded) return prediction.bytesBase64Encoded;
+                if (prediction.bytesBase64) return prediction.bytesBase64;
+            }
+        }
+        // Handle GenerateContent Response (Gemini/Nano)
+        else {
+            if (data.candidates && data.candidates.length > 0) {
+                const parts = data.candidates[0].content?.parts;
+                if (parts && parts.length > 0) {
+                    // Check for inline data (image)
+                    const imagePart = parts.find((p: any) => p.inlineData && p.inlineData.mimeType.startsWith('image/'));
+                    if (imagePart) {
+                        return imagePart.inlineData.data;
+                    }
+                    // Warning: Text response instead of image
+                    console.warn('[Gemini] Model returned text instead of image:', parts[0].text?.substring(0, 100));
+                }
+            }
+        }
+
+        console.warn('[Gemini] Unexpected image response format:', JSON.stringify(data).substring(0, 200));
+        return null;
+
+    } catch (e) {
+        console.error("[Gemini] Image generation error:", e);
+        return null;
+    }
+}
+
 export async function rescheduleReminderWithAI(
     apiKey: string,
     type: 'later' | 'tomorrow',
