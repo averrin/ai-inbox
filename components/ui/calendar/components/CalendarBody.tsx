@@ -186,6 +186,48 @@ function _CalendarBody<T extends ICalendarEventBase>({
   const touchY = useSharedValue(0)
   const touchX = useSharedValue(0)
 
+  // External drag tracking
+  const isExternalDragging = useSharedValue(false)
+  const externalDragY = useSharedValue(0)
+
+  useAnimatedReaction(
+    () => ({ 
+      isDragging: dragContext?.isDragging.value, 
+      dragX: dragContext?.dragX.value, 
+      dragY: dragContext?.dragY.value 
+    }),
+    (data) => {
+      if (!dragContext || !data.isDragging) {
+        isExternalDragging.value = false
+        return
+      }
+
+      const measurements = measure(containerRef)
+      if (!measurements) return
+
+      const { pageX, pageY, width, height } = measurements
+      
+      // Check if drag is within this calendar body
+      if (data.dragX! >= pageX && data.dragX! <= pageX + width && 
+          data.dragY! >= pageY && data.dragY! <= pageY + height) {
+        isExternalDragging.value = true
+        externalDragY.value = data.dragY! - pageY
+      } else {
+        isExternalDragging.value = false
+      }
+    },
+    [dragContext]
+  )
+
+  const activeY = useDerivedValue(() => {
+    if (gestureActive.value) return touchY.value
+    return externalDragY.value
+  })
+
+  const anyActive = useDerivedValue(() => {
+    return gestureActive.value || isExternalDragging.value
+  })
+
   // Menu state - kept in JS state because it needs to mount/unmount content
   const [menuVisible, setMenuVisible] = React.useState(false)
   const [menuPosition, setMenuPosition] = React.useState({ top: 0, left: 0 })
@@ -286,9 +328,12 @@ function _CalendarBody<T extends ICalendarEventBase>({
 
   // We need a stable JS callback that has access to current props
   const resolveDrop = React.useCallback((dropX: number, dropY: number, pageX: number, pageY: number, width: number) => {
-      const relativeY = dropY - pageY
+      const snapMinutes = 15
+      const relativeY = Math.max(0, dropY - pageY)
       const hoursFromMinHour = relativeY / cellHeight
-      const totalMinutesFromStartOfDay = (minHour * 60) + (hoursFromMinHour * 60)
+      const rawMinutes = hoursFromMinHour * 60
+      const snappedMinutes = Math.floor(rawMinutes / snapMinutes) * snapMinutes
+      const totalMinutesFromStartOfDay = (minHour * 60) + snappedMinutes
 
       const relativeX = dropX - pageX
       const leftOffset = (!hideHours || showWeekNumber) ? 50 : 0
@@ -846,7 +891,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
 
           {/* Overlay for Visual Markers - Now inside content view to share coordinate system */}
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            <QuickEntryMarker touchY={touchY} isActive={gestureActive} cellHeight={cellHeight} minHour={minHour} />
+            <QuickEntryMarker touchY={activeY} isActive={anyActive} cellHeight={cellHeight} minHour={minHour} />
           </View>
 
           {menuVisible && (

@@ -132,7 +132,9 @@ export async function saveToVault(
         }
 
         const fileUri = await StorageAccessFramework.createFileAsync(targetUri, filename, mimeType);
+        console.log('[saveToVault] Created file at URI:', fileUri);
         await StorageAccessFramework.writeAsStringAsync(fileUri, content);
+        console.log('[saveToVault] Successfully wrote content to:', fileUri);
         return fileUri;
     } catch (e) {
         console.error('[saveToVault] Error:', e);
