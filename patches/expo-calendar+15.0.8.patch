@@ -1,5 +1,63 @@
+diff --git a/node_modules/expo-calendar/android/.project b/node_modules/expo-calendar/android/.project
+new file mode 100644
+index 0000000..06eaaf2
+--- /dev/null
++++ b/node_modules/expo-calendar/android/.project
+@@ -0,0 +1,34 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<projectDescription>
++	<name>expo-calendar</name>
++	<comment>Project expo-calendar created by Buildship.</comment>
++	<projects>
++	</projects>
++	<buildSpec>
++		<buildCommand>
++			<name>org.eclipse.jdt.core.javabuilder</name>
++			<arguments>
++			</arguments>
++		</buildCommand>
++		<buildCommand>
++			<name>org.eclipse.buildship.core.gradleprojectbuilder</name>
++			<arguments>
++			</arguments>
++		</buildCommand>
++	</buildSpec>
++	<natures>
++		<nature>org.eclipse.jdt.core.javanature</nature>
++		<nature>org.eclipse.buildship.core.gradleprojectnature</nature>
++	</natures>
++	<filteredResources>
++		<filter>
++			<id>1770632961366</id>
++			<name></name>
++			<type>30</type>
++			<matcher>
++				<id>org.eclipse.core.resources.regexFilterMatcher</id>
++				<arguments>node_modules|\.git|__CREATED_BY_JAVA_LANGUAGE_SERVER__</arguments>
++			</matcher>
++		</filter>
++	</filteredResources>
++</projectDescription>
+diff --git a/node_modules/expo-calendar/android/bin/src/main/java/expo/modules/calendar/EventNotSavedException.class b/node_modules/expo-calendar/android/bin/src/main/java/expo/modules/calendar/EventNotSavedException.class
+new file mode 100644
+index 0000000..828fe4e
+Binary files /dev/null and b/node_modules/expo-calendar/android/bin/src/main/java/expo/modules/calendar/EventNotSavedException.class differ
+diff --git a/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarEventBuilder.kt b/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarEventBuilder.kt
+index 02d7e3f..aa7f32f 100644
+--- a/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarEventBuilder.kt
++++ b/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarEventBuilder.kt
+@@ -87,5 +87,9 @@ class CalendarEventBuilder(
+     }
+   }
+ 
++  fun remove(key: String) = apply {
++    eventValues.remove(key)
++  }
++
+   fun build() = eventValues
+ }
 diff --git a/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarModule.kt b/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarModule.kt
-index 5579727..4cb4b29 100644
+index 5579727..a86a3cf 100644
 --- a/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarModule.kt
 +++ b/node_modules/expo-calendar/android/src/main/java/expo/modules/calendar/CalendarModule.kt
 @@ -134,11 +134,12 @@ class CalendarModule : Module() {
@@ -37,7 +95,39 @@ index 5579727..4cb4b29 100644
      val calendarEventBuilder = CalendarEventBuilder(details)
      if (details.containsKey("startDate")) {
        val startCal = Calendar.getInstance()
-@@ -514,6 +519,33 @@ class CalendarModule : Module() {
+@@ -467,11 +472,13 @@ class CalendarModule : Module() {
+           if (parsedDate != null) {
+             endCal.time = parsedDate
+             calendarEventBuilder.put(CalendarContract.Events.DTEND, endCal.timeInMillis)
++            calendarEventBuilder.remove(CalendarContract.Events.DURATION)
+           } else {
+             Log.e(TAG, "Parsed date is null")
+           }
+         } else if (endDate is Number) {
+           calendarEventBuilder.put(CalendarContract.Events.DTEND, endDate.toLong())
++          calendarEventBuilder.remove(CalendarContract.Events.DURATION)
+         }
+       } catch (e: ParseException) {
+         Log.e(TAG, "error", e)
+@@ -483,7 +490,7 @@ class CalendarModule : Module() {
+       if (recurrenceRule.containsKey("frequency")) {
+         val opts = extractRecurrence(recurrenceRule)
+ 
+-        if (opts.endDate == null && opts.occurrence == null) {
++        if (opts.endDate == null && opts.occurrence == null && !details.containsKey("instanceStartDate")) {
+           val eventStartDate = calendarEventBuilder.getAsLong(CalendarContract.Events.DTSTART)
+           val eventEndDate = calendarEventBuilder.getAsLong(CalendarContract.Events.DTEND)
+           val duration = (eventEndDate - eventStartDate) / 1000
+@@ -491,6 +498,8 @@ class CalendarModule : Module() {
+             .putNull(CalendarContract.Events.LAST_DATE)
+             .putNull(CalendarContract.Events.DTEND)
+             .put(CalendarContract.Events.DURATION, "PT${duration}S")
++          
++          calendarEventBuilder.remove(CalendarContract.Events.DTEND)
+         }
+         val rule = createRecurrenceRule(opts)
+         calendarEventBuilder.put(CalendarContract.Events.RRULE, rule)
+@@ -514,6 +523,46 @@ class CalendarModule : Module() {
  
      return if (details.containsKey("id")) {
        val eventID = details.getString("id").toInt()
@@ -63,6 +153,19 @@ index 5579727..4cb4b29 100644
 +            cv.put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, originalInstanceTime)
 +            cv.put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CONFIRMED)
 +            
++            // For instances of recurring events, clear recurrence fields to prevent DTEND/DURATION logic conflicts
++            cv.remove(CalendarContract.Events.RRULE)
++            cv.remove(CalendarContract.Events.RDATE)
++            cv.remove(CalendarContract.Events.EXRULE)
++            cv.remove(CalendarContract.Events.EXDATE)
++            cv.remove(CalendarContract.Events.DURATION)
++            
++            // Log final state to debug if "both" error persists
++            if (cv.containsKey(CalendarContract.Events.DTEND) && cv.containsKey(CalendarContract.Events.DURATION)) {
++                Log.e(TAG, "STILL CONFLICTING! Removing DURATION as a last resort.")
++                cv.remove(CalendarContract.Events.DURATION)
++            }
++
 +            val uri = contentResolver.insert(CalendarContract.Events.CONTENT_URI, cv) ?: throw EventNotSavedException()
 +            return uri.lastPathSegment!!.toInt()
 +        }

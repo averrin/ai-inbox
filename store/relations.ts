@@ -26,6 +26,8 @@ interface RelationsState {
 
     addNoteLink: (eventId: string, note: NoteLink) => void;
     removeNoteLink: (eventId: string, note: NoteLink) => void;
+
+    updateTask: (oldTask: TaskWithSource, newTask: TaskWithSource) => void;
 }
 
 export const useRelationsStore = create<RelationsState>((set) => ({
@@ -33,6 +35,10 @@ export const useRelationsStore = create<RelationsState>((set) => ({
     fileRelations: {},
 
     setRelations: (relations) => {
+        if (typeof relations === 'function') {
+            console.error('[RelationsStore] setRelations called with a function! This store does not support functional updates.');
+            return;
+        }
         const fileRelations: Record<string, string[]> = {};
 
         Object.entries(relations).forEach(([eventId, data]) => {
@@ -88,9 +94,9 @@ export const useRelationsStore = create<RelationsState>((set) => ({
 
         let newFileRelations = { ...state.fileRelations };
         if (remainingTasksInFile.length === 0 && remainingNotesInFile.length === 0) {
-             if (newFileRelations[task.fileUri]) {
-                 newFileRelations[task.fileUri] = newFileRelations[task.fileUri].filter(id => id !== eventId);
-             }
+            if (newFileRelations[task.fileUri]) {
+                newFileRelations[task.fileUri] = newFileRelations[task.fileUri].filter(id => id !== eventId);
+            }
         }
 
         return { relations: newRelations, fileRelations: newFileRelations };
@@ -132,11 +138,35 @@ export const useRelationsStore = create<RelationsState>((set) => ({
 
         let newFileRelations = { ...state.fileRelations };
         if (remainingTasksInFile.length === 0 && remainingNotesInFile.length === 0) {
-             if (newFileRelations[note.fileUri]) {
-                 newFileRelations[note.fileUri] = newFileRelations[note.fileUri].filter(id => id !== eventId);
-             }
+            if (newFileRelations[note.fileUri]) {
+                newFileRelations[note.fileUri] = newFileRelations[note.fileUri].filter(id => id !== eventId);
+            }
         }
 
         return { relations: newRelations, fileRelations: newFileRelations };
+    }),
+
+    updateTask: (oldTask, newTask) => set((state) => {
+        const eventIds = state.fileRelations[oldTask.fileUri] || [];
+        if (eventIds.length === 0) return state;
+
+        const newRelations = { ...state.relations };
+        let hasChanges = false;
+
+        eventIds.forEach(eventId => {
+            const relation = newRelations[eventId];
+            if (relation) {
+                const taskIndex = relation.tasks.findIndex(t => t.originalLine === oldTask.originalLine);
+                if (taskIndex !== -1) {
+                    const newTasks = [...relation.tasks];
+                    newTasks[taskIndex] = newTask;
+                    newRelations[eventId] = { ...relation, tasks: newTasks };
+                    hasChanges = true;
+                }
+            }
+        });
+
+        if (!hasChanges) return state;
+        return { relations: newRelations };
     })
 }));

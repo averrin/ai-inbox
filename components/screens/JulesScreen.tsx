@@ -2,6 +2,7 @@ import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, Aler
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layout } from '../ui/Layout';
+import { ScreenHeader } from '../ui/ScreenHeader';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -1224,39 +1225,24 @@ export default function JulesScreen() {
 
     return (
         <Layout>
-            <View className="px-4 pt-4 pb-2 border-b border-slate-800">
-                <View className="flex-row items-center justify-between mb-4">
-                    <View className="flex-row items-center">
-                        <View>
-                            <Text className="text-2xl font-bold text-white mr-2">Jules Activities</Text>
-                            {julesOwner && julesRepo && (
-                                <Text className="text-slate-500 text-xs font-medium">{julesOwner}/{julesRepo}</Text>
-                            )}
-                        </View>
-                    </View>
-                    <View className="flex-row items-center">
-                        {julesApiKey && (
-                            <TouchableOpacity onPress={() => setShowRepoSelector(true)} className="p-2 mr-1">
-                                <Ionicons name="git-network-outline" size={24} color="#94a3b8" />
-                            </TouchableOpacity>
-                        )}
-                        <TouchableOpacity onPress={onRefresh} className="p-2">
-                            <Ionicons name="refresh" size={24} color="#94a3b8" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                <RepoSelector
-                    visible={showRepoSelector}
-                    onClose={() => setShowRepoSelector(false)}
-                    token={julesApiKey || ''}
-                    onSelect={(repo) => {
-                        setJulesOwner(repo.owner.login);
-                        setJulesRepo(repo.name);
-                        setShowRepoSelector(false);
-                    }}
-                />
-            </View>
+            <ScreenHeader
+                title="Jules"
+                subtitle={julesOwner && julesRepo ? `${julesOwner}/${julesRepo}` : undefined}
+                rightActions={[
+                    ...(julesApiKey ? [{ icon: 'git-network-outline', onPress: () => setShowRepoSelector(true) }] : []),
+                    { icon: 'refresh', onPress: onRefresh },
+                ]}
+            />
+            <RepoSelector
+                visible={showRepoSelector}
+                onClose={() => setShowRepoSelector(false)}
+                token={julesApiKey || ''}
+                onSelect={(repo) => {
+                    setJulesOwner(repo.owner.login);
+                    setJulesRepo(repo.name);
+                    setShowRepoSelector(false);
+                }}
+            />
             {renderContent()}
         </Layout>
     );

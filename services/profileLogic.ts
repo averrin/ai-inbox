@@ -65,6 +65,14 @@ Output:
 Return ONLY the updated Profile JSON. No markdown formatting.
 `;
 
+export const DEFAULT_VIZ_PROMPT = `A high quality, photorealistic diorama of a scenery representing the following person's inner world.
+Facts: {{facts}}
+Traits: {{traits}}
+The style should be like a miniature bonsai garden or a detailed isometric room.
+Lighting should be dramatic and cinematic.
+The scene should be a visual metaphor for their personality and life.
+No text, no labels.`;
+
 export interface ProfileData {
     facts: Record<string, any>;
     topics: string[];
@@ -133,18 +141,19 @@ Target_Abstraction_Level: ${config.abstractionLevel}
         }
     }
 
-    static generateProfileImagePrompt(profile: ProfileData): string {
-        const facts = JSON.stringify(profile.facts || {}).substring(0, 1000); // Truncate to avoid huge prompts
+    static generateProfileImagePrompt(profile: ProfileData, customPrompt?: string): string {
+        const facts = JSON.stringify(profile.facts || {}).substring(0, 1500); // Slightly more info
         const traits = (profile.traits || []).join(', ');
 
-        return `A high quality, photorealistic diorama of a scenery representing the following person's inner world.
-        Facts: ${facts}
-        Traits: ${traits}
-        The style should be like a miniature bonsai garden or a detailed isometric room.
-        Lighting should be dramatic and cinematic.
-        The scene should be a visual metaphor for their personality and life.
-        No text, no labels.`;
+        let prompt = customPrompt || DEFAULT_VIZ_PROMPT;
+
+        // Variable substitution
+        prompt = prompt.replace('{{facts}}', facts);
+        prompt = prompt.replace('{{traits}}', traits);
+
+        return prompt;
     }
+
 
     static async processAnswers(
         modelName: string,

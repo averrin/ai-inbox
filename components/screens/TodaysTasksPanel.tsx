@@ -7,6 +7,7 @@ import isBetween from 'dayjs/plugin/isBetween';
 import { useTasksStore, TaskWithSource } from '../../store/tasks';
 import { useSettingsStore } from '../../store/settings';
 import { useEventTypesStore } from '../../store/eventTypes';
+import { useRelationsStore } from '../../store/relations';
 import { DraggableTaskItem } from '../DraggableTaskItem';
 import { RichTask } from '../../utils/taskParser';
 import { TaskService } from '../../services/taskService';
@@ -85,11 +86,43 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
         return dayjs(e.start).isSame(dayjs(date), 'day');
     }).map(e => ({ type: 'event' as const, data: e }));
 
+    // 3. De-duplicate: Keep tasks, hide event if linked task is visible
+    // We match by ID (exact link) OR by Title (fuzzy link for multi-calendar duplicates)
+    const linkedEventIdsInTasks = new Set<string>();
+    const linkedEventTitlesInTasks = new Set<string>();
+    
+    filteredTasks.forEach(t => {
+      if (t.data.properties.event_id) {
+        t.data.properties.event_id.split(',').forEach((id: string) => linkedEventIdsInTasks.add(id.trim()));
+      }
+      if (t.data.properties.event_title) {
+          linkedEventTitlesInTasks.add(t.data.properties.event_title.trim());
+      }
+    });
+
+    console.log('[TodaysTasksPanel] linked ids:', Array.from(linkedEventIdsInTasks));
+    console.log('[TodaysTasksPanel] linked titles:', Array.from(linkedEventTitlesInTasks));
+
+    const dedupedEvents = filteredEvents.filter(e => {
+      const eventId = e.data.originalEvent?.id || e.data.id;
+      const eventTitle = e.data.title?.trim();
+      
+      const idMatch = linkedEventIdsInTasks.has(eventId);
+      const titleMatch = eventTitle && linkedEventTitlesInTasks.has(eventTitle);
+      
+      const shouldHide = idMatch || titleMatch;
+      
+      if (shouldHide) {
+          console.log('[TodaysTasksPanel] Hiding event:', eventTitle, eventId, idMatch ? '[ID]' : '[TITLE]');
+      } else {
+           console.log('[TodaysTasksPanel] Showing event:', eventTitle, eventId);
+      }
+      return !shouldHide;
+    });
+
     // Combine and Sort
-    // Sort tasks by priority, then both by time?
-    // For now, let's just put events first, then tasks.
-    return [...filteredEvents, ...filteredTasks];
-  }, [tasks, date, calendarEvents]);
+    return [...dedupedEvents, ...filteredTasks];
+  }, [tasks, date, calendarEvents, completedEvents]);
 
   const handleTaskUpdate = async (original: TaskWithSource, updated: RichTask) => {
     if (!vaultUri) return;
@@ -116,13 +149,72 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
   };
 
   const handleToggleTask = (task: TaskWithSource) => {
+      console.log('[TodaysTasksPanel] Toggling task:', task.title, task.status);
       const newStatus = task.status === ' ' ? 'x' : ' ';
-      handleTaskUpdate(task, { ...task, status: newStatus, completed: newStatus === 'x' });
+      const newTask = { ...task, status: newStatus, completed: newStatus === 'x' };
+      handleTaskUpdate(task, newTask);
+      
+      // Update Relations Store to keep it in sync
+      useRelationsStore.getState().updateTask(task, newTask as TaskWithSource);
+
+      // Sync with Event (1-1 only)
+      const eventIds = task.properties['event_id']?.split(',').map((id: string) => id.trim()) || [];
+      console.log('[TodaysTasksPanel] Task event_ids:', eventIds);
+      
+      if (eventIds.length === 1) {
+          const eventId = eventIds[0];
+          const relations = useRelationsStore.getState().relations[eventId];
+          console.log('[TodaysTasksPanel] Relations for event', eventId, relations);
+          
+          if (relations && relations.tasks.length === 1 && relations.notes.length === 0) {
+              const eventDateStr = task.properties['date'] || dayjs(date).format('YYYY-MM-DD');
+              const isEventDone = !!completedEvents[`${task.properties['event_title']}::${eventDateStr}`];
+              const shouldBeDone = newStatus === 'x';
+              
+              console.log('[TodaysTasksPanel] Sync check:', { isEventDone, shouldBeDone });
+              
+              if (isEventDone !== shouldBeDone) {
+                  console.log('[TodaysTasksPanel] Syncing to event:', task.properties['event_title']);
+                  toggleCompleted(task.properties['event_title'], eventDateStr);
+              }
+          } else {
+              console.log('[TodaysTasksPanel] Not 1-1 relation, skipping sync');
+          }
+      }
   };
 
   const handleToggleEvent = (event: any) => {
+      console.log('[TodaysTasksPanel] Toggling event:', event.title);
       const dateStr = dayjs(event.start).format('YYYY-MM-DD');
       toggleCompleted(event.title, dateStr);
+
+      // Sync with Task (1-1 only)
+      const eventId = event.originalEvent?.id || event.id;
+      const relations = useRelationsStore.getState().relations[eventId];
+      console.log('[TodaysTasksPanel] Relations lookup for event', eventId, relations);
+      
+      if (relations && relations.tasks.length === 1 && relations.notes.length === 0) {
+          const task = relations.tasks[0];
+          const taskEventIds = task.properties['event_id']?.split(',').map((id: string) => id.trim()) || [];
+          console.log('[TodaysTasksPanel] Task has event_ids:', taskEventIds);
+          
+          if (taskEventIds.length === 1) {
+              const isCheckingEvent = !isEventCompleted(event);
+              const newStatus = isCheckingEvent ? 'x' : ' ';
+              
+              console.log('[TodaysTasksPanel] Syncing to task status:', newStatus);
+              
+              if (task.status !== newStatus) {
+                  // We need to pass the task from relation store, which we have as 'task'
+                  // But we need to make sure handleToggleTask uses the correct object reference?
+                  // handleToggleTask uses task.properties... 
+                  // It should be fine.
+                  handleToggleTask(task);
+              }
+          }
+      } else {
+           console.log('[TodaysTasksPanel] No unique task relation found');
+      }
   };
 
   const isEventCompleted = (event: any) => {

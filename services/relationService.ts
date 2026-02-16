@@ -7,7 +7,10 @@ import { TaskService } from './taskService';
 
 export class RelationService {
 
+    private static isGCInProgress = false;
+
     /**
+
      * Scans the tasks root recursively for linked events.
      * Updates the global RelationStore.
      */
@@ -116,6 +119,11 @@ export class RelationService {
      * Appends [event_id:: <eventId>] and [event_title:: <eventTitle>] to the tasks.
      */
     static async linkTasksToEvent(vaultUri: string, eventId: string, eventTitle: string, tasks: TaskWithSource[]) {
+        if (!eventId || eventId === 'undefined' || eventId === 'null') {
+            console.error('[RelationService] Attempted to link tasks to invalid eventId:', eventId);
+            return;
+        }
+
         for (const task of tasks) {
             try {
                 const currentIds = task.properties['event_id']
@@ -160,6 +168,7 @@ export class RelationService {
                     newProps['event_id'] = newIds.join(', ');
                 } else {
                     delete newProps['event_id'];
+                    delete newProps['event_title']; // Also cleanup title if no events left
                 }
 
                 const updatedTask: RichTask = { ...task, properties: newProps };
@@ -173,4 +182,85 @@ export class RelationService {
             }
         }
     }
+
+    /**
+     * Checks for phantom events (events that no longer exist in the calendar) and removes links.
+     * This is a heavy operation, so it should be called sparingly or on specific triggers.
+     */
+    static async cleanupPhantomEvents(vaultUri: string) {
+        if (RelationService.isGCInProgress) {
+            console.log('[RelationService] GC already in progress, skipping...');
+            return;
+        }
+
+        const relations = useRelationsStore.getState().relations;
+        const eventIds = Object.keys(relations);
+
+        if (eventIds.length === 0) return;
+
+        RelationService.isGCInProgress = true;
+        try {
+            console.log(`[RelationService] Running GC on ${eventIds.length} tracked events...`);
+
+            const { ensureCalendarPermissions } = require('./calendarService'); // Late import to avoid cycles
+            const Calendar = require('expo-calendar');
+
+            if (!(await ensureCalendarPermissions())) return;
+
+            // Process in chunks to avoid blocking UI too much
+            const CHUNK_SIZE = 5;
+            for (let i = 0; i < eventIds.length; i += CHUNK_SIZE) {
+                const chunk = eventIds.slice(i, i + CHUNK_SIZE);
+                await Promise.all(chunk.map(async (eventId) => {
+                    // SKIP INVALID IDs to prevent crashes
+                    if (!eventId || eventId === 'undefined' || eventId === 'null') {
+                        const relation = relations[eventId];
+                        if (relation) {
+                            console.log(`[RelationService] Cleaning up invalid eventId: "${eventId}"`);
+                            await RelationService.unlinkTasksFromEvent(vaultUri, eventId, relation.tasks);
+                            // Also clear from store directly just in case logic above misses it due to mismatch
+                            const next = { ...useRelationsStore.getState().relations };
+                            delete next[eventId];
+                            useRelationsStore.getState().setRelations(next);
+                        }
+                        return;
+                    }
+
+                    const relation = relations[eventId];
+                    if (!relation || (relation.tasks.length === 0 && relation.notes.length === 0)) return;
+
+                    try {
+                        // Try to get the event
+                        const event = await Calendar.getEventAsync(eventId);
+
+                        // Check if event is missing OR cancelled
+                        const isCancelled = event && (event as any).status === 'CANCELED';
+
+                        if (!event || isCancelled) {
+                            console.log(`[RelationService] Phantom event detected (missing or cancelled): ${eventId}, cleaning up...`);
+                            await RelationService.unlinkTasksFromEvent(vaultUri, eventId, relation.tasks);
+
+                            // Clean up store
+                            const next = { ...useRelationsStore.getState().relations };
+                            delete next[eventId];
+                            useRelationsStore.getState().setRelations(next);
+                        }
+                    } catch (e: any) {
+                        // Check if error is specifically about format
+                        if (e.message && e.message.includes('NumberFormatException')) {
+                            console.warn(`[RelationService] Invalid ID format detected: ${eventId}, cleaning up relation.`);
+                            await RelationService.unlinkTasksFromEvent(vaultUri, eventId, relation.tasks);
+                        } else {
+                            console.log(`[RelationService] Phantom event detected (error catch): ${eventId}`, e);
+                            await RelationService.unlinkTasksFromEvent(vaultUri, eventId, relation.tasks);
+                        }
+                    }
+                }));
+            }
+        } finally {
+            RelationService.isGCInProgress = false;
+        }
+    }
 }
+
+

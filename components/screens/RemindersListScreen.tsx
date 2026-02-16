@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
+import { ScreenHeader } from '../ui/ScreenHeader';
 import { useState, useEffect } from 'react';
 import { scanForReminders, Reminder, formatRecurrenceForReminder } from '../../services/reminderService';
 import { useSettingsStore } from '../../store/settings';
@@ -104,20 +105,14 @@ export default function RemindersListScreen() {
 
   return (
     <Layout>
-      <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}>
-        <View className="flex-row items-center justify-between mb-6 mt-4">
-          <View className="flex-row items-center gap-2">
-            <Text className="text-3xl font-bold text-white">Reminders</Text>
-            {isSyncing && <ActivityIndicator size="small" color="#818cf8" />}
-          </View>
-          <TouchableOpacity onPress={loadReminders} disabled={loading || isSyncing}>
-            {loading ? (
-              <ActivityIndicator size="small" color="#818cf8" />
-            ) : (
-              <Ionicons name="refresh" size={24} color="#818cf8" />
-            )}
-          </TouchableOpacity>
-        </View>
+      <ScreenHeader
+        title="Reminders"
+        rightActions={[
+          ...(isSyncing ? [{ icon: 'sync', onPress: () => {}, render: () => <ActivityIndicator size="small" color="#818cf8" /> }] : []),
+          { icon: 'refresh', onPress: loadReminders, disabled: loading || isSyncing },
+        ]}
+      />
+      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}>
 
         {reminders.length === 0 ? (
           <View className="bg-slate-800/50 p-8 rounded-xl border border-slate-700 items-center mt-4">

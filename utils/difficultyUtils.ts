@@ -176,7 +176,9 @@ export const aggregateDayStats = (events: any[]): DayBreakdown => {
             // Track Breakdown by Type
             const type = event.typeTag || 'Other';
             if (!breakdown[type]) breakdown[type] = { count: 0, score: 0 };
-            breakdown[type].count++;
+            if (event.difficulty.total > 0) {
+                breakdown[type].count++;
+            }
             breakdown[type].score += event.difficulty.total || 0;
 
             // Track Penalties/Bonuses

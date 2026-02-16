@@ -63,7 +63,7 @@ export async function buildDayForecastPrompt(date: Date): Promise<string> {
     // Pre-process events with metadata
     const processedEvents = allEvents.map(e => {
         const flags = eventFlags?.[e.title];
-        const baseDifficulty = difficulties?.[e.title] ?? 1;
+        const baseDifficulty = difficulties?.[e.title] ?? 0;
         const diffResult = calculateEventDifficulty(
             { title: e.title, start: new Date(e.startDate), end: new Date(e.endDate) },
             baseDifficulty,

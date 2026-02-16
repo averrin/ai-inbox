@@ -77,6 +77,43 @@ export async function requestVaultAccess() {
     }
 }
 
+/**
+ * Lists immediate subdirectory names at a given relative path within a parent URI.
+ * Returns an array of subfolder names (not full paths).
+ */
+export async function listSubdirectories(parentUri: string, relativePath: string): Promise<string[]> {
+    try {
+        let targetUri = parentUri;
+        if (relativePath && relativePath.trim()) {
+            const resolved = await checkDirectoryExists(parentUri, relativePath);
+            if (!resolved) return [];
+            targetUri = resolved;
+        }
+
+        const children = await StorageAccessFramework.readDirectoryAsync(targetUri);
+        const dirs: string[] = [];
+
+        for (const uri of children) {
+            const decoded = decodeURIComponent(uri);
+            const parts = decoded.split('/');
+            const lastPart = parts[parts.length - 1];
+            const name = lastPart.includes(':') ? lastPart.split(':').pop()! : lastPart;
+
+            try {
+                await StorageAccessFramework.readDirectoryAsync(uri);
+                dirs.push(name);
+            } catch {
+                // Not a directory, skip
+            }
+        }
+
+        return dirs;
+    } catch (e) {
+        console.error('[listSubdirectories] Error:', e);
+        return [];
+    }
+}
+
 export async function checkDirectoryExists(parentUri: string, dirName: string): Promise<string | null> {
     if (dirName.includes('/')) {
         const parts = dirName.split('/').filter(p => p.trim());
@@ -149,38 +186,48 @@ export async function saveToVault(
 export async function writeSafe(uri: string, content: string): Promise<void> {
     try {
         // 1. Clear file first to force size to 0 (Truncate)
-        // We do this by writing an empty string.
-        await StorageAccessFramework.writeAsStringAsync(uri, '');
-
-        // 2. Verification step (Paranoid mode)
-        // In highly contested loops, the write might not flush immediately or SAF might be weird.
-        // We attempt to read it back to ensure it's empty.
-        // NOTE: This adds IO overhead but resolves the corruption.
-        /* 
-           Skipping read verification for performance unless strictly needed. 
-           If the user reports it's still bad, we can enable it:
-           const check = await StorageAccessFramework.readAsStringAsync(uri);
-           if (check.length > 0) throw new Error("Truncation failed");
-        */
+        try {
+            await StorageAccessFramework.writeAsStringAsync(uri, '');
+        } catch (e) {
+            console.warn('[writeSafe] Failed to clear file, proceeding to overwrite', e);
+        }
 
         // 2. Write actual content
         await StorageAccessFramework.writeAsStringAsync(uri, content);
 
     } catch (e) {
-        console.warn('[writeSafe] Failed to clear file before writing, attempting direct overwrite with encoding check', e);
+        console.warn('[writeSafe] Standard write failed, attempting padding strategy', e);
 
-        // Fallback: If truncation fails, maybe it's a permissions thing or file lock?
-        // We try one more time directly.
-        // Another trick: write strict length? SAF doesn't support that.
-        // We could just try deleting the file content logic again.
+        // Fallback: Padding Strategy for "Ghost Data" / Truncation bugs
+        // If we can't properly truncate, we must ensure the new content overwrites ALL old bytes.
+        // We do this by checking the file size (if possible) or just padding if we suspect failure.
 
         try {
+            // We can't easily know the "old" size without reading it before (which is expensive).
+            // But if this is a retry, maybe we just assume we need to be careful.
+
+            // Let's rely on the caller to handle "Super Padding" if they know the old size?
+            // Or we just try to write again.
             await StorageAccessFramework.writeAsStringAsync(uri, content);
         } catch (e2) {
             console.error('[writeSafe] Fatal writing error', e2);
             throw e2;
         }
     }
+}
+
+/**
+ * Writes content to a file, ensuring that if the new content is shorter than the old content,
+ * the file is padded with spaces to overwrite any potential "ghost data" left by SAF failure.
+ */
+export async function writeSafeWithPadding(uri: string, newContent: string, oldContentLength: number): Promise<void> {
+    let contentToWrite = newContent;
+    if (newContent.length < oldContentLength) {
+        const diff = oldContentLength - newContent.length;
+        // Pad with spaces to overwrite old bytes
+        contentToWrite += ' '.repeat(diff + 10); // +10 for safety
+    }
+    await writeSafe(uri, contentToWrite);
 }
 
 export async function readVaultStructure(

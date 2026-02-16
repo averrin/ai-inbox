@@ -2,7 +2,6 @@ import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react'
 import { View, Text, TouchableOpacity, FlatList, Dimensions, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DayStatusLevel } from '../utils/difficultyUtils';
 
 interface DateRulerProps {
@@ -87,7 +86,6 @@ const DateRulerItem = React.memo(({ item, isSelected, isToday, onPress, status }
 
 export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSettingsPress, onNext, onPrev, onToday, dayStatuses, onSync, isSyncing }) => {
     const flatListRef = useRef<FlatList>(null);
-    const insets = useSafeAreaInsets();
 
     const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
     const skipNextScrollAnimation = useRef(false);
@@ -198,44 +196,108 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
         );
     }, [selectedDateStr, todayDateStr, dayStatuses, handleDatePress]);
 
+    const isTodaySelected = dayjs(date).isSame(dayjs(), 'day');
+
     return (
-        <View className="bg-slate-900 border-b border-slate-800 pb-4" style={{ paddingTop: insets.top }}>
-            {/* Header with Month/Year and Buttons */}
-            <View className="flex-row justify-between items-center px-4 py-2">
-                <View className="flex-row items-center gap-2">
-                    <Text className="text-white text-lg font-bold">
-                        {dayjs(date).format('MMMM YYYY')}
-                    </Text>
-                    {onSync && (
-                         <TouchableOpacity 
-                            onPress={onSync} 
-                            disabled={isSyncing}
-                            className={`p-1 rounded-full ${isSyncing ? 'opacity-50' : 'active:bg-slate-800'}`}
+        <View className="border-b border-slate-800 pb-4" style={{ backgroundColor: 'transparent' }}>
+            {/* Header matching ScreenHeader style */}
+            <View className="px-4 pt-3 pb-2">
+                <View className="flex-row items-center justify-between">
+                    <View className="flex-1 mr-2">
+                        <Text className="text-2xl font-bold text-white">
+                            Schedule
+                        </Text>
+                        <Text className="text-slate-500 text-xs font-medium">
+                            {dayjs(date).format('MMMM YYYY')}
+                        </Text>
+                    </View>
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: '#1e293b',
+                            borderRadius: 30,
+                            padding: 4,
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 4.65,
+                            elevation: 8,
+                            opacity: 0.95,
+                        }}
+                    >
+                        {onSync && (
+                            <TouchableOpacity
+                                onPress={onSync}
+                                disabled={isSyncing}
+                                style={{
+                                    width: 44,
+                                    height: 44,
+                                    borderRadius: 22,
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    opacity: isSyncing ? 0.5 : 1,
+                                }}
+                            >
+                                <Ionicons name="sync-outline" size={22} color="#94a3b8" />
+                            </TouchableOpacity>
+                        )}
+
+                        <TouchableOpacity
+                            onPress={handlePrevDay}
+                            style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 22,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                            }}
                         >
-                            <Ionicons 
-                                name={isSyncing ? "refresh" : "sync-outline"} 
-                                size={18} 
-                                color="#94a3b8" 
-                                style={isSyncing ? { transform: [{ rotate: '45deg' }] } : {}} // Basic visual, rotation would need Reanimated
-                            />
+                            <Ionicons name="chevron-back" size={22} color="#94a3b8" />
                         </TouchableOpacity>
-                    )}
-                </View>
-                <View className="flex-row gap-2">
-                    <TouchableOpacity onPress={handlePrevDay} className="p-2 bg-slate-800 rounded-full">
-                        <Ionicons name="chevron-back" size={20} color="#cbd5e1" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={handleTodayPress} className="p-2 bg-slate-800 rounded-full">
-                        <Ionicons name="today" size={20} color="#818cf8" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={handleNextDay} className="p-2 bg-slate-800 rounded-full">
-                        <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
-                    </TouchableOpacity>
-                    {onSettingsPress && (
-                        <TouchableOpacity onPress={onSettingsPress} className="p-2 bg-slate-800 rounded-full ml-2">
-                            <Ionicons name="options-outline" size={20} color="#818cf8" />
+
+                        <TouchableOpacity
+                            onPress={handleTodayPress}
+                            style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 22,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                backgroundColor: isTodaySelected ? '#334155' : 'transparent',
+                            }}
+                        >
+                            <Ionicons name="today" size={22} color={isTodaySelected ? '#3b82f6' : '#94a3b8'} />
                         </TouchableOpacity>
-                    )}
+
+                        <TouchableOpacity
+                            onPress={handleNextDay}
+                            style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 22,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                            }}
+                        >
+                            <Ionicons name="chevron-forward" size={22} color="#94a3b8" />
+                        </TouchableOpacity>
+
+                        {onSettingsPress && (
+                            <TouchableOpacity
+                                onPress={onSettingsPress}
+                                style={{
+                                    width: 44,
+                                    height: 44,
+                                    borderRadius: 22,
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                <Ionicons name="options-outline" size={22} color="#94a3b8" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
                 </View>
             </View>
 
