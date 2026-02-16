@@ -36,7 +36,6 @@ import { scanForReminders } from '../../services/reminderService';
 import { useEventTypesStore } from '../../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../../utils/debugUtils';
-import gitInfo from '../../git-info.json';
 
 type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile';
 
@@ -716,15 +715,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 () => setActiveSection('advanced'),
                 "Debug & Cache tools"
             )}
-
-            <View className="mt-8 mb-4 items-center">
-                <Text className="text-slate-600 text-xs">
-                    Branch: {gitInfo.branch}
-                </Text>
-                <Text className="text-slate-700 text-[10px]">
-                    {gitInfo.commit.substring(0, 7)}
-                </Text>
-            </View>
         </View>
     );
 

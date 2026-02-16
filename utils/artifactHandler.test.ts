@@ -1,5 +1,5 @@
 
-import { downloadAndInstallArtifact, isArtifactCached } from './artifactHandler';
+import { downloadAndInstallArtifact, isArtifactCached, downloadAndCacheArtifact } from './artifactHandler';
 import { Artifact } from '../services/julesApi';
 
 // Manual test runner since no Jest/Test Runner configured
@@ -205,6 +205,26 @@ const mockDeps = {
         if (!deletedFiles.some(f => f.endsWith('2.apk'))) {
              throw new Error('Second oldest artifact 2.apk was not deleted');
         }
+    });
+
+    await runTest('Download and Cache Artifact (No Install)', async () => {
+        // Reset deps
+        mockPlatform.OS = 'android';
+        mockFileSystem.getInfoAsync = async (uri) => {
+             if (uri.includes('artifacts/1.apk')) return { exists: false, isDirectory: false };
+             return { exists: true, isDirectory: uri.endsWith('/') || uri.includes('unzipped'), size: 12345 };
+        };
+
+        mockFileSystem.readDirectoryAsync = async (dir) => {
+            if (dir.includes('unzipped')) return ['app.apk'];
+            if (dir.includes('artifacts')) return [];
+            return [];
+        };
+
+        const result = await downloadAndCacheArtifact(mockArtifact, 'token', 'branch', mockDeps as any, () => {});
+
+        if (result.type !== 'apk') throw new Error(`Expected APK result type, got ${result.type}`);
+        if (!result.path.includes('artifacts/1.apk')) throw new Error('Expected cached artifact path');
     });
 
     console.log("All tests passed!");

@@ -13,8 +13,9 @@ import { useAuthRequest, makeRedirectUri, ResponseType } from 'expo-auth-session
 WebBrowser.maybeCompleteAuthSession();
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useNavigation } from '@react-navigation/native';
-import { downloadAndInstallArtifact, isArtifactCached, installCachedArtifact } from '../../utils/artifactHandler';
+import { downloadAndInstallArtifact, isArtifactCached, installCachedArtifact, downloadAndCacheArtifact } from '../../utils/artifactHandler';
 import { artifactDeps } from '../../utils/artifactDeps';
+import gitInfo from '../../git-info.json';
 
 dayjs.extend(relativeTime);
 
@@ -511,7 +512,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
     );
 }
 
-function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey, refreshTrigger }: { session: JulesSession, matchedRun: WorkflowRun | null, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onDelete?: () => void, onRefresh?: () => void, julesGoogleApiKey?: string, refreshTrigger?: number }) {
+function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey, refreshTrigger, highlight }: { session: JulesSession, matchedRun: WorkflowRun | null, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onDelete?: () => void, onRefresh?: () => void, julesGoogleApiKey?: string, refreshTrigger?: number, highlight?: boolean }) {
     const [isMerging, setIsMerging] = useState(false);
     const [prInactive, setPrInactive] = useState(false);
     const [mergeable, setMergeable] = useState<boolean | null>(null);
@@ -666,6 +667,7 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
         <Card
             className={`mb-1 ${prInactive ? 'opacity-50' : ''}`}
             padding="p-3"
+            style={highlight ? { borderColor: '#eab308', borderWidth: 2 } : undefined}
             background={prInactive ? (
                 <View style={StyleSheet.absoluteFill} pointerEvents="none">
                     <LinearGradient
@@ -855,6 +857,7 @@ export default function JulesScreen() {
     const [error, setError] = useState<string | null>(null);
     const [showRepoSelector, setShowRepoSelector] = useState(false);
     const [defaultBranch, setDefaultBranch] = useState('main');
+    const downloadedRunIds = useRef<Set<number>>(new Set());
 
     const [request, response, promptAsync] = useAuthRequest(
         {
@@ -1009,7 +1012,17 @@ export default function JulesScreen() {
             });
 
             // Sort by most recent activity (run update or session update)
+            // But active sessions first (COMPLETED/FAILED go to bottom)
             const sorted = mapped.sort((a, b) => {
+                const stateA = a.session.state;
+                const stateB = b.session.state;
+                const isInactiveA = stateA === 'COMPLETED' || stateA === 'FAILED';
+                const isInactiveB = stateB === 'COMPLETED' || stateB === 'FAILED';
+
+                if (isInactiveA !== isInactiveB) {
+                    return isInactiveA ? 1 : -1;
+                }
+
                 const timeA = a.matchedRun ? new Date(a.matchedRun.updated_at).getTime() : new Date(a.session.updateTime).getTime();
                 const timeB = b.matchedRun ? new Date(b.matchedRun.updated_at).getTime() : new Date(b.session.updateTime).getTime();
                 return timeB - timeA;
@@ -1032,6 +1045,58 @@ export default function JulesScreen() {
         }
 
     }, [julesSessions, allRuns, defaultBranch, julesOwner, julesRepo]);
+
+    // Auto-download artifacts for finished builds
+    useEffect(() => {
+        if (!julesApiKey) return;
+
+        const checkAndDownload = async () => {
+            const items = [
+                ...sessionsWithRuns.map(s => ({ run: s.matchedRun, session: s.session })),
+                ...masterRuns.map(r => ({ run: r, session: null }))
+            ];
+
+            for (const { run, session } of items) {
+                if (!run || run.conclusion !== 'success' || downloadedRunIds.current.has(run.id)) continue;
+
+                downloadedRunIds.current.add(run.id);
+
+                try {
+                    let owner = julesOwner;
+                    let repo = julesRepo;
+
+                    if (session && session.githubMetadata) {
+                        owner = session.githubMetadata.owner;
+                        repo = session.githubMetadata.repo;
+                    } else if (run.repository) {
+                        owner = run.repository.owner.login;
+                        repo = run.repository.name;
+                    }
+
+                    if (!owner || !repo) continue;
+
+                    // Fetch artifacts
+                    const artifacts = await fetchArtifacts(julesApiKey, owner, repo, run.id);
+                    if (artifacts && artifacts.length > 0) {
+                        const artifact = getBestArtifact(artifacts);
+                        if (artifact) {
+                            console.log(`[AutoDownload] Triggering download for run ${run.id}`);
+                            downloadAndCacheArtifact(
+                                artifact,
+                                julesApiKey,
+                                run.head_branch || 'unknown',
+                                artifactDeps
+                            ).catch(e => console.warn(`[AutoDownload] Background download failed for ${run.id}`, e));
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`[AutoDownload] Error checking artifacts for ${run.id}`, e);
+                }
+            }
+        };
+
+        checkAndDownload();
+    }, [sessionsWithRuns, masterRuns, julesApiKey, julesOwner, julesRepo]);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
@@ -1161,6 +1226,7 @@ export default function JulesScreen() {
                                 onRefresh={onRefresh}
                                 julesGoogleApiKey={julesGoogleApiKey || undefined}
                                 refreshTrigger={refreshTrigger}
+                                highlight={session.githubMetadata?.branch === gitInfo.branch}
                             />
                         ))}
                     </View>

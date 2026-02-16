@@ -72,6 +72,141 @@ async function manageCache(deps: ArtifactDeps) {
     }
 }
 
+export type DownloadResult = { type: 'apk', path: string } | { type: 'zip', path: string };
+
+export async function downloadAndCacheArtifact(
+    artifact: Artifact,
+    token: string,
+    branch: string,
+    deps: ArtifactDeps,
+    onStatus?: (status: string) => void,
+    onProgress?: (progress: number) => void
+): Promise<DownloadResult> {
+    // Check cache first
+    const cachedPath = await isArtifactCached(artifact, deps);
+    if (cachedPath) {
+        console.log(`[Artifact] Found cached artifact at ${cachedPath}`);
+        return { type: 'apk', path: cachedPath };
+    }
+
+    if (onStatus) onStatus("Resolving URL...");
+    const sanitizedBranch = (branch || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
+    const sanitizedArtifactName = artifact.name.replace(/[^a-zA-Z0-9-_]/g, '_');
+    const zipFilename = `${sanitizedArtifactName}-${sanitizedBranch}.zip`;
+    const zipFileUri = deps.FileSystem.cacheDirectory + zipFilename;
+
+    // 1. Download the zip
+    console.log(`[Artifact] Resolving redirect for artifact URL...`);
+    const redirectResponse = await fetch(artifact.archive_download_url, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github+json',
+        },
+    });
+    const finalUrl = redirectResponse.url;
+    const wasRedirected = finalUrl !== artifact.archive_download_url;
+    console.log(`[Artifact] Resolved download URL (redirected: ${wasRedirected})`);
+
+    try { await redirectResponse.body?.cancel(); } catch (_) {}
+
+    if (!wasRedirected) {
+        console.warn(`[Artifact] No redirect detected, status: ${redirectResponse.status}`);
+    }
+
+    if (onStatus) onStatus("Downloading...");
+
+    // Download from the final (Azure) URL without auth headers
+    const downloadResumable = deps.FileSystem.createDownloadResumable(
+        finalUrl,
+        zipFileUri,
+        {},
+        (progress) => {
+            if (onProgress) {
+                const percent = progress.totalBytesWritten / progress.totalBytesExpectedToWrite;
+                onProgress(percent);
+            }
+        }
+    );
+
+    const result = await downloadResumable.downloadAsync();
+    console.log(`[Artifact] Download finished: ${result?.uri}`);
+    if (!result || !result.uri) {
+        throw new Error("Download failed");
+    }
+
+    if (onProgress) onProgress(1); // Ensure 100%
+
+    // 2. Check if we should try to install it (Android + app-release)
+    if (deps.Platform.OS === 'android' && artifact.name === 'app-release') {
+        if (onStatus) onStatus("Unzipping...");
+        console.log(`[Artifact] Android app-release detected, unzipping...`);
+        try {
+            const unzipPath = deps.FileSystem.cacheDirectory + 'unzipped/';
+
+            const info = await deps.FileSystem.getInfoAsync(unzipPath);
+            if (info.exists) {
+                await deps.FileSystem.deleteAsync(unzipPath, { idempotent: true });
+            }
+            await deps.FileSystem.makeDirectoryAsync(unzipPath, { intermediates: true });
+
+            const stripFileUri = (uri: string) => uri.replace(/^file:\/\//, '');
+            await deps.unzip(stripFileUri(result.uri), stripFileUri(unzipPath));
+            console.log(`[Artifact] Unzip complete`);
+
+            const findApk = async (dir: string, depth = 0): Promise<string | null> => {
+                if (depth > 5) return null; // Safety limit
+
+                const files = await deps.FileSystem.readDirectoryAsync(dir);
+                const apk = files.find(f => f.endsWith('.apk'));
+                if (apk) {
+                    return dir + (dir.endsWith('/') ? '' : '/') + apk;
+                }
+
+                for (const file of files) {
+                    const path = dir + (dir.endsWith('/') ? '' : '/') + file;
+                    try {
+                        const info = await deps.FileSystem.getInfoAsync(path);
+                        if (info.exists && info.isDirectory) {
+                            const found = await findApk(path, depth + 1);
+                            if (found) return found;
+                        }
+                    } catch (err) {
+                        // ignore
+                    }
+                }
+                return null;
+            };
+
+            const apkSourceUri = await findApk(unzipPath);
+
+            if (apkSourceUri) {
+                await ensureArtifactsDirectory(deps);
+                const apkTargetUri = deps.FileSystem.documentDirectory + 'artifacts/' + `${artifact.id}.apk`;
+                console.log(`[Artifact] Found APK at ${apkSourceUri}, copying to cache: ${apkTargetUri}`);
+
+                // Copy to persistent cache
+                await deps.FileSystem.copyAsync({
+                    from: apkSourceUri,
+                    to: apkTargetUri
+                });
+
+                // Manage cache size
+                await manageCache(deps);
+
+                return { type: 'apk', path: apkTargetUri };
+            } else {
+                throw new Error("No APK found in the artifact");
+            }
+        } catch (unzipError: any) {
+            console.warn("[Artifact] Native unzip/install failed:", unzipError?.message || unzipError);
+            // Fallthrough to share zip
+            return { type: 'zip', path: result.uri };
+        }
+    }
+
+    return { type: 'zip', path: result.uri };
+}
+
 export async function downloadAndInstallArtifact(
     artifact: Artifact,
     token: string,
@@ -87,138 +222,19 @@ export async function downloadAndInstallArtifact(
     if (onStatus) onStatus("Checking cache...");
 
     try {
-        // Check cache first
-        const cachedPath = await isArtifactCached(artifact, deps);
-        if (cachedPath) {
-            console.log(`[Artifact] Found cached artifact at ${cachedPath}`);
+        const result = await downloadAndCacheArtifact(artifact, token, branch, deps, onStatus, onProgress);
+
+        if (result.type === 'apk') {
             if (onStatus) onStatus("Installing...");
-            await installCachedArtifact(cachedPath, deps);
-            setDownloading(false);
-            return;
-        }
-
-        if (onStatus) onStatus("Resolving URL...");
-        console.log(`[Artifact] Starting download for ${artifact.name} from ${artifact.archive_download_url}`);
-        const sanitizedBranch = (branch || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
-        const sanitizedArtifactName = artifact.name.replace(/[^a-zA-Z0-9-_]/g, '_');
-        const zipFilename = `${sanitizedArtifactName}-${sanitizedBranch}.zip`;
-        const zipFileUri = deps.FileSystem.cacheDirectory + zipFilename;
-
-        // 1. Download the zip
-        console.log(`[Artifact] Resolving redirect for artifact URL...`);
-        const redirectResponse = await fetch(artifact.archive_download_url, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/vnd.github+json',
-            },
-        });
-        const finalUrl = redirectResponse.url;
-        const wasRedirected = finalUrl !== artifact.archive_download_url;
-        console.log(`[Artifact] Resolved download URL (redirected: ${wasRedirected})`);
-
-        try { await redirectResponse.body?.cancel(); } catch (_) {}
-
-        if (!wasRedirected) {
-            console.warn(`[Artifact] No redirect detected, status: ${redirectResponse.status}`);
-        }
-
-        if (onStatus) onStatus("Downloading...");
-
-        // Download from the final (Azure) URL without auth headers
-        const downloadResumable = deps.FileSystem.createDownloadResumable(
-            finalUrl,
-            zipFileUri,
-            {},
-            (progress) => {
-                const percent = progress.totalBytesWritten / progress.totalBytesExpectedToWrite;
-                onProgress(percent);
-            }
-        );
-
-        const result = await downloadResumable.downloadAsync();
-        console.log(`[Artifact] Download finished: ${result?.uri}`);
-        if (!result || !result.uri) {
-            throw new Error("Download failed");
-        }
-
-        onProgress(1); // Ensure 100%
-
-        // 2. Check if we should try to install it (Android + app-release)
-        if (deps.Platform.OS === 'android' && artifact.name === 'app-release') {
-            if (onStatus) onStatus("Unzipping...");
-            console.log(`[Artifact] Android app-release detected, unzipping...`);
-            try {
-                const unzipPath = deps.FileSystem.cacheDirectory + 'unzipped/';
-
-                const info = await deps.FileSystem.getInfoAsync(unzipPath);
-                if (info.exists) {
-                    await deps.FileSystem.deleteAsync(unzipPath, { idempotent: true });
-                }
-                await deps.FileSystem.makeDirectoryAsync(unzipPath, { intermediates: true });
-
-                const stripFileUri = (uri: string) => uri.replace(/^file:\/\//, '');
-                await deps.unzip(stripFileUri(result.uri), stripFileUri(unzipPath));
-                console.log(`[Artifact] Unzip complete`);
-
-                const findApk = async (dir: string, depth = 0): Promise<string | null> => {
-                    if (depth > 5) return null; // Safety limit
-
-                    const files = await deps.FileSystem.readDirectoryAsync(dir);
-                    const apk = files.find(f => f.endsWith('.apk'));
-                    if (apk) {
-                        return dir + (dir.endsWith('/') ? '' : '/') + apk;
-                    }
-
-                    for (const file of files) {
-                        const path = dir + (dir.endsWith('/') ? '' : '/') + file;
-                        try {
-                            const info = await deps.FileSystem.getInfoAsync(path);
-                            if (info.exists && info.isDirectory) {
-                                const found = await findApk(path, depth + 1);
-                                if (found) return found;
-                            }
-                        } catch (err) {
-                            // ignore
-                        }
-                    }
-                    return null;
-                };
-
-                const apkSourceUri = await findApk(unzipPath);
-
-                if (apkSourceUri) {
-                    await ensureArtifactsDirectory(deps);
-                    const apkTargetUri = deps.FileSystem.documentDirectory + 'artifacts/' + `${artifact.id}.apk`;
-                    console.log(`[Artifact] Found APK at ${apkSourceUri}, copying to cache: ${apkTargetUri}`);
-
-                    // Copy to persistent cache
-                    await deps.FileSystem.copyAsync({
-                        from: apkSourceUri,
-                        to: apkTargetUri
-                    });
-
-                    // Manage cache size
-                    await manageCache(deps);
-
-                    if (onStatus) onStatus("Installing...");
-                    await installCachedArtifact(apkTargetUri, deps);
-                    setDownloading(false);
-                    return;
-                } else {
-                    throw new Error("No APK found in the artifact");
-                }
-            } catch (unzipError: any) {
-                console.warn("[Artifact] Native unzip/install failed:", unzipError?.message || unzipError);
-                // Fallthrough to share zip
-            }
-        }
-
-        // 3. Fallback: Share the downloaded zip
-        console.log(`[Artifact] Falling back to sharing zip file: ${result.uri}`);
-        if (await deps.Sharing.isAvailableAsync()) {
-            await deps.Sharing.shareAsync(result.uri);
+            await installCachedArtifact(result.path, deps);
         } else {
-            deps.Alert.alert("Success", "Artifact downloaded to: " + result.uri);
+            // Fallback: Share the downloaded zip
+            console.log(`[Artifact] Falling back to sharing zip file: ${result.path}`);
+            if (await deps.Sharing.isAvailableAsync()) {
+                await deps.Sharing.shareAsync(result.path);
+            } else {
+                deps.Alert.alert("Success", "Artifact downloaded to: " + result.path);
+            }
         }
 
     } catch (e: any) {
