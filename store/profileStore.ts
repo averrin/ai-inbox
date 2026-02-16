@@ -108,6 +108,7 @@ export const useProfileStore = create<ProfileState>()(
 
                 set({ isLoading: true });
                 try {
+                    console.log('[ProfileStore] processing answers with questions:', dailyQuestions.map(q => q.text));
                     const updatedProfile = await ProfileService.processAnswers(
                         selectedModel,
                         apiKey,
@@ -116,6 +117,7 @@ export const useProfileStore = create<ProfileState>()(
                         answers
                     );
 
+                    console.log('[ProfileStore] Saving updated profile to vault:', vaultUri);
                     await ProfileService.saveProfile(vaultUri, updatedProfile);
 
                     set({

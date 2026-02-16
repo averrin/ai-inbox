@@ -26,10 +26,12 @@ export class ProfileService {
             const exists = await checkFileExists(vaultUri, 'Profile.json');
 
             if (!exists) {
+                console.log('[ProfileService] Profile.json not found, returning DEFAULT_PROFILE');
                 return DEFAULT_PROFILE;
             }
             const content = await readFileContent(vaultUri, 'Profile.json');
             const parsed = JSON.parse(content);
+            console.log('[ProfileService] Loaded profile with', Object.keys(parsed.facts || {}).length, 'facts');
             return parsed;
         } catch (e) {
             console.error('[ProfileService] Failed to load profile:', e);
@@ -39,8 +41,13 @@ export class ProfileService {
 
     static async saveProfile(vaultUri: string, profile: ProfileData): Promise<void> {
         try {
+            console.log('[ProfileService] Saving profile...', {
+                factsCount: Object.keys(profile.facts || {}).length,
+                lastUpdated: profile.lastUpdated
+            });
             // Explicitly use application/json to prevent .md extension
             await saveToVault(vaultUri, 'Profile.json', JSON.stringify(profile, null, 2), undefined, 'application/json');
+            console.log('[ProfileService] Profile saved successfully');
         } catch (e) {
             console.error('[ProfileService] Failed to save profile:', e);
             throw e;
