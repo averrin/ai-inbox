@@ -3,8 +3,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Layout } from '../ui/Layout';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest, exchangeGithubToken, fetchGithubRepos, fetchGithubUser, GithubRepo, sendMessageToSession } from '../../services/jules';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest, exchangeGithubToken, fetchGithubRepos, fetchGithubUser, GithubRepo, sendMessageToSession, fetchGithubRepoDetails } from '../../services/jules';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import * as WebBrowser from 'expo-web-browser';
@@ -106,402 +106,6 @@ function MessageDialog({ visible, onClose, onSend, sending }: { visible: boolean
                 </View>
             </View>
         </Modal>
-    );
-}
-
-function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey, refreshTrigger }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onDelete?: () => void, onRefresh?: () => void, julesGoogleApiKey?: string, refreshTrigger?: number }) {
-    const [ghRun, setGhRun] = useState<WorkflowRun | null>(null);
-    const [loadingGh, setLoadingGh] = useState(false);
-    const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
-    const [artifactsLoading, setArtifactsLoading] = useState(false);
-    const [isDownloading, setIsDownloading] = useState(false);
-    const [progress, setProgress] = useState<number | null>(null);
-    const [status, setStatus] = useState<string | null>(null);
-    const [cachedArtifactPath, setCachedArtifactPath] = useState<string | null>(null);
-    const [isMerging, setIsMerging] = useState(false);
-    const [prInactive, setPrInactive] = useState(false);
-    const [mergeable, setMergeable] = useState<boolean | null>(null);
-    const [isMerged, setIsMerged] = useState(false);
-    const [isClosed, setIsClosed] = useState(false);
-    const [menuVisible, setMenuVisible] = useState(false);
-    const [messageVisible, setMessageVisible] = useState(false);
-    const [sendingMessage, setSendingMessage] = useState(false);
-
-    const spinValue = useRef(new Animated.Value(0)).current;
-
-    const metadata = session.githubMetadata;
-    const owner = metadata?.owner || defaultOwner;
-    const repo = metadata?.repo || defaultRepo;
-    const prNumber = metadata?.pullRequestNumber;
-    const branch = metadata?.branch;
-
-    useEffect(() => {
-        const isActive = session.state === 'IN_PROGRESS' || session.state === 'PLANNING' || session.state === 'QUEUED';
-        let animation: Animated.CompositeAnimation | null = null;
-        if (isActive) {
-            animation = Animated.loop(
-                Animated.timing(spinValue, {
-                    toValue: 1,
-                    duration: 2000,
-                    easing: Easing.linear,
-                    useNativeDriver: true,
-                })
-            );
-            animation.start();
-        } else {
-            spinValue.setValue(0);
-        }
-
-        return () => {
-            if (animation) animation.stop();
-        };
-    }, [session.state]);
-
-    const spin = spinValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['0deg', '360deg']
-    });
-
-    const fetchArtifactsData = useCallback(() => {
-        if (ghToken && owner && repo && ghRun) {
-            setArtifactsLoading(true);
-            fetchArtifacts(ghToken, owner, repo, ghRun.id)
-                .then(setArtifacts)
-                .finally(() => setArtifactsLoading(false));
-        }
-    }, [ghToken, owner, repo, ghRun]);
-
-    useEffect(() => {
-        if (artifacts && artifacts.length > 0) {
-            const artifact = getBestArtifact(artifacts);
-            if (artifact) {
-                isArtifactCached(artifact, artifactDeps).then(setCachedArtifactPath);
-            }
-        } else {
-            setCachedArtifactPath(null);
-        }
-    }, [artifacts]);
-
-    useEffect(() => {
-        setGhRun(null);
-        setArtifacts(null);
-        
-        if (ghToken && owner && repo && (prNumber || branch)) {
-            setLoadingGh(true);
-            
-            // If we have a branch but it looks like a ref, use it as fallback but don't filter Actions API by it
-            const isRef = branch?.startsWith('refs/') || branch?.includes('/');
-            const branchFilter = branch && !isRef ? branch : undefined;
-            
-            // Fetch more runs to increase chance of finding the right one if branch filter is absent
-            fetchWorkflowRuns(ghToken, owner, repo, undefined, 10, branchFilter)
-                .then(runs => {
-                    let match = null;
-                    const sessionStartTime = new Date(session.createTime).getTime();
-                    
-                    if (prNumber) {
-                        // Priority 1: Match specifically by PR number in the pull_requests field
-                        match = runs.find(r => 
-                            r.pull_requests && r.pull_requests.some(p => p.number === prNumber)
-                        );
-                    } 
-                    
-                    if (!match && branch) {
-                        // Match by branch name but ONLY if it was created after the session started
-                        match = runs.find(r => 
-                            r.head_branch === branch && 
-                            new Date(r.created_at).getTime() >= sessionStartTime - 60000 // 1 minute buffer
-                        );
-                    }
-
-                    setGhRun(match || null);
-                    if (!match) setArtifacts(null);
-                    if (match) {
-                        setArtifactsLoading(true);
-                        fetchArtifacts(ghToken, owner, repo, match.id)
-                            .then(setArtifacts)
-                            .finally(() => setArtifactsLoading(false));
-                    }
-                })
-                .catch(err => console.error("GH fetch for session error:", err))
-                .finally(() => setLoadingGh(false));
-            
-            if (prNumber) {
-                fetchPullRequest(ghToken, owner, repo, prNumber)
-                    .then(pr => {
-                        const merged = pr.merged || pr.state === 'merged';
-                        const closed = pr.state === 'closed';
-                        setIsMerged(merged);
-                        setIsClosed(closed && !merged);
-                        setPrInactive(merged || closed);
-                        setMergeable(pr.mergeable);
-                    })
-                    .catch(err => console.error("Fetch PR detail error:", err));
-            }
-        }
-    }, [ghToken, owner, repo, prNumber, branch, refreshTrigger]);
-
-    const handleDownloadArtifact = async () => {
-        console.log(`[JulesScreen] handleDownloadArtifact called. ghRun: ${!!ghRun}, artifacts: ${artifacts?.length}, token: ${!!ghToken}`);
-        if (!ghRun || !artifacts || artifacts.length === 0 || !ghToken) {
-            console.log(`[JulesScreen] handleDownloadArtifact guard failed`);
-            return;
-        }
-        const artifact = getBestArtifact(artifacts);
-        console.log(`[JulesScreen] Best artifact: ${artifact?.name}`);
-        if (!artifact) return;
-
-        if (cachedArtifactPath) {
-            await installCachedArtifact(cachedArtifactPath, artifactDeps);
-            return;
-        }
-
-        setProgress(0);
-        setStatus("Starting...");
-        await downloadAndInstallArtifact(
-            artifact,
-            ghToken,
-            branch || 'unknown',
-            setIsDownloading,
-            (p) => setProgress(p),
-            artifactDeps,
-            setStatus
-        );
-        setProgress(null);
-        setStatus(null);
-        isArtifactCached(artifact, artifactDeps).then(setCachedArtifactPath);
-    };
-
-    const handleMerge = async () => {
-        if (!ghToken || !owner || !repo || !prNumber) return;
-        
-        try {
-            setIsMerging(true);
-            await mergePullRequest(ghToken, owner, repo, prNumber);
-            Alert.alert("Success", "Pull Request merged successfully");
-            if (onRefresh) onRefresh();
-        } catch (e) {
-            console.error(e);
-            Alert.alert("Error", "Failed to merge Pull Request");
-        } finally {
-            setIsMerging(false);
-        }
-    };
-
-    const handleDelete = () => {
-        Alert.alert(
-            "Delete Session",
-            "Are you sure you want to delete this session? This cannot be undone.",
-            [
-                { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: onDelete }
-            ]
-        );
-    };
-
-    const handleSendMessage = async (message: string) => {
-        if (!julesGoogleApiKey) return;
-        setSendingMessage(true);
-        try {
-            await sendMessageToSession(julesGoogleApiKey, session.name, message);
-            setMessageVisible(false);
-            Alert.alert("Success", "Message sent to session");
-        } catch (e: any) {
-            console.error("Failed to send message", e);
-            Alert.alert("Error", e.message || "Failed to send message");
-        } finally {
-            setSendingMessage(false);
-        }
-    };
-
-    const getStatusIcon = (state: string) => {
-        switch (state) {
-            case 'COMPLETED': return { icon: 'checkmark-circle', color: '#4ade80' };
-            case 'FAILED': return { icon: 'close-circle', color: '#f87171' };
-            case 'IN_PROGRESS':
-            case 'PLANNING': return { icon: 'sync', color: '#60a5fa' };
-            case 'AWAITING_PLAN_APPROVAL':
-            case 'AWAITING_USER_FEEDBACK': return { icon: 'alert-circle', color: '#facc15' };
-            case 'QUEUED': return { icon: 'time-outline', color: '#94a3b8' };
-            case 'PAUSED': return { icon: 'pause-circle-outline', color: '#94a3b8' };
-            default: return { icon: 'help-circle-outline', color: '#94a3b8' };
-        }
-    };
-
-    const getGhStatusColor = (run: WorkflowRun) => {
-        if (run.status === 'in_progress') return '#60a5fa';
-        if (run.conclusion === 'success') return '#4ade80';
-        if (run.conclusion === 'failure') return '#f87171';
-        return '#94a3b8';
-    };
-
-    const statusObj = getStatusIcon(session.state);
-    const webUrl = session.url;
-    const prUrl = session.outputs?.find(o => o.pullRequest)?.pullRequest?.url;
-
-    // Generate diagonal stripes for inactive sessions
-    const stripeColors: string[] = [];
-    const stripeLocations: number[] = [];
-    if (prInactive) {
-        const step = 0.02; 
-        for (let i = 0; i < 200; i++) {
-            const isColor = i % 2 === 1;
-            const c = isColor ? 'rgba(148, 163, 184, 0.12)' : 'transparent';
-            stripeColors.push(c, c);
-            stripeLocations.push(i * step, (i + 1) * step);
-        }
-    }
-
-    const menuActions = [
-        ...(ghRun ? [{
-            label: "Open GitHub Run",
-            icon: "logo-github",
-            onPress: () => Linking.openURL(ghRun.html_url)
-        }] : []),
-        ...(artifacts && artifacts.length > 0 ? [{
-            label: cachedArtifactPath
-                ? "Install Artifact"
-                : (isDownloading ? (status || `Downloading ${Math.round((progress || 0)*100)}%`) : "Download Artifact"),
-            icon: cachedArtifactPath ? "construct-outline" : "download-outline",
-            onPress: handleDownloadArtifact,
-            disabled: isDownloading
-        }] : []),
-        {
-            label: "Delete Session",
-            icon: "trash-outline",
-            color: "#f87171",
-            onPress: handleDelete,
-            disabled: !onDelete || !(session.state === 'COMPLETED' || session.state === 'FAILED' || prInactive)
-        }
-    ];
-
-    return (
-        <Card 
-            className={`mb-1 ${prInactive ? 'opacity-50' : ''}`} 
-            padding="p-3"
-            background={prInactive ? (
-                <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                    <LinearGradient
-                        colors={stripeColors as any}
-                        locations={stripeLocations as any}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFill}
-                    />
-                </View>
-            ) : undefined}
-        >
-            <View className="flex-row items-center justify-between mb-1">
-                <View className="flex-row items-center flex-1">
-                     <TouchableOpacity onPress={() => Linking.openURL(ghRun?.html_url || webUrl)}>
-                        <Animated.View style={{ transform: [{ rotate: spin }] }}>
-                            <Ionicons name={statusObj.icon as any} size={24} color={statusObj.color} />
-                        </Animated.View>
-                    </TouchableOpacity>
-                    <View className="ml-3 flex-1">
-                        <View className="flex-row items-center">
-                            <Text className="text-white font-bold text-base flex-1" numberOfLines={1}>{session.title || session.id}</Text>
-                        </View>
-                        <Text className="text-slate-400 text-xs" numberOfLines={1}>
-                            {dayjs(session.createTime).fromNow()} • {session.state}
-                        </Text>
-                    </View>
-                </View>
-                <View className="flex-col items-center gap-1">
-                {metadata?.repoFullName && (
-                    <View className="flex-row items-center bg-slate-800/50 px-2 py-0.5 rounded">
-                        <Text className="text-slate-500 text-[10px]">{metadata.repoFullName}</Text>
-                    </View>
-                )}
-                {ghRun && (
-                    <View className="flex-row items-center bg-slate-800/50 px-2 py-0.5 rounded">
-                        <Ionicons 
-                            name={ghRun.conclusion === 'success' ? "logo-github" : "alert-circle"} 
-                            size={12} 
-                            color={getGhStatusColor(ghRun)} 
-                        />
-                        <Text className="text-[10px] text-slate-400 uppercase ml-1.5 font-medium">{ghRun.status}</Text>
-                    </View>
-                )}
-                    </View>
-            </View>
-
-            <View className="flex-row gap-1">
-                <TouchableOpacity
-                    onPress={() => Linking.openURL(webUrl)}
-                    className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
-                >
-                    <Ionicons name="globe-outline" size={14} color="white" />
-                    <Text className="text-white text-xs font-semibold ml-2">Web</Text>
-                </TouchableOpacity>
-
-                {prUrl && (
-                    <TouchableOpacity
-                        onPress={() => Linking.openURL(prUrl)}
-                        className="flex-1 bg-indigo-600 py-2 rounded-lg flex-row items-center justify-center"
-                    >
-                        <Ionicons name="git-pull-request-outline" size={14} color="white" />
-                        <Text className="text-white text-xs font-semibold ml-2">PR #{prNumber}</Text>
-                    </TouchableOpacity>
-                )}
-
-                {prNumber && (
-                    <TouchableOpacity
-                        onPress={(!isMerged && !isClosed && mergeable !== false) ? handleMerge : undefined}
-                        disabled={isMerging || isMerged || isClosed || mergeable === false}
-                        className={`flex-1 py-2 rounded-lg flex-row items-center justify-center ${
-                            isMerged ? 'bg-purple-600/50' :
-                            isClosed ? 'bg-slate-600/50' :
-                            mergeable === false ? 'bg-red-900/50 border border-red-500/50' :
-                            'bg-green-600'
-                        }`}
-                    >
-                        {isMerging ? (
-                            <ActivityIndicator size="small" color="white" />
-                        ) : (
-                            <>
-                                <Ionicons
-                                    name={isMerged ? "git-merge" : isClosed ? "close-circle" : mergeable === false ? "alert-circle-outline" : "git-merge-outline"}
-                                    size={14}
-                                    color={mergeable === false ? "#f87171" : "white"}
-                                />
-                                <Text className={`text-xs font-semibold ml-2 ${mergeable === false ? 'text-red-400' : 'text-white'}`}>
-                                    {isMerged ? "Merged" : isClosed ? "Closed" : mergeable === false ? "Conflict" : "Merge"}
-                                </Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                    onPress={() => setMessageVisible(true)}
-                    className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
-                >
-                    <Ionicons name="chatbox-outline" size={14} color="white" />
-                    <Text className="text-white text-xs font-semibold ml-2">Msg</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    onPress={() => setMenuVisible(true)}
-                    className="bg-slate-700 py-2 px-3 rounded-lg flex-row items-center justify-center"
-                >
-                    <Ionicons name="ellipsis-horizontal" size={16} color="white" />
-                </TouchableOpacity>
-            </View>
-
-            <SessionActionMenu
-                visible={menuVisible}
-                onClose={() => setMenuVisible(false)}
-                actions={menuActions}
-            />
-
-            <MessageDialog
-                visible={messageVisible}
-                onClose={() => setMessageVisible(false)}
-                onSend={handleSendMessage}
-                sending={sendingMessage}
-            />
-        </Card>
     );
 }
 
@@ -640,7 +244,7 @@ function CheckStatusItem({ check }: { check: CheckRun }) {
     );
 }
 
-function SessionItem({ run, token, owner, repo, initialExpanded = false, refreshTrigger }: { run: WorkflowRun, token: string, owner: string, repo: string, initialExpanded?: boolean, refreshTrigger?: number }) {
+function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, refreshTrigger, embedded = false }: { run: WorkflowRun, token: string, owner: string, repo: string, initialExpanded?: boolean, refreshTrigger?: number, embedded?: boolean }) {
     const [checks, setChecks] = useState<CheckRun[] | null>(null);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
     const [isDownloading, setIsDownloading] = useState(false);
@@ -654,7 +258,6 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false, refresh
 
     const spinValue = useRef(new Animated.Value(0)).current;
 
-    // Some runs have pull_requests populated, others don't.
     const pr = run.pull_requests && run.pull_requests.length > 0 ? run.pull_requests[0] : null;
 
     useEffect(() => {
@@ -737,13 +340,8 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false, refresh
     }, [expanded, run.head_sha, run.id, token, owner, repo, checks, artifacts, checksLoading, artifactsLoading, fetchArtifactsData]);
 
     const handleDownloadArtifact = async () => {
-        console.log(`[JulesSessionItem] handleDownloadArtifact called. ghRun: ${!!run}, artifacts: ${artifacts?.length}, token: ${!!token}`);
-        if (!run || !artifacts || artifacts.length === 0 || !token) {
-            console.log(`[JulesSessionItem] handleDownloadArtifact guard failed`);
-            return;
-        }
+        if (!run || !artifacts || artifacts.length === 0 || !token) return;
         const artifact = getBestArtifact(artifacts);
-        console.log(`[JulesSessionItem] Best artifact: ${artifact?.name}`);
         if (!artifact) return;
 
         if (cachedArtifactPath) {
@@ -783,11 +381,10 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false, refresh
     };
 
     const statusInfo = getStatusInfo();
-
-    // Construct PR URL if available or try to guess
     const prUrl = pr ? `https://github.com/${owner}/${repo}/pull/${pr.number}` : null;
+    // Hide PR button if embedded (because parent session card has it)
+    const showPrButton = prUrl && !embedded;
 
-    // Generate diagonal stripes for inactive sessions
     const stripeColors: string[] = [];
     const stripeLocations: number[] = [];
     if (prInactive) {
@@ -804,7 +401,7 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false, refresh
         <Card 
             className={`mb-1 ${prInactive ? 'opacity-50' : ''}`} 
             padding="p-3"
-            style={{ overflow: 'hidden' }}
+            style={{ overflow: 'hidden', marginTop: embedded ? 8 : undefined }}
             background={prInactive ? (
                 <View style={StyleSheet.absoluteFill} pointerEvents="none">
                     <LinearGradient
@@ -839,7 +436,6 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false, refresh
 
             {expanded && (
                 <View className="mt-2 border-t border-slate-700 pt-2">
-                    {/* Actions Row */}
                     <View className="flex-row gap-1 mb-3">
                         <TouchableOpacity
                             onPress={() => Linking.openURL(run.html_url)}
@@ -849,9 +445,9 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false, refresh
                             <Text className="text-white font-semibold ml-2">Open Run</Text>
                         </TouchableOpacity>
 
-                        {prUrl && (
+                        {showPrButton && (
                             <TouchableOpacity
-                                onPress={() => Linking.openURL(prUrl)}
+                                onPress={() => Linking.openURL(prUrl!)}
                                 className="flex-1 bg-indigo-600 py-2 rounded-lg flex-row items-center justify-center"
                             >
                                 <Ionicons name="git-pull-request" size={16} color="white" />
@@ -897,7 +493,6 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false, refresh
                         )}
                     </View>
 
-                    {/* Checks List */}
                     <Text className="text-slate-400 text-xs font-bold mb-2 uppercase">Checks Status</Text>
                     {checksLoading ? (
                         <ActivityIndicator size="small" color="#94a3b8" />
@@ -916,16 +511,350 @@ function SessionItem({ run, token, owner, repo, initialExpanded = false, refresh
     );
 }
 
+function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey, refreshTrigger }: { session: JulesSession, matchedRun: WorkflowRun | null, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onDelete?: () => void, onRefresh?: () => void, julesGoogleApiKey?: string, refreshTrigger?: number }) {
+    const [isMerging, setIsMerging] = useState(false);
+    const [prInactive, setPrInactive] = useState(false);
+    const [mergeable, setMergeable] = useState<boolean | null>(null);
+    const [isMerged, setIsMerged] = useState(false);
+    const [isClosed, setIsClosed] = useState(false);
+    const [menuVisible, setMenuVisible] = useState(false);
+    const [messageVisible, setMessageVisible] = useState(false);
+    const [sendingMessage, setSendingMessage] = useState(false);
+
+    const spinValue = useRef(new Animated.Value(0)).current;
+
+    const metadata = session.githubMetadata;
+    const owner = metadata?.owner || defaultOwner;
+    const repo = metadata?.repo || defaultRepo;
+    const prNumber = metadata?.pullRequestNumber;
+
+    // We use matchedRun if available, otherwise just basic status
+    const ghRun = matchedRun;
+
+    useEffect(() => {
+        const isActive = session.state === 'IN_PROGRESS' || session.state === 'PLANNING' || session.state === 'QUEUED';
+        let animation: Animated.CompositeAnimation | null = null;
+        if (isActive) {
+            animation = Animated.loop(
+                Animated.timing(spinValue, {
+                    toValue: 1,
+                    duration: 2000,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                })
+            );
+            animation.start();
+        } else {
+            spinValue.setValue(0);
+        }
+
+        return () => {
+            if (animation) animation.stop();
+        };
+    }, [session.state]);
+
+    const spin = spinValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg']
+    });
+
+    useEffect(() => {
+        if (ghToken && owner && repo && prNumber) {
+            fetchPullRequest(ghToken, owner, repo, prNumber)
+                .then(pr => {
+                    const merged = pr.merged || pr.state === 'merged';
+                    const closed = pr.state === 'closed';
+                    setIsMerged(merged);
+                    setIsClosed(closed && !merged);
+                    setPrInactive(merged || closed);
+                    setMergeable(pr.mergeable);
+                })
+                .catch(err => console.error("Fetch PR detail error:", err));
+        }
+    }, [ghToken, owner, repo, prNumber, refreshTrigger]);
+
+    const handleMerge = async () => {
+        if (!ghToken || !owner || !repo || !prNumber) return;
+
+        try {
+            setIsMerging(true);
+            await mergePullRequest(ghToken, owner, repo, prNumber);
+            Alert.alert("Success", "Pull Request merged successfully");
+            if (onRefresh) onRefresh();
+        } catch (e) {
+            console.error(e);
+            Alert.alert("Error", "Failed to merge Pull Request");
+        } finally {
+            setIsMerging(false);
+        }
+    };
+
+    const handleDelete = () => {
+        Alert.alert(
+            "Delete Session",
+            "Are you sure you want to delete this session? This cannot be undone.",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "Delete", style: "destructive", onPress: onDelete }
+            ]
+        );
+    };
+
+    const handleSendMessage = async (message: string) => {
+        if (!julesGoogleApiKey) return;
+        setSendingMessage(true);
+        try {
+            await sendMessageToSession(julesGoogleApiKey, session.name, message);
+            setMessageVisible(false);
+            Alert.alert("Success", "Message sent to session");
+        } catch (e: any) {
+            console.error("Failed to send message", e);
+            Alert.alert("Error", e.message || "Failed to send message");
+        } finally {
+            setSendingMessage(false);
+        }
+    };
+
+    const getStatusIcon = (state: string) => {
+        switch (state) {
+            case 'COMPLETED': return { icon: 'checkmark-circle', color: '#4ade80' };
+            case 'FAILED': return { icon: 'close-circle', color: '#f87171' };
+            case 'IN_PROGRESS':
+            case 'PLANNING': return { icon: 'sync', color: '#60a5fa' };
+            case 'AWAITING_PLAN_APPROVAL':
+            case 'AWAITING_USER_FEEDBACK': return { icon: 'alert-circle', color: '#facc15' };
+            case 'QUEUED': return { icon: 'time-outline', color: '#94a3b8' };
+            case 'PAUSED': return { icon: 'pause-circle-outline', color: '#94a3b8' };
+            default: return { icon: 'help-circle-outline', color: '#94a3b8' };
+        }
+    };
+
+    const getGhStatusColor = (run: WorkflowRun) => {
+        if (run.status === 'in_progress') return '#60a5fa';
+        if (run.conclusion === 'success') return '#4ade80';
+        if (run.conclusion === 'failure') return '#f87171';
+        return '#94a3b8';
+    };
+
+    const statusObj = getStatusIcon(session.state);
+    const webUrl = session.url;
+    const prUrl = session.outputs?.find(o => o.pullRequest)?.pullRequest?.url;
+
+    const stripeColors: string[] = [];
+    const stripeLocations: number[] = [];
+    if (prInactive) {
+        const step = 0.02;
+        for (let i = 0; i < 200; i++) {
+            const isColor = i % 2 === 1;
+            const c = isColor ? 'rgba(148, 163, 184, 0.12)' : 'transparent';
+            stripeColors.push(c, c);
+            stripeLocations.push(i * step, (i + 1) * step);
+        }
+    }
+
+    const menuActions = [
+        {
+            label: "Delete Session",
+            icon: "trash-outline",
+            color: "#f87171",
+            onPress: handleDelete,
+            disabled: !onDelete || !(session.state === 'COMPLETED' || session.state === 'FAILED' || prInactive)
+        }
+    ];
+
+    return (
+        <Card
+            className={`mb-1 ${prInactive ? 'opacity-50' : ''}`}
+            padding="p-3"
+            background={prInactive ? (
+                <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                    <LinearGradient
+                        colors={stripeColors as any}
+                        locations={stripeLocations as any}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                    />
+                </View>
+            ) : undefined}
+        >
+            <View className="flex-row items-center justify-between mb-1">
+                <View className="flex-row items-center flex-1">
+                     <TouchableOpacity onPress={() => Linking.openURL(ghRun?.html_url || webUrl)}>
+                        <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                            <Ionicons name={statusObj.icon as any} size={24} color={statusObj.color} />
+                        </Animated.View>
+                    </TouchableOpacity>
+                    <View className="ml-3 flex-1">
+                        <View className="flex-row items-center">
+                            <Text className="text-white font-bold text-base flex-1" numberOfLines={1}>{session.title || session.id}</Text>
+                        </View>
+                        <Text className="text-slate-400 text-xs" numberOfLines={1}>
+                            {dayjs(session.createTime).fromNow()} • {session.state}
+                        </Text>
+                    </View>
+                </View>
+                <View className="flex-col items-center gap-1">
+                {metadata?.repoFullName && (
+                    <View className="flex-row items-center bg-slate-800/50 px-2 py-0.5 rounded">
+                        <Text className="text-slate-500 text-[10px]">{metadata.repoFullName}</Text>
+                    </View>
+                )}
+                {ghRun && (
+                    <View className="flex-row items-center bg-slate-800/50 px-2 py-0.5 rounded">
+                        <Ionicons
+                            name={ghRun.conclusion === 'success' ? "logo-github" : "alert-circle"}
+                            size={12}
+                            color={getGhStatusColor(ghRun)}
+                        />
+                        <Text className="text-[10px] text-slate-400 uppercase ml-1.5 font-medium">{ghRun.status}</Text>
+                    </View>
+                )}
+                    </View>
+            </View>
+
+            <View className="flex-row gap-1">
+                <TouchableOpacity
+                    onPress={() => Linking.openURL(webUrl)}
+                    className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
+                >
+                    <Ionicons name="globe-outline" size={14} color="white" />
+                    <Text className="text-white text-xs font-semibold ml-2">Web</Text>
+                </TouchableOpacity>
+
+                {prUrl && (
+                    <TouchableOpacity
+                        onPress={() => Linking.openURL(prUrl)}
+                        className="flex-1 bg-indigo-600 py-2 rounded-lg flex-row items-center justify-center"
+                    >
+                        <Ionicons name="git-pull-request-outline" size={14} color="white" />
+                        <Text className="text-white text-xs font-semibold ml-2">PR #{prNumber}</Text>
+                    </TouchableOpacity>
+                )}
+
+                {prNumber && (
+                    <TouchableOpacity
+                        onPress={(!isMerged && !isClosed && mergeable !== false) ? handleMerge : undefined}
+                        disabled={isMerging || isMerged || isClosed || mergeable === false}
+                        className={`flex-1 py-2 rounded-lg flex-row items-center justify-center ${
+                            isMerged ? 'bg-purple-600/50' :
+                            isClosed ? 'bg-slate-600/50' :
+                            mergeable === false ? 'bg-red-900/50 border border-red-500/50' :
+                            'bg-green-600'
+                        }`}
+                    >
+                        {isMerging ? (
+                            <ActivityIndicator size="small" color="white" />
+                        ) : (
+                            <>
+                                <Ionicons
+                                    name={isMerged ? "git-merge" : isClosed ? "close-circle" : mergeable === false ? "alert-circle-outline" : "git-merge-outline"}
+                                    size={14}
+                                    color={mergeable === false ? "#f87171" : "white"}
+                                />
+                                <Text className={`text-xs font-semibold ml-2 ${mergeable === false ? 'text-red-400' : 'text-white'}`}>
+                                    {isMerged ? "Merged" : isClosed ? "Closed" : mergeable === false ? "Conflict" : "Merge"}
+                                </Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                    onPress={() => setMessageVisible(true)}
+                    className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
+                >
+                    <Ionicons name="chatbox-outline" size={14} color="white" />
+                    <Text className="text-white text-xs font-semibold ml-2">Msg</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    onPress={() => setMenuVisible(true)}
+                    className="bg-slate-700 py-2 px-3 rounded-lg flex-row items-center justify-center"
+                >
+                    <Ionicons name="ellipsis-horizontal" size={16} color="white" />
+                </TouchableOpacity>
+            </View>
+
+            {ghRun && ghToken && owner && repo && (
+                <WorkflowRunItem
+                    run={ghRun}
+                    token={ghToken}
+                    owner={owner}
+                    repo={repo}
+                    refreshTrigger={refreshTrigger}
+                    embedded={true}
+                    initialExpanded={false}
+                />
+            )}
+
+            <SessionActionMenu
+                visible={menuVisible}
+                onClose={() => setMenuVisible(false)}
+                actions={menuActions}
+            />
+
+            <MessageDialog
+                visible={messageVisible}
+                onClose={() => setMessageVisible(false)}
+                onSend={handleSendMessage}
+                sending={sendingMessage}
+            />
+        </Card>
+    );
+}
+
+function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { runs: WorkflowRun[], token: string, owner: string, repo: string, refreshTrigger?: number }) {
+    const [expanded, setExpanded] = useState(true);
+
+    if (!runs || runs.length === 0) return null;
+
+    return (
+        <View className="mb-4">
+            <TouchableOpacity
+                onPress={() => setExpanded(!expanded)}
+                className="flex-row items-center justify-between bg-slate-800/50 p-3 rounded-xl mb-2 border border-slate-700"
+            >
+                <View className="flex-row items-center">
+                    <Ionicons name="git-branch" size={20} color="#94a3b8" />
+                    <Text className="text-white font-bold text-base ml-2">Master Branch</Text>
+                    <View className="bg-slate-700 px-2 py-0.5 rounded ml-2">
+                        <Text className="text-slate-400 text-xs">{runs.length}</Text>
+                    </View>
+                </View>
+                <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={20} color="#94a3b8" />
+            </TouchableOpacity>
+
+            {expanded && (
+                <View>
+                    {runs.map(run => (
+                        <WorkflowRunItem
+                            key={run.id}
+                            run={run}
+                            token={token}
+                            owner={owner}
+                            repo={repo}
+                            refreshTrigger={refreshTrigger}
+                        />
+                    ))}
+                </View>
+            )}
+        </View>
+    );
+}
+
 export default function JulesScreen() {
-    const { julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesWorkflow, julesGoogleApiKey, githubClientId, githubClientSecret } = useSettingsStore();
-    const [mode, setMode] = useState<'jules' | 'github'>('jules');
-    const [runs, setRuns] = useState<WorkflowRun[]>([]);
+    const { julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesGoogleApiKey, githubClientId, githubClientSecret } = useSettingsStore();
+    const [masterRuns, setMasterRuns] = useState<WorkflowRun[]>([]);
+    const [allRuns, setAllRuns] = useState<WorkflowRun[]>([]);
     const [julesSessions, setJulesSessions] = useState<JulesSession[]>([]);
+    const [sessionsWithRuns, setSessionsWithRuns] = useState<{session: JulesSession, matchedRun: WorkflowRun | null}[]>([]);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [showRepoSelector, setShowRepoSelector] = useState(false);
+    const [defaultBranch, setDefaultBranch] = useState('main');
 
     const [request, response, promptAsync] = useAuthRequest(
         {
@@ -953,8 +882,6 @@ export default function JulesScreen() {
                 exchangeGithubToken(githubClientId, githubClientSecret, code, makeRedirectUri({ scheme: 'com.aiinbox.mobile' }), request?.codeVerifier || undefined)
                     .then(async token => {
                         setJulesApiKey(token);
-
-                        // Auto-fetch user details to set owner default
                         try {
                             const user = await fetchGithubUser(token);
                             if (user && user.login) {
@@ -963,14 +890,13 @@ export default function JulesScreen() {
                         } catch (e) {
                             console.error("Failed to fetch user details after login", e);
                         }
-
                         Alert.alert("Success", "Logged in with GitHub!");
-                        setShowRepoSelector(true); // Open repo selector
+                        setShowRepoSelector(true);
                     })
                     .catch(err => {
                         console.error("OAuth exchange error:", err);
                         Alert.alert("Login Failed", err.message);
-                        setLastExchangedCode(null); // Allow retry on failure
+                        setLastExchangedCode(null);
                     })
                     .finally(() => setLoading(false));
             }
@@ -988,27 +914,124 @@ export default function JulesScreen() {
     const loadData = useCallback(async () => {
         setError(null);
         try {
-            if (mode === 'github') {
-                if (julesApiKey && julesOwner && julesRepo) {
-                    const data = await fetchWorkflowRuns(julesApiKey, julesOwner, julesRepo, julesWorkflow || undefined, 10);
-                    setRuns(data);
-                }
-            } else {
-                if (julesGoogleApiKey) {
-                    const data = await fetchJulesSessions(julesGoogleApiKey, 10);
-                    setJulesSessions(data);
+            // 1. Fetch Sessions
+            let sessions: JulesSession[] = [];
+            if (julesGoogleApiKey) {
+                sessions = await fetchJulesSessions(julesGoogleApiKey, 10);
+                setJulesSessions(sessions);
+            }
+
+            // 2. Identify Repos to fetch runs from
+            const reposToFetch = new Map<string, {owner: string, repo: string}>();
+
+            // Add current selected repo
+            if (julesApiKey && julesOwner && julesRepo) {
+                reposToFetch.set(`${julesOwner}/${julesRepo}`, {owner: julesOwner, repo: julesRepo});
+
+                // Also get default branch for current repo
+                try {
+                    const repoDetails = await fetchGithubRepoDetails(julesApiKey, julesOwner, julesRepo);
+                    setDefaultBranch(repoDetails.default_branch || 'main');
+                } catch (e) {
+                    console.error("Failed to fetch default branch", e);
                 }
             }
+
+            // Add repos from sessions
+            sessions.forEach(s => {
+                if (s.githubMetadata?.owner && s.githubMetadata?.repo) {
+                    reposToFetch.set(`${s.githubMetadata.owner}/${s.githubMetadata.repo}`, {
+                        owner: s.githubMetadata.owner,
+                        repo: s.githubMetadata.repo
+                    });
+                }
+            });
+
+            // 3. Fetch runs for all identified repos
+            if (julesApiKey) {
+                const runPromises = Array.from(reposToFetch.values()).map(async ({owner, repo}) => {
+                    try {
+                        // Fetch ALL recent runs (no branch filter) to enable matching
+                        const runs = await fetchWorkflowRuns(julesApiKey, owner, repo, undefined, 50);
+                        return runs;
+                    } catch (e) {
+                        console.warn(`Failed to fetch runs for ${owner}/${repo}`, e);
+                        return [];
+                    }
+                });
+
+                const runsArrays = await Promise.all(runPromises);
+                const combinedRuns = runsArrays.flat();
+                setAllRuns(combinedRuns);
+            }
+
         } catch (e: any) {
             console.error(e);
             setError(e.message || "Failed to load data");
         }
-    }, [mode, julesApiKey, julesOwner, julesRepo, julesWorkflow, julesGoogleApiKey]);
+    }, [julesApiKey, julesOwner, julesRepo, julesGoogleApiKey]);
 
     useEffect(() => {
         setLoading(true);
         loadData().finally(() => setLoading(false));
-    }, [loadData, mode, julesApiKey]); // Added julesApiKey to deps so it reloads after login
+    }, [loadData, julesApiKey]);
+
+    // Process sessions and match runs
+    useEffect(() => {
+        if (julesSessions.length > 0) {
+            const mapped = julesSessions.map(session => {
+                let matchedRun = null;
+                const metadata = session.githubMetadata;
+                const prNumber = metadata?.pullRequestNumber;
+                const branch = metadata?.branch;
+                const sessionStartTime = new Date(session.createTime).getTime();
+
+                // If allRuns is empty, we can't match, so matchedRun remains null
+                if (allRuns.length > 0) {
+                    if (prNumber) {
+                        // Priority 1: Match by PR number
+                        matchedRun = allRuns.find(r =>
+                            r.pull_requests && r.pull_requests.some(p => p.number === prNumber)
+                        );
+                    }
+
+                    if (!matchedRun && branch) {
+                        // Fallback: Match by branch name + time constraint
+                        // We enforce strict branch matching to avoid showing master runs for feature sessions
+                        matchedRun = allRuns.find(r =>
+                            r.head_branch === branch &&
+                            new Date(r.created_at).getTime() >= sessionStartTime - 60000
+                        );
+                    }
+                }
+
+                return { session, matchedRun };
+            });
+
+            // Sort by most recent activity (run update or session update)
+            const sorted = mapped.sort((a, b) => {
+                const timeA = a.matchedRun ? new Date(a.matchedRun.updated_at).getTime() : new Date(a.session.updateTime).getTime();
+                const timeB = b.matchedRun ? new Date(b.matchedRun.updated_at).getTime() : new Date(b.session.updateTime).getTime();
+                return timeB - timeA;
+            });
+
+            setSessionsWithRuns(sorted);
+        } else {
+            setSessionsWithRuns([]);
+        }
+
+        // Filter master runs (only for current repo)
+        if (allRuns.length > 0 && julesOwner && julesRepo) {
+            const master = allRuns.filter(r =>
+                r.head_branch === defaultBranch &&
+                r.html_url.includes(`/${julesOwner}/${julesRepo}/`) // Ensure it belongs to current repo
+            ).slice(0, 5);
+            setMasterRuns(master);
+        } else {
+            setMasterRuns([]);
+        }
+
+    }, [julesSessions, allRuns, defaultBranch, julesOwner, julesRepo]);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
@@ -1020,63 +1043,29 @@ export default function JulesScreen() {
         const hasGithubConfig = julesApiKey && julesOwner && julesRepo;
         const hasJulesConfig = !!julesGoogleApiKey;
 
-        if (mode === 'github' && !hasGithubConfig) {
-            if (!julesApiKey) {
-                return (
-                    <View className="flex-1 justify-center items-center px-6">
-                        <Ionicons name="logo-github" size={64} color="#475569" />
-                        <Text className="text-white text-xl font-bold mt-4 text-center">GitHub Integration</Text>
-                        <Text className="text-slate-400 text-center mt-2 mb-6">
-                            Login with GitHub to view your workflow runs and artifacts.
-                        </Text>
+        if (!hasGithubConfig && !hasJulesConfig) {
+             return (
+                <View className="flex-1 justify-center items-center px-6">
+                    <Ionicons name="options-outline" size={64} color="#475569" />
+                    <Text className="text-white text-xl font-bold mt-4 text-center">Configuration Required</Text>
+                    <Text className="text-slate-400 text-center mt-2 mb-6">
+                        Please configure GitHub or Jules API in Settings.
+                    </Text>
+                    {!hasGithubConfig && (
                         <TouchableOpacity
                             onPress={loginWithGithub}
                             disabled={!request}
-                            className="bg-indigo-600 px-8 py-3 rounded-xl flex-row items-center"
+                            className="bg-indigo-600 px-8 py-3 rounded-xl flex-row items-center mb-4"
                         >
                             <Ionicons name="logo-github" size={24} color="white" />
                             <Text className="text-white font-bold ml-2">Login with GitHub</Text>
                         </TouchableOpacity>
-                        {(!githubClientId || !githubClientSecret) && (
-                            <Text className="text-slate-500 text-xs mt-4 text-center">
-                                (Requires Client ID/Secret in Settings)
-                            </Text>
-                        )}
-                    </View>
-                );
-            }
-
-            // Token exists but repo missing
-            return (
-                <View className="flex-1 justify-center items-center px-6">
-                    <Ionicons name="git-branch-outline" size={64} color="#475569" />
-                    <Text className="text-white text-xl font-bold mt-4 text-center">Select Repository</Text>
-                    <Text className="text-slate-400 text-center mt-2 mb-6">
-                        Choose a repository to view workflows.
-                    </Text>
-                    <TouchableOpacity
-                        onPress={() => setShowRepoSelector(true)}
-                        className="bg-indigo-600 px-8 py-3 rounded-xl"
-                    >
-                        <Text className="text-white font-bold">Select Repository</Text>
-                    </TouchableOpacity>
+                    )}
                 </View>
             );
         }
 
-        if (mode === 'jules' && !hasJulesConfig) {
-            return (
-                <View className="flex-1 justify-center items-center px-6">
-                    <Ionicons name="planet-outline" size={64} color="#475569" />
-                    <Text className="text-white text-xl font-bold mt-4 text-center">Setup Jules API</Text>
-                    <Text className="text-slate-400 text-center mt-2 mb-6">
-                        Configure your Google Jules API Key in Settings to see sessions.
-                    </Text>
-                </View>
-            );
-        }
-
-        if (loading && (mode === 'github' ? runs.length === 0 : julesSessions.length === 0)) {
+        if (loading && masterRuns.length === 0 && sessionsWithRuns.length === 0) {
             return (
                 <View className="flex-1 justify-center items-center">
                     <ActivityIndicator size="large" color="#818cf8" />
@@ -1097,16 +1086,11 @@ export default function JulesScreen() {
             );
         }
 
-        const items = mode === 'github' ? runs : julesSessions;
-
-        if (items.length === 0) {
-            return (
+        if (masterRuns.length === 0 && sessionsWithRuns.length === 0) {
+             return (
                 <View className="flex-1 justify-center items-center px-6">
                     <Ionicons name="file-tray-outline" size={64} color="#475569" />
                     <Text className="text-white text-xl font-bold mt-4 text-center">No Activity Found</Text>
-                    <Text className="text-slate-400 text-center mt-2">
-                        No recent {mode === 'github' ? 'workflow runs' : 'sessions'} found.
-                    </Text>
                     <TouchableOpacity onPress={loadData} className="mt-6 bg-indigo-600 px-6 py-3 rounded-xl">
                         <Text className="text-white font-bold">Refresh</Text>
                     </TouchableOpacity>
@@ -1120,23 +1104,11 @@ export default function JulesScreen() {
                 contentContainerStyle={{ paddingBottom: 20, paddingTop: 10 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#818cf8" />}
             >
-                {mode === 'github' ? (
-                    runs.map((run, index) => (
-                        <SessionItem
-                            key={run.id}
-                            run={run}
-                            token={julesApiKey!}
-                            owner={julesOwner!}
-                            repo={julesRepo!}
-                            initialExpanded={index === 0}
-                            refreshTrigger={refreshTrigger}
-                        />
-                    ))
-                ) : (
-                    <>
-                    <TouchableOpacity 
+                {/* New Session Button - Placed at Top as requested */}
+                {hasJulesConfig && (
+                    <TouchableOpacity
                         onPress={() => Linking.openURL('https://jules.google.com/session')}
-                        className="bg-indigo-600/20 border border-indigo-500/30 p-4 rounded-2xl mb-4 flex-row items-center justify-between"
+                        className="bg-indigo-600/20 border border-indigo-500/30 p-4 rounded-2xl mb-4 flex-row items-center justify-between mx-4"
                     >
                         <View className="flex-row items-center">
                             <View className="bg-indigo-600 p-2 rounded-xl mr-3">
@@ -1149,33 +1121,49 @@ export default function JulesScreen() {
                         </View>
                         <Ionicons name="chevron-forward" size={20} color="#818cf8" />
                     </TouchableOpacity>
+                )}
 
-                    {julesSessions.map(session => (
-                        <JulesSessionItem
-                            key={session.id}
-                            session={session}
-                            ghToken={julesApiKey || undefined}
-                            defaultOwner={julesOwner || undefined}
-                            defaultRepo={julesRepo || undefined}
-                            onDelete={async () => {
-                                const { deleteJulesSession } = await import('../../services/jules');
-                                if (julesGoogleApiKey) {
-                                    setJulesSessions(prev => prev.filter(s => s.name !== session.name));
-                                    try {
-                                        await deleteJulesSession(julesGoogleApiKey, session.name);
-                                    } catch (e) {
-                                        console.error(e);
-                                        Alert.alert("Error", "Failed to delete session");
-                                        onRefresh();
+                {/* Master Branch Section */}
+                {hasGithubConfig && (
+                     <MasterBranchSection
+                        runs={masterRuns}
+                        token={julesApiKey!}
+                        owner={julesOwner!}
+                        repo={julesRepo!}
+                        refreshTrigger={refreshTrigger}
+                    />
+                )}
+
+                {/* Jules Sessions Section */}
+                {hasJulesConfig && (
+                    <View>
+                        {sessionsWithRuns.map(({session, matchedRun}) => (
+                            <JulesSessionItem
+                                key={session.id}
+                                session={session}
+                                matchedRun={matchedRun}
+                                ghToken={julesApiKey || undefined}
+                                defaultOwner={julesOwner || undefined}
+                                defaultRepo={julesRepo || undefined}
+                                onDelete={async () => {
+                                    const { deleteJulesSession } = await import('../../services/jules');
+                                    if (julesGoogleApiKey) {
+                                        setJulesSessions(prev => prev.filter(s => s.name !== session.name));
+                                        try {
+                                            await deleteJulesSession(julesGoogleApiKey, session.name);
+                                        } catch (e) {
+                                            console.error(e);
+                                            Alert.alert("Error", "Failed to delete session");
+                                            onRefresh();
+                                        }
                                     }
-                                }
-                            }}
-                            onRefresh={onRefresh}
-                            julesGoogleApiKey={julesGoogleApiKey || undefined}
-                            refreshTrigger={refreshTrigger}
-                        />
-                    ))
-                    }</>
+                                }}
+                                onRefresh={onRefresh}
+                                julesGoogleApiKey={julesGoogleApiKey || undefined}
+                                refreshTrigger={refreshTrigger}
+                            />
+                        ))}
+                    </View>
                 )}
             </ScrollView>
         );
@@ -1189,7 +1177,7 @@ export default function JulesScreen() {
                         <Text className="text-2xl font-bold text-white mr-2">Jules Activities</Text>
                     </View>
                     <View className="flex-row items-center">
-                        {mode === 'github' && julesApiKey && (
+                        {julesApiKey && (
                             <TouchableOpacity onPress={() => setShowRepoSelector(true)} className="p-2 mr-1">
                                 <Ionicons name="git-network-outline" size={24} color="#94a3b8" />
                             </TouchableOpacity>
@@ -1210,21 +1198,6 @@ export default function JulesScreen() {
                         setShowRepoSelector(false);
                     }}
                 />
-                
-                <View className="flex-row bg-slate-800 rounded-lg p-1">
-                    <TouchableOpacity 
-                        onPress={() => setMode('jules')}
-                        className={`flex-1 py-2 rounded-md items-center ${mode === 'jules' ? 'bg-indigo-600' : ''}`}
-                    >
-                        <Text className={`font-bold ${mode === 'jules' ? 'text-white' : 'text-slate-400'}`}>Jules</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        onPress={() => setMode('github')}
-                        className={`flex-1 py-2 rounded-md items-center ${mode === 'github' ? 'bg-indigo-600' : ''}`}
-                    >
-                        <Text className={`font-bold ${mode === 'github' ? 'text-white' : 'text-slate-400'}`}>GitHub Workflows</Text>
-                    </TouchableOpacity>
-                </View>
             </View>
             {renderContent()}
         </Layout>

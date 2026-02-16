@@ -13,7 +13,8 @@ import {
     fetchPullRequest,
     deleteJulesSession,
     fetchJulesSessions,
-    sendMessageToSession
+    sendMessageToSession,
+    fetchGithubRepoDetails
 } from './julesApi';
 const GITHUB_API_BASE = 'https://api.github.com';
 
@@ -108,5 +109,6 @@ export {
     fetchPullRequest,
     deleteJulesSession,
     fetchJulesSessions,
-    sendMessageToSession
+    sendMessageToSession,
+    fetchGithubRepoDetails
 };

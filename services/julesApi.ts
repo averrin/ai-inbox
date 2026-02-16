@@ -277,3 +277,13 @@ export async function sendMessageToSession(apiKey: string, sessionName: string, 
 
     return await response.json();
 }
+
+export async function fetchGithubRepoDetails(token: string, owner: string, repo: string): Promise<any> {
+    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}`;
+    const response = await fetch(url, { headers: getHeaders(token) });
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Failed to fetch repo details: ${response.status} ${text}`);
+    }
+    return await response.json();
+}
