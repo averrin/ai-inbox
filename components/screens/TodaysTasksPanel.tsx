@@ -24,6 +24,7 @@ interface TodaysTasksPanelProps {
   date: Date;
   events: any[]; // Calendar events
   onAdd: () => void;
+  onEditTask?: (task: TaskWithSource) => void;
 }
 
 const PRIORITY_ORDER: Record<string, number> = {
@@ -33,7 +34,7 @@ const PRIORITY_ORDER: Record<string, number> = {
   none: 0,
 };
 
-export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd }: TodaysTasksPanelProps) => {
+export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTask }: TodaysTasksPanelProps) => {
   const { tasks, setTasks } = useTasksStore();
   const { vaultUri } = useSettingsStore();
   const { completedEvents, toggleCompleted } = useEventTypesStore();
@@ -174,7 +175,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd }: Todays
                                 fileName={item.data.fileName}
                                 onToggle={() => handleToggleTask(item.data)}
                                 onUpdate={(updated) => handleTaskUpdate(item.data, updated)}
-                                onEdit={() => {}}
+                                onEdit={() => onEditTask?.(item.data)}
                             />
                         );
                     } else {

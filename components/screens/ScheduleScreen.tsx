@@ -1222,6 +1222,7 @@ export default function ScheduleScreen() {
                     date={date}
                     events={events}
                     onAdd={handleAddTask}
+                    onEditTask={setEditingTask}
                 />
 
                 {/* Calendar View */}

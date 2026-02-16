@@ -215,6 +215,7 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
                     shadowOpacity: 0.3,
                     shadowRadius: 4.65,
                     elevation: 8,
+                    opacity: 0.95
                 }}>
                     {leftItems.map(renderItem)}
                 </View>
@@ -233,6 +234,7 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
                     shadowOpacity: 0.3,
                     shadowRadius: 4.65,
                     elevation: 8,
+                    opacity: 0.95
                 }}>
                     {rightItems.map(renderItem)}
                 </View>
