@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Layout } from '../ui/Layout';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { WorkflowRun, fetchWorkflowRuns, CheckRun, fetchChecks, Artifact, fetchArtifacts, JulesSession, fetchJulesSessions, mergePullRequest, fetchPullRequest, exchangeGithubToken, fetchGithubRepos, fetchGithubUser, GithubRepo, sendMessageToSession, fetchGithubRepoDetails } from '../../services/jules';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
@@ -382,6 +382,8 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
 
     const statusInfo = getStatusInfo();
     const prUrl = pr ? `https://github.com/${owner}/${repo}/pull/${pr.number}` : null;
+    // Hide PR button if embedded (because parent session card has it)
+    const showPrButton = prUrl && !embedded;
 
     const stripeColors: string[] = [];
     const stripeLocations: number[] = [];
@@ -443,9 +445,9 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                             <Text className="text-white font-semibold ml-2">Open Run</Text>
                         </TouchableOpacity>
 
-                        {prUrl && (
+                        {showPrButton && (
                             <TouchableOpacity
-                                onPress={() => Linking.openURL(prUrl)}
+                                onPress={() => Linking.openURL(prUrl!)}
                                 className="flex-1 bg-indigo-600 py-2 rounded-lg flex-row items-center justify-center"
                             >
                                 <Ionicons name="git-pull-request" size={16} color="white" />
@@ -509,9 +511,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
     );
 }
 
-function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey, refreshTrigger }: { session: JulesSession, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onDelete?: () => void, onRefresh?: () => void, julesGoogleApiKey?: string, refreshTrigger?: number }) {
-    const [ghRun, setGhRun] = useState<WorkflowRun | null>(null);
-    const [loadingGh, setLoadingGh] = useState(false);
+function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey, refreshTrigger }: { session: JulesSession, matchedRun: WorkflowRun | null, ghToken?: string, defaultOwner?: string, defaultRepo?: string, onDelete?: () => void, onRefresh?: () => void, julesGoogleApiKey?: string, refreshTrigger?: number }) {
     const [isMerging, setIsMerging] = useState(false);
     const [prInactive, setPrInactive] = useState(false);
     const [mergeable, setMergeable] = useState<boolean | null>(null);
@@ -527,7 +527,9 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
     const owner = metadata?.owner || defaultOwner;
     const repo = metadata?.repo || defaultRepo;
     const prNumber = metadata?.pullRequestNumber;
-    const branch = metadata?.branch;
+
+    // We use matchedRun if available, otherwise just basic status
+    const ghRun = matchedRun;
 
     useEffect(() => {
         const isActive = session.state === 'IN_PROGRESS' || session.state === 'PLANNING' || session.state === 'QUEUED';
@@ -557,51 +559,19 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
     });
 
     useEffect(() => {
-        setGhRun(null);
-
-        if (ghToken && owner && repo && (prNumber || branch)) {
-            setLoadingGh(true);
-
-            const isRef = branch?.startsWith('refs/') || branch?.includes('/');
-            const branchFilter = branch && !isRef ? branch : undefined;
-
-            fetchWorkflowRuns(ghToken, owner, repo, undefined, 10, branchFilter)
-                .then(runs => {
-                    let match = null;
-                    const sessionStartTime = new Date(session.createTime).getTime();
-
-                    if (prNumber) {
-                        match = runs.find(r =>
-                            r.pull_requests && r.pull_requests.some(p => p.number === prNumber)
-                        );
-                    }
-
-                    if (!match && branch) {
-                        match = runs.find(r =>
-                            r.head_branch === branch &&
-                            new Date(r.created_at).getTime() >= sessionStartTime - 60000
-                        );
-                    }
-
-                    setGhRun(match || null);
+        if (ghToken && owner && repo && prNumber) {
+            fetchPullRequest(ghToken, owner, repo, prNumber)
+                .then(pr => {
+                    const merged = pr.merged || pr.state === 'merged';
+                    const closed = pr.state === 'closed';
+                    setIsMerged(merged);
+                    setIsClosed(closed && !merged);
+                    setPrInactive(merged || closed);
+                    setMergeable(pr.mergeable);
                 })
-                .catch(err => console.error("GH fetch for session error:", err))
-                .finally(() => setLoadingGh(false));
-
-            if (prNumber) {
-                fetchPullRequest(ghToken, owner, repo, prNumber)
-                    .then(pr => {
-                        const merged = pr.merged || pr.state === 'merged';
-                        const closed = pr.state === 'closed';
-                        setIsMerged(merged);
-                        setIsClosed(closed && !merged);
-                        setPrInactive(merged || closed);
-                        setMergeable(pr.mergeable);
-                    })
-                    .catch(err => console.error("Fetch PR detail error:", err));
-            }
+                .catch(err => console.error("Fetch PR detail error:", err));
         }
-    }, [ghToken, owner, repo, prNumber, branch, refreshTrigger]);
+    }, [ghToken, owner, repo, prNumber, refreshTrigger]);
 
     const handleMerge = async () => {
         if (!ghToken || !owner || !repo || !prNumber) return;
@@ -752,7 +722,7 @@ function JulesSessionItem({ session, ghToken, defaultOwner, defaultRepo, onDelet
                     <Text className="text-white text-xs font-semibold ml-2">Web</Text>
                 </TouchableOpacity>
 
-                {prUrl && !ghRun && (
+                {prUrl && (
                     <TouchableOpacity
                         onPress={() => Linking.openURL(prUrl)}
                         className="flex-1 bg-indigo-600 py-2 rounded-lg flex-row items-center justify-center"
@@ -876,12 +846,15 @@ function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { run
 export default function JulesScreen() {
     const { julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesGoogleApiKey, githubClientId, githubClientSecret } = useSettingsStore();
     const [masterRuns, setMasterRuns] = useState<WorkflowRun[]>([]);
+    const [allRuns, setAllRuns] = useState<WorkflowRun[]>([]);
     const [julesSessions, setJulesSessions] = useState<JulesSession[]>([]);
+    const [sessionsWithRuns, setSessionsWithRuns] = useState<{session: JulesSession, matchedRun: WorkflowRun | null}[]>([]);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [showRepoSelector, setShowRepoSelector] = useState(false);
+    const [defaultBranch, setDefaultBranch] = useState('main');
 
     const [request, response, promptAsync] = useAuthRequest(
         {
@@ -909,8 +882,6 @@ export default function JulesScreen() {
                 exchangeGithubToken(githubClientId, githubClientSecret, code, makeRedirectUri({ scheme: 'com.aiinbox.mobile' }), request?.codeVerifier || undefined)
                     .then(async token => {
                         setJulesApiKey(token);
-
-                        // Auto-fetch user details to set owner default
                         try {
                             const user = await fetchGithubUser(token);
                             if (user && user.login) {
@@ -919,14 +890,13 @@ export default function JulesScreen() {
                         } catch (e) {
                             console.error("Failed to fetch user details after login", e);
                         }
-
                         Alert.alert("Success", "Logged in with GitHub!");
-                        setShowRepoSelector(true); // Open repo selector
+                        setShowRepoSelector(true);
                     })
                     .catch(err => {
                         console.error("OAuth exchange error:", err);
                         Alert.alert("Login Failed", err.message);
-                        setLastExchangedCode(null); // Allow retry on failure
+                        setLastExchangedCode(null);
                     })
                     .finally(() => setLoading(false));
             }
@@ -944,34 +914,56 @@ export default function JulesScreen() {
     const loadData = useCallback(async () => {
         setError(null);
         try {
-            const promises = [];
-
-            // 1. Fetch Jules Sessions
+            // 1. Fetch Sessions
+            let sessions: JulesSession[] = [];
             if (julesGoogleApiKey) {
-                promises.push(
-                    fetchJulesSessions(julesGoogleApiKey, 10)
-                        .then(setJulesSessions)
-                );
+                sessions = await fetchJulesSessions(julesGoogleApiKey, 10);
+                setJulesSessions(sessions);
             }
 
-            // 2. Fetch Master Branch Runs
+            // 2. Identify Repos to fetch runs from
+            const reposToFetch = new Map<string, {owner: string, repo: string}>();
+
+            // Add current selected repo
             if (julesApiKey && julesOwner && julesRepo) {
-                promises.push(
-                    (async () => {
-                        // Get default branch first
-                        try {
-                            const repoDetails = await fetchGithubRepoDetails(julesApiKey, julesOwner, julesRepo);
-                            const defaultBranch = repoDetails.default_branch || 'main';
-                            const runs = await fetchWorkflowRuns(julesApiKey, julesOwner, julesRepo, undefined, 5, defaultBranch);
-                            setMasterRuns(runs);
-                        } catch (e) {
-                            console.error("Failed to fetch master runs", e);
-                        }
-                    })()
-                );
+                reposToFetch.set(`${julesOwner}/${julesRepo}`, {owner: julesOwner, repo: julesRepo});
+
+                // Also get default branch for current repo
+                try {
+                    const repoDetails = await fetchGithubRepoDetails(julesApiKey, julesOwner, julesRepo);
+                    setDefaultBranch(repoDetails.default_branch || 'main');
+                } catch (e) {
+                    console.error("Failed to fetch default branch", e);
+                }
             }
 
-            await Promise.all(promises);
+            // Add repos from sessions
+            sessions.forEach(s => {
+                if (s.githubMetadata?.owner && s.githubMetadata?.repo) {
+                    reposToFetch.set(`${s.githubMetadata.owner}/${s.githubMetadata.repo}`, {
+                        owner: s.githubMetadata.owner,
+                        repo: s.githubMetadata.repo
+                    });
+                }
+            });
+
+            // 3. Fetch runs for all identified repos
+            if (julesApiKey) {
+                const runPromises = Array.from(reposToFetch.values()).map(async ({owner, repo}) => {
+                    try {
+                        // Fetch ALL recent runs (no branch filter) to enable matching
+                        const runs = await fetchWorkflowRuns(julesApiKey, owner, repo, undefined, 50);
+                        return runs;
+                    } catch (e) {
+                        console.warn(`Failed to fetch runs for ${owner}/${repo}`, e);
+                        return [];
+                    }
+                });
+
+                const runsArrays = await Promise.all(runPromises);
+                const combinedRuns = runsArrays.flat();
+                setAllRuns(combinedRuns);
+            }
 
         } catch (e: any) {
             console.error(e);
@@ -983,6 +975,63 @@ export default function JulesScreen() {
         setLoading(true);
         loadData().finally(() => setLoading(false));
     }, [loadData, julesApiKey]);
+
+    // Process sessions and match runs
+    useEffect(() => {
+        if (julesSessions.length > 0) {
+            const mapped = julesSessions.map(session => {
+                let matchedRun = null;
+                const metadata = session.githubMetadata;
+                const prNumber = metadata?.pullRequestNumber;
+                const branch = metadata?.branch;
+                const sessionStartTime = new Date(session.createTime).getTime();
+
+                // If allRuns is empty, we can't match, so matchedRun remains null
+                if (allRuns.length > 0) {
+                    if (prNumber) {
+                        // Priority 1: Match by PR number
+                        matchedRun = allRuns.find(r =>
+                            r.pull_requests && r.pull_requests.some(p => p.number === prNumber)
+                        );
+                    }
+
+                    if (!matchedRun && branch) {
+                        // Fallback: Match by branch name + time constraint
+                        // We enforce strict branch matching to avoid showing master runs for feature sessions
+                        matchedRun = allRuns.find(r =>
+                            r.head_branch === branch &&
+                            new Date(r.created_at).getTime() >= sessionStartTime - 60000
+                        );
+                    }
+                }
+
+                return { session, matchedRun };
+            });
+
+            // Sort by most recent activity (run update or session update)
+            const sorted = mapped.sort((a, b) => {
+                const timeA = a.matchedRun ? new Date(a.matchedRun.updated_at).getTime() : new Date(a.session.updateTime).getTime();
+                const timeB = b.matchedRun ? new Date(b.matchedRun.updated_at).getTime() : new Date(b.session.updateTime).getTime();
+                return timeB - timeA;
+            });
+
+            setSessionsWithRuns(sorted);
+        } else {
+            setSessionsWithRuns([]);
+        }
+
+        // Filter master runs (only for current repo)
+        if (allRuns.length > 0 && julesOwner && julesRepo) {
+            const master = allRuns.filter(r =>
+                r.head_branch === defaultBranch &&
+                r.html_url.includes(`/${julesOwner}/${julesRepo}/`) // Ensure it belongs to current repo
+            ).slice(0, 5);
+            setMasterRuns(master);
+        } else {
+            setMasterRuns([]);
+        }
+
+    }, [julesSessions, allRuns, defaultBranch, julesOwner, julesRepo]);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
@@ -1016,7 +1065,7 @@ export default function JulesScreen() {
             );
         }
 
-        if (loading && masterRuns.length === 0 && julesSessions.length === 0) {
+        if (loading && masterRuns.length === 0 && sessionsWithRuns.length === 0) {
             return (
                 <View className="flex-1 justify-center items-center">
                     <ActivityIndicator size="large" color="#818cf8" />
@@ -1037,7 +1086,7 @@ export default function JulesScreen() {
             );
         }
 
-        if (masterRuns.length === 0 && julesSessions.length === 0) {
+        if (masterRuns.length === 0 && sessionsWithRuns.length === 0) {
              return (
                 <View className="flex-1 justify-center items-center px-6">
                     <Ionicons name="file-tray-outline" size={64} color="#475569" />
@@ -1055,6 +1104,25 @@ export default function JulesScreen() {
                 contentContainerStyle={{ paddingBottom: 20, paddingTop: 10 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#818cf8" />}
             >
+                {/* New Session Button - Placed at Top as requested */}
+                {hasJulesConfig && (
+                    <TouchableOpacity
+                        onPress={() => Linking.openURL('https://jules.google.com/session')}
+                        className="bg-indigo-600/20 border border-indigo-500/30 p-4 rounded-2xl mb-4 flex-row items-center justify-between mx-4"
+                    >
+                        <View className="flex-row items-center">
+                            <View className="bg-indigo-600 p-2 rounded-xl mr-3">
+                                <Ionicons name="add-circle" size={20} color="white" />
+                            </View>
+                            <View>
+                                <Text className="text-white font-bold">New Jules Session</Text>
+                                <Text className="text-indigo-300 text-xs">Create a new session in web</Text>
+                            </View>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#818cf8" />
+                    </TouchableOpacity>
+                )}
+
                 {/* Master Branch Section */}
                 {hasGithubConfig && (
                      <MasterBranchSection
@@ -1069,26 +1137,11 @@ export default function JulesScreen() {
                 {/* Jules Sessions Section */}
                 {hasJulesConfig && (
                     <View>
-                         <TouchableOpacity
-                            onPress={() => Linking.openURL('https://jules.google.com/session')}
-                            className="bg-indigo-600/20 border border-indigo-500/30 p-4 rounded-2xl mb-4 flex-row items-center justify-between"
-                        >
-                            <View className="flex-row items-center">
-                                <View className="bg-indigo-600 p-2 rounded-xl mr-3">
-                                    <Ionicons name="add-circle" size={20} color="white" />
-                                </View>
-                                <View>
-                                    <Text className="text-white font-bold">New Jules Session</Text>
-                                    <Text className="text-indigo-300 text-xs">Create a new session in web</Text>
-                                </View>
-                            </View>
-                            <Ionicons name="chevron-forward" size={20} color="#818cf8" />
-                        </TouchableOpacity>
-
-                        {julesSessions.map(session => (
+                        {sessionsWithRuns.map(({session, matchedRun}) => (
                             <JulesSessionItem
                                 key={session.id}
                                 session={session}
+                                matchedRun={matchedRun}
                                 ghToken={julesApiKey || undefined}
                                 defaultOwner={julesOwner || undefined}
                                 defaultRepo={julesRepo || undefined}
