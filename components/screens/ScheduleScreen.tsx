@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, RefreshControl, Platform, Alert } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { serializeTaskLine } from '../../utils/taskParser';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Layout } from '../ui/Layout';
 import Toast from 'react-native-toast-message';
 import { Calendar as BigCalendar, CalendarRef } from '../ui/calendar';
 import dayjs from 'dayjs';
@@ -38,6 +40,8 @@ import { DragDropProvider } from '../DragDropContext';
 import { DragOverlay } from '../DragOverlay';
 import { TodaysTasksPanel } from './TodaysTasksPanel';
 import { RelationService } from '../../services/relationService';
+import { useRelationsStore } from '../../store/relations';
+import { TaskService } from '../../services/taskService';
 import { useFab } from '../../hooks/useFab';
 
 
@@ -74,6 +78,8 @@ export default function ScheduleScreen() {
     const [pendingEventDrop, setPendingEventDrop] = useState<{ event: any, newDate: Date, executeUpdate: (options?: any) => Promise<void> } | null>(null);
 
     const calendarRef = useRef<CalendarRef>(null);
+    const gcTimeoutRef = useRef<any>(null);
+
 
 
     // Fetch Weather Effect
@@ -90,7 +96,16 @@ export default function ScheduleScreen() {
 
     // Load event types config on mount
     useEffect(() => {
-        loadConfig();
+        const init = async () => {
+             await loadConfig();
+             const { vaultUri } = useSettingsStore.getState();
+             const { tasksRoot } = useTasksStore.getState();
+             if (vaultUri && tasksRoot) {
+                 console.log('[ScheduleScreen] Scanning relations on mount...');
+                 await RelationService.scanRelations(vaultUri, tasksRoot);
+             }
+        };
+        init();
     }, []);
 
     // Calculate initial scroll position to center the current time
@@ -262,7 +277,7 @@ export default function ScheduleScreen() {
                     isPersonal,
                     isSkippable: flags?.skippable !== undefined ? flags.skippable : currentUserRSVP === 'tentative',
                     needPrep: flags?.needPrep,
-                    completable: !!flags?.completable,
+                    completable: !!flags?.completable || (evt as any).notes?.includes('[completable:: true]') || (evt as any).description?.includes('[completable:: true]'),
                     isRecurrent: !!evt.recurrenceRule,
                     hasRSVPNo: currentUserRSVP === 'declined',
                     hideBadges: assignedType?.hideBadges,
@@ -310,11 +325,24 @@ export default function ScheduleScreen() {
 
             setEvents(finalEvents);
             setIsEventsLoaded(true);
+            
+            // Trigger Garbage Collection for Phantom Events (Debounced)
+            if (vaultUri) {
+                if (gcTimeoutRef.current) clearTimeout(gcTimeoutRef.current);
+                gcTimeoutRef.current = setTimeout(() => {
+                    RelationService.cleanupPhantomEvents(vaultUri).catch(err => 
+                        console.warn('[ScheduleScreen] Phantom Event GC failed', err)
+                    );
+                    gcTimeoutRef.current = null;
+                }, 2000); // 2 second debounce to allow everything to settle
+            }
+
         } catch (e) {
             console.error("[ScheduleScreen] Critical error in fetchEvents:", e);
             setIsEventsLoaded(true);
         }
-    }, [visibleCalendarIds, date, viewMode, assignments, eventTypes, difficulties, eventFlags, eventIcons, ranges, cachedReminders, defaultOpenCalendarId, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes]);
+    }, [visibleCalendarIds, date, viewMode, assignments, eventTypes, difficulties, eventFlags, eventIcons, ranges, defaultOpenCalendarId, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes]);
+
 
     const handleQuickAction = useCallback((action: 'event' | 'reminder' | 'zone', date: Date) => {
         if (action === 'reminder') {
@@ -785,7 +813,7 @@ export default function ScheduleScreen() {
                     startDate: data.startDate,
                     endDate: data.endDate,
                     allDay: data.allDay,
-                    description: finalContent,
+                    description: pendingLinkTask ? `${finalContent}${finalContent ? '\n\n' : ''}[completable:: true]` : finalContent,
                     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     isWork: data.isWork, // calendarService will use this for auto-invites
                     recurrenceRule: data.recurrenceRule
@@ -795,6 +823,30 @@ export default function ScheduleScreen() {
 
                 if (pendingLinkTask && vaultUri) {
                     await RelationService.linkTasksToEvent(vaultUri, newEventId, finalTitle, [pendingLinkTask]);
+                    
+                    // Update Tasks Store to reflect the link
+                    const { tasks, setTasks } = useTasksStore.getState();
+                    const updatedTasks = tasks.map(t => {
+                        if (t.fileUri === pendingLinkTask.fileUri && t.originalLine === pendingLinkTask.originalLine) {
+                            const currentIds = t.properties['event_id']
+                                ? t.properties['event_id'].split(',').map(s => s.trim())
+                                : [];
+                            if (!currentIds.includes(newEventId)) {
+                                currentIds.push(newEventId);
+                            }
+                            return {
+                                ...t,
+                                properties: {
+                                    ...t.properties,
+                                    event_id: currentIds.join(', '),
+                                    event_title: finalTitle
+                                }
+                            };
+                        }
+                        return t;
+                    });
+                    setTasks(updatedTasks);
+                    
                     setPendingLinkTask(null);
                 }
 
@@ -1204,10 +1256,79 @@ export default function ScheduleScreen() {
         }
     };
 
+    const handleToggleCompleted = async (title: string, dateStr: string) => {
+        console.log('[ScheduleScreen] handleToggleCompleted:', title, dateStr);
+        toggleCompleted(title, dateStr);
+
+        // Required because we need to find the event object first to get its ID
+        // In the future, we should probably pass the event ID to onToggleCompleted directly
+        // But for now, we'll try to find the event in our list
+        const event = events.find(e => {
+             const eDateStr = dayjs(e.start).format('YYYY-MM-DD');
+             return e.title === title && eDateStr === dateStr;
+        });
+
+        if (event) {
+             const eventId = event.originalEvent?.id || event.id;
+             console.log('[ScheduleScreen] Found event:', eventId);
+             
+             const relations = useRelationsStore.getState().relations[eventId];
+             console.log('[ScheduleScreen] Relations:', relations);
+             
+             if (relations && relations.tasks.length === 1 && relations.notes.length === 0) {
+                 const relTask = relations.tasks[0];
+                 const taskEventIds = relTask.properties['event_id']?.split(',').map((id: string) => id.trim()) || [];
+                 console.log('[ScheduleScreen] Relation task event_ids:', taskEventIds);
+                 
+                 // Verify 1-1 in both directions
+                 if (taskEventIds.length === 1) {
+                     // Look up the LIVE task from TaskStore to ensure we have the correct current status
+                     // The RelationStore might be slightly stale or have a different originalLine reference
+                     const { tasks } = useTasksStore.getState();
+                     const liveTask = tasks.find(t => {
+                         const tIds = t.properties['event_id']?.split(',').map((id: string) => id.trim()) || [];
+                         return tIds.includes(eventId);
+                     });
+                     
+                     const task = liveTask || relTask;
+                     console.log('[ScheduleScreen] Using task:', task.title, task.status);
+
+                     const wasCompleted = !!completedEvents[`${title}::${dateStr}`];
+                     const isNowCompleted = !wasCompleted; 
+                     
+                     console.log('[ScheduleScreen] Status change:', { wasCompleted, isNowCompleted });
+                     
+                     const newStatus = isNowCompleted ? 'x' : ' ';
+                     
+                     if (task.status !== newStatus) {
+                         console.log('[ScheduleScreen] Syncing task status to:', newStatus);
+                         // Sync Task
+                         if (vaultUri) {
+                            const newTask = { ...task, status: newStatus, completed: newStatus === 'x' };
+                            await TaskService.syncTaskUpdate(vaultUri, task, newTask);
+                            
+                            // Update local task store
+                             const { tasks, setTasks } = useTasksStore.getState();
+                             const updatedTasks = tasks.map(t =>
+                                 (t.filePath === task.filePath && t.originalLine === task.originalLine)
+                                 ? newTask
+                                 : t
+                             );
+                             setTasks(updatedTasks);
+
+                             // Update Relations Store
+                             useRelationsStore.getState().updateTask(task, newTask as TaskWithSource);
+                         }
+                     }
+                 }
+             }
+        }
+    };
+
     return (
         <DragDropProvider>
-        <View className="flex-1 bg-slate-950">
-            <SafeAreaView className="flex-1" edges={['left', 'right', 'bottom']}>
+        <Layout fullBleed noPadding>
+            <View className="flex-1">
                 <DateRuler
                     date={date}
                     onDateChange={changeDate}
@@ -1301,7 +1422,7 @@ export default function ScheduleScreen() {
                                     event={evt}
                                     touchableOpacityProps={touchableOpacityProps}
                                     timeFormat={timeFormat}
-                                    onToggleCompleted={toggleCompleted}
+                                    onToggleCompleted={handleToggleCompleted}
                                 />
                             )}
                             onQuickAction={handleQuickAction}
@@ -1399,92 +1520,122 @@ export default function ScheduleScreen() {
                             const { TaskService } = await import('../../services/taskService');
                             const { ensureDirectory } = await import('../../utils/saf');
 
-                            if (vaultUri) {
+                            if (!vaultUri) return;
+
+                            try {
                                 // 1. Resolve Target Folder URI
                                 let targetFolderUri = vaultUri;
                                 let resolvedFolderPath = folderPath || '';
 
-                                try {
-                                    if (folderPath && folderPath.trim()) {
-                                        const parts = folderPath.split('/').filter(p => p.trim());
+                                if (folderPath && folderPath.trim()) {
+                                    const parts = folderPath.split('/').filter(p => p.trim());
+                                    for (const part of parts) {
+                                        targetFolderUri = await ensureDirectory(targetFolderUri, part);
+                                    }
+                                } else {
+                                    const { vaultUri } = useSettingsStore.getState();
+                                    const { tasksRoot } = useTasksStore.getState();
+                                    if (tasksRoot) {
+                                        resolvedFolderPath = tasksRoot;
+                                        const parts = tasksRoot.split('/').filter(p => p.trim());
                                         for (const part of parts) {
                                             targetFolderUri = await ensureDirectory(targetFolderUri, part);
                                         }
-                                    } else {
-                                        // Fallback to tasksRoot only if explicitly Creating and no folder passed (though TaskEditModal usually passes one)
-                                        const { tasksRoot } = useSettingsStore.getState();
-                                        if (tasksRoot) {
-                                            resolvedFolderPath = tasksRoot;
-                                            const parts = tasksRoot.split('/').filter(p => p.trim());
-                                            for (const part of parts) {
-                                                targetFolderUri = await ensureDirectory(targetFolderUri, part);
-                                            }
-                                        }
                                     }
-                                } catch (e) {
-                                    console.error('[ScheduleScreen] Failed to resolve folder', e);
-                                    Alert.alert("Error", "Could not resolve target folder.");
-                                    return;
                                 }
 
                                 if (editingTask.fileUri) {
                                     // === EXISTING TASK ===
-
-                                    // Check if moved
                                     const currentFolder = editingTask.filePath && editingTask.filePath.includes('/')
                                         ? editingTask.filePath.substring(0, editingTask.filePath.lastIndexOf('/'))
                                         : '';
 
-                                    // Normalize paths (trim slashes)
                                     const normalizedCurrent = currentFolder.replace(/^\/+|\/+$/g, '');
                                     const normalizedNew = resolvedFolderPath.replace(/^\/+|\/+$/g, '');
 
                                     if (normalizedNew !== normalizedCurrent) {
                                         // MOVE Logic
-                                        try {
-                                            // 1. Add to new location
-                                            const defaultFile = await TaskService.findDefaultTaskFile(targetFolderUri);
-                                            await TaskService.addTask(vaultUri, defaultFile.uri, updatedTask);
+                                        const defaultFile = await TaskService.findDefaultTaskFile(targetFolderUri);
+                                        await TaskService.addTask(vaultUri, defaultFile.uri, updatedTask);
+                                        await TaskService.syncTaskDeletion(vaultUri, editingTask);
 
-                                            // 2. Delete from old location
-                                            await TaskService.syncTaskDeletion(vaultUri, editingTask);
+                                        const { tasks, setTasks } = useTasksStore.getState();
+                                        const filteredTasks = tasks.filter(t =>
+                                            !(t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
+                                        );
 
-                                            // 3. Update Store (Remove old, Add new)
-                                            const { tasks, setTasks } = useTasksStore.getState();
-                                            const filteredTasks = tasks.filter(t =>
-                                                !(t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
-                                            );
+                                        const newTask: TaskWithSource = {
+                                            ...updatedTask,
+                                            fileUri: defaultFile.uri,
+                                            filePath: resolvedFolderPath ? `${resolvedFolderPath}/${defaultFile.name}` : defaultFile.name,
+                                            fileName: defaultFile.name,
+                                            originalLine: serializeTaskLine(updatedTask)
+                                        };
 
-                                            const newTask: TaskWithSource = {
-                                                ...updatedTask,
-                                                fileUri: defaultFile.uri,
-                                                filePath: resolvedFolderPath ? `${resolvedFolderPath}/${defaultFile.name}` : defaultFile.name,
-                                                fileName: defaultFile.name
-                                            };
+                                        setTasks([...filteredTasks, newTask]);
+                                        Toast.show({ type: 'success', text1: 'Task Moved' });
 
-                                            setTasks([...filteredTasks, newTask]);
-                                            Toast.show({ type: 'success', text1: 'Task Moved' });
-
-                                        } catch (e: any) {
-                                            console.error("Failed to move task", e);
-                                            Alert.alert("Error", `Failed to move task: ${e.message}`);
+                                        // Sync with Event (1-1 only)
+                                        const eventIds = updatedTask.properties['event_id']?.split(',').map((id: string) => id.trim()) || [];
+                                        if (eventIds.length === 1) {
+                                            const eventId = eventIds[0];
+                                            const relations = useRelationsStore.getState().relations[eventId];
+                                            if (relations && relations.tasks.length === 1 && relations.notes.length === 0) {
+                                                const event = events.find(e => (e.originalEvent?.id === eventId || e.id === eventId));
+                                                if (event) {
+                                                    const eventDateStr = dayjs(event.start).format('YYYY-MM-DD');
+                                                    const isEventDone = !!completedEvents[`${event.title}::${eventDateStr}`];
+                                                    const shouldBeDone = updatedTask.status === 'x';
+                                                    if (isEventDone !== shouldBeDone) {
+                                                        toggleCompleted(event.title, eventDateStr);
+                                                    }
+                                                }
+                                            }
                                         }
                                     } else {
                                         // UPDATE In-Place Logic
                                         try {
                                             await TaskService.syncTaskUpdate(vaultUri, editingTask, updatedTask);
+                                            
+                                            // Update Store
+                                            const { tasks, setTasks } = useTasksStore.getState();
+                                            const updatedTasks = tasks.map(t =>
+                                                (t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
+                                                ? { ...t, ...updatedTask, originalLine: serializeTaskLine(updatedTask) }
+                                                : t
+                                            );
+                                            setTasks(updatedTasks);
+                                            
+                                            const newTaskWithSource = { ...editingTask, ...updatedTask, originalLine: serializeTaskLine(updatedTask) };
+                                            useRelationsStore.getState().updateTask(editingTask, newTaskWithSource as TaskWithSource);
+
+                                            Toast.show({ type: 'success', text1: 'Task Updated' });
+
+                                            // Sync with Event (1-1 only)
+                                            const eventIds = updatedTask.properties['event_id']?.split(',').map((id: string) => id.trim()) || [];
+                                            if (eventIds.length === 1) {
+                                                const eventId = eventIds[0];
+                                                const relations = useRelationsStore.getState().relations[eventId];
+                                                if (relations && relations.tasks.length === 1 && relations.notes.length === 0) {
+                                                    const event = events.find(e => (e.originalEvent?.id === eventId || e.id === eventId));
+                                                    if (event) {
+                                                        const eventDateStr = dayjs(event.start).format('YYYY-MM-DD');
+                                                        const isEventDone = !!completedEvents[`${event.title}::${eventDateStr}`];
+                                                        const shouldBeDone = updatedTask.status === 'x';
+                                                        if (isEventDone !== shouldBeDone) {
+                                                            toggleCompleted(event.title, eventDateStr);
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         } catch (e: any) {
                                             if (e.message === 'FILE_NOT_FOUND') {
-                                                const { tasks } = useTasksStore.getState();
+                                                const { tasks, setTasks } = useTasksStore.getState();
                                                 const newTasks = tasks.filter(t =>
                                                     !(t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
                                                 );
-                                                useTasksStore.getState().setTasks(newTasks);
-                                                Toast.show({
-                                                    type: 'error',
-                                                    text1: 'Task file missing',
-                                                    text2: 'Removed orphan task.'
-                                                });
+                                                setTasks(newTasks);
+                                                Toast.show({ type: 'error', text1: 'Task file missing', text2: 'Removed orphan task.' });
                                             } else {
                                                 throw e;
                                             }
@@ -1492,30 +1643,24 @@ export default function ScheduleScreen() {
                                     }
                                 } else {
                                     // === NEW TASK ===
-                                    try {
-                                        console.log('[ScheduleScreen] Creating new task in:', resolvedFolderPath);
+                                    const defaultFile = await TaskService.findDefaultTaskFile(targetFolderUri);
+                                    await TaskService.addTask(vaultUri, defaultFile.uri, updatedTask);
 
-                                        const defaultFile = await TaskService.findDefaultTaskFile(targetFolderUri);
-
-                                        console.log('[ScheduleScreen] Adding task to:', defaultFile.uri);
-                                        await TaskService.addTask(vaultUri, defaultFile.uri, updatedTask);
-
-                                        // Optimistic add to store
-                                        const { tasks, setTasks } = useTasksStore.getState();
-                                        const newTask: TaskWithSource = {
-                                            ...updatedTask,
-                                            fileUri: defaultFile.uri,
-                                            filePath: resolvedFolderPath ? `${resolvedFolderPath}/${defaultFile.name}` : defaultFile.name,
-                                            fileName: defaultFile.name
-                                        };
-
-                                        console.log('[ScheduleScreen] Optimistically adding task:', newTask.title);
-                                        setTasks([...tasks, newTask]);
-                                    } catch (e: any) {
-                                        console.error("Failed to create task", JSON.stringify(e), e.message);
-                                        Alert.alert("Error", `Failed to create task: ${e.message || 'Unknown error'}`);
-                                    }
+                                    const { tasks, setTasks } = useTasksStore.getState();
+                                    const newTask: TaskWithSource = {
+                                        ...updatedTask,
+                                        fileUri: defaultFile.uri,
+                                        filePath: resolvedFolderPath ? `${resolvedFolderPath}/${defaultFile.name}` : defaultFile.name,
+                                        fileName: defaultFile.name,
+                                        originalLine: serializeTaskLine(updatedTask)
+                                    };
+                                    setTasks([...tasks, newTask]);
+                                    Toast.show({ type: 'success', text1: 'Task Created' });
                                 }
+                            } catch (e: any) {
+                                console.error('[ScheduleScreen] Failed to save/move task', e);
+                                Alert.alert("Error", `Failed to save task: ${e.message || 'Unknown error'}`);
+                            } finally {
                                 setEditingTask(null);
                             }
                         }}
@@ -1544,8 +1689,8 @@ export default function ScheduleScreen() {
                 />
 
                 <DragOverlay />
-            </SafeAreaView>
-        </View>
+            </View>
+        </Layout>
         </DragDropProvider>
     );
 }
@@ -1555,7 +1700,7 @@ const detectFocusRanges = (allEvents: any[]) => {
     // 1. Filter events with difficulty > 0
     // And exclude ranges/markers if any are in 'events'
     const candidates = allEvents.filter(e =>
-        (e.difficulty?.total > 0) &&
+        (e.difficulty?.total > 0 && !e.isSkippable) &&
         !e.type // exclude internal types if any
     );
 

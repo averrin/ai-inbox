@@ -630,6 +630,7 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                                 let displayIcon = contact?.icon || null;
 
                                 const isResource = item.email && item.email.toLowerCase().endsWith('resource.calendar.google.com');
+                                const isGoodTimeBot = displayName && displayName.toLowerCase().startsWith('goodtime');
 
                                 if (isMe) {
                                     displayName = "Me";
@@ -638,6 +639,9 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                                 } else if (isResource) {
                                     displayColor = '#64748b'; // Slate-500 (Neutral)
                                     displayIcon = 'business'; // Conference room/Business icon
+                                } else if (isGoodTimeBot) {
+                                    displayColor = '#64748b'; // Slate-500 (Neutral)
+                                    displayIcon = 'mc/robot'; // Bot icon
                                 }
 
                                 const initial = displayName.charAt(0).toUpperCase();

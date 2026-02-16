@@ -172,7 +172,10 @@ interface SettingsState {
     hideArticles: (urls: string[]) => void; // Bulk hide
     navConfig: NavItemConfig[];
     setNavConfig: (config: NavItemConfig[]) => void;
+    visualizationPrompt: string | null;
+    setVisualizationPrompt: (prompt: string | null) => void;
 }
+
 
 export interface MetadataConfig {
     hidden?: boolean;
@@ -356,7 +359,10 @@ export const useSettingsStore = create<SettingsState>()(
             })),
             navConfig: DEFAULT_NAV_ITEMS,
             setNavConfig: (config) => set({ navConfig: config }),
+            visualizationPrompt: null,
+            setVisualizationPrompt: (prompt) => set({ visualizationPrompt: prompt }),
         }),
+
         {
             name: 'ai-inbox-settings',
             storage: createJSONStorage(() => recoveryStorage),
@@ -463,7 +469,7 @@ export const useSettingsStore = create<SettingsState>()(
                     }
                 }
                 if (version < 9) {
-                     if (persistedState.navConfig && !persistedState.navConfig.some((item: any) => item.id === 'Profile')) {
+                    if (persistedState.navConfig && !persistedState.navConfig.some((item: any) => item.id === 'Profile')) {
                         // Insert Profile before Settings
                         const settingsIndex = persistedState.navConfig.findIndex((item: any) => item.id === 'Settings');
                         if (settingsIndex !== -1) {

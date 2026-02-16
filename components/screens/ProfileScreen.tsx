@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, Image } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Layout } from '../ui/Layout';
+import { ScreenHeader } from '../ui/ScreenHeader';
+import { TopTabBar } from '../ui/TopTabBar';
 import Animated, { 
     useSharedValue, 
     useAnimatedStyle, 
@@ -13,7 +16,13 @@ import {
     GestureDetector, 
     GestureHandlerRootView 
 } from 'react-native-gesture-handler';
+import * as Clipboard from 'expo-clipboard';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import Toast from 'react-native-toast-message';
+
 import { useProfileStore } from '../../store/profileStore';
+
 import { useSettingsStore } from '../../store/settings';
 
 export default function ProfileScreen() {
@@ -21,6 +30,7 @@ export default function ProfileScreen() {
     const [editingFact, setEditingFact] = useState<{ key: string, value: string } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isImageFull, setIsImageFull] = useState(false);
+    const [activeTab, setActiveTab] = useState<'home' | 'details'>('home');
 
     // Gesture shared values
     const scale = useSharedValue(1);
@@ -142,6 +152,71 @@ export default function ProfileScreen() {
 
     const filteredFacts = filterFacts();
 
+    const handleCopyContext = async () => {
+        try {
+            const contextJson = JSON.stringify({
+                facts: profile.facts,
+                traits: profile.traits || [],
+                lastUpdated: profile.lastUpdated
+            }, null, 2);
+
+            await Clipboard.setStringAsync(contextJson);
+            Toast.show({
+                type: 'success',
+                text1: 'Context Copied',
+                text2: 'JSON representation saved to clipboard'
+            });
+        } catch (error) {
+            console.error('[ProfileScreen] Copy failed:', error);
+            Alert.alert('Copy Failed', 'Could not copy context to clipboard.');
+        }
+    };
+    
+    const handleShareImage = async () => {
+        if (!profile.profileImage) return;
+        
+        try {
+            const isAvailable = await Sharing.isAvailableAsync();
+            if (!isAvailable) {
+                Alert.alert('Sharing Unavailable', 'Sharing is not available on this device.');
+                return;
+            }
+            
+            await Sharing.shareAsync(profile.profileImage, {
+                mimeType: 'image/png',
+                dialogTitle: 'Share your Inner World',
+                UTI: 'public.png'
+            });
+        } catch (error) {
+            console.error('[ProfileScreen] Share failed:', error);
+            Alert.alert('Share Failed', 'Could not share the image.');
+        }
+    };
+
+    const handleCopyImage = async () => {
+        if (!profile.profileImage) return;
+
+        try {
+            // expo-clipboard setImageAsync is currently limited on some platforms/versions
+            // but we can try it or fall back to notifying the user
+            const base64 = await FileSystem.readAsStringAsync(profile.profileImage, {
+                encoding: 'base64'
+            });
+            
+            await Clipboard.setImageAsync(base64);
+            Toast.show({
+                type: 'success',
+                text1: 'Image Copied',
+                text2: 'Visualization copied to clipboard'
+            });
+        } catch (error) {
+            console.error('[ProfileScreen] Copy image failed:', error);
+            // Fallback: Just share it if copy is not supported
+            handleShareImage();
+        }
+    };
+
+
     const getLevelLabel = (level: number) => {
         if (level <= 0.3) return { label: 'Fact', color: 'text-blue-400', bg: 'bg-blue-500/10' };
         if (level <= 0.7) return { label: 'Routine', color: 'text-indigo-400', bg: 'bg-indigo-500/10' };
@@ -149,13 +224,16 @@ export default function ProfileScreen() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-slate-950" edges={['top', 'left', 'right']}>
-            <View className="flex-row items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/50">
-                <View className="flex-row items-center gap-2">
-                    <Ionicons name="person-outline" size={20} color="#818cf8" />
-                    <Text className="text-slate-100 font-bold text-lg">Profile Builder</Text>
-                </View>
-            </View>
+        <Layout noPadding>
+            <ScreenHeader title="Profile" noBorder />
+            <TopTabBar
+                tabs={[
+                    { key: 'home', label: 'Home', icon: 'home-outline' },
+                    { key: 'details', label: 'Details', icon: 'list-outline' },
+                ]}
+                activeTab={activeTab}
+                onTabChange={(key) => setActiveTab(key as 'home' | 'details')}
+            />
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -192,219 +270,245 @@ export default function ProfileScreen() {
                         </View>
                     ) : (
                         <>
-                            {/* Questions Section */}
-                            {dailyQuestions.length > 0 ? (
-                                <View className="space-y-6 flex-col gap-1">
-                                    {dailyQuestions.map((q, idx) => {
-                                        const qText = typeof q === 'string' ? q : q.text;
-                                        const qLevel = typeof q === 'string' ? 0.5 : q.level;
-                                        return (
-                                            <View key={idx} className="bg-slate-900 p-4 rounded-xl border border-slate-800">
-                                                <View className="flex-row justify-between items-start mb-3">
-                                                    <Text className="text-slate-200 font-medium leading-6 flex-1 mr-4">
-                                                        {qText}
-                                                    </Text>
-                                                    <View className={`px-2 py-0.5 rounded ${getLevelLabel(qLevel).bg}`}>
-                                                        <Text className={`text-[10px] font-bold uppercase tracking-wider ${getLevelLabel(qLevel).color}`}>
-                                                            {getLevelLabel(qLevel).label}
-                                                        </Text>
-                                                    </View>
-                                                </View>
-                                                <TextInput
-                                                    className="bg-slate-950 text-slate-100 p-3 rounded-lg border border-slate-800 min-h-[80px]"
-                                                    placeholder="Your answer..."
-                                                    placeholderTextColor="#475569"
-                                                    multiline
-                                                    textAlignVertical="top"
-                                                    value={answers[qText] || ''}
-                                                    onChangeText={(text) => setAnswer(qText, text)}
-                                                />
-                                            </View>
-                                        );
-                                    })}
+                            {/* Main Content Area */}
+                            <View className="space-y-4">
+                                {activeTab === 'home' ? (
+                                    <>
+                                        {/* Questions Section (Daily Interview) */}
+                                        {dailyQuestions.length > 0 && (
+                                            <View className="space-y-6 flex-col gap-1 mb-4">
+                                                {dailyQuestions.map((q, idx) => {
+                                                    const qText = typeof q === 'string' ? q : q.text;
+                                                    const qLevel = typeof q === 'string' ? 0.5 : q.level;
+                                                    return (
+                                                        <View key={idx} className="bg-slate-900 p-4 rounded-xl border border-slate-800">
+                                                            <View className="flex-row justify-between items-start mb-3">
+                                                                <Text className="text-slate-200 font-medium leading-6 flex-1 mr-4">
+                                                                    {qText}
+                                                                </Text>
+                                                                <View className={`px-2 py-0.5 rounded ${getLevelLabel(qLevel).bg}`}>
+                                                                    <Text className={`text-[10px] font-bold uppercase tracking-wider ${getLevelLabel(qLevel).color}`}>
+                                                                        {getLevelLabel(qLevel).label}
+                                                                    </Text>
+                                                                </View>
+                                                            </View>
+                                                            <TextInput
+                                                                className="bg-slate-950 text-slate-100 p-3 rounded-lg border border-slate-800 min-h-[80px]"
+                                                                placeholder="Your answer..."
+                                                                placeholderTextColor="#475569"
+                                                                multiline
+                                                                textAlignVertical="top"
+                                                                value={answers[qText] || ''}
+                                                                onChangeText={(text) => setAnswer(qText, text)}
+                                                            />
+                                                        </View>
+                                                    );
+                                                })}
 
-                                    <TouchableOpacity
-                                        className={`py-4 rounded-xl items-center flex-row justify-center gap-2 mt-4 ${isAllAnswered ? 'bg-indigo-600' : 'bg-slate-800 opacity-50'}`}
-                                        disabled={!isAllAnswered}
-                                        onPress={submitAnswers}
-                                    >
-                                        <Text className={`font-bold text-lg ${isAllAnswered ? 'text-white' : 'text-slate-400'}`}>
-                                            Submit Updates
-                                        </Text>
-                                        <Ionicons name="arrow-forward" size={20} color={isAllAnswered ? 'white' : '#94a3b8'} />
-                                    </TouchableOpacity>
-                                </View>
-                            ) : (
-                                /* Profile Summary Section */
-                                <View className="space-y-4">
-                                    {/* Profile Image / Diorama */}
-                                    <View className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden mb-2">
-                                        <View className="bg-slate-800/50 px-4 py-3 border-b border-slate-800 flex-row items-center justify-between">
-                                            <View className="flex-row items-center gap-2">
-                                                <Ionicons name="image-outline" size={16} color="#94a3b8" />
-                                                <Text className="text-slate-300 font-semibold">Inner World</Text>
-                                            </View>
-                                            <View className="flex-row items-center gap-4">
-                                                {profile.profileImage && (
-                                                    <TouchableOpacity onPress={() => setIsImageFull(true)}>
-                                                        <Ionicons name="expand-outline" size={16} color="#818cf8" />
-                                                    </TouchableOpacity>
-                                                )}
-                                                <TouchableOpacity onPress={() => generateProfileImage()} disabled={isGeneratingImage}>
-                                                    {isGeneratingImage ? (
-                                                        <ActivityIndicator size="small" color="#818cf8" />
-                                                    ) : (
-                                                        <Ionicons name="refresh" size={16} color="#94a3b8" />
-                                                    )}
+                                                <TouchableOpacity
+                                                    className={`py-4 rounded-xl items-center flex-row justify-center gap-2 mt-2 ${isAllAnswered ? 'bg-indigo-600' : 'bg-slate-800 opacity-50'}`}
+                                                    disabled={!isAllAnswered}
+                                                    onPress={submitAnswers}
+                                                >
+                                                    <Text className={`font-bold text-lg ${isAllAnswered ? 'text-white' : 'text-slate-400'}`}>
+                                                        Submit Updates
+                                                    </Text>
+                                                    <Ionicons name="arrow-forward" size={20} color={isAllAnswered ? 'white' : '#94a3b8'} />
                                                 </TouchableOpacity>
                                             </View>
-                                        </View>
-
-                                        {profile.profileImage ? (
-                                            <TouchableOpacity 
-                                                activeOpacity={0.9} 
-                                                onPress={() => setIsImageFull(true)}
-                                            >
-                                                <Image
-                                                    source={{ uri: profile.profileImage }}
-                                                    style={{ width: '100%', height: 200 }}
-                                                    resizeMode="cover"
-                                                />
-                                            </TouchableOpacity>
-                                        ) : (
-                                            <View className="h-40 items-center justify-center bg-slate-950/50">
-                                                <Text className="text-slate-500 italic text-xs">
-                                                    {isGeneratingImage ? "Generating visualization..." : "No visualization generated yet"}
-                                                </Text>
-                                            </View>
                                         )}
-                                    </View>
 
-                                    {/* Abstraction Level Selector */}
-                                    <View className="bg-slate-900 rounded-xl border border-slate-800 p-4 mb-2">
-                                        <View className="flex-row justify-between items-center mb-4">
-                                            <View>
-                                                <Text className="text-slate-300 font-semibold">Depth Preference</Text>
-                                                <Text className="text-slate-500 text-xs">AI curiosity level</Text>
-                                            </View>
-                                            <View className={`px-3 py-1 rounded-full ${getLevelLabel(config.abstractionLevel).bg}`}>
-                                                <Text className={`text-xs font-bold ${getLevelLabel(config.abstractionLevel).color}`}>
-                                                    {config.abstractionLevel < 0.35 ? "Concrete Facts" : config.abstractionLevel < 0.65 ? "Habits & Routine" : "Deep Philosophy"}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                        
-                                        <View className="flex-row items-center gap-3">
-                                            <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Low</Text>
-                                            <View className="flex-1 h-1.5 bg-slate-950 rounded-full flex-row overflow-hidden border border-slate-800">
-                                                <TouchableOpacity 
-                                                    className={`flex-1 ${config.abstractionLevel <= 0.33 ? 'bg-indigo-500' : 'bg-transparent'}`}
-                                                    onPress={() => updateConfig({ abstractionLevel: 0.2 })}
-                                                />
-                                                <TouchableOpacity 
-                                                    className={`flex-1 border-x border-slate-800 ${config.abstractionLevel > 0.33 && config.abstractionLevel <= 0.66 ? 'bg-indigo-500' : 'bg-transparent'}`}
-                                                    onPress={() => updateConfig({ abstractionLevel: 0.5 })}
-                                                />
-                                                <TouchableOpacity 
-                                                    className={`flex-1 ${config.abstractionLevel > 0.66 ? 'bg-indigo-500' : 'bg-transparent'}`}
-                                                    onPress={() => updateConfig({ abstractionLevel: 0.8 })}
-                                                />
-                                            </View>
-                                            <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">High</Text>
-                                        </View>
-                                    </View>
-
-                                    <View className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-                                        <View className="bg-slate-800/50 px-4 py-3 border-b border-slate-800 flex-row items-center gap-2">
-                                            <Ionicons name="document-text-outline" size={16} color="#94a3b8" />
-                                            <Text className="text-slate-300 font-semibold">Current Profile Context</Text>
-                                        </View>
-                                        
-                                        {/* Search Bar */}
-                                        {Object.keys(profile.facts).length > 0 && (
-                                            <View className="px-3 pt-3 pb-1">
-                                                <View className="flex-row items-center bg-slate-950 rounded-lg border border-slate-800 px-3 py-2">
-                                                    <Ionicons name="search-outline" size={16} color="#475569" />
-                                                    <TextInput
-                                                        className="flex-1 ml-2 text-slate-200 text-sm h-6 p-0"
-                                                        placeholder="Search facts..."
-                                                        placeholderTextColor="#475569"
-                                                        value={searchQuery}
-                                                        onChangeText={setSearchQuery}
-                                                    />
-                                                    {searchQuery ? (
-                                                        <TouchableOpacity onPress={() => setSearchQuery('')}>
-                                                            <Ionicons name="close-circle" size={16} color="#475569" />
-                                                        </TouchableOpacity>
-                                                    ) : null}
+                                        {/* Profile Image / Diorama (Visualization) */}
+                                        <View className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden mb-2">
+                                            <View className="bg-slate-800/50 px-4 py-3 border-b border-slate-800 flex-row items-center justify-between">
+                                                <View className="flex-row items-center gap-2">
+                                                    <Ionicons name="image-outline" size={16} color="#94a3b8" />
+                                                    <Text className="text-slate-300 font-semibold">Inner World</Text>
                                                 </View>
-                                            </View>
-                                        )}
+                                                <View className="flex-row items-center gap-4">
+                                                    {profile.profileImage && (
+                                                        <>
+                                                            <TouchableOpacity onPress={handleShareImage}>
+                                                                <Ionicons name="share-outline" size={16} color="#818cf8" />
+                                                            </TouchableOpacity>
+                                                            <TouchableOpacity onPress={handleCopyImage}>
+                                                                <Ionicons name="copy-outline" size={16} color="#818cf8" />
+                                                            </TouchableOpacity>
+                                                            <TouchableOpacity onPress={() => setIsImageFull(true)}>
+                                                                <Ionicons name="expand-outline" size={16} color="#818cf8" />
+                                                            </TouchableOpacity>
+                                                        </>
+                                                    )}
+                                                    <TouchableOpacity onPress={() => generateProfileImage()} disabled={isGeneratingImage}>
+                                                        {isGeneratingImage ? (
+                                                            <ActivityIndicator size="small" color="#818cf8" />
+                                                        ) : (
+                                                            <Ionicons name="refresh" size={16} color="#94a3b8" />
+                                                        )}
+                                                    </TouchableOpacity>
+                                                </View>
 
-                                        <View className="p-2">
-                                            {Object.keys(profile.facts).length === 0 ? (
-                                                <Text className="text-slate-500 italic text-center py-4">
-                                                    Profile is empty. Click "Ask More Questions" to start!
-                                                </Text>
-                                            ) : filteredFacts.length === 0 ? (
-                                                <Text className="text-slate-500 italic text-center py-8">
-                                                    No results for "{searchQuery}"
-                                                </Text>
-                                            ) : (
-                                                <ScrollView 
-                                                    nestedScrollEnabled={true} 
-                                                    style={{ maxHeight: 300 }}
-                                                    contentContainerStyle={{ paddingBottom: 10 }}
+                                            </View>
+
+                                            {profile.profileImage ? (
+                                                <TouchableOpacity 
+                                                    activeOpacity={0.9} 
+                                                    onPress={() => setIsImageFull(true)}
                                                 >
-                                                    {filteredFacts.map(([key, value]) => (
-                                                        <View key={key} className="flex-row items-center border-b border-slate-800/50 py-3 px-2">
-                                                            <View className="flex-1">
-                                                                <Text className="text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-0.5">{key}</Text>
-                                                                <Text className="text-slate-200 text-sm leading-5">
-                                                                    {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                                                                </Text>
-                                                            </View>
-                                                            <View className="flex-row gap-1">
-                                                                <TouchableOpacity 
-                                                                    className="p-2"
-                                                                    onPress={() => handleEditFact(key, value)}
-                                                                >
-                                                                    <Ionicons name="pencil-outline" size={16} color="#6366f1" />
-                                                                </TouchableOpacity>
-                                                                <TouchableOpacity 
-                                                                    className="p-2"
-                                                                    onPress={() => handleDeleteFact(key)}
-                                                                >
-                                                                    <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                                                                </TouchableOpacity>
-                                                            </View>
-                                                        </View>
-                                                    ))}
-                                                </ScrollView>
+                                                    <Image
+                                                        source={{ uri: profile.profileImage }}
+                                                        style={{ width: '100%', height: 200 }}
+                                                        resizeMode="cover"
+                                                    />
+                                                </TouchableOpacity>
+                                            ) : (
+                                                <View className="h-40 items-center justify-center bg-slate-950/50">
+                                                    <Text className="text-slate-500 italic text-xs">
+                                                        {isGeneratingImage ? "Generating visualization..." : "No visualization generated yet"}
+                                                    </Text>
+                                                </View>
                                             )}
                                         </View>
-                                        <View className="bg-slate-950 px-4 py-2 border-t border-slate-800 flex-row justify-between items-center">
-                                            <Text className="text-slate-500 text-xs">
-                                                Last Updated: {new Date(profile.lastUpdated).toLocaleDateString()}
-                                            </Text>
-                                            <Text className="text-slate-500 text-xs">
-                                                {filteredFacts.length} {filteredFacts.length === 1 ? 'Fact' : 'Facts'}
-                                            </Text>
-                                        </View>
-                                    </View>
 
-                                    {/* More Questions Button */}
-                                    <TouchableOpacity
-                                        className="bg-slate-800 py-3 rounded-xl items-center flex-row justify-center gap-2 border border-slate-700 mt-4"
-                                        onPress={() => generateQuestions(true)}
-                                    >
-                                        <Ionicons name="refresh-outline" size={18} color="#94a3b8" />
-                                        <Text className="text-slate-300 font-medium">
-                                            Ask More Questions
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
+                                        {/* More Questions Button */}
+                                        <TouchableOpacity
+                                            className="bg-slate-800 py-3 rounded-xl items-center flex-row justify-center gap-2 border border-slate-700 mt-2"
+                                            onPress={() => generateQuestions(true)}
+                                        >
+                                            <Ionicons name="refresh-outline" size={18} color="#94a3b8" />
+                                            <Text className="text-slate-300 font-medium">
+                                                Ask More Questions
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* Abstraction Level Selector */}
+                                        <View className="bg-slate-900 rounded-xl border border-slate-800 p-4 mb-2">
+                                            <View className="flex-row justify-between items-center mb-4">
+                                                <View>
+                                                    <Text className="text-slate-300 font-semibold">Depth Preference</Text>
+                                                    <Text className="text-slate-500 text-xs">AI curiosity level</Text>
+                                                </View>
+                                                <View className={`px-3 py-1 rounded-full ${getLevelLabel(config.abstractionLevel).bg}`}>
+                                                    <Text className={`text-xs font-bold ${getLevelLabel(config.abstractionLevel).color}`}>
+                                                        {config.abstractionLevel < 0.35 ? "Concrete Facts" : config.abstractionLevel < 0.65 ? "Habits & Routine" : "Deep Philosophy"}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                            
+                                            <View className="flex-row items-center gap-3">
+                                                <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Low</Text>
+                                                <View className="flex-1 h-1.5 bg-slate-950 rounded-full flex-row overflow-hidden border border-slate-800">
+                                                    <TouchableOpacity 
+                                                        className={`flex-1 ${config.abstractionLevel <= 0.33 ? 'bg-indigo-500' : 'bg-transparent'}`}
+                                                        onPress={() => updateConfig({ abstractionLevel: 0.2 })}
+                                                    />
+                                                    <TouchableOpacity 
+                                                        className={`flex-1 border-x border-slate-800 ${config.abstractionLevel > 0.33 && config.abstractionLevel <= 0.66 ? 'bg-indigo-500' : 'bg-transparent'}`}
+                                                        onPress={() => updateConfig({ abstractionLevel: 0.5 })}
+                                                    />
+                                                    <TouchableOpacity 
+                                                        className={`flex-1 ${config.abstractionLevel > 0.66 ? 'bg-indigo-500' : 'bg-transparent'}`}
+                                                        onPress={() => updateConfig({ abstractionLevel: 0.8 })}
+                                                    />
+                                                </View>
+                                                <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">High</Text>
+                                            </View>
+                                        </View>
+
+                                        <View className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+                                            <View className="bg-slate-800/50 px-4 py-3 border-b border-slate-800 flex-row items-center gap-2">
+                                                <Ionicons name="document-text-outline" size={16} color="#94a3b8" />
+                                                <Text className="text-slate-300 font-semibold">Current Profile Context</Text>
+                                            </View>
+                                            
+                                            {/* Search Bar */}
+                                            {Object.keys(profile.facts).length > 0 && (
+                                                <View className="px-3 pt-3 pb-1">
+                                                    <View className="flex-row items-center bg-slate-950 rounded-lg border border-slate-800 px-3 py-2">
+                                                        <Ionicons name="search-outline" size={16} color="#475569" />
+                                                        <TextInput
+                                                            className="flex-1 ml-2 text-slate-200 text-sm h-6 p-0"
+                                                            placeholder="Search facts..."
+                                                            placeholderTextColor="#475569"
+                                                            value={searchQuery}
+                                                            onChangeText={setSearchQuery}
+                                                        />
+                                                        {searchQuery ? (
+                                                            <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                                                <Ionicons name="close-circle" size={16} color="#475569" />
+                                                            </TouchableOpacity>
+                                                        ) : null}
+                                                    </View>
+                                                </View>
+                                            )}
+
+                                            <View className="p-2">
+                                                {Object.keys(profile.facts).length === 0 ? (
+                                                    <Text className="text-slate-500 italic text-center py-4">
+                                                        Profile is empty. Click "Ask More Questions" to start!
+                                                    </Text>
+                                                ) : filteredFacts.length === 0 ? (
+                                                    <Text className="text-slate-500 italic text-center py-8">
+                                                        No results for "{searchQuery}"
+                                                    </Text>
+                                                ) : (
+                                                    <ScrollView 
+                                                        nestedScrollEnabled={true} 
+                                                        style={{ maxHeight: 400 }}
+                                                        contentContainerStyle={{ paddingBottom: 10 }}
+                                                    >
+                                                        {filteredFacts.map(([key, value]) => (
+                                                            <View key={key} className="flex-row items-center border-b border-slate-800/50 py-3 px-2">
+                                                                <View className="flex-1">
+                                                                    <Text className="text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-0.5">{key}</Text>
+                                                                    <Text className="text-slate-200 text-sm leading-5">
+                                                                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                                                    </Text>
+                                                                </View>
+                                                                <View className="flex-row gap-1">
+                                                                    <TouchableOpacity 
+                                                                        className="p-2"
+                                                                        onPress={() => handleEditFact(key, value)}
+                                                                    >
+                                                                        <Ionicons name="pencil-outline" size={16} color="#6366f1" />
+                                                                    </TouchableOpacity>
+                                                                    <TouchableOpacity 
+                                                                        className="p-2"
+                                                                        onPress={() => handleDeleteFact(key)}
+                                                                    >
+                                                                        <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                                                                    </TouchableOpacity>
+                                                                </View>
+                                                            </View>
+                                                        ))}
+                                                    </ScrollView>
+                                                )}
+                                            </View>
+                                            <View className="bg-slate-950 px-4 py-2 border-t border-slate-800 flex-row justify-between items-center">
+                                                <Text className="text-slate-500 text-xs">
+                                                    Last Updated: {new Date(profile.lastUpdated).toLocaleDateString()}
+                                                </Text>
+                                                <Text className="text-slate-500 text-xs">
+                                                    {filteredFacts.length} {filteredFacts.length === 1 ? 'Fact' : 'Facts'}
+                                                </Text>
+                                            </View>
+                                        </View>
+
+                                        {/* Copy Context Button */}
+                                        <TouchableOpacity
+                                            className="bg-slate-800 py-3 rounded-xl items-center flex-row justify-center gap-2 border border-slate-700 mt-2"
+                                            onPress={handleCopyContext}
+                                        >
+                                            <Ionicons name="copy-outline" size={18} color="#94a3b8" />
+                                            <Text className="text-slate-300 font-medium">
+                                                Copy Context (JSON)
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </>
+                                )}
+                            </View>
                         </>
                     )}
                 </ScrollView>
@@ -453,7 +557,7 @@ export default function ProfileScreen() {
                 </View>
             </Modal>
 
-            {/* Full Screen Image Modal */}
+            {/* Full Screen Image Modal - closing tag for Layout below */}
             <Modal
                 visible={isImageFull}
                 transparent
@@ -488,21 +592,40 @@ export default function ProfileScreen() {
                         )}
 
                         <View className="absolute bottom-10 left-0 right-0 items-center">
-                            <TouchableOpacity 
-                                className="bg-slate-900 px-6 py-3 rounded-full border border-slate-800 flex-row items-center gap-2"
-                                onPress={() => {
-                                    generateProfileImage();
-                                    resetGestures();
-                                }}
-                                disabled={isGeneratingImage}
-                            >
-                                <Ionicons name="refresh" size={18} color="#818cf8" />
-                                <Text className="text-slate-200 font-medium">Regenerate</Text>
-                            </TouchableOpacity>
+                            <View className="flex-row gap-4">
+                                <TouchableOpacity 
+                                    className="bg-slate-900 px-4 py-3 rounded-full border border-slate-800 flex-row items-center gap-2"
+                                    onPress={handleShareImage}
+                                >
+                                    <Ionicons name="share-outline" size={18} color="#818cf8" />
+                                    <Text className="text-slate-200 font-medium">Share</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity 
+                                    className="bg-slate-900 px-4 py-3 rounded-full border border-slate-800 flex-row items-center gap-2"
+                                    onPress={handleCopyImage}
+                                >
+                                    <Ionicons name="copy-outline" size={18} color="#818cf8" />
+                                    <Text className="text-slate-200 font-medium">Copy</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity 
+                                    className="bg-slate-900 px-4 py-3 rounded-full border border-slate-800 flex-row items-center gap-2"
+                                    onPress={() => {
+                                        generateProfileImage();
+                                        resetGestures();
+                                    }}
+                                    disabled={isGeneratingImage}
+                                >
+                                    <Ionicons name="refresh" size={18} color="#818cf8" />
+                                    <Text className="text-slate-200 font-medium">Regenerate</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
+
                     </View>
                 </GestureHandlerRootView>
             </Modal>
-        </SafeAreaView>
+        </Layout>
     );
 }

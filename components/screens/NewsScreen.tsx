@@ -4,6 +4,7 @@ import { useSettingsStore } from '../../store/settings';
 import { useEffect, useState, useRef } from 'react';
 import { Article, fetchNews } from '../../services/newsService';
 import { Layout } from '../ui/Layout';
+import { ScreenHeader } from '../ui/ScreenHeader';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -223,20 +224,27 @@ export default function NewsScreen() {
 
     return (
         <Layout>
-            <View className="flex-1 px-4 pt-4">
-                <View className="flex-row justify-between items-center mb-4">
-                    <Text className="text-2xl font-bold text-white">News Feed</Text>
-
-                    {selectedFilter && rssFeeds.includes(selectedFilter) && visibleArticles.length > 0 && (
-                        <TouchableOpacity
-                            onPress={handleReadAll}
-                            className="flex-row items-center bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700"
-                        >
-                            <Ionicons name="checkmark-done-outline" size={16} color="#94a3b8" />
-                            <Text className="text-slate-300 text-xs font-bold ml-1">Read All</Text>
-                        </TouchableOpacity>
-                    )}
-                </View>
+            <ScreenHeader
+                title="News Feed"
+                rightActions={
+                    selectedFilter && rssFeeds.includes(selectedFilter) && visibleArticles.length > 0
+                        ? [{
+                            icon: 'checkmark-done-outline',
+                            onPress: handleReadAll,
+                            render: () => (
+                                <TouchableOpacity
+                                    onPress={handleReadAll}
+                                    className="flex-row items-center bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700"
+                                >
+                                    <Ionicons name="checkmark-done-outline" size={16} color="#94a3b8" />
+                                    <Text className="text-slate-300 text-xs font-bold ml-1">Read All</Text>
+                                </TouchableOpacity>
+                            ),
+                        }]
+                        : []
+                }
+            />
+            <View className="flex-1 px-4">
 
                 {((!newsApiKey && !process.env.NEWSAPI_KEY) && rssFeeds.length === 0) ? (
                     <View className="flex-1 justify-center items-center">

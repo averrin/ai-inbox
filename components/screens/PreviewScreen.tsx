@@ -4,6 +4,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
+import { ScreenHeader } from '../ui/ScreenHeader';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -309,16 +310,13 @@ export function PreviewScreen({
                 style={{ flex: 1 }}
                 keyboardVerticalOffset={0}
             >
-                {/* Settings button header - Hidden in focus mode */}
+                {/* Header - Hidden in focus mode */}
                 {!isFocused && (
-                    <View className="flex-row justify-between items-center px-4 pt-2 pb-1 relative">
-                        <View className="flex-row items-center gap-3">
-                            <TouchableOpacity onPress={onBack} className="p-2">
-                                <Ionicons name="arrow-back" size={24} color="white" />
-                            </TouchableOpacity>
-                            <Text className="text-2xl font-bold text-white">Preview</Text>
-                        </View>
-                    </View>
+                    <ScreenHeader
+                        title="Preview"
+                        leftIcon="arrow-back"
+                        onLeftPress={onBack}
+                    />
                 )}
 
                 {/* Tabs - Hidden in focus mode */}

@@ -141,7 +141,7 @@ export const useProfileStore = create<ProfileState>()(
             },
 
             generateProfileImage: async () => {
-                const { apiKey, selectedImageModel, vaultUri } = useSettingsStore.getState();
+                const { apiKey, selectedImageModel, vaultUri, visualizationPrompt } = useSettingsStore.getState();
                 const { profile } = get();
 
                 if (!apiKey || !selectedImageModel) {
@@ -153,12 +153,25 @@ export const useProfileStore = create<ProfileState>()(
                 console.log(`[ProfileStore] Generating image with model: ${selectedImageModel}`);
 
                 try {
-                    const prompt = ProfileService.generateProfileImagePrompt(profile);
+                    const prompt = ProfileService.generateProfileImagePrompt(profile, visualizationPrompt || undefined);
                     const base64 = await generateImage(apiKey, prompt, selectedImageModel);
 
                     if (base64) {
-                        // Save to document directory
-                        const fileName = 'profile_context.png';
+                        // Delete old image if it exists to save space
+                        if (profile.profileImage) {
+                            try {
+                                const oldExists = await FileSystem.getInfoAsync(profile.profileImage);
+                                if (oldExists.exists) {
+                                    await FileSystem.deleteAsync(profile.profileImage, { idempotent: true });
+                                }
+                            } catch (e) {
+                                console.warn('[ProfileStore] Failed to cleanup old image:', e);
+                            }
+                        }
+
+                        // Save to document directory with timestamp to avoid URI caching
+                        const timestamp = Date.now();
+                        const fileName = `profile_viz_${timestamp}.png`;
                         const fileUri = `${FileSystem.documentDirectory}${fileName}`;
 
                         await FileSystem.writeAsStringAsync(fileUri, base64, {
@@ -174,6 +187,8 @@ export const useProfileStore = create<ProfileState>()(
                         if (vaultUri) {
                             await ProfileService.saveProfile(vaultUri, updatedProfile);
                         }
+
+                        console.log('[ProfileStore] New visualization saved:', fileUri);
                     } else {
                         console.warn('[ProfileStore] Image generation returned null');
                     }
@@ -183,6 +198,7 @@ export const useProfileStore = create<ProfileState>()(
                     set({ isGeneratingImage: false });
                 }
             },
+
 
             updateConfig: (newConfig) => {
                 set((state) => ({

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
+import { ScreenHeader } from '../ui/ScreenHeader';
 import { Button } from '../ui/Button';
 import { LinkAttachment } from '../ui/LinkAttachment';
 import { FileAttachment } from '../ui/FileAttachment';
@@ -115,15 +116,12 @@ export function InputScreen({
     };
     return (
         <Layout>
+            <ScreenHeader title="Take a Note" />
             <KeyboardAvoidingView 
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
                 className="flex-1"
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
             >
-                {/* Settings button header */}
-                <View className="flex-row justify-between items-center px-4 pt-2 pb-1">
-                    <Text className="text-2xl font-bold text-white">Take a Note</Text>
-                </View>
 
                 {/* Main Content ScrollView */}
                 <ScrollView 

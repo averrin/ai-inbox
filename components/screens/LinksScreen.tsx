@@ -3,6 +3,8 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
+import { ScreenHeader } from '../ui/ScreenHeader';
+import { TopTabBarNavigatorAdapter } from '../ui/TopTabBar';
 import { useSettingsStore } from '../../store/settings';
 import { LinkService, FolderGroup } from '../../services/linkService';
 import { LinksFolderView } from '../links/LinksFolderView';
@@ -72,31 +74,16 @@ export default function LinksScreen() {
 
     return (
         <Layout fullBleed={true}>
+            <ScreenHeader title="Links" noBorder />
             <View className="flex-1 bg-transparent">
                 <TopTab.Navigator
                     style={{ backgroundColor: 'transparent' }}
                     // @ts-ignore
                     sceneContainerStyle={{ backgroundColor: 'transparent' }}
+                    tabBar={(props) => <TopTabBarNavigatorAdapter {...props} />}
                     screenOptions={{
-                        tabBarStyle: {
-                            backgroundColor: '#0f172a',
-                            elevation: 0,
-                            shadowOpacity: 0,
-                            borderBottomWidth: 1,
-                            borderBottomColor: '#1e293b',
-                        },
-                        tabBarIndicatorStyle: {
-                            backgroundColor: '#818cf8',
-                            height: 3,
-                        },
-                        tabBarLabelStyle: {
-                            fontSize: 12,
-                            fontWeight: 'bold',
-                            textTransform: 'none',
-                        },
-                        tabBarActiveTintColor: '#fff',
-                        tabBarInactiveTintColor: '#64748b',
-                        tabBarScrollEnabled: folders.length > 3,
+                        swipeEnabled: true,
+                        animationEnabled: true,
                     }}
                 >
                     {folders.map((folder) => (

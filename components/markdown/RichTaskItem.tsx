@@ -7,6 +7,7 @@ import { RichTask } from '../../utils/taskParser';
 import { useSettingsStore } from '../../store/settings';
 import { REMINDER_PROPERTY_KEY } from '../../services/reminderService';
 import { TaskStatusIcon } from '../ui/TaskStatusIcon';
+import dayjs from 'dayjs';
 
 const FILE_COLORS = [
     '#ef4444', // red-500
@@ -159,7 +160,9 @@ export function RichTaskItem({
                         ) : (
                             <>
                                 <Text className="text-slate-400 text-[10px] mr-1" style={textStyle}>{key}:</Text>
-                                <Text className="text-slate-200 text-[10px]" style={textStyle}>{value}</Text>
+                                <Text className="text-slate-200 text-[10px]" style={textStyle}>
+                                    {key === 'date' && String(value) === dayjs().format('YYYY-MM-DD') ? 'Today' : String(value)}
+                                </Text>
                             </>
                         )}
                     </View>

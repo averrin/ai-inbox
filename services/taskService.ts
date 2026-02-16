@@ -1,5 +1,5 @@
 import { StorageAccessFramework } from 'expo-file-system/legacy';
-import { readFileContent, saveToVault, checkDirectoryExists, writeSafe, findFile, createFile } from '../utils/saf';
+import { readFileContent, saveToVault, checkDirectoryExists, writeSafe, writeSafeWithPadding, findFile, createFile } from '../utils/saf';
 import { parseTaskLine, RichTask, updateTaskInText, removeTaskFromText, serializeTaskLine } from '../utils/taskParser';
 import { TaskWithSource } from '../store/tasks';
 
@@ -177,7 +177,7 @@ export class TaskService {
         try {
             // ensure we use the content from the file to avoid stale references, but we already read it above.
             const newContent = updateTaskInText(content, task, updatedTask);
-            await writeSafe(uri, newContent);
+            await writeSafeWithPadding(uri, newContent, content.length);
         } catch (e) {
             console.error(`[TaskService] Failed to sync update for ${task.title}`, e);
             throw e;
@@ -232,7 +232,7 @@ export class TaskService {
             // Always write if different, or if we want to ensure consistency. 
             // Optimally we only write if changed.
             if (content !== newContent) {
-                await writeSafe(task.fileUri, newContent);
+                await writeSafeWithPadding(task.fileUri, newContent, content.length);
             }
         } catch (e) {
             console.error(`[TaskService] Failed to sync deletion for ${task.title}`, e);
@@ -264,18 +264,8 @@ export class TaskService {
                 }
 
                 if (updatedContent !== content) {
-                    // FIX: Ghost Data / Truncation Bug on Android SAF.
-                    // We use a "Super Padding" strategy to ensure we overwrite all original bytes.
-                    let contentToWrite = updatedContent;
-                    if (updatedContent.length < content.length) {
-                        const charDiff = content.length - updatedContent.length;
-                        // Multiplier 4 used because worst-case: removed 4-byte chars replaced by 1-byte chars.
-                        // We must ensure the new file size (in bytes) >= old file size (in bytes).
-                        contentToWrite += ' '.repeat(charDiff * 4);
-                    }
-
                     try {
-                        await writeSafe(fileUri, contentToWrite);
+                        await writeSafeWithPadding(fileUri, updatedContent, content.length);
                     } catch (e) {
                         console.error(`[TaskService] Bulk deletion write failed for ${fileUri}`, e);
                     }

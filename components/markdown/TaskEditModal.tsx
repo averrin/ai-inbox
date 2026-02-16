@@ -8,7 +8,7 @@ import { RichTask } from '../../utils/taskParser';
 import { PropertyEditor } from '../ui/PropertyEditor';
 import { TagEditor } from '../ui/TagEditor';
 import { useSettingsStore } from '../../store/settings';
-import { TaskWithSource } from '../../store/tasks';
+import { TaskWithSource, useTasksStore } from '../../store/tasks';
 import { useVaultStore } from '../../services/vaultService';
 import { openInObsidian } from '../../utils/obsidian';
 import { ReminderItem } from '../ui/ReminderItem';
@@ -45,7 +45,8 @@ export function TaskEditModal({
     initialFolder,
     enableFolderSelection = true
 }: TaskEditModalProps) {
-    const { propertyConfig, vaultUri, timeFormat, tasksRoot } = useSettingsStore();
+    const { propertyConfig, vaultUri, timeFormat } = useSettingsStore();
+    const { tasksRoot } = useTasksStore();
     const { metadataCache } = useVaultStore();
     
     const [title, setTitle] = useState('');
@@ -68,19 +69,27 @@ export function TaskEditModal({
                 setTags([...task.tags]);
 
                 // Initialize folder from task location if available
+                // folder is relative to tasksRoot (e.g. "Work" not "Tasks/Work")
                 if ((task as any).filePath) {
                     const fp = (task as any).filePath;
                     const parts = fp.split('/');
                     if (parts.length > 1) {
                         parts.pop(); // Remove filename
-                        setFolder(parts.join('/'));
+                        let fullPath = parts.join('/');
+                        // Strip tasksRoot prefix to get relative part
+                        if (tasksRoot && fullPath.startsWith(tasksRoot)) {
+                            fullPath = fullPath.substring(tasksRoot.length).replace(/^\//, '');
+                        }
+                        setFolder(fullPath);
                     } else {
-                        setFolder(''); // Root
+                        setFolder(''); // Root of tasksRoot
                     }
                 } else if (initialFolder !== undefined) {
-                    setFolder(initialFolder);
-                } else if (tasksRoot) {
-                    setFolder(tasksRoot);
+                    let rel = initialFolder;
+                    if (tasksRoot && rel.startsWith(tasksRoot)) {
+                        rel = rel.substring(tasksRoot.length).replace(/^\//, '');
+                    }
+                    setFolder(rel);
                 } else {
                     setFolder('');
                 }
@@ -90,11 +99,13 @@ export function TaskEditModal({
                 setProperties({});
                 setTags([]);
 
-                // New Task Folder
+                // New Task Folder — folder is relative to tasksRoot
                 if (initialFolder !== undefined) {
-                    setFolder(initialFolder);
-                } else if (tasksRoot) {
-                    setFolder(tasksRoot);
+                    let rel = initialFolder;
+                    if (tasksRoot && rel.startsWith(tasksRoot)) {
+                        rel = rel.substring(tasksRoot.length).replace(/^\//, '');
+                    }
+                    setFolder(rel);
                 } else {
                     setFolder('');
                 }
@@ -246,7 +257,8 @@ export function TaskEditModal({
                     indentation: task?.indentation || '',
                     originalLine: task?.originalLine || '',
                 };
-                onSave(updatedTask, folder);
+                const fullFolder = tasksRoot ? (folder ? `${tasksRoot}/${folder}` : tasksRoot) : folder;
+                onSave(updatedTask, fullFolder);
                 return;
             } else {
                  Alert.alert("Error", "Failed to create reminder file.");
@@ -307,7 +319,8 @@ export function TaskEditModal({
             indentation: task?.indentation || '',
             originalLine: task?.originalLine || '',
         };
-        onSave(updatedTask, folder);
+        const fullFolder = tasksRoot ? (folder ? `${tasksRoot}/${folder}` : tasksRoot) : folder;
+        await onSave(updatedTask, fullFolder);
     };
 
     const handleOpenNote = () => {
@@ -358,7 +371,8 @@ export function TaskEditModal({
                                 value={folder}
                                 onChangeText={setFolder}
                                 vaultUri={vaultUri}
-                                placeholder="e.g., Inbox/Notes"
+                                basePath={tasksRoot}
+                                placeholder="subfolder..."
                                 compact={true}
                             />
                         )}

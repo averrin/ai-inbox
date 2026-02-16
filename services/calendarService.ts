@@ -202,6 +202,22 @@ export const deleteCalendarEvent = async (eventId: string, options?: { instanceS
     if (!hasPermission) throw new Error("Missing calendar permissions");
 
     try {
+        // --- PHANTOM EVENT HANDLING ---
+        // Before deleting, unlink any associated tasks to avoid phantoms
+        try {
+            const { relations } = require('../store/relations').useRelationsStore.getState();
+            const { RelationService } = require('./relationService');
+            const { vaultUri } = useSettingsStore.getState();
+
+            if (relations[eventId] && relations[eventId].tasks.length > 0 && vaultUri) {
+                console.log(`[CalendarService] Unlinking ${relations[eventId].tasks.length} tasks from event ${eventId} before deletion...`);
+                await RelationService.unlinkTasksFromEvent(vaultUri, eventId, relations[eventId].tasks);
+            }
+        } catch (linkErr) {
+            console.error('[CalendarService] Failed to unlink tasks during event deletion (non-fatal)', linkErr);
+        }
+        // -----------------------------
+
         const deleteOptions: any = {};
         if (options) {
             if (options.instanceStartDate) {
@@ -323,6 +339,10 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
                     // For recurrence, DTEND and DURATION are strictly mutual exclusive.
                     // When using DURATION, we MUST NOT send DTEND.
                     delete fallbackData.endDate;
+                    delete (fallbackData as any).endTime; // Just in case
+
+                    // Also clear any other recurrence end markers if we are switching to duration
+                    delete (fallbackData as any).lastDate;
 
                     console.log('[CalendarService] Retrying update with duration:', (fallbackData as any).duration);
                     await Calendar.updateEventAsync(eventId, fallbackData, finalOptions);

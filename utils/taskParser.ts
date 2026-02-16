@@ -9,45 +9,70 @@ export interface RichTask {
     originalLine: string;
 }
 
-const TASK_REGEX = /^(\s*)([-*+])\s\[([ x\/\-\? >])\]\s+(.*)$/;
-const PROPERTY_REGEX = /\[([^:\]]+)::\s*([^\]]+)\]/g;
+const TASK_REGEX_START = /^(\s*)([-*+])\s\[([ x\/\-\? >])\]\s+/;
 const TAG_REGEX = /#([^\s#\[\]]+)/g;
 
 /**
  * Parses a single line of markdown text into a RichTask object if it matches the task pattern.
+ * Uses a stateful parser to correctly handle nested brackets in properties.
  */
 export function parseTaskLine(line: string): RichTask | null {
-    const match = line.match(TASK_REGEX);
+    const match = line.match(TASK_REGEX_START);
     if (!match) return null;
 
-    const [, indentation, bullet, status, fullContent] = match;
+    const [, indentation, bullet, status] = match;
     const completed = status === 'x';
+    const contentStartIndex = match[0].length;
+    let fullContent = line.substring(contentStartIndex);
 
-    let title = fullContent;
+    // --- Stateful Parser for Properties & Logic ---
+    let title = '';
     const properties: Record<string, string> = {};
     const tags: string[] = [];
 
-    // Extract properties [key:: value]
-    const propertyMatches = Array.from(fullContent.matchAll(PROPERTY_REGEX));
-    for (const m of propertyMatches) {
-        properties[m[1].trim()] = m[2].trim();
-        title = title.replace(m[0], '');
-    }
+    // We will iterate through fullContent and build 'title' while extracting properties
+    let i = 0;
+    while (i < fullContent.length) {
+        const char = fullContent[i];
 
-    // Extract tags #tag (deduplicated)
-    const tagMatches = Array.from(fullContent.matchAll(TAG_REGEX));
-    const seenTags = new Set<string>();
-    for (const m of tagMatches) {
-        const tag = m[1];
-        if (!seenTags.has(tag)) {
-            tags.push(tag);
-            seenTags.add(tag);
+        // Potential start of a property: '['
+        if (char === '[') {
+            const closingIndex = findBalancedClosingBracket(fullContent, i);
+            if (closingIndex !== -1) {
+                // We have a balanced bracket group: [ ... ]
+                // Check if it matches [key:: value]
+                const innerResult = parsePropertyContent(fullContent.substring(i + 1, closingIndex));
+                if (innerResult) {
+                    // It IS a property
+                    properties[innerResult.key] = innerResult.value;
+                    i = closingIndex + 1; // Skip this block
+                    continue;
+                }
+            }
         }
-        title = title.replace(m[0], '');
+
+        // Potential tag: '#'
+        // We defer tag extraction to a regex pass on the *remaining* title or check here?
+        // Checking here allows avoiding tags inside other things, but tags usually aren't bracketed.
+        // Let's stick to standard behavior: Extract properties first, then what's left is title + tags.
+
+        title += char;
+        i++;
     }
 
-    // Clean up title (remove extra whitespace left by removals, but keep it minimal)
-    title = title.trim();
+    // --- Post-Processing Title ---
+
+    // Now extract tags from the constructed title (which has properties removed)
+    // We want to remove tags from the title too, usually.
+    const titleWithoutTags = title.replace(TAG_REGEX, (match, tagName) => {
+        tags.push(tagName);
+        return ''; // Remove tag from title
+    });
+
+    // Clean up title (trim extra whitespace from removals)
+    title = titleWithoutTags.trim();
+    // also remove double spaces if any were left by removing things in middle
+    title = title.replace(/\s{2,}/g, ' ');
 
     return {
         indentation,
@@ -56,9 +81,57 @@ export function parseTaskLine(line: string): RichTask | null {
         completed,
         title,
         properties,
-        tags,
+        tags: Array.from(new Set(tags)), // Dedup
         originalLine: line,
     };
+}
+
+/**
+ * Finds the index of the matching closing bracket ']', handling nested brackets.
+ * Returns -1 if not found.
+ */
+function findBalancedClosingBracket(text: string, startIndex: number): number {
+    let depth = 0;
+    for (let i = startIndex; i < text.length; i++) {
+        if (text[i] === '[') {
+            depth++;
+        } else if (text[i] === ']') {
+            depth--;
+            if (depth === 0) {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
+/**
+ * Checks if the content inside [...] looks like "key:: value".
+ * Returns {key, value} if yes, null otherwise.
+ */
+function parsePropertyContent(content: string): { key: string, value: string } | null {
+    // We look for the FIRST "::" that isn't inside nested brackets?
+    // Actually properties usually don't have nested brackets in the KEY.
+    // The VALUE might have them: [key:: [link](url)]
+
+    const separatorIndex = content.indexOf('::');
+    if (separatorIndex === -1) return null;
+
+    const key = content.substring(0, separatorIndex).trim();
+    const value = content.substring(separatorIndex + 2).trim();
+
+    // Key validation: standard keys don't have spaces or weird chars usually, 
+    // but Obsidian is flexible. 
+    // However, [Link](url) shouldn't be parsed as key='Link](url', val='...'. 
+    // Wait, [Link](url) doesn't have '::'.
+    // What if someone writes [Link::Url](description)? 
+    // Valid property.
+
+    // If the key contains `[`, it might be invalid? 
+    // Obsidian keys are usually simple strings.
+    // Let's assume if it has '::', it's a property.
+
+    return { key, value };
 }
 
 /**
@@ -69,10 +142,11 @@ export function serializeTaskLine(task: RichTask): string {
     let content = task.title.trim();
 
     // Append properties
-    // Sort keys to ensure deterministic order? optional but good for stability
+    // Sort keys to ensure deterministic order
     const propKeys = Object.keys(task.properties).sort();
     propKeys.forEach(key => {
-        content += ` [${key}:: ${task.properties[key]}]`;
+        const value = task.properties[key];
+        content += ` [${key}:: ${value}]`;
     });
 
     // Append tags
@@ -105,23 +179,26 @@ function findTaskLineIndex(lines: string[], task: RichTask): number {
     index = lines.findIndex(l => l.trimEnd() === originalTrimmed);
     if (index !== -1) return index;
 
-    // 3. Try match by re-serializing the task (in case internal state is newer/cleaner than originalLine)
+    // 3. Try match by re-serializing the task
     const serialized = serializeTaskLine(task);
     index = lines.findIndex(l => l.trimEnd() === serialized.trimEnd());
     if (index !== -1) return index;
 
-    // 4. Last resort: specific fuzzy match on Content + Status
-    // This risks false positives if there are duplicate tasks, but it's better than failing to delete.
-    // We match: same status AND same title (ignoring props/tags for a moment? No, include them)
-    // Actually, let's strict match the meaningful parts.
+    // 4. Last resort: specific fuzzy match on distinct fields
     return lines.findIndex(l => {
         const parsed = parseTaskLine(l);
         if (!parsed) return false;
-        // Compare essential logic
-        return parsed.title === task.title
-            && parsed.status === task.status
-            && JSON.stringify(parsed.properties) === JSON.stringify(task.properties);
-        // Tags might order differently, but let's assume they don't for now.
+
+        // Match title and status strictly
+        if (parsed.title !== task.title) return false;
+        if (parsed.status !== task.status) return false;
+
+        // Match property keys match (values might change? no, we want identity)
+        const keysA = Object.keys(parsed.properties).sort().join(',');
+        const keysB = Object.keys(task.properties).sort().join(',');
+        if (keysA !== keysB) return false;
+
+        return true;
     });
 }
 

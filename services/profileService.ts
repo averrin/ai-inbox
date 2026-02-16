@@ -74,7 +74,8 @@ export class ProfileService {
         return ProfileLogic.processAnswers(modelName, apiKey, profile, questions, answers);
     }
 
-    static generateProfileImagePrompt(profile: ProfileData): string {
-        return ProfileLogic.generateProfileImagePrompt(profile);
+    static generateProfileImagePrompt(profile: ProfileData, customPrompt?: string): string {
+        return ProfileLogic.generateProfileImagePrompt(profile, customPrompt);
     }
+
 }

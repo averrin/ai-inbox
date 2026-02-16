@@ -1,33 +1,25 @@
 import React from 'react';
-import { View, StyleSheet, SafeAreaView } from 'react-native';
+import { View } from 'react-native';
 import { DumpEditor } from '../DumpEditor';
 import { useDumpFile } from '../../hooks/useDumpFile';
+import { Layout } from '../ui/Layout';
+import { ScreenHeader } from '../ui/ScreenHeader';
 
 const DumpScreen = () => {
   const { content, onContentChange, isLoading } = useDumpFile();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+    <Layout>
+      <ScreenHeader title="Dump" />
+      <View className="flex-1 px-4">
         <DumpEditor 
           value={content}
           onChange={onContentChange}
           isLoading={isLoading}
         />
       </View>
-    </SafeAreaView>
+    </Layout>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0f172a', // slate-900
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-});
 
 export default DumpScreen;

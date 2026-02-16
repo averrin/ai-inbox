@@ -1,16 +1,23 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useProfileStore } from '../../store/profileStore';
+import { useSettingsStore } from '../../store/settings';
+import { DEFAULT_VIZ_PROMPT } from '../../services/profileLogic';
 import { Card } from '../ui/Card';
+
+
 import { Button } from '../ui/Button';
 
 export function ProfileSettings() {
     const { config, updateConfig } = useProfileStore();
+    const { visualizationPrompt, setVisualizationPrompt } = useSettingsStore();
     const [targetTopic, setTargetTopic] = useState(config.targetTopic || '');
     const [questionCount, setQuestionCount] = useState(config.questionCount.toString());
     const [forbiddenTopics, setForbiddenTopics] = useState(config.forbiddenTopics.join(', '));
+    const [vizPrompt, setVizPrompt] = useState(visualizationPrompt || DEFAULT_VIZ_PROMPT);
 
     const handleSave = () => {
+
         const count = parseInt(questionCount);
         if (isNaN(count) || count < 1) {
             Alert.alert('Invalid Input', 'Question count must be a number greater than 0');
@@ -24,6 +31,8 @@ export function ProfileSettings() {
             questionCount: count,
             forbiddenTopics: forbidden
         });
+
+        setVisualizationPrompt(vizPrompt.trim() || null);
         Alert.alert('Success', 'Profile settings updated.');
     };
 
@@ -73,9 +82,37 @@ export function ProfileSettings() {
                 </View>
 
                 <View className="pt-4 border-t border-slate-700">
+                    <Text className="text-indigo-200 mb-2 font-semibold">Visualization Prompt</Text>
+                    <TextInput
+                        className="bg-slate-800 text-slate-100 p-3 rounded-lg border border-slate-700 h-32"
+                        placeholder={DEFAULT_VIZ_PROMPT}
+                        placeholderTextColor="#475569"
+                        multiline
+                        textAlignVertical="top"
+                        value={vizPrompt}
+                        onChangeText={setVizPrompt}
+                    />
+                    <Text className="text-slate-500 text-[10px] mt-1 italic">
+                        Use {"{{facts}}"} and {"{{traits}}"} as placeholders for profile data.
+                    </Text>
+                    {visualizationPrompt && (
+                        <TouchableOpacity 
+                            onPress={() => {
+                                setVizPrompt(DEFAULT_VIZ_PROMPT);
+                            }}
+
+                            className="mt-2"
+                        >
+                            <Text className="text-indigo-400 text-xs font-medium">Reset to Default</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                <View className="pt-4 border-t border-slate-700">
                     <Button title="Save Changes" onPress={handleSave} />
                 </View>
             </View>
         </Card>
     );
 }
+
