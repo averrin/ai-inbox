@@ -90,6 +90,7 @@ export interface CalendarContainerProps<T extends ICalendarEventBase> {
   dayHeaderHighlightColor?: string
   weekDayHeaderHighlightColor?: string
   bodyContainerStyle?: ViewStyle
+  bodyContentContainerStyle?: ViewStyle
 
   // Custom renderer
   renderEvent?: EventRenderer<T>
@@ -215,6 +216,7 @@ function _CalendarContainer<T extends ICalendarEventBase>({
   dayHeaderHighlightColor = '',
   weekDayHeaderHighlightColor = '',
   bodyContainerStyle = {},
+  bodyContentContainerStyle = {},
   swipeEnabled = true,
   weekStartsOn = 0,
   onChangeDate,
@@ -570,6 +572,7 @@ function _CalendarContainer<T extends ICalendarEventBase>({
           {...commonProps}
           dateRange={getDateRange(getCurrentDate(index))}
           style={bodyContainerStyle}
+          contentContainerStyle={bodyContentContainerStyle}
           containerHeight={height}
           events={daytimeEvents}
           eventCellStyle={eventCellStyle}

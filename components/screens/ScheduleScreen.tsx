@@ -50,7 +50,7 @@ export default function ScheduleScreen() {
     const insets = useSafeAreaInsets();
     const tabBarHeight = 62 + insets.bottom; // Tab bar height including safe area
     // Adjusted height accounting for tab bar
-    const height = windowHeight - tabBarHeight;
+    const height = windowHeight;
     const [events, setEvents] = useState<any[]>([]);
     const [weatherData, setWeatherData] = useState<Record<string, WeatherData>>({});
     const [isEventsLoaded, setIsEventsLoaded] = useState(false);
@@ -1243,6 +1243,7 @@ export default function ScheduleScreen() {
                             renderHeader={renderHeader}
                             events={allEvents}
                             height={height}
+                            bodyContentContainerStyle={{ paddingBottom: tabBarHeight + 20 }}
                             date={date}
                             mode={viewMode}
                             onEventDrop={handleEventDrop}

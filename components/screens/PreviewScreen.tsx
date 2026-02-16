@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
 import { Card } from '../ui/Card';
@@ -112,6 +113,7 @@ export function PreviewScreen({
     totalTabs = 1,
     onTabChange,
 }: PreviewScreenProps) {
+    const insets = useSafeAreaInsets();
     const { timeFormat, editorType } = useSettingsStore();
     const { metadataCache } = useVaultStore();
 
@@ -344,7 +346,7 @@ export function PreviewScreen({
                     </View>
                 )}
 
-                <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}>
                     <Animated.View entering={FadeIn.duration(500)} style={{ flex: 1 }}>
                         {!isFocused && (
                             <Card padding="p-3">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { FlatList, View, Text, ActivityIndicator, RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinkWithSource } from '../../services/linkService';
 import { LinkItem } from './LinkItem';
 
@@ -13,6 +14,8 @@ interface LinksListProps {
 }
 
 export function LinksList({ links, isLoading, isRefreshing, onRefresh, onDelete, onTagPress }: LinksListProps) {
+    const insets = useSafeAreaInsets();
+
     if (isLoading && !isRefreshing && links.length === 0) {
         return (
             <View className="flex-1 justify-center items-center">
@@ -39,7 +42,7 @@ export function LinksList({ links, isLoading, isRefreshing, onRefresh, onDelete,
             renderItem={({ item }) => (
                 <LinkItem link={item} onDelete={onDelete} onTagPress={onTagPress} />
             )}
-            contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+            contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 80 }}
             refreshControl={
                 <RefreshControl
                     refreshing={isRefreshing}
