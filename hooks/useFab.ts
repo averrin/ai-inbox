@@ -7,19 +7,23 @@ export function useFab({
     onPress,
     icon = 'add',
     visible = true,
-    color
+    color,
+    onLongPress,
+    iconColor
 }: {
     onPress: () => void;
     icon?: string;
     visible?: boolean;
     color?: string;
+    onLongPress?: () => void;
+    iconColor?: string;
 }) {
     const { setFab, clearFab } = useUIStore();
 
     useFocusEffect(
         React.useCallback(() => {
             if (visible) {
-                setFab({ onPress, icon, visible: true, color });
+                setFab({ onPress, icon, visible: true, color, onLongPress, iconColor });
             } else {
                 clearFab();
             }
@@ -28,6 +32,6 @@ export function useFab({
                 // Clear on blur/unmount
                 clearFab();
             };
-        }, [onPress, icon, visible, color, setFab, clearFab])
+        }, [onPress, icon, visible, color, onLongPress, iconColor, setFab, clearFab])
     );
 }

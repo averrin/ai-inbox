@@ -130,12 +130,13 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
         // Otherwise use standard styling.
         if (showFab || (item.id === 'Input' && item.icon === 'add')) {
              const displayIcon = showFab ? fab.icon : item.icon;
+             const displayIconColor = showFab && fab.iconColor ? fab.iconColor : "black";
 
              return (
                 <TouchableOpacity
                     key={item.id}
                     onPress={onPress}
-                    onLongPress={() => navigation.navigate('Input')}
+                    onLongPress={showFab && fab.onLongPress ? fab.onLongPress : () => navigation.navigate('Input')}
                     style={{
                         width: 44,
                         height: 44,
@@ -152,7 +153,7 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
                         justifyContent: 'center',
                         alignItems: 'center'
                     }}>
-                         <Ionicons name={displayIcon as any} size={24} color="black" />
+                         <Ionicons name={displayIcon as any} size={24} color={displayIconColor} />
                     </View>
                 </TouchableOpacity>
             );
