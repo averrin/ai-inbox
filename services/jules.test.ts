@@ -1,4 +1,4 @@
-import { sendMessageToSession, deleteJulesSession } from './julesApi';
+import { sendMessageToSession, deleteJulesSession, fetchGithubRepoDetails } from './julesApi';
 import assert from 'node:assert';
 
 // Mock fetch
@@ -75,6 +75,27 @@ async function runTests() {
         assert.strictEqual(url2, 'https://jules.googleapis.com/v1alpha/sessions/123');
         assert.strictEqual(options2.method, 'DELETE');
         assert.strictEqual(options2.headers['x-goog-api-key'], 'test-api-key');
+        console.log('PASS');
+    } catch (e) {
+        console.error('FAIL', e);
+        process.exit(1);
+    }
+
+    try {
+        console.log('Test: fetchGithubRepoDetails should call repo endpoint');
+        mockFetch.calls = [];
+        mockFetch.response = { ok: true, json: async () => ({ default_branch: 'main' }) };
+
+        const repo = await fetchGithubRepoDetails('token', 'owner', 'repo');
+
+        assert.strictEqual(mockFetch.calls.length, 1);
+        // @ts-ignore
+        const [url, options] = mockFetch.calls[0];
+
+        assert.strictEqual(url, 'https://api.github.com/repos/owner/repo');
+        assert.strictEqual(options.headers['Authorization'], 'Bearer token');
+
+        assert.deepStrictEqual(repo, { default_branch: 'main' });
         console.log('PASS');
     } catch (e) {
         console.error('FAIL', e);
