@@ -13,6 +13,7 @@ import { TasksList } from './TasksList';
 import { SelectionSheet, SelectionOption } from '../ui/SelectionSheet';
 import { EventFormModal, EventSaveData } from '../EventFormModal';
 import * as Calendar from 'expo-calendar';
+import { ensureDirectory } from '../../utils/saf';
 import { useFab } from '../../hooks/useFab';
 
 
@@ -84,49 +85,136 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
         setIsModalVisible(true);
     };
 
+   
     useFab({
         onPress: handleCreateTask,
         icon: 'add'
     });
 
-    const handleSaveNewTask = async (newTask: RichTask) => {
+    const handleSaveNewTask = async (newTask: RichTask, newFolderPath?: string) => {
         if (!vaultUri || !folderUri) return;
-        
-        // Strategy: append to first file in folder or create tasks.md
-        let targetFileUri = '';
-        let targetFileName = 'tasks.md';
-        let targetFilePath = `${folderPath}/${targetFileName}`;
-        
-        if (tasks.length > 0) {
-            targetFileUri = tasks[0].fileUri;
-            targetFileName = tasks[0].fileName;
-            targetFilePath = tasks[0].filePath;
-        } else {
-             if (tasks.length === 0) {
-                 Alert.alert("No File Found", "Please create a markdown file in this folder first to add tasks.");
-                 return;
-             }
+
+        let targetFolderUri = folderUri;
+        let isDifferentFolder = false;
+
+        // Check if user selected a different folder
+        if (newFolderPath && newFolderPath.trim() !== folderPath) {
+            isDifferentFolder = true;
+            try {
+                // Resolve URI for the new path
+                let current = vaultUri;
+                const parts = newFolderPath.split('/').filter(p => p.trim());
+                for (const part of parts) {
+                    current = await ensureDirectory(current, part);
+                }
+                targetFolderUri = current;
+            } catch (e) {
+                console.error("Failed to resolve new folder", e);
+                Alert.alert("Error", "Could not access selected folder.");
+                return;
+            }
         }
         
         try {
-            const baseAddedTask = await TaskService.addTask(vaultUri, targetFileUri, newTask);
-            const addedTask: TaskWithSource = {
-                ...baseAddedTask,
-                filePath: targetFilePath,
-                fileName: targetFileName,
-                fileUri: targetFileUri
-            };
-            setTasks(prev => [...prev, addedTask]);
+            // Find default file in target folder (Inbox.md or Tasks.md or create Inbox.md)
+            const defaultFile = await TaskService.findDefaultTaskFile(targetFolderUri);
+
+            const baseAddedTask = await TaskService.addTask(vaultUri, defaultFile.uri, newTask);
+
+            // Only update local list if we stayed in the same folder
+            if (!isDifferentFolder) {
+                const addedTask: TaskWithSource = {
+                    ...baseAddedTask,
+                    filePath: `${folderPath}/${defaultFile.name}`,
+                    fileName: defaultFile.name,
+                    fileUri: defaultFile.uri
+                };
+                setTasks(prev => [...prev, addedTask]);
+            }
+
             setIsModalVisible(false);
-            Toast.show({ type: 'success', text1: 'Task Created' });
+            Toast.show({ type: 'success', text1: isDifferentFolder ? 'Task Created in ' + newFolderPath : 'Task Created' });
         } catch (e) {
             Toast.show({ type: 'error', text1: 'Create Failed', text2: 'Could not save new task.' });
         }
     };
 
-    const handleSaveEdit = async (updatedTask: RichTask, targetTaskOverride?: TaskWithSource) => {
+    const handleSaveEdit = async (updatedTask: RichTask, arg2?: string | TaskWithSource) => {
+        let newFolderPath: string | undefined;
+        let targetTaskOverride: TaskWithSource | undefined;
+
+        if (typeof arg2 === 'string') {
+            newFolderPath = arg2;
+        } else if (arg2 && typeof arg2 === 'object') {
+            targetTaskOverride = arg2;
+        }
+
         const target = targetTaskOverride || editingTask;
         if (!target || !vaultUri) return;
+
+        // Check for folder change
+        if (newFolderPath && typeof newFolderPath === 'string') {
+             // current folder path
+             const currentFolder = target.filePath && target.filePath.includes('/')
+                ? target.filePath.substring(0, target.filePath.lastIndexOf('/'))
+                : '';
+
+             // Check if changed
+             if (newFolderPath !== currentFolder) {
+                 // === MOVE LOGIC ===
+                 try {
+                    // Resolve URI
+                    let targetFolderUri = vaultUri;
+                    const parts = newFolderPath.split('/').filter(p => p.trim());
+                    for (const part of parts) {
+                        targetFolderUri = await ensureDirectory(targetFolderUri, part);
+                    }
+
+                    // Add to new
+                    const defaultFile = await TaskService.findDefaultTaskFile(targetFolderUri);
+                    await TaskService.addTask(vaultUri, defaultFile.uri, updatedTask);
+
+                    // Delete from old
+                    await TaskService.syncTaskDeletion(vaultUri, target);
+
+                    // Remove from local list (since it moved out of this view presumably,
+                    // or even if it moved to another file in same folder, we might want to refresh or just assume remove?)
+                    // If it moved to another file in SAME folder, we should ideally keep it but update fileUri.
+                    // But determining if targetFolderUri === folderUri is hard with URIs.
+                    // We can check strings: newFolderPath === folderPath.
+
+                    if (newFolderPath === folderPath) {
+                        // Moved to another file in same folder (e.g. from Project.md to Inbox.md in same folder)
+                        // Update local state
+                         const movedTask: TaskWithSource = {
+                            ...updatedTask,
+                            fileUri: defaultFile.uri,
+                            filePath: `${folderPath}/${defaultFile.name}`,
+                            fileName: defaultFile.name
+                        };
+
+                        setTasks(prev => prev.map(t =>
+                            (t.fileUri === target.fileUri && t.originalLine === target.originalLine) ? movedTask : t
+                        ));
+                    } else {
+                        // Moved out of folder
+                        setTasks(prev => prev.filter(t =>
+                            !(t.fileUri === target.fileUri && t.originalLine === target.originalLine)
+                        ));
+                    }
+
+                    setIsModalVisible(false);
+                    setEditingTask(null);
+                    Toast.show({ type: 'success', text1: 'Task Moved' });
+                    return;
+
+                 } catch (e) {
+                     console.error("Failed to move task", e);
+                     Alert.alert("Error", "Failed to move task.");
+                     return;
+                 }
+             }
+        }
 
         try {
             await TaskService.syncTaskUpdate(vaultUri, target, updatedTask);
@@ -287,11 +375,13 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                 <TaskEditModal
                     visible={isModalVisible}
                     task={editingTask}
+                    enableFolderSelection={true}
+                    initialFolder={folderPath}
                     onCancel={() => {
                         setIsModalVisible(false);
                         setEditingTask(null);
                     }}
-                    onSave={editingTask ? handleSaveEdit : handleSaveNewTask}
+                    onSave={editingTask ? (task, folder) => handleSaveEdit(task, folder) : (task, folder) => handleSaveNewTask(task, folder)}
                     onOpenEvent={(id) => {
                         setIsModalVisible(false);
                         Calendar.getEventAsync(id).then(evt => {

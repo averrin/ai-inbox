@@ -295,6 +295,7 @@ export function InputScreen({
             <TaskEditModal 
                 visible={isTaskModalVisible}
                 task={editingTask}
+                enableFolderSelection={false}
                 onSave={handleSaveTask}
                 onCancel={() => setIsTaskModalVisible(false)}
             />
