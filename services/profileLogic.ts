@@ -134,7 +134,7 @@ Target_Abstraction_Level: ${config.abstractionLevel}
     }
 
     static generateProfileImagePrompt(profile: ProfileData): string {
-        const facts = JSON.stringify(profile.facts).substring(0, 1000); // Truncate to avoid huge prompts
+        const facts = JSON.stringify(profile.facts || {}).substring(0, 1000); // Truncate to avoid huge prompts
         const traits = (profile.traits || []).join(', ');
 
         return `A high quality, photorealistic diorama of a scenery representing the following person's inner world.

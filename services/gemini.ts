@@ -317,7 +317,7 @@ export async function generateImage(apiKey: string, prompt: string, model: strin
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error(`[Gemini] Image generation failed: ${response.status}`, errorText);
+            console.error(`[Gemini] Image generation failed: ${response.status} ${response.statusText}`, errorText);
             return null;
         }
 
