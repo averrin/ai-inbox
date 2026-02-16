@@ -111,6 +111,7 @@ interface CalendarBodyProps<T extends ICalendarEventBase> {
   onExternalDrop?: (date: Date, data: any) => void
   refreshing?: boolean
   onRefresh?: () => void
+  contentContainerStyle?: ViewStyle
 }
 
 function _CalendarBody<T extends ICalendarEventBase>({
@@ -118,6 +119,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
   cellHeight,
   dateRange,
   style,
+  contentContainerStyle,
   onLongPressCell,
   onPressCell,
   events,
@@ -715,6 +717,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
           },
           style,
         ]}
+        contentContainerStyle={contentContainerStyle}
         ref={scrollView}
         scrollEventThrottle={32}
         showsVerticalScrollIndicator={showVerticalScrollIndicator}

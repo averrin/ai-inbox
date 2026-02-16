@@ -1,4 +1,5 @@
 import { View, Text, Alert, TouchableOpacity, Modal, ScrollView, BackHandler, Animated, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
 import { Button } from '../ui/Button';
@@ -43,6 +44,7 @@ type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
+    const insets = useSafeAreaInsets();
     const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret, linksRoot, setLinksRoot } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
@@ -789,7 +791,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     if (!canClose) {
         return (
             <Layout>
-                <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="always">
+                <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} keyboardShouldPersistTaps="always">
                     {renderWelcomeContent()}
                 </ScrollView>
                 {/* Modals ... */}
@@ -836,7 +838,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     }}
                     pointerEvents={activeSection === 'root' ? 'auto' : 'none'}
                 >
-                    <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="always">
+                    <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} keyboardShouldPersistTaps="always">
                         {renderHeader("Settings", onClose)}
                         {renderRootMenu()}
                     </ScrollView>
@@ -858,7 +860,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <LogsSettings />
                         </View>
                     ) : (
-                    <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="always">
+                    <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} keyboardShouldPersistTaps="always">
                         {activeSection === 'general' && (
                             <>
                                 {renderHeader("General", () => setActiveSection('root'))}

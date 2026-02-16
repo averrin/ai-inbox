@@ -6,6 +6,7 @@ import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settings';
 
 export default function ProfileScreen() {
+    const insets = useSafeAreaInsets();
     const [editingFact, setEditingFact] = useState<{ key: string, value: string } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -94,7 +95,7 @@ export default function ProfileScreen() {
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 className="flex-1"
             >
-                <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: 100 }}>
+                <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
 
                     {/* Status / Welcome */}
                     <View className="mb-6">
