@@ -71,6 +71,9 @@ jobs:
       - name: Grant Execute Permission to Gradlew
         run: chmod +x android/gradlew
 
+      - name: Update gradle.properties
+        run: echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> android/gradle.properties
+
       - name: Build APK with Gradle
         working-directory: ./android
         run: ./gradlew assembleRelease

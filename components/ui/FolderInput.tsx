@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, TextInput, ScrollView } from 'react-nativ
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import { listSubdirectories } from '../../utils/saf';
+import { getSuggestions, applySuggestion, resolveBrowsePath } from '../../utils/folderUtils';
 
 interface FolderInputProps {
     label: string;
@@ -28,38 +29,39 @@ export function FolderInput({
 }: FolderInputProps) {
     const [isSelecting, setIsSelecting] = useState(false);
     const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [completionMode, setCompletionMode] = useState<'append' | 'replace'>('append');
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // When basePath is set, the full path is basePath + "/" + value
-    // Autocomplete lists subfolders of the full resolved path
-    const resolvedPath = basePath
-        ? (value ? `${basePath}/${value}` : basePath)
-        : value;
-
-    const fetchSuggestions = useCallback(async (fullPath: string) => {
+    const fetchSuggestions = useCallback(async (currentInput: string) => {
         if (!vaultUri) {
             setSuggestions([]);
             return;
         }
 
         try {
-            const dirs = await listSubdirectories(vaultUri, fullPath);
+            const { suggestions: dirs, mode } = await getSuggestions(
+                vaultUri,
+                basePath,
+                currentInput,
+                listSubdirectories
+            );
             setSuggestions(dirs);
+            setCompletionMode(mode);
             setShowSuggestions(dirs.length > 0);
         } catch {
             setSuggestions([]);
             setShowSuggestions(false);
         }
-    }, [vaultUri]);
+    }, [vaultUri, basePath]);
 
     useEffect(() => {
         if (!isFocused) return;
 
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => {
-            fetchSuggestions(resolvedPath);
+            fetchSuggestions(value);
         }, 300);
 
         return () => {
@@ -68,14 +70,14 @@ export function FolderInput({
     }, [value, isFocused, fetchSuggestions]);
 
     const handleSelectSuggestion = (subfolder: string) => {
-        const newPath = value ? `${value.replace(/\/$/, '')}/${subfolder}` : subfolder;
+        const newPath = applySuggestion(value, subfolder, completionMode);
         onChangeText(newPath);
         // Keep suggestions open — will refresh for the new path
     };
 
     const handleFocus = () => {
         setIsFocused(true);
-        fetchSuggestions(resolvedPath);
+        fetchSuggestions(value);
     };
 
     const handleBlur = () => {
@@ -94,32 +96,13 @@ export function FolderInput({
             const result = await StorageAccessFramework.requestDirectoryPermissionsAsync(vaultUri);
             
             if (result.granted && result.directoryUri) {
-                // Extract relative path from the selected folder URI
-                const vaultDecoded = decodeURIComponent(vaultUri);
-                const selectedDecoded = decodeURIComponent(result.directoryUri);
-                
-                // Try to extract relative path
-                // Vault: content://.../tree/primary:Documents/Vault
-                // Selected: content://.../tree/primary:Documents/Vault/Inbox/URLs
-                
-                const vaultMatch = vaultDecoded.match(/(?:tree|document)\/(.+?)$/);
-                const selectedMatch = selectedDecoded.match(/(?:tree|document)\/(.+?)$/);
-                
-                if (vaultMatch && selectedMatch) {
-                    const vaultPath = vaultMatch[1];
-                    const selectedPath = selectedMatch[1];
-                    
-                    // Remove vault path prefix to get relative path
-                    if (selectedPath.startsWith(vaultPath)) {
-                        let relativePath = selectedPath.substring(vaultPath.length);
-                        // Remove leading slash if present
-                        relativePath = relativePath.replace(/^\//, '');
-                        onChangeText(relativePath);
-                        console.log('[FolderInput] Set relative path:', relativePath);
-                    } else {
-                        console.warn('[FolderInput] Selected folder is not within vault');
-                    }
-                }
+                 const relativePath = resolveBrowsePath(vaultUri, result.directoryUri, basePath);
+                 if (relativePath !== null) {
+                     onChangeText(relativePath);
+                     console.log('[FolderInput] Set relative path:', relativePath);
+                 } else {
+                     console.warn('[FolderInput] Could not resolve path or selected folder is not within vault');
+                 }
             }
         } catch (e) {
             console.error('[FolderInput] Error selecting folder:', e);
