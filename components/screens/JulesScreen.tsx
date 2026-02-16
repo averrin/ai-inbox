@@ -259,17 +259,9 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
     const [prInactive, setPrInactive] = useState(false);
 
     const spinValue = useRef(new Animated.Value(0)).current;
+    const isFetchingRef = useRef(false);
 
     const pr = run.pull_requests && run.pull_requests.length > 0 ? run.pull_requests[0] : null;
-
-    useEffect(() => {
-        if (refreshTrigger && refreshTrigger > 0) {
-             setChecks(null);
-             setArtifacts(null);
-             setChecksLoading(false);
-             setArtifactsLoading(false);
-        }
-    }, [refreshTrigger]);
 
     useEffect(() => {
         if (pr) {
@@ -307,12 +299,30 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
     });
 
     const fetchArtifactsData = useCallback(() => {
+        if (isFetchingRef.current) return;
+        isFetchingRef.current = true;
         setArtifactsLoading(true);
         fetchArtifacts(token, owner, repo, run.id)
             .then(setArtifacts)
             .catch(err => console.error("Artifacts fetch error:", err))
-            .finally(() => setArtifactsLoading(false));
+            .finally(() => {
+                setArtifactsLoading(false);
+                isFetchingRef.current = false;
+            });
     }, [token, owner, repo, run.id]);
+
+    useEffect(() => {
+        if (refreshTrigger && refreshTrigger > 0) {
+             setChecks(null);
+             setChecksLoading(false);
+             setArtifacts(null);
+             fetchArtifactsData();
+        }
+    }, [refreshTrigger, fetchArtifactsData]);
+
+    useEffect(() => {
+        fetchArtifactsData();
+    }, [fetchArtifactsData]);
 
     useEffect(() => {
         if (artifacts && artifacts.length > 0) {
@@ -471,10 +481,13 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                     ) : artifactsLoading ? (
                         <ActivityIndicator size="small" color="#94a3b8" />
                     ) : (
-                        <View className="px-3 py-1.5 bg-slate-800/50 border border-slate-700 rounded-lg flex-row items-center">
+                        <TouchableOpacity
+                            onPress={fetchArtifactsData}
+                            className="px-3 py-1.5 bg-slate-800/50 border border-slate-700 rounded-lg flex-row items-center"
+                        >
                             <Ionicons name="alert-circle-outline" size={14} color="#64748b" />
                             <Text className="text-slate-500 text-xs font-medium ml-1">No Artifact</Text>
-                        </View>
+                        </TouchableOpacity>
                     )}
 
                     <TouchableOpacity onPress={() => setExpanded(!expanded)} className="p-1">
