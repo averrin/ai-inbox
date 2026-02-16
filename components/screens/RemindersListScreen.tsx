@@ -9,6 +9,7 @@ import { useReminderModal } from '../../utils/reminderModalContext';
 import { ReminderItem } from '../ui/ReminderItem';
 import { EventFormModal, EventSaveData, DeleteOptions } from '../EventFormModal';
 import { useOptimisticReminders } from '../../hooks/useOptimisticReminders';
+import { useFab } from '../../hooks/useFab';
 
 export default function RemindersListScreen() {
   const { showReminder } = useReminderModal();
@@ -29,6 +30,11 @@ export default function RemindersListScreen() {
 
   // Create Modal State
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+
+  useFab({
+    onPress: () => setIsCreateModalVisible(true),
+    icon: 'add'
+  });
 
   useEffect(() => {
     loadReminders();
@@ -172,21 +178,6 @@ export default function RemindersListScreen() {
           </View>
         )}
       </ScrollView>
-
-      {/* Floating Action Button */}
-      <TouchableOpacity
-        onPress={() => setIsCreateModalVisible(true)}
-        className="absolute bottom-6 right-6 bg-indigo-600 rounded-full w-16 h-16 items-center justify-center shadow-lg"
-        style={{
-          elevation: 8,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 4,
-        }}
-      >
-        <Ionicons name="add" size={32} color="white" />
-      </TouchableOpacity>
 
       {/* Edit Modal */}
       {editingReminder && (
