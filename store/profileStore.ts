@@ -148,6 +148,7 @@ export const useProfileStore = create<ProfileState>()(
                 }
 
                 set({ isGeneratingImage: true });
+                console.log(`[ProfileStore] Generating image with model: ${selectedImageModel}`);
 
                 try {
                     const prompt = ProfileService.generateProfileImagePrompt(profile);
@@ -171,9 +172,11 @@ export const useProfileStore = create<ProfileState>()(
                         if (vaultUri) {
                             await ProfileService.saveProfile(vaultUri, updatedProfile);
                         }
+                    } else {
+                        console.warn('[ProfileStore] Image generation returned null');
                     }
-                } catch (e) {
-                    console.error('[ProfileStore] Failed to generate profile image', e);
+                } catch (e: any) {
+                    console.error('[ProfileStore] Failed to generate profile image', JSON.stringify(e, Object.getOwnPropertyNames(e)));
                 } finally {
                     set({ isGeneratingImage: false });
                 }
