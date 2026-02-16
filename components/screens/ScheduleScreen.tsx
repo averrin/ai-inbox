@@ -25,7 +25,7 @@ import { DaySummaryModal } from '../DaySummaryModal';
 import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder, formatRecurrenceForReminder } from '../../services/reminderService';
 import { EventFormModal, EventSaveData, DeleteOptions } from '../EventFormModal';
 import { TaskEditModal } from '../markdown/TaskEditModal';
-import { TaskWithSource } from '../../store/tasks';
+import { TaskWithSource, useTasksStore } from '../../store/tasks';
 import { createCalendarEvent, getWritableCalendars, updateCalendarEvent, deleteCalendarEvent } from '../../services/calendarService';
 
 import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../services/weatherService';
