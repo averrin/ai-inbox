@@ -135,6 +135,7 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
                 <TouchableOpacity
                     key={item.id}
                     onPress={onPress}
+                    onLongPress={() => navigation.navigate('Input')}
                     style={{
                         width: 44,
                         height: 44,
