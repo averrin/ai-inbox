@@ -52,6 +52,7 @@ export const DEFAULT_NAV_ITEMS: NavItemConfig[] = [
     { id: 'Schedule', visible: true, title: 'Schedule', icon: 'home-outline', type: 'screen', segment: 'left' },
     { id: 'Tasks', visible: true, title: 'Tasks', icon: 'checkbox-outline', type: 'screen', segment: 'left' },
     { id: 'Reminders', visible: true, title: 'Reminders', icon: 'calendar-clear-outline', type: 'screen', segment: 'left' },
+    { id: 'Assistant', visible: true, title: 'Assistant', icon: 'chatbubbles-outline', type: 'screen', segment: 'left' },
 
     // Right
     { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github', type: 'screen', segment: 'right' },

@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ProcessingScreen from '../screens/ProcessingScreen';
 import RemindersListScreen from '../screens/RemindersListScreen';
 import TasksScreen from '../screens/TasksScreen';
+import AssistantScreen from '../screens/AssistantScreen';
 import LinksScreen from '../screens/LinksScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SetupScreen from '../screens/SetupScreen';
@@ -258,6 +259,7 @@ function InnerTabNavigator({
     Schedule: { component: ScheduleScreen, options: { swipeEnabled: false } },
     Input: { children: () => <ProcessingScreen shareIntent={shareIntent} onReset={onReset} />, options: { tabBarLabel: 'Note' } },
     Tasks: { component: TasksScreen },
+    Assistant: { component: AssistantScreen },
     Links: { component: LinksScreen },
     Reminders: { component: RemindersListScreen },
     Jules: { component: JulesScreen },
