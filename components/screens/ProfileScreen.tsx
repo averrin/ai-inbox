@@ -2,6 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { 
+    useSharedValue, 
+    useAnimatedStyle, 
+    withSpring,
+    cancelAnimation
+} from 'react-native-reanimated';
+import { 
+    Gesture, 
+    GestureDetector, 
+    GestureHandlerRootView 
+} from 'react-native-gesture-handler';
 import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settings';
 
@@ -9,6 +20,59 @@ export default function ProfileScreen() {
     const insets = useSafeAreaInsets();
     const [editingFact, setEditingFact] = useState<{ key: string, value: string } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isImageFull, setIsImageFull] = useState(false);
+
+    // Gesture shared values
+    const scale = useSharedValue(1);
+    const savedScale = useSharedValue(1);
+    const translateX = useSharedValue(0);
+    const translateY = useSharedValue(0);
+    const savedTranslateX = useSharedValue(0);
+    const savedTranslateY = useSharedValue(0);
+
+    const resetGestures = () => {
+        'worklet';
+        scale.value = withSpring(1);
+        savedScale.value = 1;
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+    };
+
+    const pinchGesture = Gesture.Pinch()
+        .onUpdate((e) => {
+            scale.value = savedScale.value * e.scale;
+        })
+        .onEnd(() => {
+            savedScale.value = scale.value;
+            if (scale.value < 1) {
+                resetGestures();
+            }
+        });
+
+    const panGesture = Gesture.Pan()
+        .onUpdate((e) => {
+            translateX.value = savedTranslateX.value + e.translationX;
+            translateY.value = savedTranslateY.value + e.translationY;
+        })
+        .onEnd(() => {
+            savedTranslateX.value = translateX.value;
+            savedTranslateY.value = translateY.value;
+            if (scale.value <= 1) {
+                resetGestures();
+            }
+        });
+
+    const composedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [
+            { translateX: translateX.value },
+            { translateY: translateY.value },
+            { scale: scale.value },
+        ],
+    }));
 
     const {
         profile,
@@ -180,21 +244,33 @@ export default function ProfileScreen() {
                                                 <Ionicons name="image-outline" size={16} color="#94a3b8" />
                                                 <Text className="text-slate-300 font-semibold">Inner World</Text>
                                             </View>
-                                            <TouchableOpacity onPress={() => generateProfileImage()} disabled={isGeneratingImage}>
-                                                {isGeneratingImage ? (
-                                                    <ActivityIndicator size="small" color="#818cf8" />
-                                                ) : (
-                                                    <Ionicons name="refresh" size={16} color="#94a3b8" />
+                                            <View className="flex-row items-center gap-4">
+                                                {profile.profileImage && (
+                                                    <TouchableOpacity onPress={() => setIsImageFull(true)}>
+                                                        <Ionicons name="expand-outline" size={16} color="#818cf8" />
+                                                    </TouchableOpacity>
                                                 )}
-                                            </TouchableOpacity>
+                                                <TouchableOpacity onPress={() => generateProfileImage()} disabled={isGeneratingImage}>
+                                                    {isGeneratingImage ? (
+                                                        <ActivityIndicator size="small" color="#818cf8" />
+                                                    ) : (
+                                                        <Ionicons name="refresh" size={16} color="#94a3b8" />
+                                                    )}
+                                                </TouchableOpacity>
+                                            </View>
                                         </View>
 
                                         {profile.profileImage ? (
-                                            <Image
-                                                source={{ uri: profile.profileImage }}
-                                                style={{ width: '100%', height: 200 }}
-                                                resizeMode="cover"
-                                            />
+                                            <TouchableOpacity 
+                                                activeOpacity={0.9} 
+                                                onPress={() => setIsImageFull(true)}
+                                            >
+                                                <Image
+                                                    source={{ uri: profile.profileImage }}
+                                                    style={{ width: '100%', height: 200 }}
+                                                    resizeMode="cover"
+                                                />
+                                            </TouchableOpacity>
                                         ) : (
                                             <View className="h-40 items-center justify-center bg-slate-950/50">
                                                 <Text className="text-slate-500 italic text-xs">
@@ -375,6 +451,57 @@ export default function ProfileScreen() {
                         </View>
                     </View>
                 </View>
+            </Modal>
+
+            {/* Full Screen Image Modal */}
+            <Modal
+                visible={isImageFull}
+                transparent
+                animationType="fade"
+                onRequestClose={() => {
+                    setIsImageFull(false);
+                    resetGestures();
+                }}
+            >
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                    <View className="flex-1 bg-black/95 justify-center overflow-hidden">
+                        <TouchableOpacity 
+                            className="absolute top-12 right-6 z-10 p-2 bg-slate-900/50 rounded-full border border-slate-700" 
+                            onPress={() => {
+                                setIsImageFull(false);
+                                resetGestures();
+                            }}
+                        >
+                            <Ionicons name="close" size={24} color="white" />
+                        </TouchableOpacity>
+                        
+                        {profile.profileImage && (
+                            <GestureDetector gesture={composedGesture}>
+                                <Animated.View style={[animatedStyle, { width: '100%', height: '80%', justifyContent: 'center' }]}>
+                                    <Image
+                                        source={{ uri: profile.profileImage }}
+                                        style={{ width: '100%', height: '100%' }}
+                                        resizeMode="contain"
+                                    />
+                                </Animated.View>
+                            </GestureDetector>
+                        )}
+
+                        <View className="absolute bottom-10 left-0 right-0 items-center">
+                            <TouchableOpacity 
+                                className="bg-slate-900 px-6 py-3 rounded-full border border-slate-800 flex-row items-center gap-2"
+                                onPress={() => {
+                                    generateProfileImage();
+                                    resetGestures();
+                                }}
+                                disabled={isGeneratingImage}
+                            >
+                                <Ionicons name="refresh" size={18} color="#818cf8" />
+                                <Text className="text-slate-200 font-medium">Regenerate</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </GestureHandlerRootView>
             </Modal>
         </SafeAreaView>
     );
