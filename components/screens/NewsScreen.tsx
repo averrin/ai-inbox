@@ -1,7 +1,7 @@
-import { View, Text, FlatList, Image, TouchableOpacity, RefreshControl, ScrollView, TextInput, Alert } from 'react-native';
+import { View, Text, FlatList, Image, TouchableOpacity, RefreshControl, TextInput, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettingsStore } from '../../store/settings';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Article, fetchNews } from '../../services/newsService';
 import { Layout } from '../ui/Layout';
 import { ScreenHeader } from '../ui/ScreenHeader';
@@ -215,7 +215,7 @@ export default function NewsScreen() {
         return (
             <TouchableOpacity
                 onPress={onPress}
-                className={`px-4 py-2 rounded-full mr-2 border ${containerClass}`}
+                className={`px-4 py-2 rounded-full mr-2 mb-2 border ${containerClass}`}
             >
                 <Text className={`font-medium ${textClass}`}>{label}</Text>
             </TouchableOpacity>
@@ -226,6 +226,7 @@ export default function NewsScreen() {
         <Layout>
             <ScreenHeader
                 title="News Feed"
+                noBorder
                 rightActions={
                     selectedFilter && rssFeeds.includes(selectedFilter) && visibleArticles.length > 0
                         ? [{
@@ -256,7 +257,7 @@ export default function NewsScreen() {
                     <>
                         {/* Filters Bar */}
                         <View className="mb-4">
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row mb-2">
+                            <View className="flex-row flex-wrap">
                                 <FilterChip
                                     label="All"
                                     active={selectedFilter === null && !showCustomInput}
@@ -299,7 +300,7 @@ export default function NewsScreen() {
                                     active={showCustomInput}
                                     onPress={() => setShowCustomInput(!showCustomInput)}
                                 />
-                            </ScrollView>
+                            </View>
 
                             {showCustomInput && (
                                 <View className="flex-row items-center gap-2 mb-2">
