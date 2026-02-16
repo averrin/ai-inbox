@@ -1,5 +1,6 @@
 import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, Alert, ActivityIndicator, StyleSheet, Modal, FlatList, TextInput, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layout } from '../ui/Layout';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
@@ -844,6 +845,7 @@ function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { run
 }
 
 export default function JulesScreen() {
+    const insets = useSafeAreaInsets();
     const { julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesGoogleApiKey, githubClientId, githubClientSecret } = useSettingsStore();
     const [masterRuns, setMasterRuns] = useState<WorkflowRun[]>([]);
     const [allRuns, setAllRuns] = useState<WorkflowRun[]>([]);
@@ -1101,7 +1103,7 @@ export default function JulesScreen() {
         return (
             <ScrollView
                 className="flex-1"
-                contentContainerStyle={{ paddingBottom: 20, paddingTop: 10 }}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 80, paddingTop: 10 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#818cf8" />}
             >
                 {/* New Session Button - Placed at Top as requested */}

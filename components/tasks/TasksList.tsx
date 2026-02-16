@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, FlatList, RefreshControl, Text, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { TaskWithSource } from '../../store/tasks';
 import { RichTaskItem } from '../markdown/RichTaskItem';
@@ -56,6 +57,7 @@ export function TasksList({
     onToggleSelection,
     onTagPress
 }: TasksListProps) {
+    const insets = useSafeAreaInsets();
     const [activeTaskForSheet, setActiveTaskForSheet] = useState<TaskWithSource | null>(null);
     const [isStatusSheetVisible, setIsStatusSheetVisible] = useState(false);
     const [isPrioritySheetVisible, setIsPrioritySheetVisible] = useState(false);
@@ -135,7 +137,7 @@ export function TasksList({
                         />
                     );
                 }}
-                contentContainerStyle={{ padding: 12 }}
+                contentContainerStyle={{ padding: 12, paddingBottom: insets.bottom + 80 }}
                 ListEmptyComponent={
                     <View className="items-center justify-center py-20">
                         <Text className="text-slate-500 italic">No tasks found matching criteria.</Text>
