@@ -53,8 +53,10 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
     // 1. Filter Tasks
     const eventIds = new Set<string>();
     calendarEvents.forEach(e => {
-        if (e.originalEvent?.id) eventIds.add(e.originalEvent.id);
-        if (e.id) eventIds.add(e.id);
+        if (dayjs(e.start).isSame(dayjs(date), 'day')) {
+            if (e.originalEvent?.id) eventIds.add(e.originalEvent.id);
+            if (e.id) eventIds.add(e.id);
+        }
     });
 
     const filteredTasks = tasks.filter(task => {
