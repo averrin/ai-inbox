@@ -7,7 +7,7 @@ import { Input } from '../ui/Input';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
 import { requestVaultAccess } from '../../utils/saf';
-import { fetchAvailableModels } from '../../services/models';
+import { fetchAvailableModels, fetchAvailableImageModels } from '../../services/models';
 import { useState, useEffect, useRef } from 'react';
 import { useAuthRequest, makeRedirectUri } from 'expo-auth-session';
 import { exchangeGithubToken, fetchGithubUser } from '../../services/jules';
@@ -44,11 +44,13 @@ type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
+    
     const insets = useSafeAreaInsets();
-    const { apiKey, vaultUri, customPromptPath, selectedModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret, linksRoot, setLinksRoot } = useSettingsStore();
+    const { apiKey, vaultUri, customPromptPath, selectedModel, selectedImageModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setSelectedImageModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret, linksRoot, setLinksRoot } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
     const [modelInput, setModelInput] = useState(selectedModel);
+    const [imageModelInput, setImageModelInput] = useState(selectedImageModel);
     const [rootFolderInput, setRootFolderInput] = useState(contextRootFolder || '');
     const [linksRootInput, setLinksRootInput] = useState(linksRoot || '');
     const [julesKeyInput, setJulesKeyInput] = useState(julesApiKey || '');
@@ -57,7 +59,9 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const [githubClientIdInput, setGithubClientIdInput] = useState(githubClientId || '');
     const [githubClientSecretInput, setGithubClientSecretInput] = useState(githubClientSecret || '');
     const [availableModels, setAvailableModels] = useState<string[]>(['gemini-2.0-flash-exp']);
+    const [availableImageModels, setAvailableImageModels] = useState<string[]>(['imagen-3.0-generate-001']);
     const [showModelPicker, setShowModelPicker] = useState(false);
+    const [showImageModelPicker, setShowImageModelPicker] = useState(false);
     const [folderStatus, setFolderStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [linksRootStatus, setLinksRootStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [promptFileStatus, setPromptFileStatus] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
@@ -167,6 +171,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     useEffect(() => {
         if (keyInput && keyInput.length > 30) {
             fetchAvailableModels(keyInput).then(setAvailableModels);
+            fetchAvailableImageModels(keyInput).then(setAvailableImageModels);
         }
     }, [keyInput]);
 
@@ -200,6 +205,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 setKeyInput(apiKey || '');
                 setPromptPathInput(customPromptPath || '');
                 setModelInput(selectedModel);
+                setImageModelInput(selectedImageModel);
                 setRootFolderInput(contextRootFolder || '');
                 setLinksRootInput(linksRoot || '');
                 setJulesKeyInput(julesApiKey || '');
@@ -281,6 +287,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         setApiKey(keyInput);
         setCustomPromptPath(promptPathInput);
         setSelectedModel(modelInput);
+        setSelectedImageModel(imageModelInput);
         setContextRootFolder(rootFolderInput);
         setLinksRoot(linksRootInput);
         setGithubClientId(githubClientIdInput || null);
@@ -296,6 +303,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             setApiKey(keyInput);
             setCustomPromptPath(promptPathInput);
             setSelectedModel(modelInput);
+            setSelectedImageModel(imageModelInput);
             setContextRootFolder(rootFolderInput);
             setLinksRoot(linksRootInput);
             setJulesApiKey(julesKeyInput || null);
@@ -311,11 +319,13 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         keyInput,
         promptPathInput,
         modelInput,
+        imageModelInput,
         rootFolderInput,
         linksRootInput,
         setApiKey,
         setCustomPromptPath,
         setSelectedModel,
+        setSelectedImageModel,
         setContextRootFolder,
         setLinksRoot,
         julesKeyInput,
@@ -350,6 +360,16 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     className="bg-slate-800/50 border border-slate-700 rounded-xl p-4"
                 >
                     <Text className="text-white font-medium">{modelInput}</Text>
+                </TouchableOpacity>
+            </View>
+
+            <View className="mb-4">
+                <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">Image Generation Model</Text>
+                <TouchableOpacity
+                    onPress={() => setShowImageModelPicker(true)}
+                    className="bg-slate-800/50 border border-slate-700 rounded-xl p-4"
+                >
+                    <Text className="text-white font-medium">{imageModelInput}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -983,6 +1003,34 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                         setShowModelPicker(false);
                                     }}
                                     className={`p-4 rounded-xl mb-2 ${modelInput === model ? 'bg-indigo-600' : 'bg-slate-800'}`}
+                                >
+                                    <Text className="text-white font-medium">{model}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Image Model Selection Modal */}
+            <Modal visible={showImageModelPicker} transparent animationType="slide">
+                <View className="flex-1 justify-end bg-black/50">
+                    <View className="bg-slate-900 rounded-t-3xl p-6 max-h-[70%]">
+                        <View className="flex-row justify-between items-center mb-4">
+                            <Text className="text-white text-xl font-bold">Select Image Model</Text>
+                            <TouchableOpacity onPress={() => setShowImageModelPicker(false)}>
+                                <Ionicons name="close" size={24} color="white" />
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView>
+                            {availableImageModels.map((model) => (
+                                <TouchableOpacity
+                                    key={model}
+                                    onPress={() => {
+                                        setImageModelInput(model);
+                                        setShowImageModelPicker(false);
+                                    }}
+                                    className={`p-4 rounded-xl mb-2 ${imageModelInput === model ? 'bg-indigo-600' : 'bg-slate-800'}`}
                                 >
                                     <Text className="text-white font-medium">{model}</Text>
                                 </TouchableOpacity>
