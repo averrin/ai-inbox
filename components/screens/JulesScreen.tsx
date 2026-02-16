@@ -245,7 +245,7 @@ function CheckStatusItem({ check }: { check: CheckRun }) {
     );
 }
 
-function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, refreshTrigger, embedded = false }: { run: WorkflowRun, token: string, owner: string, repo: string, initialExpanded?: boolean, refreshTrigger?: number, embedded?: boolean }) {
+function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, refreshTrigger, embedded = false, compact = false }: { run: WorkflowRun, token: string, owner: string, repo: string, initialExpanded?: boolean, refreshTrigger?: number, embedded?: boolean, compact?: boolean }) {
     const [checks, setChecks] = useState<CheckRun[] | null>(null);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
     const [isDownloading, setIsDownloading] = useState(false);
@@ -340,6 +340,23 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
         }
     }, [expanded, run.head_sha, run.id, token, owner, repo, checks, artifacts, checksLoading, artifactsLoading, fetchArtifactsData]);
 
+    // Auto-refetch artifacts every 15 seconds if missing
+    useEffect(() => {
+        let interval: any = null;
+        
+        const shouldPoll = !artifacts || artifacts.length === 0;
+        
+        if (shouldPoll && !artifactsLoading) {
+            interval = setInterval(() => {
+                fetchArtifactsData();
+            }, 15000);
+        }
+        
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [artifacts, artifactsLoading, fetchArtifactsData]);
+
     const handleDownloadArtifact = async () => {
         if (!run || !artifacts || artifacts.length === 0 || !token) return;
         const artifact = getBestArtifact(artifacts);
@@ -415,37 +432,59 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                 </View>
             ) : undefined}
         >
-            <TouchableOpacity onPress={() => setExpanded(!expanded)} className="flex-row items-center justify-between mb-1">
-                <View className="flex-row items-center flex-1">
-                    <TouchableOpacity onPress={() => Linking.openURL(run.html_url)}>
-                        <Animated.View style={{ transform: [{ rotate: spin }] }}>
-                            <Ionicons name={statusInfo.icon as any} size={24} color={statusInfo.color} />
-                        </Animated.View>
-                    </TouchableOpacity>
+            <View className="flex-row items-center justify-between mb-1">
+                <TouchableOpacity 
+                    onPress={() => Linking.openURL(run.html_url)} 
+                    className="flex-row items-center flex-1"
+                >
+                    <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                        <Ionicons name={statusInfo.icon as any} size={24} color={statusInfo.color} />
+                    </Animated.View>
                     <View className="ml-3 flex-1">
                         <View className="flex-row items-center">
                             <Text className="text-white font-bold text-base flex-1" numberOfLines={1}>{run.name}</Text>
-                            <Text className="text-slate-500 text-[10px] ml-2 px-1.5 py-0.5 bg-slate-800 rounded">{owner}/{repo}</Text>
                         </View>
                         <Text className="text-slate-400 text-xs">
                             {dayjs(run.created_at).fromNow()} • {run.head_branch}
                         </Text>
                     </View>
+                </TouchableOpacity>
+
+                <View className="flex-row items-center gap-2">
+                    {artifacts && artifacts.length > 0 ? (
+                        <TouchableOpacity
+                            onPress={handleDownloadArtifact}
+                            disabled={isDownloading}
+                            className={`px-3 py-1.5 ${isDownloading ? 'bg-slate-600' : 'bg-slate-700'} rounded-lg flex-row items-center overflow-hidden`}
+                        >
+                            {isDownloading && (
+                                <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
+                            )}
+                            {isDownloading ? (
+                                <ActivityIndicator size="small" color="white" style={{ transform: [{ scale: 0.7 }] }} />
+                            ) : (
+                                <Ionicons name={cachedArtifactPath ? "construct-outline" : "download-outline"} size={16} color="white" />
+                            )}
+                            <Text className="text-white text-xs font-semibold ml-1">{isDownloading ? (status || `${Math.round((progress || 0) * 100)}%`) : (cachedArtifactPath ? "Install" : "Artifact")}</Text>
+                        </TouchableOpacity>
+                    ) : artifactsLoading ? (
+                        <ActivityIndicator size="small" color="#94a3b8" />
+                    ) : (
+                        <View className="px-3 py-1.5 bg-slate-800/50 border border-slate-700 rounded-lg flex-row items-center">
+                            <Ionicons name="alert-circle-outline" size={14} color="#64748b" />
+                            <Text className="text-slate-500 text-xs font-medium ml-1">No Artifact</Text>
+                        </View>
+                    )}
+
+                    <TouchableOpacity onPress={() => setExpanded(!expanded)} className="p-1">
+                        <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={20} color="#94a3b8" />
+                    </TouchableOpacity>
                 </View>
-                <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={20} color="#94a3b8" />
-            </TouchableOpacity>
+            </View>
 
             {expanded && (
                 <View className="mt-2 border-t border-slate-700 pt-2">
                     <View className="flex-row gap-1 mb-3">
-                        <TouchableOpacity
-                            onPress={() => Linking.openURL(run.html_url)}
-                            className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
-                        >
-                            <Ionicons name="logo-github" size={16} color="white" />
-                            <Text className="text-white font-semibold ml-2">Open Run</Text>
-                        </TouchableOpacity>
-
                         {showPrButton && (
                             <TouchableOpacity
                                 onPress={() => Linking.openURL(prUrl!)}
@@ -453,43 +492,6 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                             >
                                 <Ionicons name="git-pull-request" size={16} color="white" />
                                 <Text className="text-white font-semibold ml-2">Open PR #{pr?.number}</Text>
-                            </TouchableOpacity>
-                        )}
-
-                        {artifacts && artifacts.length > 0 ? (
-                            <TouchableOpacity
-                                onPress={handleDownloadArtifact}
-                                disabled={isDownloading}
-                                className={`flex-1 ${isDownloading ? 'bg-slate-600' : 'bg-slate-700'} rounded-lg justify-center overflow-hidden relative`}
-                                style={{ height: 36 }}
-                            >
-                                {isDownloading && (
-                                    <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
-                                )}
-                                <View className="flex-row items-center justify-center w-full h-full">
-                                    {isDownloading ? (
-                                        <>
-                                            <ActivityIndicator size="small" color="white" style={{ transform: [{ scale: 0.7 }] }} className="mr-2" />
-                                            <Text className="text-white text-xs font-semibold">{status || `${Math.round((progress || 0) * 100)}%`}</Text>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Ionicons name={cachedArtifactPath ? "construct-outline" : "download-outline"} size={16} color="white" />
-                                            <Text className="text-white font-semibold ml-2">{cachedArtifactPath ? "Install" : "Artifact"}</Text>
-                                        </>
-                                    )}
-                                </View>
-                            </TouchableOpacity>
-                        ) : artifactsLoading ? (
-                             <View className="flex-1 bg-slate-800/50 py-2 rounded-lg items-center justify-center">
-                                <ActivityIndicator size="small" color="#94a3b8" />
-                             </View>
-                        ) : (
-                            <TouchableOpacity
-                                onPress={fetchArtifactsData}
-                                className="flex-1 bg-slate-800/50 py-2 rounded-lg items-center justify-center border border-slate-700"
-                            >
-                                <Text className="text-slate-500 text-[10px] italic">No Artifacts</Text>
                             </TouchableOpacity>
                         )}
                     </View>
@@ -696,11 +698,6 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
                     </View>
                 </View>
                 <View className="flex-col items-center gap-1">
-                {metadata?.repoFullName && (
-                    <View className="flex-row items-center bg-slate-800/50 px-2 py-0.5 rounded">
-                        <Text className="text-slate-500 text-[10px]">{metadata.repoFullName}</Text>
-                    </View>
-                )}
                 {ghRun && (
                     <View className="flex-row items-center bg-slate-800/50 px-2 py-0.5 rounded">
                         <Ionicons
@@ -806,9 +803,11 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
 }
 
 function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { runs: WorkflowRun[], token: string, owner: string, repo: string, refreshTrigger?: number }) {
-    const [expanded, setExpanded] = useState(true);
+    const [expanded, setExpanded] = useState(false);
 
     if (!runs || runs.length === 0) return null;
+
+    const runningCount = runs.filter(r => r.status === 'in_progress' || r.status === 'queued').length;
 
     return (
         <View className="mb-4">
@@ -819,9 +818,11 @@ function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { run
                 <View className="flex-row items-center">
                     <Ionicons name="git-branch" size={20} color="#94a3b8" />
                     <Text className="text-white font-bold text-base ml-2">Master Branch</Text>
-                    <View className="bg-slate-700 px-2 py-0.5 rounded ml-2">
-                        <Text className="text-slate-400 text-xs">{runs.length}</Text>
-                    </View>
+                    {runningCount > 0 && (
+                        <View className="bg-blue-600/30 px-2 py-0.5 rounded ml-2 border border-blue-500/50">
+                            <Text className="text-blue-400 text-xs font-bold">{runningCount} RUNNING</Text>
+                        </View>
+                    )}
                 </View>
                 <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={20} color="#94a3b8" />
             </TouchableOpacity>
@@ -836,6 +837,7 @@ function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { run
                             owner={owner}
                             repo={repo}
                             refreshTrigger={refreshTrigger}
+                            compact={true}
                         />
                     ))}
                 </View>
@@ -851,6 +853,7 @@ export default function JulesScreen() {
     const [allRuns, setAllRuns] = useState<WorkflowRun[]>([]);
     const [julesSessions, setJulesSessions] = useState<JulesSession[]>([]);
     const [sessionsWithRuns, setSessionsWithRuns] = useState<{session: JulesSession, matchedRun: WorkflowRun | null}[]>([]);
+    const [prStates, setPrStates] = useState<Record<string, {merged: boolean, state: string}>>({});
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -949,6 +952,26 @@ export default function JulesScreen() {
                 }
             });
 
+            // 4. Fetch PR states for sessions
+            if (julesApiKey) {
+                sessions.forEach(s => {
+                    const m = s.githubMetadata;
+                    if (m?.owner && m?.repo && m?.pullRequestNumber) {
+                        const key = `${m.owner}/${m.repo}/${m.pullRequestNumber}`;
+                        if (!prStates[key]) {
+                            fetchPullRequest(julesApiKey, m.owner, m.repo, m.pullRequestNumber)
+                                .then(pr => {
+                                    setPrStates(prev => ({
+                                        ...prev,
+                                        [key]: { merged: pr.merged || pr.state === 'merged', state: pr.state }
+                                    }));
+                                })
+                                .catch(err => console.error(`Failed to fetch PR state for ${key}`, err));
+                        }
+                    }
+                });
+            }
+
             // 3. Fetch runs for all identified repos
             if (julesApiKey) {
                 const runPromises = Array.from(reposToFetch.values()).map(async ({owner, repo}) => {
@@ -988,6 +1011,18 @@ export default function JulesScreen() {
                 const branch = metadata?.branch;
                 const sessionStartTime = new Date(session.createTime).getTime();
 
+                // Get PR state for sorting
+                const prOwner = metadata?.owner || julesOwner;
+                const prRepo = metadata?.repo || julesRepo;
+                const prState = (prNumber && prOwner && prRepo) ? prStates[`${prOwner}/${prRepo}/${prNumber}`] : null;
+                
+                // Refined logic: If there's a PR, use its merged/closed status. 
+                // If no PR, use session COMPLETED/FAILED status.
+                // This prevents COMPLETED sessions with active PRs from dropping to bottom.
+                const isInactive = prNumber 
+                    ? (prState ? (prState.merged || prState.state === 'closed') : false) 
+                    : (session.state === 'COMPLETED' || session.state === 'FAILED');
+
                 // If allRuns is empty, we can't match, so matchedRun remains null
                 if (allRuns.length > 0) {
                     if (prNumber) {
@@ -1012,12 +1047,28 @@ export default function JulesScreen() {
 
             // Sort by most recent activity (run update or session update)
             const sorted = mapped.sort((a, b) => {
+                const mA = a.session.githubMetadata;
+                const mB = b.session.githubMetadata;
+                const prA = mA?.pullRequestNumber ? prStates[`${mA.owner}/${mA.repo}/${mA.pullRequestNumber}`] : null;
+                const prB = mB?.pullRequestNumber ? prStates[`${mB.owner}/${mB.repo}/${mB.pullRequestNumber}`] : null;
+
+                const isInactiveA = mA?.pullRequestNumber 
+                    ? (prA ? (prA.merged || prA.state === 'closed') : false) 
+                    : (a.session.state === 'COMPLETED' || a.session.state === 'FAILED');
+                const isInactiveB = mB?.pullRequestNumber 
+                    ? (prB ? (prB.merged || prB.state === 'closed') : false) 
+                    : (b.session.state === 'COMPLETED' || b.session.state === 'FAILED');
+
+                // Move inactive to bottom
+                if (isInactiveA && !isInactiveB) return 1;
+                if (!isInactiveA && isInactiveB) return -1;
+
                 const timeA = a.matchedRun ? new Date(a.matchedRun.updated_at).getTime() : new Date(a.session.updateTime).getTime();
                 const timeB = b.matchedRun ? new Date(b.matchedRun.updated_at).getTime() : new Date(b.session.updateTime).getTime();
                 return timeB - timeA;
             });
 
-            setSessionsWithRuns(sorted);
+            setSessionsWithRuns(sorted as {session: JulesSession, matchedRun: WorkflowRun | null}[]);
         } else {
             setSessionsWithRuns([]);
         }
@@ -1027,13 +1078,13 @@ export default function JulesScreen() {
             const master = allRuns.filter(r =>
                 r.head_branch === defaultBranch &&
                 r.html_url.includes(`/${julesOwner}/${julesRepo}/`) // Ensure it belongs to current repo
-            ).slice(0, 5);
+            ).slice(0, 3);
             setMasterRuns(master);
         } else {
             setMasterRuns([]);
         }
 
-    }, [julesSessions, allRuns, defaultBranch, julesOwner, julesRepo]);
+    }, [julesSessions, allRuns, defaultBranch, julesOwner, julesRepo, prStates]);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
@@ -1176,7 +1227,12 @@ export default function JulesScreen() {
             <View className="px-4 pt-4 pb-2 border-b border-slate-800">
                 <View className="flex-row items-center justify-between mb-4">
                     <View className="flex-row items-center">
-                        <Text className="text-2xl font-bold text-white mr-2">Jules Activities</Text>
+                        <View>
+                            <Text className="text-2xl font-bold text-white mr-2">Jules Activities</Text>
+                            {julesOwner && julesRepo && (
+                                <Text className="text-slate-500 text-xs font-medium">{julesOwner}/{julesRepo}</Text>
+                            )}
+                        </View>
                     </View>
                     <View className="flex-row items-center">
                         {julesApiKey && (
