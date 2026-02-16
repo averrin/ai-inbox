@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { ProfileService, ProfileData, DEFAULT_PROFILE } from '../services/profileService';
 import { useSettingsStore } from './settings';
 import { generateImage } from '../services/gemini';
