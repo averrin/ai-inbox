@@ -14,43 +14,53 @@ export function NavigationSettings() {
     const [iconPickerTarget, setIconPickerTarget] = useState<{ id: string } | null>(null);
 
     // Filter Config by Segment
-    const leftItems = navConfig.filter(i => i.segment !== 'right');
+    const listsItems = navConfig.filter(i => i.segment === 'lists');
+    const leftItems = navConfig.filter(i => !i.segment || i.segment === 'left');
     const rightItems = navConfig.filter(i => i.segment === 'right');
 
-    const updateConfig = (newLeft: NavItemConfig[], newRight: NavItemConfig[]) => {
+    const updateConfig = (newLists: NavItemConfig[], newLeft: NavItemConfig[], newRight: NavItemConfig[]) => {
         // Reconstruct full config
-        setNavConfig([...newLeft, ...newRight]);
+        setNavConfig([...newLists, ...newLeft, ...newRight]);
     };
 
     const handleMove = (id: string, direction: 'up' | 'down') => {
-        const isRight = rightItems.some(i => i.id === id);
-        const list = isRight ? [...rightItems] : [...leftItems];
-        const index = list.findIndex(i => i.id === id);
+        const item = navConfig.find(i => i.id === id);
+        if (!item) return;
 
+        let list: NavItemConfig[];
+        const segment = item.segment || 'left';
+
+        if (segment === 'lists') list = [...listsItems];
+        else if (segment === 'right') list = [...rightItems];
+        else list = [...leftItems];
+
+        const index = list.findIndex(i => i.id === id);
         const swapIndex = direction === 'up' ? index - 1 : index + 1;
 
         if (swapIndex < 0 || swapIndex >= list.length) return;
 
         [list[index], list[swapIndex]] = [list[swapIndex], list[index]];
 
-        if (isRight) updateConfig(leftItems, list);
-        else updateConfig(list, rightItems);
+        if (segment === 'lists') updateConfig(list, leftItems, rightItems);
+        else if (segment === 'right') updateConfig(listsItems, leftItems, list);
+        else updateConfig(listsItems, list, rightItems);
     };
 
     const handleSwitchSegment = (id: string) => {
         const item = navConfig.find(i => i.id === id);
         if (!item) return;
 
-        const isRight = item.segment === 'right';
-        const newSegment = isRight ? 'left' : 'right';
+        const currentSegment = item.segment || 'left';
+        let newSegment: 'left' | 'right' | 'lists' = 'left';
 
-        const newItem = { ...item, segment: newSegment as 'left' | 'right' };
+        // Cycle: Left -> Lists -> Right -> Left
+        if (currentSegment === 'left') newSegment = 'lists';
+        else if (currentSegment === 'lists') newSegment = 'right';
+        else newSegment = 'left';
 
-        // Remove from old list, add to new list
-        const newLeft = isRight ? [...leftItems, newItem] : leftItems.filter(i => i.id !== id);
-        const newRight = isRight ? rightItems.filter(i => i.id !== id) : [...rightItems, newItem];
-
-        updateConfig(newLeft, newRight);
+        const newItem = { ...item, segment: newSegment };
+        const newConfig = navConfig.map(i => i.id === id ? newItem : i);
+        setNavConfig(newConfig);
     };
 
     const handleUpdate = (id: string, field: keyof NavItemConfig, value: any) => {
@@ -200,7 +210,11 @@ export function NavigationSettings() {
 
     const renderItem = (item: NavItemConfig, index: number, listLength: number) => {
         const isGroup = item.type === 'group';
-        const isRight = item.segment === 'right';
+        const segment = item.segment || 'left';
+
+        let nextSegmentName = 'Lists';
+        if (segment === 'lists') nextSegmentName = 'Right';
+        else if (segment === 'right') nextSegmentName = 'Left';
 
         return (
             <View key={item.id} className={`border rounded-xl p-3 mb-3 ${isGroup ? 'bg-indigo-900/20 border-indigo-500/30' : 'bg-slate-800 border-slate-700'}`}>
@@ -233,7 +247,7 @@ export function NavigationSettings() {
                              onPress={() => handleSwitchSegment(item.id)}
                              className="bg-slate-700 px-2 py-1 rounded"
                         >
-                             <Text className="text-xs text-white">Move to {isRight ? 'Left' : 'Right'}</Text>
+                             <Text className="text-xs text-white">Move to {nextSegmentName}</Text>
                         </TouchableOpacity>
 
                         {isGroup ? (
@@ -299,7 +313,12 @@ export function NavigationSettings() {
         <ScrollView>
             <Card>
                 <View className="mb-6">
-                    <Text className="text-indigo-200 mb-2 font-semibold">Left Segment</Text>
+                    <Text className="text-indigo-200 mb-2 font-semibold">Lists Segment (Top)</Text>
+                    {listsItems.map((item, index) => renderItem(item, index, listsItems.length))}
+                </View>
+
+                <View className="mb-6 pt-4 border-t border-slate-700">
+                    <Text className="text-indigo-200 mb-2 font-semibold">Left Segment (Bottom)</Text>
                     {leftItems.map((item, index) => renderItem(item, index, leftItems.length))}
 
                     <Button
@@ -311,7 +330,7 @@ export function NavigationSettings() {
                 </View>
 
                 <View className="mb-4 pt-4 border-t border-slate-700">
-                    <Text className="text-indigo-200 mb-2 font-semibold">Right Segment</Text>
+                    <Text className="text-indigo-200 mb-2 font-semibold">Right Segment (Bottom)</Text>
                     {rightItems.map((item, index) => renderItem(item, index, rightItems.length))}
 
                      <Button

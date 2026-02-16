@@ -41,7 +41,7 @@ export interface NewsArticle {
 export interface NavItemConfig {
     id: string; // 'Schedule', 'Input', 'Tasks', 'Links', 'Reminders', 'Jules', 'News', 'Settings' OR a custom group ID
     type?: 'screen' | 'group'; // Defaults to 'screen' if undefined (migration)
-    segment?: 'left' | 'right'; // Which island the item belongs to (default 'left')
+    segment?: 'left' | 'right' | 'lists'; // Which island the item belongs to (default 'left')
     visible: boolean;
     title: string;
     icon: string; // Ionicons name
@@ -49,19 +49,20 @@ export interface NavItemConfig {
 }
 
 export const DEFAULT_NAV_ITEMS: NavItemConfig[] = [
-    { id: 'Schedule', visible: true, title: 'Schedule', icon: 'home-outline', type: 'screen', segment: 'left' },
-    { id: 'Tasks', visible: true, title: 'Tasks', icon: 'checkbox-outline', type: 'screen', segment: 'left' },
-    { id: 'Reminders', visible: true, title: 'Reminders', icon: 'calendar-clear-outline', type: 'screen', segment: 'left' },
+    { id: 'Tasks', visible: true, title: 'Tasks', icon: 'list-outline', type: 'screen', segment: 'lists' },
+    { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline', type: 'screen', segment: 'lists' },
+    { id: 'Links', visible: true, title: 'Links', icon: 'link-outline', type: 'screen', segment: 'lists' },
 
-    // Right
-    { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github', type: 'screen', segment: 'right' },
-    { id: 'Input', visible: true, title: 'Note', icon: 'add', type: 'screen', segment: 'right' },
-
-    // Others default to left usually, but let's put them explicitly
-    { id: 'Links', visible: true, title: 'Links', icon: 'link-outline', type: 'screen', segment: 'left' },
+    // Left Island
+    { id: 'Schedule', visible: true, title: 'Schedule', icon: 'calendar-number-outline', type: 'screen', segment: 'left' },
+    { id: 'Profile', visible: true, title: 'Profile', icon: 'finger-print-outline', type: 'screen', segment: 'left' },
     { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline', type: 'screen', segment: 'left' },
-    { id: 'Profile', visible: true, title: 'Profile', icon: 'person-outline', type: 'screen', segment: 'left' },
     { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline', type: 'screen', segment: 'left' },
+
+    // Right Island
+    { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github', type: 'screen', segment: 'right' },
+    { id: 'Apps', visible: true, title: 'Apps', icon: 'grid-outline', type: 'screen', segment: 'right' },
+    { id: 'Input', visible: true, title: 'Note', icon: 'add', type: 'screen', segment: 'right' },
 ];
 
 interface SettingsState {
@@ -371,8 +372,13 @@ export const useSettingsStore = create<SettingsState>()(
                 const { cachedReminders, ...rest } = state;
                 return rest;
             },
-            version: 11,
+            version: 12,
             migrate: (persistedState: any, version: number) => {
+                // Reset navConfig for layout rework (v12)
+                if (version < 12) {
+                    persistedState.navConfig = DEFAULT_NAV_ITEMS;
+                }
+
                 // Migration logic for segments (v11)
                 if (version < 11) {
                     if (persistedState.navConfig) {

@@ -52,15 +52,15 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
     // Filter to show ONLY visible items from config
     const visibleItems = navConfig.filter((item: NavItemConfig) => item.visible);
 
-    // Split items into Left and Right groups based on 'segment' property
-    const leftItems = visibleItems.filter((item: NavItemConfig) => item.segment !== 'right'); // Default to left
+    // Split items into segments
+    const listsItems = visibleItems.filter((item: NavItemConfig) => item.segment === 'lists');
     const rightItems = visibleItems.filter((item: NavItemConfig) => item.segment === 'right');
+    const leftItems = visibleItems.filter((item: NavItemConfig) => !item.segment || item.segment === 'left'); // Default to left
 
     const renderItem = (item: NavItemConfig) => {
         const isFocused = state.index === state.routes.findIndex((r: any) => r.name === item.id);
 
-        // FAB Logic for 'Input' item (or any item configured to act as "Add")
-        // Check if this item is the designated FAB carrier. Usually 'Input'.
+        // FAB Logic
         const isFabItem = item.id === 'Input';
         const showFab = isFabItem && fab.visible && fab.onPress;
 
@@ -91,8 +91,34 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
             }
         };
 
+        // Render List Item (Top Segment) - Larger, vertical layout
+        if (item.segment === 'lists') {
+            return (
+                <TouchableOpacity
+                    key={item.id}
+                    onPress={onPress}
+                    style={{
+                        width: 80, // Approximate width for 3 items
+                        height: 70,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backgroundColor: isFocused ? '#334155' : 'transparent',
+                        borderRadius: 16,
+                    }}
+                >
+                    <Ionicons
+                        // @ts-ignore
+                        name={item.icon}
+                        size={28}
+                        color={isFocused ? '#818cf8' : '#94a3b8'} // indigo for active, slate for inactive
+                        style={{ marginBottom: 4 }}
+                    />
+                    <Text style={{ color: isFocused ? '#e2e8f0' : '#64748b', fontSize: 12 }}>{item.title}</Text>
+                </TouchableOpacity>
+            );
+        }
+
         // Custom Render: Jules (Gradient Ring)
-        // Only if icon is default 'logo-github'
         if (item.id === 'Jules' && item.icon === 'logo-github') {
             return (
                 <TouchableOpacity
@@ -125,9 +151,7 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
             );
         }
 
-        // Custom Render: Input / FAB (Plus Button)
-        // If showing FAB, use FAB icon. If Input and icon is 'add', use white circle style.
-        // Otherwise use standard styling.
+        // Custom Render: Input / FAB
         if (showFab || (item.id === 'Input' && item.icon === 'add')) {
              const displayIcon = showFab ? fab.icon : item.icon;
 
@@ -148,7 +172,7 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
                         width: 34,
                         height: 34,
                         borderRadius: 17,
-                        backgroundColor: showFab && fab.color ? fab.color : 'white', // Use FAB color if provided
+                        backgroundColor: showFab && fab.color ? fab.color : 'white',
                         justifyContent: 'center',
                         alignItems: 'center'
                     }}>
@@ -158,11 +182,9 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
             );
         }
 
-        // Standard Items
+        // Standard Items (Left/Right Islands)
         let iconName = item.icon;
         let activeIconName = item.icon;
-
-        // Auto-filled/outline logic if user hasn't picked a specific filled variant
         if (iconName.endsWith('-outline')) {
              activeIconName = iconName.replace('-outline', '');
         }
@@ -197,19 +219,18 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
             bottom: insets.bottom + 10,
             left: 0,
             right: 0,
-            flexDirection: 'row',
-            justifyContent: 'space-between', // Push islands to edges
-            paddingHorizontal: 24, // Gap from screen edge
-            pointerEvents: 'box-none', // Allow clicks to pass through empty space
+            pointerEvents: 'box-none',
         }}>
-            {/* Left Island */}
-            {leftItems.length > 0 && (
+            {/* Top Lists Container */}
+            {listsItems.length > 0 && (
                 <View style={{
-                    flexDirection: 'row',
+                    position: 'absolute',
+                    bottom: 70, // Height of islands + gap
+                    left: 24,
+                    right: 24,
                     backgroundColor: '#1e293b', // slate-800
-                    borderRadius: 30,
-                    padding: 4,
-                    alignItems: 'center',
+                    borderRadius: 24,
+                    padding: 16,
                     shadowColor: "#000",
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.3,
@@ -217,28 +238,57 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup }
                     elevation: 8,
                     opacity: 0.95
                 }}>
-                    {leftItems.map(renderItem)}
+                    <Text style={{ textAlign: 'center', color: '#64748b', fontSize: 10, fontWeight: 'bold', letterSpacing: 1, marginBottom: 8 }}>LISTS</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
+                        {listsItems.map(renderItem)}
+                    </View>
                 </View>
             )}
 
-            {/* Right Island */}
-            {rightItems.length > 0 && (
-                <View style={{
-                    flexDirection: 'row',
-                    backgroundColor: '#1e293b', // slate-800
-                    borderRadius: 30,
-                    padding: 4,
-                    alignItems: 'center',
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 4.65,
-                    elevation: 8,
-                    opacity: 0.95
-                }}>
-                    {rightItems.map(renderItem)}
-                </View>
-            )}
+            {/* Bottom Islands Container */}
+            <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                paddingHorizontal: 24,
+            }}>
+                {/* Left Island */}
+                {leftItems.length > 0 && (
+                    <View style={{
+                        flexDirection: 'row',
+                        backgroundColor: '#1e293b',
+                        borderRadius: 30,
+                        padding: 4,
+                        alignItems: 'center',
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 4.65,
+                        elevation: 8,
+                        opacity: 0.95
+                    }}>
+                        {leftItems.map(renderItem)}
+                    </View>
+                )}
+
+                {/* Right Island */}
+                {rightItems.length > 0 && (
+                    <View style={{
+                        flexDirection: 'row',
+                        backgroundColor: '#1e293b',
+                        borderRadius: 30,
+                        padding: 4,
+                        alignItems: 'center',
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 4.65,
+                        elevation: 8,
+                        opacity: 0.95
+                    }}>
+                        {rightItems.map(renderItem)}
+                    </View>
+                )}
+            </View>
         </View>
     );
 }
@@ -263,6 +313,7 @@ function InnerTabNavigator({
     Jules: { component: JulesScreen },
     News: { component: NewsScreen },
     Profile: { component: ProfileScreen },
+    Apps: { children: () => <View style={{ flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' }}><Text style={{ color: 'white' }}>Apps Placeholder</Text></View> },
     Settings: { children: () => <SetupScreen canClose={true} /> }
   };
 
