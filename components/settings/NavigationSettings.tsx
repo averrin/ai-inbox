@@ -9,13 +9,25 @@ import * as Crypto from 'expo-crypto';
 import { NavIconPicker } from '../ui/NavIconPicker';
 
 export function NavigationSettings() {
-    const { navConfig, setNavConfig } = useSettingsStore();
+    const { navConfig, setNavConfig, savedNavConfig, setSavedNavConfig } = useSettingsStore();
     const [editingGroup, setEditingGroup] = useState<NavItemConfig | null>(null);
     const [iconPickerTarget, setIconPickerTarget] = useState<{ id: string } | null>(null);
 
     // Filter Config by Segment
     const leftItems = navConfig.filter(i => i.segment !== 'right');
     const rightItems = navConfig.filter(i => i.segment === 'right');
+
+    // Calculate Missing Items (Available to Add)
+    // Check if an item from DEFAULT_NAV_ITEMS is present in navConfig (either at root or inside a group)
+    const isItemInConfig = (id: string, config: NavItemConfig[]): boolean => {
+        return config.some(item => {
+            if (item.id === id) return true;
+            if (item.children) return isItemInConfig(id, item.children);
+            return false;
+        });
+    };
+
+    const missingItems = DEFAULT_NAV_ITEMS.filter(def => !isItemInConfig(def.id, navConfig));
 
     const updateConfig = (newLeft: NavItemConfig[], newRight: NavItemConfig[]) => {
         // Reconstruct full config
@@ -71,41 +83,77 @@ export function NavigationSettings() {
         setNavConfig([...navConfig, newGroup]);
     };
 
-    const handleDeleteGroup = (id: string) => {
-        const groupIndex = navConfig.findIndex(i => i.id === id);
-        if (groupIndex === -1) return;
+    const handleAddScreen = (screen: NavItemConfig) => {
+        // Add to 'left' by default, or append to end
+        // We clone the default item to ensure clean state
+        const newItem: NavItemConfig = {
+            ...screen,
+            segment: 'left', // Default to left
+            visible: true
+        };
+        setNavConfig([...navConfig, newItem]);
+    };
 
-        const group = navConfig[groupIndex];
+    const handleDelete = (id: string) => {
+        const index = navConfig.findIndex(i => i.id === id);
+        if (index === -1) return;
+
+        const item = navConfig[index];
         const newConfig = [...navConfig];
 
-        if (group.children && group.children.length > 0) {
+        if (item.children && item.children.length > 0) {
             // Move children back to root (in same segment)
-            const childrenWithSegment = group.children.map(c => ({ ...c, segment: group.segment }));
-            newConfig.splice(groupIndex, 1, ...childrenWithSegment);
+            const childrenWithSegment = item.children.map(c => ({ ...c, segment: item.segment }));
+            newConfig.splice(index, 1, ...childrenWithSegment);
         } else {
-            newConfig.splice(groupIndex, 1);
+            newConfig.splice(index, 1);
         }
         setNavConfig(newConfig);
     };
 
+    const handleSaveAsDefault = () => {
+        setSavedNavConfig(navConfig);
+        Toast.show({
+            type: 'success',
+            text1: 'Layout Saved as Default',
+            text2: 'You can restore this layout later.'
+        });
+    };
+
     const handleReset = () => {
+        const options: AlertButton[] = [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Factory Reset",
+                style: "destructive",
+                onPress: () => {
+                    setNavConfig(DEFAULT_NAV_ITEMS);
+                    Toast.show({
+                        type: 'success',
+                        text1: 'Reset to Factory Defaults',
+                    });
+                }
+            }
+        ];
+
+        if (savedNavConfig) {
+            options.splice(1, 0, {
+                text: "Restore My Defaults",
+                style: "default",
+                onPress: () => {
+                    setNavConfig(savedNavConfig);
+                    Toast.show({
+                        type: 'success',
+                        text1: 'Restored Your Defaults',
+                    });
+                }
+            });
+        }
+
         Alert.alert(
             "Reset Navigation",
-            "Are you sure you want to reset the navigation bar to default settings?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Reset",
-                    style: "destructive",
-                    onPress: () => {
-                        setNavConfig(DEFAULT_NAV_ITEMS);
-                        Toast.show({
-                            type: 'success',
-                            text1: 'Navigation Reset',
-                        });
-                    }
-                }
-            ]
+            "Choose how you want to reset the navigation bar.",
+            options
         );
     };
 
@@ -244,24 +292,15 @@ export function NavigationSettings() {
                                 >
                                     <Text className="text-white text-xs font-bold">Edit</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => handleDeleteGroup(item.id)}
-                                    className="bg-red-500/20 w-6 h-6 items-center justify-center rounded-full"
-                                >
-                                    <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                                </TouchableOpacity>
                             </View>
-                        ) : (
-                            <>
-                                <Text className="text-slate-400 text-xs">Visible</Text>
-                                <TouchableOpacity
-                                    onPress={() => handleUpdate(item.id, 'visible', !item.visible)}
-                                    className={`w-10 h-6 rounded-full items-center justify-center ${item.visible ? 'bg-indigo-600' : 'bg-slate-700'}`}
-                                >
-                                    <View className={`w-4 h-4 bg-white rounded-full absolute ${item.visible ? 'right-1' : 'left-1'}`} />
-                                </TouchableOpacity>
-                            </>
-                        )}
+                        ) : null}
+
+                        <TouchableOpacity
+                            onPress={() => handleDelete(item.id)}
+                            className="bg-red-500/20 w-8 h-8 items-center justify-center rounded-full ml-1"
+                        >
+                            <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -322,12 +361,39 @@ export function NavigationSettings() {
                     />
                 </View>
 
-                <View className="mt-4 pt-4 border-t border-slate-700">
-                     <Button
-                        title="Reset Defaults"
-                        onPress={handleReset}
-                        variant="secondary"
-                    />
+                {missingItems.length > 0 && (
+                    <View className="mb-4 pt-4 border-t border-slate-700">
+                        <Text className="text-indigo-200 mb-2 font-semibold">Available Screens</Text>
+                        <View className="flex-row flex-wrap gap-2">
+                            {missingItems.map(screen => (
+                                <TouchableOpacity
+                                    key={screen.id}
+                                    onPress={() => handleAddScreen(screen)}
+                                    className="flex-row items-center bg-slate-800 border border-slate-700 rounded-lg px-3 py-2"
+                                >
+                                    <Ionicons name="add" size={16} color="#818cf8" style={{ marginRight: 4 }} />
+                                    <Text className="text-slate-300 text-sm">{screen.title}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                )}
+
+                <View className="mt-4 pt-4 border-t border-slate-700 flex-row gap-2">
+                     <View className="flex-1">
+                        <Button
+                            title="Reset..."
+                            onPress={handleReset}
+                            variant="secondary"
+                        />
+                     </View>
+                     <View className="flex-1">
+                        <Button
+                            title="Save as Default"
+                            onPress={handleSaveAsDefault}
+                            variant="primary"
+                        />
+                     </View>
                 </View>
             </Card>
 
@@ -345,4 +411,11 @@ export function NavigationSettings() {
             />
         </ScrollView>
     );
+}
+
+// Add types for AlertButton since it's used
+interface AlertButton {
+    text?: string;
+    onPress?: () => void;
+    style?: 'default' | 'cancel' | 'destructive';
 }
