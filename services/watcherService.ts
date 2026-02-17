@@ -239,17 +239,30 @@ class WatcherService {
         }
     }
 
+    private getProgressBar(percent: number): string {
+        const width = 10;
+        const filled = Math.max(0, Math.min(width, Math.round((percent / 100) * width)));
+        const empty = Math.max(0, width - filled);
+        return '▓'.repeat(filled) + '░'.repeat(empty);
+    }
+
     private async updateNotification(item: WatchedRun, body: string, progress?: number, readyToInstall = false) {
         const isImportant = readyToInstall || body.includes('Failed') || body.includes('Build Success');
         const channelId = isImportant ? 'watcher_result' : 'watcher_progress';
 
+        let finalBody = body;
+        if (progress !== undefined) {
+            finalBody = `${this.getProgressBar(progress)} ${progress}%\n${body}`;
+        }
+
         const content: any = {
             title: `Build: ${item.run.name}`,
-            body: body,
+            body: finalBody,
             data: {
                 runId: item.run.id,
                 artifactPath: item.artifactPath,
-                action: readyToInstall ? INSTALL_ACTION : undefined
+                action: readyToInstall ? INSTALL_ACTION : undefined,
+                type: isImportant ? 'result' : 'progress'
             },
             categoryIdentifier: readyToInstall ? INSTALL_CATEGORY : undefined,
             // Android specific

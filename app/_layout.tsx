@@ -34,13 +34,17 @@ LogBox.ignoreLogs([
 
 // Configure notifications handler
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    priority: Notifications.AndroidNotificationPriority.HIGH,
-  }),
+  handleNotification: async (notification) => {
+    // Suppress sound and banner for progress updates to avoid spam
+    const isProgress = notification.request.content.data?.type === 'progress';
+    return {
+      shouldPlaySound: !isProgress,
+      shouldSetBadge: false,
+      shouldShowBanner: !isProgress,
+      shouldShowList: true, // Keep in tray
+      priority: isProgress ? Notifications.AndroidNotificationPriority.LOW : Notifications.AndroidNotificationPriority.HIGH,
+    };
+  },
 });
 
 const toastConfig: ToastConfig = {
