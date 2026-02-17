@@ -17,6 +17,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { useNavigation } from '@react-navigation/native';
 import { downloadAndInstallArtifact, isArtifactCached, installCachedArtifact } from '../../utils/artifactHandler';
 import { artifactDeps } from '../../utils/artifactDeps';
+import { watcherService } from '../../services/watcherService';
 
 dayjs.extend(relativeTime);
 
@@ -257,6 +258,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
     const [artifactsLoading, setArtifactsLoading] = useState(false);
     const [expanded, setExpanded] = useState(initialExpanded);
     const [prInactive, setPrInactive] = useState(false);
+    const [isWatched, setIsWatched] = useState(watcherService.isWatching(run.id));
 
     const spinValue = useRef(new Animated.Value(0)).current;
     const isFetchingRef = useRef(false);
@@ -392,6 +394,16 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
         setProgress(null);
         setStatus(null);
         isArtifactCached(artifact, artifactDeps).then(setCachedArtifactPath);
+    };
+
+    const toggleWatch = async () => {
+        if (isWatched) {
+            await watcherService.unwatchRun(run.id);
+            setIsWatched(false);
+        } else {
+            await watcherService.watchRun(run, token, owner, repo);
+            setIsWatched(true);
+        }
     };
 
     const getStatusInfo = () => {
@@ -563,6 +575,15 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                         >
                             <Ionicons name="alert-circle-outline" size={14} color="#64748b" />
                             <Text className="text-slate-500 text-xs font-medium ml-1">No Artifact</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
+                        <TouchableOpacity
+                            onPress={toggleWatch}
+                            className={`p-1.5 ml-1 rounded-lg ${isWatched ? 'bg-indigo-500/20' : ''}`}
+                        >
+                            <Ionicons name={isWatched ? "eye" : "eye-outline"} size={20} color={isWatched ? "#818cf8" : "#94a3b8"} />
                         </TouchableOpacity>
                     )}
 

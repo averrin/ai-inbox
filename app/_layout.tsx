@@ -19,6 +19,7 @@ import { ReminderModal } from "../components/ReminderModal";
 import Toast, { BaseToast, ErrorToast, ToastConfig } from 'react-native-toast-message';
 import { LogBox, View, Text, Platform } from 'react-native';
 import { SyncService } from "../services/syncService";
+import { watcherService } from "../services/watcherService";
 
 // Suppress deprecation warnings from dependencies
 LogBox.ignoreLogs([
@@ -33,13 +34,17 @@ LogBox.ignoreLogs([
 
 // Configure notifications handler
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    priority: Notifications.AndroidNotificationPriority.HIGH,
-  }),
+  handleNotification: async (notification) => {
+    // Suppress sound and banner for progress updates to avoid spam
+    const isProgress = notification.request.content.data?.type === 'progress';
+    return {
+      shouldPlaySound: !isProgress,
+      shouldSetBadge: false,
+      shouldShowBanner: !isProgress,
+      shouldShowList: true, // Keep in tray
+      priority: isProgress ? Notifications.AndroidNotificationPriority.LOW : Notifications.AndroidNotificationPriority.HIGH,
+    };
+  },
 });
 
 const toastConfig: ToastConfig = {
@@ -102,6 +107,7 @@ function AppContent() {
 
   useEffect(() => {
     if (lastNotificationResponse) {
+      watcherService.handleNotificationResponse(lastNotificationResponse);
       const { fileUri, reminder } = lastNotificationResponse.notification.request.content.data || {};
       if (reminder) {
         showReminder(reminder as Reminder);
@@ -119,6 +125,9 @@ function AppContent() {
   useEffect(() => {
     // Initialize SyncService
     SyncService.getInstance();
+
+    // Initialize WatcherService
+    watcherService.init();
 
     // Register background task on app launch
     registerReminderTask();
@@ -144,6 +153,7 @@ function AppContent() {
 
     // Listen for notification taps (when app is already open)
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      watcherService.handleNotificationResponse(response);
       const { fileUri, reminder } = response.notification.request.content.data || {};
 
       if (reminder) {

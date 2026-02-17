@@ -79,9 +79,10 @@ export async function downloadAndInstallArtifact(
     setDownloading: (downloading: boolean) => void,
     onProgress: (progress: number) => void,
     deps: ArtifactDeps,
-    onStatus?: (status: string) => void
-) {
-    if (!artifact) return;
+    onStatus?: (status: string) => void,
+    onlyDownload: boolean = false
+): Promise<string | null> {
+    if (!artifact) return null;
     setDownloading(true);
     onProgress(0);
     if (onStatus) onStatus("Checking cache...");
@@ -91,10 +92,14 @@ export async function downloadAndInstallArtifact(
         const cachedPath = await isArtifactCached(artifact, deps);
         if (cachedPath) {
             console.log(`[Artifact] Found cached artifact at ${cachedPath}`);
+            if (onlyDownload) {
+                setDownloading(false);
+                return cachedPath;
+            }
             if (onStatus) onStatus("Installing...");
             await installCachedArtifact(cachedPath, deps);
             setDownloading(false);
-            return;
+            return cachedPath;
         }
 
         if (onStatus) onStatus("Resolving URL...");
@@ -200,10 +205,15 @@ export async function downloadAndInstallArtifact(
                     // Manage cache size
                     await manageCache(deps);
 
+                    if (onlyDownload) {
+                        setDownloading(false);
+                        return apkTargetUri;
+                    }
+
                     if (onStatus) onStatus("Installing...");
                     await installCachedArtifact(apkTargetUri, deps);
                     setDownloading(false);
-                    return;
+                    return apkTargetUri;
                 } else {
                     throw new Error("No APK found in the artifact");
                 }
@@ -224,7 +234,9 @@ export async function downloadAndInstallArtifact(
     } catch (e: any) {
         console.error("[Artifact] Critical error in downloadAndInstallArtifact:", e);
         deps.Alert.alert("Error", "Failed to download/install artifact: " + e.message);
+        return null;
     } finally {
         setDownloading(false);
     }
+    return null;
 }
