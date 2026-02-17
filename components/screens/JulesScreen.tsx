@@ -488,6 +488,15 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                             </TouchableOpacity>
                         )}
 
+                        {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
+                            <TouchableOpacity
+                                onPress={toggleWatch}
+                                className={`p-1.5 ml-1 rounded-lg ${isWatched ? 'bg-indigo-500/20' : ''}`}
+                            >
+                                <Ionicons name={isWatched ? "eye" : "eye-outline"} size={16} color={isWatched ? "#818cf8" : "#94a3b8"} />
+                            </TouchableOpacity>
+                        )}
+
                         <TouchableOpacity onPress={() => setExpanded(!expanded)} className="p-1">
                             <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color="#94a3b8" />
                         </TouchableOpacity>
