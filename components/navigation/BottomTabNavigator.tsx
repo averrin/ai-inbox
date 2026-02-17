@@ -266,34 +266,6 @@ function InnerTabNavigator({
     Settings: { children: () => <SetupScreen canClose={true} /> }
   };
 
-  // Auto-merge new default tabs if missing
-  useEffect(() => {
-    if (navConfig && navConfig.length > 0) {
-        const existingIds = new Set<string>();
-        const collectIds = (items: NavItemConfig[]) => {
-            items.forEach(item => {
-                existingIds.add(item.id);
-                if (item.children) collectIds(item.children);
-            });
-        };
-        collectIds(navConfig);
-
-        const missing = DEFAULT_NAV_ITEMS.filter(d => !existingIds.has(d.id));
-        if (missing.length > 0) {
-            console.log('[BottomTabNavigator] Merging missing tabs:', missing.map(m => m.id));
-            const newConfig = [...navConfig];
-            // Insert before Settings if possible
-            const settingsIndex = newConfig.findIndex(i => i.id === 'Settings');
-            if (settingsIndex !== -1) {
-                newConfig.splice(settingsIndex, 0, ...missing);
-            } else {
-                newConfig.push(...missing);
-            }
-            setNavConfig(newConfig);
-        }
-    }
-  }, [navConfig, setNavConfig]);
-
   // Fallback if navConfig is empty (migration issue)
   const activeConfig: NavItemConfig[] = (navConfig && navConfig.length > 0) ? navConfig : DEFAULT_NAV_ITEMS;
 
