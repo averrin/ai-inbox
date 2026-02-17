@@ -20,6 +20,7 @@ import Toast, { BaseToast, ErrorToast, ToastConfig } from 'react-native-toast-me
 import { LogBox, View, Text, Platform } from 'react-native';
 import { SyncService } from "../services/syncService";
 import { watcherService } from "../services/watcherService";
+import { ThemeProvider } from "../components/ThemeProvider";
 
 // Suppress deprecation warnings from dependencies
 LogBox.ignoreLogs([
@@ -229,7 +230,9 @@ export default function Layout() {
     <ReminderModalProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <ShareIntentProvider options={{ debug: false, resetOnBackground: true }}>
-          <AppContent />
+          <ThemeProvider>
+            <AppContent />
+          </ThemeProvider>
         </ShareIntentProvider>
       </GestureHandlerRootView>
     </ReminderModalProvider>

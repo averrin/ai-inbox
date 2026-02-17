@@ -48,6 +48,44 @@ export interface NavItemConfig {
     children?: NavItemConfig[]; // For groups
 }
 
+export interface ThemeConfig {
+    id: string;
+    name: string;
+    colors: {
+        background: string;
+        surface: string;
+        surfaceHighlight: string;
+        primary: string;
+        secondary: string;
+        text: string;
+        textSecondary: string;
+        border: string;
+        success: string;
+        error: string;
+        warning: string;
+        info: string;
+    };
+}
+
+export const DEFAULT_THEME: ThemeConfig = {
+    id: 'default',
+    name: 'Default Dark',
+    colors: {
+        background: '#0f172a', // slate-900
+        surface: '#1e293b', // slate-800
+        surfaceHighlight: '#334155', // slate-700
+        primary: '#818cf8', // indigo-400
+        secondary: '#64748b', // slate-500
+        text: '#f8fafc', // slate-50
+        textSecondary: '#94a3b8', // slate-400
+        border: '#1e293b', // slate-800
+        success: '#22c55e', // green-500
+        error: '#ef4444', // red-500
+        warning: '#eab308', // yellow-500
+        info: '#3b82f6', // blue-500
+    }
+};
+
 export const DEFAULT_NAV_ITEMS: NavItemConfig[] = [
     { id: 'Schedule', visible: true, title: 'Schedule', icon: 'home-outline', type: 'screen', segment: 'left' },
     { id: 'Tasks', visible: true, title: 'Tasks', icon: 'checkbox-outline', type: 'screen', segment: 'left' },
@@ -176,6 +214,12 @@ interface SettingsState {
     setSavedNavConfig: (config: NavItemConfig[] | null) => void;
     visualizationPrompt: string | null;
     setVisualizationPrompt: (prompt: string | null) => void;
+    theme: ThemeConfig;
+    themes: ThemeConfig[];
+    setTheme: (theme: ThemeConfig) => void;
+    saveTheme: (theme: ThemeConfig) => void;
+    deleteTheme: (id: string) => void;
+    resetTheme: () => void;
 }
 
 
@@ -365,6 +409,24 @@ export const useSettingsStore = create<SettingsState>()(
             setSavedNavConfig: (config) => set({ savedNavConfig: config }),
             visualizationPrompt: null,
             setVisualizationPrompt: (prompt) => set({ visualizationPrompt: prompt }),
+            theme: DEFAULT_THEME,
+            themes: [DEFAULT_THEME],
+            setTheme: (theme) => set({ theme }),
+            saveTheme: (theme) => set((state) => {
+                const existingIndex = state.themes.findIndex(t => t.id === theme.id);
+                if (existingIndex >= 0) {
+                    const newThemes = [...state.themes];
+                    newThemes[existingIndex] = theme;
+                    return { themes: newThemes, theme: state.theme.id === theme.id ? theme : state.theme };
+                } else {
+                    return { themes: [...state.themes, theme] };
+                }
+            }),
+            deleteTheme: (id) => set((state) => ({
+                themes: state.themes.filter(t => t.id !== id),
+                theme: state.theme.id === id ? DEFAULT_THEME : state.theme
+            })),
+            resetTheme: () => set({ theme: DEFAULT_THEME }),
         }),
 
         {

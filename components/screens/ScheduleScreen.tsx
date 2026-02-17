@@ -46,7 +46,7 @@ import { useFab } from '../../hooks/useFab';
 
 
 export default function ScheduleScreen() {
-    const { vaultUri, visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes, personalCalendarIds, workCalendarIds, useCurrentLocation } = useSettingsStore();
+    const { vaultUri, visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes, personalCalendarIds, workCalendarIds, useCurrentLocation, theme } = useSettingsStore();
     const { assignments, difficulties, eventTypes, eventFlags, eventIcons, ranges, loadConfig, completedEvents, toggleCompleted } = useEventTypesStore();
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
@@ -1000,7 +1000,7 @@ export default function ScheduleScreen() {
         );
 
         return (
-            <View className="bg-slate-900 border-b border-slate-800">
+            <View className="bg-background border-b border-border">
                 <View className="px-4 py-2 flex-row justify-between items-center">
                     {/* Left: Mood Tracker and Weather */}
                     <View className="flex-row items-center gap-4">
@@ -1014,7 +1014,7 @@ export default function ScheduleScreen() {
                             {moodEntry ? (
                                 <View className="w-5 h-5 rounded-full border border-white/20" style={{ backgroundColor: moodColor }} />
                             ) : (
-                                <Ionicons name="add-circle-outline" size={20} color="#475569" />
+                                <Ionicons name="add-circle-outline" size={20} color={theme.colors.secondary} />
                             )}
                         </TouchableOpacity>
 
@@ -1023,8 +1023,8 @@ export default function ScheduleScreen() {
                                 onPress={() => setWeatherModalVisible(true)}
                                 className="flex-row items-center gap-1"
                             >
-                                <Ionicons name={weather.icon as any} size={16} color="#94a3b8" />
-                                <Text className="text-slate-400 text-xs font-semibold">
+                                <Ionicons name={weather.icon as any} size={16} color={theme.colors.textSecondary} />
+                                <Text className="text-text-secondary text-xs font-semibold">
                                     {Math.round(weather.maxTemp)}°C
                                 </Text>
                             </TouchableOpacity>
@@ -1043,17 +1043,17 @@ export default function ScheduleScreen() {
                         <View className="flex-row items-center gap-2">
                             <DayStatusMarker status={status} />
                             {dayStats.deepWorkMinutes > 0 && (
-                                <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                                    Deep Work: <Text className="text-emerald-400 text-sm">{deepWorkStr}</Text>
+                                <Text className="text-text-secondary text-xs font-semibold uppercase tracking-wider">
+                                    Deep Work: <Text className="text-success text-sm">{deepWorkStr}</Text>
                                 </Text>
                             )}
                         </View>
 
-                        <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                            Day Score: <Text className="text-indigo-400 text-sm">{Math.round(dayStats.totalScore)}</Text>
+                        <Text className="text-text-secondary text-xs font-semibold uppercase tracking-wider">
+                            Day Score: <Text className="text-primary text-sm">{Math.round(dayStats.totalScore)}</Text>
                         </Text>
 
-                        <Ionicons name="information-circle-outline" size={16} color="#64748b" />
+                        <Ionicons name="information-circle-outline" size={16} color={theme.colors.secondary} />
                     </TouchableOpacity>
                 </View>
 
