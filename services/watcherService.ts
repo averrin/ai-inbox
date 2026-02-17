@@ -152,6 +152,21 @@ class WatcherService {
         this.watchedRuns[run.id] = watchedRun;
         await this.save();
         this.updateHeartbeatState();
+
+        // Immediate notification update
+        const now = Date.now();
+        const elapsed = now - watchedRun.startTime;
+        const progress = Math.min(0.99, elapsed / watchedRun.estimatedDuration);
+        const percent = Math.round(progress * 100);
+        const remainingMs = Math.max(0, watchedRun.estimatedDuration - elapsed);
+        const remainingMins = Math.ceil(remainingMs / 60000);
+        const commitMsg = run.head_commit?.message?.split('\n')[0] || 'No commit message';
+        const smallText = `${run.head_branch} • ${percent}% • ~${remainingMins}m left`;
+        const body = `${run.head_branch} • ${percent}% • ~${remainingMins}m left\nRepo: ${owner}/${repo}\nCommit: ${commitMsg}`;
+
+        // Fire and forget notification
+        this.updateNotification(watchedRun, body, percent, false, smallText).catch(console.error);
+
         this.checkRuns(); // Immediate check
     }
 
