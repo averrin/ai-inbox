@@ -31,6 +31,7 @@ export default function ProfileScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isImageFull, setIsImageFull] = useState(false);
     const [activeTab, setActiveTab] = useState<'home' | 'details'>('home');
+    const [showDepthModal, setShowDepthModal] = useState(false);
 
     // Gesture shared values
     const scale = useSharedValue(1);
@@ -373,7 +374,7 @@ export default function ProfileScreen() {
                                         {/* More Questions Button */}
                                         <TouchableOpacity
                                             className="bg-slate-800 py-3 rounded-xl items-center flex-row justify-center gap-2 border border-slate-700 mt-2"
-                                            onPress={() => generateQuestions(true)}
+                                            onPress={() => setShowDepthModal(true)}
                                         >
                                             <Ionicons name="refresh-outline" size={18} color="#94a3b8" />
                                             <Text className="text-slate-300 font-medium">
@@ -513,6 +514,73 @@ export default function ProfileScreen() {
                     )}
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            {/* Depth Preference Modal */}
+            <Modal
+                visible={showDepthModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowDepthModal(false)}
+            >
+                <View className="flex-1 bg-black/60 justify-center px-6">
+                    <View className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+                        <Text className="text-slate-400 text-xs uppercase font-bold tracking-widest mb-4">
+                            Configure Questions
+                        </Text>
+
+                        <View className="bg-slate-950/50 rounded-xl border border-slate-800 p-4 mb-6">
+                            <View className="flex-row justify-between items-center mb-4">
+                                <View>
+                                    <Text className="text-slate-300 font-semibold">Depth Preference</Text>
+                                    <Text className="text-slate-500 text-xs">AI curiosity level</Text>
+                                </View>
+                                <View className={`px-3 py-1 rounded-full ${getLevelLabel(config.abstractionLevel).bg}`}>
+                                    <Text className={`text-xs font-bold ${getLevelLabel(config.abstractionLevel).color}`}>
+                                        {config.abstractionLevel < 0.35 ? "Concrete Facts" : config.abstractionLevel < 0.65 ? "Habits & Routine" : "Deep Philosophy"}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View className="flex-row items-center gap-3">
+                                <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Low</Text>
+                                <View className="flex-1 h-1.5 bg-slate-950 rounded-full flex-row overflow-hidden border border-slate-800">
+                                    <TouchableOpacity
+                                        className={`flex-1 ${config.abstractionLevel <= 0.33 ? 'bg-indigo-500' : 'bg-transparent'}`}
+                                        onPress={() => updateConfig({ abstractionLevel: 0.2 })}
+                                    />
+                                    <TouchableOpacity
+                                        className={`flex-1 border-x border-slate-800 ${config.abstractionLevel > 0.33 && config.abstractionLevel <= 0.66 ? 'bg-indigo-500' : 'bg-transparent'}`}
+                                        onPress={() => updateConfig({ abstractionLevel: 0.5 })}
+                                    />
+                                    <TouchableOpacity
+                                        className={`flex-1 ${config.abstractionLevel > 0.66 ? 'bg-indigo-500' : 'bg-transparent'}`}
+                                        onPress={() => updateConfig({ abstractionLevel: 0.8 })}
+                                    />
+                                </View>
+                                <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">High</Text>
+                            </View>
+                        </View>
+
+                        <View className="flex-row gap-3">
+                            <TouchableOpacity
+                                className="flex-1 bg-slate-800 py-4 rounded-xl items-center"
+                                onPress={() => setShowDepthModal(false)}
+                            >
+                                <Text className="text-slate-300 font-bold">Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                className="flex-1 bg-indigo-600 py-4 rounded-xl items-center"
+                                onPress={() => {
+                                    setShowDepthModal(false);
+                                    generateQuestions(true);
+                                }}
+                            >
+                                <Text className="text-white font-bold">Generate</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Edit Fact Modal */}
             <Modal
