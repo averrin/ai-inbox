@@ -13,7 +13,7 @@ const runTest = async (name: string, fn: () => Promise<void>) => {
     }
 };
 
-let fetchSpy = { called: false, manual: false };
+let fetchSpy = { called: false, method: 'GET' };
 const originalFetch = global.fetch;
 
 // Mock global fetch
@@ -21,23 +21,26 @@ global.fetch = async (url: RequestInfo | URL, init?: RequestInit) => {
     const urlStr = url.toString();
     if (urlStr === 'http://example.com/zip') {
         fetchSpy.called = true;
-        fetchSpy.manual = init?.redirect === 'manual';
+        fetchSpy.method = init?.method || 'GET';
 
-        if (init?.redirect === 'manual') {
-            return {
-                status: 302,
-                headers: { get: (name: string) => name.toLowerCase() === 'location' ? 'http://azure.com/blob' : null },
-                url: 'http://example.com/zip',
-                text: async () => '',
-                json: async () => ({}),
-                blob: async () => new Blob([]),
-                body: { cancel: async () => {} }
-            } as any;
-        } else {
-             // Simulate follow redirect (old behavior)
+        if (init?.method === 'HEAD') {
+             // Simulate HEAD following redirect to final URL
              return {
                  status: 200,
                  url: 'http://azure.com/blob',
+                 ok: true,
+                 headers: { get: () => null },
+                 text: async () => '',
+                 json: async () => ({}),
+                 blob: async () => new Blob([]),
+                 body: { cancel: async () => {} }
+             } as any;
+        } else {
+             // Simulate GET follow redirect (old behavior or fallback)
+             return {
+                 status: 200,
+                 url: 'http://azure.com/blob',
+                 ok: true,
                  headers: { get: () => null },
                  text: async () => '',
                  json: async () => ({}),
@@ -149,7 +152,7 @@ const mockDeps = {
 
         // Reset deps
         mockPlatform.OS = 'android';
-        fetchSpy = { called: false, manual: false };
+        fetchSpy = { called: false, method: 'GET' };
 
         // Ensure 1.apk is NOT cached
         mockFileSystem.getInfoAsync = async (uri) => {
@@ -168,8 +171,7 @@ const mockDeps = {
 
         // Verify optimization
         if (!fetchSpy.called) throw new Error('Fetch was not called for URL resolution');
-        // This check will fail until we implement the fix
-        if (!fetchSpy.manual) throw new Error('Optimization failed: redirect: manual was not used');
+        if (fetchSpy.method !== 'HEAD') throw new Error(`Optimization failed: expected HEAD method but got ${fetchSpy.method}`);
     });
 
     await runTest('Cache Management', async () => {

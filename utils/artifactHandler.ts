@@ -106,36 +106,46 @@ export async function downloadAndInstallArtifact(
 
         // 1. Download the zip
         console.log(`[Artifact] Resolving redirect for artifact URL...`);
-        const redirectResponse = await fetch(artifact.archive_download_url, {
-            method: 'GET',
-            redirect: 'manual',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/vnd.github+json',
-            },
-        });
-
         let finalUrl: string | null = null;
         let wasRedirected = false;
 
-        if (redirectResponse.status >= 300 && redirectResponse.status < 400) {
-            finalUrl = redirectResponse.headers.get('location');
-            wasRedirected = true;
-            console.log(`[Artifact] Handled manual redirect to: ${finalUrl}`);
-        } else if (redirectResponse.status === 200) {
+        try {
+            const headResponse = await fetch(artifact.archive_download_url, {
+                method: 'HEAD',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/vnd.github+json',
+                },
+            });
+
+            if (headResponse.ok || headResponse.status === 302 || headResponse.status === 301) {
+                finalUrl = headResponse.url;
+                wasRedirected = finalUrl !== artifact.archive_download_url;
+                console.log(`[Artifact] Resolved URL via HEAD: ${finalUrl} (redirected: ${wasRedirected})`);
+            } else {
+                console.warn(`[Artifact] HEAD request failed with status ${headResponse.status}, falling back to GET`);
+            }
+        } catch (e) {
+            console.warn(`[Artifact] HEAD request failed, falling back to GET:`, e);
+        }
+
+        if (!finalUrl) {
+            const redirectResponse = await fetch(artifact.archive_download_url, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/vnd.github+json',
+                },
+            });
             finalUrl = redirectResponse.url;
             wasRedirected = finalUrl !== artifact.archive_download_url;
-            console.warn(`[Artifact] Fetch followed redirect automatically (optimization skipped).`);
+            console.log(`[Artifact] Resolved URL via GET fallback (redirected: ${wasRedirected})`);
+
             try { await redirectResponse.body?.cancel(); } catch (_) {}
-        } else {
-            throw new Error(`Unexpected status during URL resolution: ${redirectResponse.status}`);
         }
 
         if (!finalUrl) {
             throw new Error("Failed to resolve artifact URL");
         }
-
-        console.log(`[Artifact] Resolved download URL (redirected: ${wasRedirected})`);
 
         if (onStatus) onStatus("Downloading...");
 
