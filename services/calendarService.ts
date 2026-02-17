@@ -197,6 +197,58 @@ export const createCalendarEvent = async (calendarId: string, eventData: Partial
     }
 };
 
+export const findNextFreeSlot = async (
+    searchDate: Date,
+    durationMins: number = 30
+): Promise<Date> => {
+    // 1. Get readable calendars (using getWritableCalendars which returns all non-AI Inbox)
+    const calendars = await getWritableCalendars();
+    const calendarIds = calendars.map(c => c.id);
+
+    if (calendarIds.length === 0) {
+        return searchDate;
+    }
+
+    // 2. Define search window (from searchDate to end of that day)
+    const start = new Date(searchDate);
+    const end = new Date(searchDate);
+    end.setHours(23, 59, 59, 999);
+
+    if (start >= end) {
+        return start;
+    }
+
+    // 3. Fetch events
+    const events = await getCalendarEvents(calendarIds, start, end);
+
+    // 4. Sort by start time
+    const sorted = events.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+
+    // 5. Find gap
+    let candidateStart = start.getTime();
+    const getCandidateEnd = () => candidateStart + durationMins * 60 * 1000;
+
+    for (const event of sorted) {
+        const eStart = new Date(event.startDate).getTime();
+        const eEnd = new Date(event.endDate).getTime();
+
+        // If candidate fits before next event
+        if (getCandidateEnd() <= eStart) {
+            return new Date(candidateStart);
+        }
+
+        // If candidate overlaps, move start to end of event
+        if (candidateStart < eEnd) {
+            candidateStart = Math.max(candidateStart, eEnd);
+        }
+    }
+
+    // Check if fits before end of day
+    // If not, we still return the candidate time (which might be late or next day effectively)
+    // allowing the user to decide or adjust.
+    return new Date(candidateStart);
+};
+
 export const deleteCalendarEvent = async (eventId: string, options?: { instanceStartDate?: string | Date, futureEvents?: boolean }) => {
     const hasPermission = await ensureCalendarPermissions();
     if (!hasPermission) throw new Error("Missing calendar permissions");
