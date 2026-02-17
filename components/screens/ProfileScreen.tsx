@@ -5,20 +5,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
 import { ScreenHeader } from '../ui/ScreenHeader';
 import { TopTabBar } from '../ui/TopTabBar';
-import Animated, { 
-    useSharedValue, 
-    useAnimatedStyle, 
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
     withSpring,
     cancelAnimation
 } from 'react-native-reanimated';
-import { 
-    Gesture, 
-    GestureDetector, 
-    GestureHandlerRootView 
+import {
+    Gesture,
+    GestureDetector,
+    GestureHandlerRootView
 } from 'react-native-gesture-handler';
 import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import Toast from 'react-native-toast-message';
 
 import { useProfileStore } from '../../store/profileStore';
@@ -144,8 +144,8 @@ export default function ProfileScreen() {
     const filterFacts = () => {
         if (!searchQuery) return Object.entries(profile.facts);
         const lowQuery = searchQuery.toLowerCase();
-        return Object.entries(profile.facts).filter(([key, value]) => 
-            key.toLowerCase().includes(lowQuery) || 
+        return Object.entries(profile.facts).filter(([key, value]) =>
+            key.toLowerCase().includes(lowQuery) ||
             String(value).toLowerCase().includes(lowQuery)
         );
     };
@@ -171,17 +171,17 @@ export default function ProfileScreen() {
             Alert.alert('Copy Failed', 'Could not copy context to clipboard.');
         }
     };
-    
+
     const handleShareImage = async () => {
         if (!profile.profileImage) return;
-        
+
         try {
             const isAvailable = await Sharing.isAvailableAsync();
             if (!isAvailable) {
                 Alert.alert('Sharing Unavailable', 'Sharing is not available on this device.');
                 return;
             }
-            
+
             await Sharing.shareAsync(profile.profileImage, {
                 mimeType: 'image/png',
                 dialogTitle: 'Share your Inner World',
@@ -202,7 +202,7 @@ export default function ProfileScreen() {
             const base64 = await FileSystem.readAsStringAsync(profile.profileImage, {
                 encoding: 'base64'
             });
-            
+
             await Clipboard.setImageAsync(base64);
             Toast.show({
                 type: 'success',
@@ -351,8 +351,8 @@ export default function ProfileScreen() {
                                             </View>
 
                                             {profile.profileImage ? (
-                                                <TouchableOpacity 
-                                                    activeOpacity={0.9} 
+                                                <TouchableOpacity
+                                                    activeOpacity={0.9}
                                                     onPress={() => setIsImageFull(true)}
                                                 >
                                                     <Image
@@ -396,19 +396,19 @@ export default function ProfileScreen() {
                                                     </Text>
                                                 </View>
                                             </View>
-                                            
+
                                             <View className="flex-row items-center gap-3">
                                                 <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Low</Text>
                                                 <View className="flex-1 h-1.5 bg-slate-950 rounded-full flex-row overflow-hidden border border-slate-800">
-                                                    <TouchableOpacity 
+                                                    <TouchableOpacity
                                                         className={`flex-1 ${config.abstractionLevel <= 0.33 ? 'bg-indigo-500' : 'bg-transparent'}`}
                                                         onPress={() => updateConfig({ abstractionLevel: 0.2 })}
                                                     />
-                                                    <TouchableOpacity 
+                                                    <TouchableOpacity
                                                         className={`flex-1 border-x border-slate-800 ${config.abstractionLevel > 0.33 && config.abstractionLevel <= 0.66 ? 'bg-indigo-500' : 'bg-transparent'}`}
                                                         onPress={() => updateConfig({ abstractionLevel: 0.5 })}
                                                     />
-                                                    <TouchableOpacity 
+                                                    <TouchableOpacity
                                                         className={`flex-1 ${config.abstractionLevel > 0.66 ? 'bg-indigo-500' : 'bg-transparent'}`}
                                                         onPress={() => updateConfig({ abstractionLevel: 0.8 })}
                                                     />
@@ -422,7 +422,7 @@ export default function ProfileScreen() {
                                                 <Ionicons name="document-text-outline" size={16} color="#94a3b8" />
                                                 <Text className="text-slate-300 font-semibold">Current Profile Context</Text>
                                             </View>
-                                            
+
                                             {/* Search Bar */}
                                             {Object.keys(profile.facts).length > 0 && (
                                                 <View className="px-3 pt-3 pb-1">
@@ -454,8 +454,8 @@ export default function ProfileScreen() {
                                                         No results for "{searchQuery}"
                                                     </Text>
                                                 ) : (
-                                                    <ScrollView 
-                                                        nestedScrollEnabled={true} 
+                                                    <ScrollView
+                                                        nestedScrollEnabled={true}
                                                         style={{ maxHeight: 400 }}
                                                         contentContainerStyle={{ paddingBottom: 10 }}
                                                     >
@@ -468,13 +468,13 @@ export default function ProfileScreen() {
                                                                     </Text>
                                                                 </View>
                                                                 <View className="flex-row gap-1">
-                                                                    <TouchableOpacity 
+                                                                    <TouchableOpacity
                                                                         className="p-2"
                                                                         onPress={() => handleEditFact(key, value)}
                                                                     >
                                                                         <Ionicons name="pencil-outline" size={16} color="#6366f1" />
                                                                     </TouchableOpacity>
-                                                                    <TouchableOpacity 
+                                                                    <TouchableOpacity
                                                                         className="p-2"
                                                                         onPress={() => handleDeleteFact(key)}
                                                                     >
@@ -569,8 +569,8 @@ export default function ProfileScreen() {
             >
                 <GestureHandlerRootView style={{ flex: 1 }}>
                     <View className="flex-1 bg-black/95 justify-center overflow-hidden">
-                        <TouchableOpacity 
-                            className="absolute top-12 right-6 z-10 p-2 bg-slate-900/50 rounded-full border border-slate-700" 
+                        <TouchableOpacity
+                            className="absolute top-12 right-6 z-10 p-2 bg-slate-900/50 rounded-full border border-slate-700"
                             onPress={() => {
                                 setIsImageFull(false);
                                 resetGestures();
@@ -578,7 +578,7 @@ export default function ProfileScreen() {
                         >
                             <Ionicons name="close" size={24} color="white" />
                         </TouchableOpacity>
-                        
+
                         {profile.profileImage && (
                             <GestureDetector gesture={composedGesture}>
                                 <Animated.View style={[animatedStyle, { width: '100%', height: '80%', justifyContent: 'center' }]}>
@@ -593,7 +593,7 @@ export default function ProfileScreen() {
 
                         <View className="absolute bottom-10 left-0 right-0 items-center">
                             <View className="flex-row gap-4">
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     className="bg-slate-900 px-4 py-3 rounded-full border border-slate-800 flex-row items-center gap-2"
                                     onPress={handleShareImage}
                                 >
@@ -601,7 +601,7 @@ export default function ProfileScreen() {
                                     <Text className="text-slate-200 font-medium">Share</Text>
                                 </TouchableOpacity>
 
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     className="bg-slate-900 px-4 py-3 rounded-full border border-slate-800 flex-row items-center gap-2"
                                     onPress={handleCopyImage}
                                 >
@@ -609,7 +609,7 @@ export default function ProfileScreen() {
                                     <Text className="text-slate-200 font-medium">Copy</Text>
                                 </TouchableOpacity>
 
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     className="bg-slate-900 px-4 py-3 rounded-full border border-slate-800 flex-row items-center gap-2"
                                     onPress={() => {
                                         generateProfileImage();

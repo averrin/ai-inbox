@@ -72,7 +72,7 @@ export default function ScheduleScreen() {
     const [moodModalVisible, setMoodModalVisible] = useState(false);
     const [weatherModalVisible, setWeatherModalVisible] = useState(false);
     const [moodDate, setMoodDate] = useState<Date>(new Date());
-    
+
     // Recurrence Scope Modal State
     const [recurrenceModalVisible, setRecurrenceModalVisible] = useState(false);
     const [pendingEventDrop, setPendingEventDrop] = useState<{ event: any, newDate: Date, executeUpdate: (options?: any) => Promise<void> } | null>(null);
@@ -97,13 +97,13 @@ export default function ScheduleScreen() {
     // Load event types config on mount
     useEffect(() => {
         const init = async () => {
-             await loadConfig();
-             const { vaultUri } = useSettingsStore.getState();
-             const { tasksRoot } = useTasksStore.getState();
-             if (vaultUri && tasksRoot) {
-                 console.log('[ScheduleScreen] Scanning relations on mount...');
-                 await RelationService.scanRelations(vaultUri, tasksRoot);
-             }
+            await loadConfig();
+            const { vaultUri } = useSettingsStore.getState();
+            const { tasksRoot } = useTasksStore.getState();
+            if (vaultUri && tasksRoot) {
+                console.log('[ScheduleScreen] Scanning relations on mount...');
+                await RelationService.scanRelations(vaultUri, tasksRoot);
+            }
         };
         init();
     }, []);
@@ -171,11 +171,16 @@ export default function ScheduleScreen() {
             // Map native events to BigCalendar format
             const mappedEvents = nativeEvents.map(evt => {
                 const attendees = (evt as any).attendees || [];
+                const calendarTitle = calDetailsMap[evt.calendarId]?.title || '';
+                const sourceName = calDetailsMap[evt.calendarId]?.source || '';
+
                 const normalize = (e: string) => e?.toLowerCase().trim();
                 const meEmails = [];
                 if (personalAccountId) meEmails.push(personalAccountId);
                 if (workAccountId) meEmails.push(workAccountId);
-                
+                if (sourceName && sourceName.includes('@')) meEmails.push(sourceName);
+                if (calendarTitle && calendarTitle.includes('@')) meEmails.push(calendarTitle);
+
                 const meSet = new Set(meEmails.map(normalize));
                 const isMe = (email: string) => meSet.has(normalize(email));
 
@@ -196,7 +201,10 @@ export default function ScheduleScreen() {
                     if (isMe(email)) hasMe = true;
                 });
 
-                const currentUserRSVP = attendees.find((a: any) => isMe(a.email))?.status || 'accepted';
+                // Find current user RSVP with fallback logic
+                const currentUserRSVP = attendees.find((a: any) =>
+                    a.isCurrentUser || isMe(a.email)
+                )?.status || 'accepted';
 
                 let assignedTypeId = assignments[evt.title];
                 if (!assignedTypeId && calendarDefaultEventTypes && calendarDefaultEventTypes[evt.calendarId]) {
@@ -239,8 +247,6 @@ export default function ScheduleScreen() {
                 );
 
                 const mergedIds = (evt as any).ids || [evt.id];
-                const calendarTitle = calDetailsMap[evt.calendarId]?.title || '';
-                const sourceName = calDetailsMap[evt.calendarId]?.source || '';
                 const uniqueSourceCalendars = Array.from(new Set([(evt as any).calendarTitle || evt.calendarId])).filter(Boolean);
 
                 let isZone = false;
@@ -325,12 +331,12 @@ export default function ScheduleScreen() {
 
             setEvents(finalEvents);
             setIsEventsLoaded(true);
-            
+
             // Trigger Garbage Collection for Phantom Events (Debounced)
             if (vaultUri) {
                 if (gcTimeoutRef.current) clearTimeout(gcTimeoutRef.current);
                 gcTimeoutRef.current = setTimeout(() => {
-                    RelationService.cleanupPhantomEvents(vaultUri).catch(err => 
+                    RelationService.cleanupPhantomEvents(vaultUri).catch(err =>
                         console.warn('[ScheduleScreen] Phantom Event GC failed', err)
                     );
                     gcTimeoutRef.current = null;
@@ -378,17 +384,17 @@ export default function ScheduleScreen() {
     }, [date]);
 
     const handleFabPress = useCallback(() => {
-         // Default FAB action on Schedule: Create Event at current time
-         const now = new Date();
-         // Round to next 30 min
-         const minutes = now.getMinutes();
-         const rounded = new Date(now);
-         rounded.setMinutes(minutes > 30 ? 60 : 30);
-         rounded.setSeconds(0);
-         rounded.setMilliseconds(0);
+        // Default FAB action on Schedule: Create Event at current time
+        const now = new Date();
+        // Round to next 30 min
+        const minutes = now.getMinutes();
+        const rounded = new Date(now);
+        rounded.setMinutes(minutes > 30 ? 60 : 30);
+        rounded.setSeconds(0);
+        rounded.setMilliseconds(0);
 
-         setCreatingEventDate(rounded);
-         setCreatingEventType('event');
+        setCreatingEventDate(rounded);
+        setCreatingEventType('event');
     }, []);
 
     useFab({
@@ -399,37 +405,37 @@ export default function ScheduleScreen() {
     const handleDeleteEvent = async (options: DeleteOptions) => {
         // Reminder Deletion
         if (editingEvent?.typeTag === 'REMINDER' || editingEvent?.originalEvent?.fileUri) {
-             const reminder = editingEvent.originalEvent;
-             const targetUri = reminder.fileUri;
+            const reminder = editingEvent.originalEvent;
+            const targetUri = reminder.fileUri;
 
-             // Close Modal
-             setCreatingEventDate(null);
-             setEditingEvent(null);
+            // Close Modal
+            setCreatingEventDate(null);
+            setEditingEvent(null);
 
-             // Optimistic Delete
-             setCachedReminders(cachedReminders.filter((r: any) => r.fileUri !== targetUri));
-             setEvents(prev => prev.filter(e => e.originalEvent?.fileUri !== targetUri));
+            // Optimistic Delete
+            setCachedReminders(cachedReminders.filter((r: any) => r.fileUri !== targetUri));
+            setEvents(prev => prev.filter(e => e.originalEvent?.fileUri !== targetUri));
 
-             if (options.deleteFile) {
-                 // Delete note file
-                 try {
-                     await FileSystem.deleteAsync(targetUri, { idempotent: true });
-                 } catch (e) {
-                     console.error("Failed to delete note file:", e);
-                     alert("Failed to delete note");
-                     fetchEvents();
-                 }
-             } else {
-                 // Delete reminder only
-                 try {
-                     await updateReminder(targetUri, null);
-                 } catch (e) {
-                     console.error("Failed to delete reminder:", e);
-                     alert("Failed to delete reminder");
-                     fetchEvents();
-                 }
-             }
-             return;
+            if (options.deleteFile) {
+                // Delete note file
+                try {
+                    await FileSystem.deleteAsync(targetUri, { idempotent: true });
+                } catch (e) {
+                    console.error("Failed to delete note file:", e);
+                    alert("Failed to delete note");
+                    fetchEvents();
+                }
+            } else {
+                // Delete reminder only
+                try {
+                    await updateReminder(targetUri, null);
+                } catch (e) {
+                    console.error("Failed to delete reminder:", e);
+                    alert("Failed to delete reminder");
+                    fetchEvents();
+                }
+            }
+            return;
         }
 
         // Calendar Event Deletion
@@ -478,40 +484,40 @@ export default function ScheduleScreen() {
 
         // --- REMINDER / ALARM LOGIC ---
         if (data.type === 'reminder' || data.type === 'alarm') {
-             // Handle Reminder Save
-             const reminderTime = data.startDate.toISOString();
-             const recurrenceStr = formatRecurrenceForReminder(data.recurrenceRule);
-             const content = data.content;
+            // Handle Reminder Save
+            const reminderTime = data.startDate.toISOString();
+            const recurrenceStr = formatRecurrenceForReminder(data.recurrenceRule);
+            const content = data.content;
 
-             // Check if it's an update
-             if (editingEvent) {
-                 const originalReminder = editingEvent.originalEvent;
-                 const targetUri = originalReminder.fileUri;
-                 const isNew = originalReminder.isNew; // if it was a temp one (though temp usually don't have fileUri yet, unless created optimistically)
+            // Check if it's an update
+            if (editingEvent) {
+                const originalReminder = editingEvent.originalEvent;
+                const targetUri = originalReminder.fileUri;
+                const isNew = originalReminder.isNew; // if it was a temp one (though temp usually don't have fileUri yet, unless created optimistically)
 
-                 // Optimistic Update (Cache & Events)
-                 const updatedReminder = {
-                     ...originalReminder,
-                     reminderTime,
-                     recurrenceRule: recurrenceStr,
-                     alarm: data.alarm,
-                     persistent: data.persistent,
-                     title: data.title,
-                     content: content
-                 };
+                // Optimistic Update (Cache & Events)
+                const updatedReminder = {
+                    ...originalReminder,
+                    reminderTime,
+                    recurrenceRule: recurrenceStr,
+                    alarm: data.alarm,
+                    persistent: data.persistent,
+                    title: data.title,
+                    content: content
+                };
 
-                 // Cache update
-                 if (isNew) {
-                     setCachedReminders([...cachedReminders, updatedReminder]);
-                 } else {
-                     const newCache = cachedReminders.map((r: any) =>
-                         r.fileUri === targetUri ? updatedReminder : r
-                     );
-                     setCachedReminders(newCache);
-                 }
+                // Cache update
+                if (isNew) {
+                    setCachedReminders([...cachedReminders, updatedReminder]);
+                } else {
+                    const newCache = cachedReminders.map((r: any) =>
+                        r.fileUri === targetUri ? updatedReminder : r
+                    );
+                    setCachedReminders(newCache);
+                }
 
-                 // Events state update
-                 const tempEvent = {
+                // Events state update
+                const tempEvent = {
                     title: data.title || (isNew ? 'Reminder' : 'Untitled'),
                     start: data.startDate,
                     end: data.startDate,
@@ -565,7 +571,7 @@ export default function ScheduleScreen() {
                                 fetchEvents(); // Refresh to be safe
                             }
                         } else {
-                             await updateReminder(
+                            await updateReminder(
                                 targetUri!,
                                 reminderTime,
                                 recurrenceStr,
@@ -580,36 +586,36 @@ export default function ScheduleScreen() {
                     }
                 })();
 
-             } else {
-                 // Create New Reminder
-                 // Optimistic
-                 const tempUri = `temp-${Date.now()}`;
-                 const tempReminder = {
-                     fileUri: tempUri,
-                     title: data.title,
-                     reminderTime,
-                     recurrenceRule: recurrenceStr,
-                     alarm: data.alarm,
-                     persistent: data.persistent,
-                     content: content,
-                     isNew: true
-                 };
+            } else {
+                // Create New Reminder
+                // Optimistic
+                const tempUri = `temp-${Date.now()}`;
+                const tempReminder = {
+                    fileUri: tempUri,
+                    title: data.title,
+                    reminderTime,
+                    recurrenceRule: recurrenceStr,
+                    alarm: data.alarm,
+                    persistent: data.persistent,
+                    content: content,
+                    isNew: true
+                };
 
-                 setCachedReminders([...cachedReminders, tempReminder]);
+                setCachedReminders([...cachedReminders, tempReminder]);
 
-                 const tempEvent = {
-                     title: data.title,
-                     start: data.startDate,
-                     end: data.startDate,
-                     color: data.alarm ? '#ef4444' : '#f59e0b',
-                     type: 'marker',
-                     originalEvent: tempReminder,
-                     typeTag: 'REMINDER'
-                 };
-                 setEvents([...events, tempEvent]);
+                const tempEvent = {
+                    title: data.title,
+                    start: data.startDate,
+                    end: data.startDate,
+                    color: data.alarm ? '#ef4444' : '#f59e0b',
+                    type: 'marker',
+                    originalEvent: tempReminder,
+                    typeTag: 'REMINDER'
+                };
+                setEvents([...events, tempEvent]);
 
-                 (async () => {
-                     try {
+                (async () => {
+                    try {
                         const result = await createStandaloneReminder(
                             reminderTime,
                             data.title,
@@ -633,12 +639,12 @@ export default function ScheduleScreen() {
                             setCachedReminders(updatedCache);
                             fetchEvents();
                         }
-                     } catch (e) {
-                         console.error("Failed to create reminder:", e);
-                     }
-                 })();
-             }
-             return;
+                    } catch (e) {
+                        console.error("Failed to create reminder:", e);
+                    }
+                })();
+            }
+            return;
         }
 
         // --- CALENDAR EVENT LOGIC ---
@@ -684,42 +690,42 @@ export default function ScheduleScreen() {
                     if (editingEvent.type === 'zone' && !finalTitle.startsWith('[Zone] ')) {
                         finalTitle = `[Zone] ${finalTitle}`;
                     }
-                    
+
                     // Handle Zone Color and Non-Free Update
                     // We need to pass the content with the color/nonFree tags to the update function
                     let finalContent = editingEvent.originalEvent?.content;
                     if (data.type === 'zone') {
-                         let baseContent = (finalContent || '').replace(/\[color::.*?\]/g, '').replace(/\[nonFree::.*?\]/g, '').trim();
-                         
-                         if (data.color) {
-                             baseContent += `\n[color::${data.color}]`;
-                         }
-                         if (data.isNonFree) {
-                             baseContent += `\n[nonFree::true]`;
-                         }
-                         
-                         finalContent = baseContent;
+                        let baseContent = (finalContent || '').replace(/\[color::.*?\]/g, '').replace(/\[nonFree::.*?\]/g, '').trim();
+
+                        if (data.color) {
+                            baseContent += `\n[color::${data.color}]`;
+                        }
+                        if (data.isNonFree) {
+                            baseContent += `\n[nonFree::true]`;
+                        }
+
+                        finalContent = baseContent;
                     }
 
                     await updateCalendarEvent(targetId, {
-                       title: finalTitle,
-                       startDate: data.startDate,
-                       endDate: data.endDate,
-                       allDay: data.allDay,
-                       isWork: data.isWork,
-                       recurrenceRule: data.recurrenceRule ? {
-                           ...data.recurrenceRule,
-                           frequency: (data.recurrenceRule.frequency as any)
-                       } : undefined,
-                       editScope: data.editScope,
-                       instanceStartDate: instanceStartDate,
-                       content: finalContent // Pass updated content
+                        title: finalTitle,
+                        startDate: data.startDate,
+                        endDate: data.endDate,
+                        allDay: data.allDay,
+                        isWork: data.isWork,
+                        recurrenceRule: data.recurrenceRule ? {
+                            ...data.recurrenceRule,
+                            frequency: (data.recurrenceRule.frequency as any)
+                        } : undefined,
+                        editScope: data.editScope,
+                        instanceStartDate: instanceStartDate,
+                        content: finalContent // Pass updated content
                     });
 
                     // Re-sync
-                   setTimeout(() => {
-                       fetchEvents();
-                   }, 500);
+                    setTimeout(() => {
+                        fetchEvents();
+                    }, 500);
                 } catch (e) {
                     console.error("Failed to update event", e);
                     alert('Failed to update event');
@@ -736,23 +742,23 @@ export default function ScheduleScreen() {
         let optimisticColor = '#818cf8'; // Default blue
 
         if (data.type === 'zone') {
-             finalTitle = `[Zone] ${data.title}`;
-             
-             let baseContent = (data.content || '').replace(/\[color::.*?\]/g, '').replace(/\[nonFree::.*?\]/g, '').trim();
-             
-             if (data.color) {
-                 baseContent += `\n[color::${data.color}]`;
-                 optimisticColor = data.color;
-             } else {
-                 optimisticColor = 'rgba(234, 179, 8, 0.2)';
-             }
-             
-             if (data.isNonFree) {
-                 baseContent += `\n[nonFree::true]`;
-             }
-             
-             finalContent = baseContent;
-             internalMarkerType = 'zone';
+            finalTitle = `[Zone] ${data.title}`;
+
+            let baseContent = (data.content || '').replace(/\[color::.*?\]/g, '').replace(/\[nonFree::.*?\]/g, '').trim();
+
+            if (data.color) {
+                baseContent += `\n[color::${data.color}]`;
+                optimisticColor = data.color;
+            } else {
+                optimisticColor = 'rgba(234, 179, 8, 0.2)';
+            }
+
+            if (data.isNonFree) {
+                baseContent += `\n[nonFree::true]`;
+            }
+
+            finalContent = baseContent;
+            internalMarkerType = 'zone';
         }
 
         // Optimistic Update
@@ -823,7 +829,7 @@ export default function ScheduleScreen() {
 
                 if (pendingLinkTask && vaultUri) {
                     await RelationService.linkTasksToEvent(vaultUri, newEventId, finalTitle, [pendingLinkTask]);
-                    
+
                     // Update Tasks Store to reflect the link
                     const { tasks, setTasks } = useTasksStore.getState();
                     const updatedTasks = tasks.map(t => {
@@ -846,7 +852,7 @@ export default function ScheduleScreen() {
                         return t;
                     });
                     setTasks(updatedTasks);
-                    
+
                     setPendingLinkTask(null);
                 }
 
@@ -1183,8 +1189,8 @@ export default function ScheduleScreen() {
 
                 // Optimistic Update in events list
                 setEvents(prev => prev.map(e => {
-                    const match = e.originalEvent?.id === event.originalEvent?.id && 
-                                 (!e.start || new Date(e.start).getTime() === new Date(event.start).getTime());
+                    const match = e.originalEvent?.id === event.originalEvent?.id &&
+                        (!e.start || new Date(e.start).getTime() === new Date(event.start).getTime());
                     if (match) {
                         return { ...e, start: newStart, end: newEnd };
                     }
@@ -1193,15 +1199,15 @@ export default function ScheduleScreen() {
 
                 const rawIds = event.originalEvent?.ids || [event.originalEvent?.id];
                 const ids = rawIds.filter((id: any) => id && (rawIds.length === 1 || String(id) !== String(event.originalEvent?.calendarId)));
-                
+
                 const executeUpdate = async (options: any = {}) => {
                     const isAndroid = Platform.OS === 'android';
-                    
+
                     for (const id of ids) {
                         try {
                             const originalId = event.originalEvent?.originalId || String(id).split(':')[0];
                             const isSeriesUpdate = options.editScope === 'all' || options.editScope === 'future';
-                            
+
                             // For a series update on Android, we should target the master ID.
                             // For 'all', we target master directly. For 'future', expo-calendar handles splitting.
                             let targetId = (isSeriesUpdate && originalId) ? originalId : id;
@@ -1231,7 +1237,7 @@ export default function ScheduleScreen() {
                 };
 
                 const isRecurrent = event.isRecurrent || !!event.originalEvent?.recurrenceRule || !!event.originalEvent?.originalId || !!event.originalEvent?.instanceStartDate;
-                console.log('[ScheduleScreen] handleEventDrop detected recurrence:', isRecurrent, { 
+                console.log('[ScheduleScreen] handleEventDrop detected recurrence:', isRecurrent, {
                     isRecurrentField: event.isRecurrent,
                     hasRule: !!event.originalEvent?.recurrenceRule,
                     hasOriginalId: !!event.originalEvent?.originalId,
@@ -1239,10 +1245,10 @@ export default function ScheduleScreen() {
                 });
 
                 if (isRecurrent) {
-                    setPendingEventDrop({ 
-                        event, 
-                        newDate, 
-                        executeUpdate: (opts) => executeUpdate({ ...opts, instanceStartDate: new Date(event.start) }) 
+                    setPendingEventDrop({
+                        event,
+                        newDate,
+                        executeUpdate: (opts) => executeUpdate({ ...opts, instanceStartDate: new Date(event.start) })
                     });
                     setRecurrenceModalVisible(true);
                 } else {
@@ -1264,352 +1270,330 @@ export default function ScheduleScreen() {
         // In the future, we should probably pass the event ID to onToggleCompleted directly
         // But for now, we'll try to find the event in our list
         const event = events.find(e => {
-             const eDateStr = dayjs(e.start).format('YYYY-MM-DD');
-             return e.title === title && eDateStr === dateStr;
+            const eDateStr = dayjs(e.start).format('YYYY-MM-DD');
+            return e.title === title && eDateStr === dateStr;
         });
 
         if (event) {
-             const eventId = event.originalEvent?.id || event.id;
-             console.log('[ScheduleScreen] Found event:', eventId);
-             
-             const relations = useRelationsStore.getState().relations[eventId];
-             console.log('[ScheduleScreen] Relations:', relations);
-             
-             if (relations && relations.tasks.length === 1 && relations.notes.length === 0) {
-                 const relTask = relations.tasks[0];
-                 const taskEventIds = relTask.properties['event_id']?.split(',').map((id: string) => id.trim()) || [];
-                 console.log('[ScheduleScreen] Relation task event_ids:', taskEventIds);
-                 
-                 // Verify 1-1 in both directions
-                 if (taskEventIds.length === 1) {
-                     // Look up the LIVE task from TaskStore to ensure we have the correct current status
-                     // The RelationStore might be slightly stale or have a different originalLine reference
-                     const { tasks } = useTasksStore.getState();
-                     const liveTask = tasks.find(t => {
-                         const tIds = t.properties['event_id']?.split(',').map((id: string) => id.trim()) || [];
-                         return tIds.includes(eventId);
-                     });
-                     
-                     const task = liveTask || relTask;
-                     console.log('[ScheduleScreen] Using task:', task.title, task.status);
+            const eventId = event.originalEvent?.id || event.id;
+            console.log('[ScheduleScreen] Found event:', eventId);
 
-                     const wasCompleted = !!completedEvents[`${title}::${dateStr}`];
-                     const isNowCompleted = !wasCompleted; 
-                     
-                     console.log('[ScheduleScreen] Status change:', { wasCompleted, isNowCompleted });
-                     
-                     const newStatus = isNowCompleted ? 'x' : ' ';
-                     
-                     if (task.status !== newStatus) {
-                         console.log('[ScheduleScreen] Syncing task status to:', newStatus);
-                         // Sync Task
-                         if (vaultUri) {
+            const allIds = event.originalEvent?.ids || [eventId];
+            let relations = null;
+            let foundEventId = eventId;
+
+            for (const id of allIds) {
+                const data = useRelationsStore.getState().relations[id];
+                if (data && data.tasks.length > 0) {
+                    relations = data;
+                    foundEventId = id;
+                    break;
+                }
+            }
+
+            console.log('[ScheduleScreen] Relations found for ID:', foundEventId, !!relations);
+
+            if (relations && relations.tasks.length === 1 && relations.notes.length === 0) {
+                const relTask = relations.tasks[0];
+                const taskEventIds = relTask.properties['event_id']?.split(',').map((id: string) => id.trim()) || [];
+                console.log('[ScheduleScreen] Relation task event_ids:', taskEventIds);
+
+                // Verify 1-1 in this direction
+                if (taskEventIds.length > 0) {
+                    // Look up the LIVE task from TaskStore to ensure we have the correct current status
+                    // The RelationStore might be slightly stale or have a different originalLine reference
+                    const { tasks } = useTasksStore.getState();
+                    const liveTask = tasks.find(t => {
+                        const tIds = t.properties['event_id']?.split(',').map((id: string) => id.trim()) || [];
+                        return tIds.some(id => allIds.includes(id));
+                    });
+
+                    const task = liveTask || relTask;
+                    console.log('[ScheduleScreen] Using task:', task.title, task.status);
+
+                    const wasCompleted = !!completedEvents[`${title}::${dateStr}`];
+                    const isNowCompleted = !wasCompleted;
+
+                    console.log('[ScheduleScreen] Status change:', { wasCompleted, isNowCompleted });
+
+                    const newStatus = isNowCompleted ? 'x' : ' ';
+
+                    if (task.status !== newStatus) {
+                        console.log('[ScheduleScreen] Syncing task status to:', newStatus);
+                        // Sync Task
+                        if (vaultUri) {
                             const newTask = { ...task, status: newStatus, completed: newStatus === 'x' };
                             await TaskService.syncTaskUpdate(vaultUri, task, newTask);
-                            
-                            // Update local task store
-                             const { tasks, setTasks } = useTasksStore.getState();
-                             const updatedTasks = tasks.map(t =>
-                                 (t.filePath === task.filePath && t.originalLine === task.originalLine)
-                                 ? newTask
-                                 : t
-                             );
-                             setTasks(updatedTasks);
 
-                             // Update Relations Store
-                             useRelationsStore.getState().updateTask(task, newTask as TaskWithSource);
-                         }
-                     }
-                 }
-             }
+                            // Update local task store
+                            const { tasks, setTasks } = useTasksStore.getState();
+                            const updatedTasks = tasks.map(t =>
+                                (t.filePath === task.filePath && t.originalLine === task.originalLine)
+                                    ? newTask
+                                    : t
+                            );
+                            setTasks(updatedTasks);
+
+                            // Update Relations Store
+                            useRelationsStore.getState().updateTask(task, newTask as TaskWithSource);
+                        }
+                    }
+                }
+            }
         }
     };
 
     return (
         <DragDropProvider>
-        <Layout fullBleed noPadding>
-            <View className="flex-1">
-                <DateRuler
-                    date={date}
-                    onDateChange={changeDate}
-                    onNext={() => calendarRef.current?.goNext()}
-                    onPrev={() => calendarRef.current?.goPrev()}
-                    onToday={() => calendarRef.current?.goToDate(new Date())}
-                    dayStatuses={dayStatuses}
-                    onSync={fetchEvents}
-                />
+            <Layout fullBleed noPadding>
+                <View className="flex-1">
+                    <DateRuler
+                        date={date}
+                        onDateChange={changeDate}
+                        onNext={() => calendarRef.current?.goNext()}
+                        onPrev={() => calendarRef.current?.goPrev()}
+                        onToday={() => calendarRef.current?.goToDate(new Date())}
+                        dayStatuses={dayStatuses}
+                        onSync={fetchEvents}
+                    />
 
-                <TodaysTasksPanel
-                    date={date}
-                    events={events}
-                    onAdd={handleAddTask}
-                    onEditTask={setEditingTask}
-                />
+                    <TodaysTasksPanel
+                        date={date}
+                        events={events}
+                        onAdd={handleAddTask}
+                        onEditTask={setEditingTask}
+                        onRefresh={fetchEvents}
+                    />
 
-                {/* Calendar View */}
-                {visibleCalendarIds.length === 0 ? (
-                    <View className="flex-1 justify-center items-center p-6">
-                        <Ionicons name="calendar-outline" size={64} color="#334155" />
-                        <Text className="text-slate-400 text-center mt-4">
-                            No calendars selected.
-                        </Text>
-                        <Text className="text-slate-500 text-center mt-2 text-sm">
-                            Go to Settings {'>'} Calendars to configure.
-                        </Text>
-                    </View>
-                ) : (
-                    <View className="flex-1 overflow-hidden">
-                        {/* @ts-ignore - onScroll is monkey-patched */}
-                        <BigCalendar
-                            imperativeRef={calendarRef}
-                            renderHeader={renderHeader}
-                            events={allEvents}
-                            height={height}
-                            bodyContentContainerStyle={{ paddingBottom: tabBarHeight + 20 }}
-                            date={date}
-                            mode={viewMode}
-                            onEventDrop={handleEventDrop}
-                            onSwipeEnd={(d) => {
-                                if (dayjs(d).isSame(date, 'day')) return;
-                                setDate(d);
-                            }}
-                            scrollOffsetMinutes={scrollOffset.current}
-                            // onScroll={handleScroll}
-                            theme={{
-                                palette: {
-                                    primary: {
-                                        main: '#818cf8',
-                                        contrastText: '#fff',
+                    {/* Calendar View */}
+                    {visibleCalendarIds.length === 0 ? (
+                        <View className="flex-1 justify-center items-center p-6">
+                            <Ionicons name="calendar-outline" size={64} color="#334155" />
+                            <Text className="text-slate-400 text-center mt-4">
+                                No calendars selected.
+                            </Text>
+                            <Text className="text-slate-500 text-center mt-2 text-sm">
+                                Go to Settings {'>'} Calendars to configure.
+                            </Text>
+                        </View>
+                    ) : (
+                        <View className="flex-1 overflow-hidden">
+                            {/* @ts-ignore - onScroll is monkey-patched */}
+                            <BigCalendar
+                                imperativeRef={calendarRef}
+                                renderHeader={renderHeader}
+                                events={allEvents}
+                                height={height}
+                                bodyContentContainerStyle={{ paddingBottom: tabBarHeight + 20 }}
+                                date={date}
+                                mode={viewMode}
+                                onEventDrop={handleEventDrop}
+                                onSwipeEnd={(d) => {
+                                    if (dayjs(d).isSame(date, 'day')) return;
+                                    setDate(d);
+                                }}
+                                scrollOffsetMinutes={scrollOffset.current}
+                                // onScroll={handleScroll}
+                                theme={{
+                                    palette: {
+                                        primary: {
+                                            main: '#818cf8',
+                                            contrastText: '#fff',
+                                        },
+                                        gray: {
+                                            100: '#334155',
+                                            200: '#1e293b',
+                                            300: '#94a3b8',
+                                            500: '#cbd5e1',
+                                            800: '#f8fafc',
+                                        },
                                     },
-                                    gray: {
-                                        100: '#334155',
-                                        200: '#1e293b',
-                                        300: '#94a3b8',
-                                        500: '#cbd5e1',
-                                        800: '#f8fafc',
-                                    },
-                                },
-                                typography: {
-                                    xs: {
-                                        fontSize: 14,
-                                        fontWeight: '500',
-                                    },
-                                    sm: {
-                                        fontSize: 17,
-                                        fontWeight: '600',
-                                    },
-                                    xl: {
-                                        fontSize: 26,
-                                        fontWeight: 'bold',
-                                    },
-                                }
-                            }}
-                            eventCellStyle={eventCellStyle}
-                            onPressEvent={(evt) => {
-                                const event = evt as any;
-                                if (event.type === 'marker') {
-                                    setEditingEvent(event);
-                                } else if (event.type === 'zone') {
-                                    setEditingEvent(event);
-                                } else {
-                                    setSelectedEvent({ title: event.title, start: event.start, end: event.end, ...event }); // Spread all props to include color/typeTag
-                                }
-                            }}
-                            calendarCellStyle={{ borderColor: '#334155', backgroundColor: '#0f172a' }}
-                            bodyContainerStyle={{ backgroundColor: '#0f172a' }}
-                            renderEvent={(evt, touchableOpacityProps) => (
-                                <ScheduleEvent
-                                    event={evt}
-                                    touchableOpacityProps={touchableOpacityProps}
-                                    timeFormat={timeFormat}
-                                    onToggleCompleted={handleToggleCompleted}
-                                />
-                            )}
-                            onQuickAction={handleQuickAction}
-                            onExternalDrop={handleTaskDrop}
-                        />
-                    </View>
-                )}
+                                    typography: {
+                                        xs: {
+                                            fontSize: 14,
+                                            fontWeight: '500',
+                                        },
+                                        sm: {
+                                            fontSize: 17,
+                                            fontWeight: '600',
+                                        },
+                                        xl: {
+                                            fontSize: 26,
+                                            fontWeight: 'bold',
+                                        },
+                                    }
+                                }}
+                                eventCellStyle={eventCellStyle}
+                                onPressEvent={(evt) => {
+                                    const event = evt as any;
+                                    if (event.type === 'marker') {
+                                        setEditingEvent(event);
+                                    } else if (event.type === 'zone') {
+                                        setEditingEvent(event);
+                                    } else {
+                                        setSelectedEvent({ title: event.title, start: event.start, end: event.end, ...event }); // Spread all props to include color/typeTag
+                                    }
+                                }}
+                                calendarCellStyle={{ borderColor: '#334155', backgroundColor: '#0f172a' }}
+                                bodyContainerStyle={{ backgroundColor: '#0f172a' }}
+                                renderEvent={(evt, touchableOpacityProps) => (
+                                    <ScheduleEvent
+                                        event={evt}
+                                        touchableOpacityProps={touchableOpacityProps}
+                                        timeFormat={timeFormat}
+                                        onToggleCompleted={handleToggleCompleted}
+                                    />
+                                )}
+                                onQuickAction={handleQuickAction}
+                                onExternalDrop={handleTaskDrop}
+                            />
+                        </View>
+                    )}
 
 
 
-                {/* Context Menu Modal */}
-                <EventContextModal
-                    visible={!!selectedEvent && !selectedEvent?.typeTag?.includes('LUNCH_SUGGESTION')}
-                    onClose={() => setSelectedEvent(null)}
-                    onEdit={() => setEditingEvent(selectedEvent)}
-                    onOpenTask={(task) => {
-                        setSelectedEvent(null);
-                        setEditingTask(task);
-                    }}
-                    event={selectedEvent}
-                />
-
-                <LunchContextModal
-                    visible={!!selectedEvent && selectedEvent?.typeTag === 'LUNCH_SUGGESTION'}
-                    onClose={() => setSelectedEvent(null)}
-                    event={selectedEvent}
-                    onEventCreated={fetchEvents}
-                />
-
-                <DaySummaryModal
-                    visible={summaryModalVisible}
-                    onClose={() => setSummaryModalVisible(false)}
-                    breakdown={summaryData?.breakdown || null}
-                    status={summaryData?.status || 'healthy'}
-                    date={summaryData?.date || new Date()}
-                />
-
-                <RecurrenceScopeModal
-                    visible={recurrenceModalVisible}
-                    onClose={() => {
-                        setRecurrenceModalVisible(false);
-                        setPendingEventDrop(null);
-                        fetchEvents(); // Revert optimistic move
-                    }}
-                    onSelect={(scope) => {
-                        if (pendingEventDrop) {
-                            pendingEventDrop.executeUpdate({ editScope: scope });
-                            setRecurrenceModalVisible(false);
-                            setPendingEventDrop(null);
-                        }
-                    }}
-                    actionType="reschedule"
-                />
-
-
-                {(creatingEventDate || editingEvent) && (
-                    <EventFormModal
-                        visible={!!creatingEventDate || !!editingEvent}
-                        initialDate={creatingEventDate || undefined}
-                        initialEvent={editingEvent}
-                        initialType={creatingEventType}
-                        initialTitle={pendingLinkTask?.title}
-                        timeFormat={timeFormat}
-                        onCancel={() => {
-                            setCreatingEventDate(null);
-                            setEditingEvent(null);
-                            setPendingLinkTask(null);
-                        }}
-                        onSave={handleSaveEvent}
-                        onDelete={handleDeleteEvent}
+                    {/* Context Menu Modal */}
+                    <EventContextModal
+                        visible={!!selectedEvent && !selectedEvent?.typeTag?.includes('LUNCH_SUGGESTION')}
+                        onClose={() => setSelectedEvent(null)}
+                        onRefresh={fetchEvents}
+                        onEdit={() => setEditingEvent(selectedEvent)}
                         onOpenTask={(task) => {
-                            // Close event modal first
-                            setEditingEvent(null);
-                            setCreatingEventDate(null);
-                            
-                            // Navigation to task view
-                            // In ScheduleScreen, we don't have TaskEditModal directly.
-                            // However, we can use the reminder context or just alert for now 
-                            // if we can't easily jump to the other screen's state.
-                            // BUT wait, we can just open the task edit modal IF we add it here.
+                            setSelectedEvent(null);
                             setEditingTask(task);
                         }}
+                        event={selectedEvent}
                     />
-                )}
 
-                {editingTask && (
-                    <TaskEditModal
-                        visible={!!editingTask}
-                        task={editingTask}
-                        enableFolderSelection={true}
-                        initialFolder={editingTask.filePath && editingTask.filePath.includes('/')
-                            ? editingTask.filePath.substring(0, editingTask.filePath.lastIndexOf('/'))
-                            : ''}
-                        onSave={async (updatedTask, folderPath) => {
-                            const { TaskService } = await import('../../services/taskService');
-                            const { ensureDirectory } = await import('../../utils/saf');
+                    <LunchContextModal
+                        visible={!!selectedEvent && selectedEvent?.typeTag === 'LUNCH_SUGGESTION'}
+                        onClose={() => setSelectedEvent(null)}
+                        event={selectedEvent}
+                        onEventCreated={fetchEvents}
+                    />
 
-                            if (!vaultUri) return;
+                    <DaySummaryModal
+                        visible={summaryModalVisible}
+                        onClose={() => setSummaryModalVisible(false)}
+                        breakdown={summaryData?.breakdown || null}
+                        status={summaryData?.status || 'healthy'}
+                        date={summaryData?.date || new Date()}
+                    />
 
-                            try {
-                                // 1. Resolve Target Folder URI
-                                let targetFolderUri = vaultUri;
-                                let resolvedFolderPath = folderPath || '';
+                    <RecurrenceScopeModal
+                        visible={recurrenceModalVisible}
+                        onClose={() => {
+                            setRecurrenceModalVisible(false);
+                            setPendingEventDrop(null);
+                            fetchEvents(); // Revert optimistic move
+                        }}
+                        onSelect={(scope) => {
+                            if (pendingEventDrop) {
+                                pendingEventDrop.executeUpdate({ editScope: scope });
+                                setRecurrenceModalVisible(false);
+                                setPendingEventDrop(null);
+                            }
+                        }}
+                        actionType="reschedule"
+                    />
 
-                                if (folderPath && folderPath.trim()) {
-                                    const parts = folderPath.split('/').filter(p => p.trim());
-                                    for (const part of parts) {
-                                        targetFolderUri = await ensureDirectory(targetFolderUri, part);
-                                    }
-                                } else {
-                                    const { vaultUri } = useSettingsStore.getState();
-                                    const { tasksRoot } = useTasksStore.getState();
-                                    if (tasksRoot) {
-                                        resolvedFolderPath = tasksRoot;
-                                        const parts = tasksRoot.split('/').filter(p => p.trim());
+
+                    {(creatingEventDate || editingEvent) && (
+                        <EventFormModal
+                            visible={!!creatingEventDate || !!editingEvent}
+                            initialDate={creatingEventDate || undefined}
+                            initialEvent={editingEvent}
+                            initialType={creatingEventType}
+                            initialTitle={pendingLinkTask?.title}
+                            timeFormat={timeFormat}
+                            onCancel={() => {
+                                setCreatingEventDate(null);
+                                setEditingEvent(null);
+                                setPendingLinkTask(null);
+                            }}
+                            onSave={handleSaveEvent}
+                            onDelete={handleDeleteEvent}
+                            onOpenTask={(task) => {
+                                // Close event modal first
+                                setEditingEvent(null);
+                                setCreatingEventDate(null);
+
+                                // Navigation to task view
+                                // In ScheduleScreen, we don't have TaskEditModal directly.
+                                // However, we can use the reminder context or just alert for now 
+                                // if we can't easily jump to the other screen's state.
+                                // BUT wait, we can just open the task edit modal IF we add it here.
+                                setEditingTask(task);
+                            }}
+                        />
+                    )}
+
+                    {editingTask && (
+                        <TaskEditModal
+                            visible={!!editingTask}
+                            task={editingTask}
+                            enableFolderSelection={true}
+                            initialFolder={editingTask.filePath && editingTask.filePath.includes('/')
+                                ? editingTask.filePath.substring(0, editingTask.filePath.lastIndexOf('/'))
+                                : ''}
+                            onSave={async (updatedTask, folderPath) => {
+                                const { TaskService } = await import('../../services/taskService');
+                                const { ensureDirectory } = await import('../../utils/saf');
+
+                                if (!vaultUri) return;
+
+                                try {
+                                    // 1. Resolve Target Folder URI
+                                    let targetFolderUri = vaultUri;
+                                    let resolvedFolderPath = folderPath || '';
+
+                                    if (folderPath && folderPath.trim()) {
+                                        const parts = folderPath.split('/').filter(p => p.trim());
                                         for (const part of parts) {
                                             targetFolderUri = await ensureDirectory(targetFolderUri, part);
                                         }
-                                    }
-                                }
-
-                                if (editingTask.fileUri) {
-                                    // === EXISTING TASK ===
-                                    const currentFolder = editingTask.filePath && editingTask.filePath.includes('/')
-                                        ? editingTask.filePath.substring(0, editingTask.filePath.lastIndexOf('/'))
-                                        : '';
-
-                                    const normalizedCurrent = currentFolder.replace(/^\/+|\/+$/g, '');
-                                    const normalizedNew = resolvedFolderPath.replace(/^\/+|\/+$/g, '');
-
-                                    if (normalizedNew !== normalizedCurrent) {
-                                        // MOVE Logic
-                                        const defaultFile = await TaskService.findDefaultTaskFile(targetFolderUri);
-                                        await TaskService.addTask(vaultUri, defaultFile.uri, updatedTask);
-                                        await TaskService.syncTaskDeletion(vaultUri, editingTask);
-
-                                        const { tasks, setTasks } = useTasksStore.getState();
-                                        const filteredTasks = tasks.filter(t =>
-                                            !(t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
-                                        );
-
-                                        const newTask: TaskWithSource = {
-                                            ...updatedTask,
-                                            fileUri: defaultFile.uri,
-                                            filePath: resolvedFolderPath ? `${resolvedFolderPath}/${defaultFile.name}` : defaultFile.name,
-                                            fileName: defaultFile.name,
-                                            originalLine: serializeTaskLine(updatedTask)
-                                        };
-
-                                        setTasks([...filteredTasks, newTask]);
-                                        Toast.show({ type: 'success', text1: 'Task Moved' });
-
-                                        // Sync with Event (1-1 only)
-                                        const eventIds = updatedTask.properties['event_id']?.split(',').map((id: string) => id.trim()) || [];
-                                        if (eventIds.length === 1) {
-                                            const eventId = eventIds[0];
-                                            const relations = useRelationsStore.getState().relations[eventId];
-                                            if (relations && relations.tasks.length === 1 && relations.notes.length === 0) {
-                                                const event = events.find(e => (e.originalEvent?.id === eventId || e.id === eventId));
-                                                if (event) {
-                                                    const eventDateStr = dayjs(event.start).format('YYYY-MM-DD');
-                                                    const isEventDone = !!completedEvents[`${event.title}::${eventDateStr}`];
-                                                    const shouldBeDone = updatedTask.status === 'x';
-                                                    if (isEventDone !== shouldBeDone) {
-                                                        toggleCompleted(event.title, eventDateStr);
-                                                    }
-                                                }
+                                    } else {
+                                        const { vaultUri } = useSettingsStore.getState();
+                                        const { tasksRoot } = useTasksStore.getState();
+                                        if (tasksRoot) {
+                                            resolvedFolderPath = tasksRoot;
+                                            const parts = tasksRoot.split('/').filter(p => p.trim());
+                                            for (const part of parts) {
+                                                targetFolderUri = await ensureDirectory(targetFolderUri, part);
                                             }
                                         }
-                                    } else {
-                                        // UPDATE In-Place Logic
-                                        try {
-                                            await TaskService.syncTaskUpdate(vaultUri, editingTask, updatedTask);
-                                            
-                                            // Update Store
-                                            const { tasks, setTasks } = useTasksStore.getState();
-                                            const updatedTasks = tasks.map(t =>
-                                                (t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
-                                                ? { ...t, ...updatedTask, originalLine: serializeTaskLine(updatedTask) }
-                                                : t
-                                            );
-                                            setTasks(updatedTasks);
-                                            
-                                            const newTaskWithSource = { ...editingTask, ...updatedTask, originalLine: serializeTaskLine(updatedTask) };
-                                            useRelationsStore.getState().updateTask(editingTask, newTaskWithSource as TaskWithSource);
+                                    }
 
-                                            Toast.show({ type: 'success', text1: 'Task Updated' });
+                                    if (editingTask.fileUri) {
+                                        // === EXISTING TASK ===
+                                        const currentFolder = editingTask.filePath && editingTask.filePath.includes('/')
+                                            ? editingTask.filePath.substring(0, editingTask.filePath.lastIndexOf('/'))
+                                            : '';
+
+                                        const normalizedCurrent = currentFolder.replace(/^\/+|\/+$/g, '');
+                                        const normalizedNew = resolvedFolderPath.replace(/^\/+|\/+$/g, '');
+
+                                        if (normalizedNew !== normalizedCurrent) {
+                                            // MOVE Logic
+                                            const defaultFile = await TaskService.findDefaultTaskFile(targetFolderUri);
+                                            await TaskService.addTask(vaultUri, defaultFile.uri, updatedTask);
+                                            await TaskService.syncTaskDeletion(vaultUri, editingTask);
+
+                                            const { tasks, setTasks } = useTasksStore.getState();
+                                            const filteredTasks = tasks.filter(t =>
+                                                !(t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
+                                            );
+
+                                            const newTask: TaskWithSource = {
+                                                ...updatedTask,
+                                                fileUri: defaultFile.uri,
+                                                filePath: resolvedFolderPath ? `${resolvedFolderPath}/${defaultFile.name}` : defaultFile.name,
+                                                fileName: defaultFile.name,
+                                                originalLine: serializeTaskLine(updatedTask)
+                                            };
+
+                                            setTasks([...filteredTasks, newTask]);
+                                            Toast.show({ type: 'success', text1: 'Task Moved' });
 
                                             // Sync with Event (1-1 only)
                                             const eventIds = updatedTask.properties['event_id']?.split(',').map((id: string) => id.trim()) || [];
@@ -1628,69 +1612,105 @@ export default function ScheduleScreen() {
                                                     }
                                                 }
                                             }
-                                        } catch (e: any) {
-                                            if (e.message === 'FILE_NOT_FOUND') {
+                                        } else {
+                                            // UPDATE In-Place Logic
+                                            try {
+                                                await TaskService.syncTaskUpdate(vaultUri, editingTask, updatedTask);
+
+                                                // Update Store
                                                 const { tasks, setTasks } = useTasksStore.getState();
-                                                const newTasks = tasks.filter(t =>
-                                                    !(t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
+                                                const updatedTasks = tasks.map(t =>
+                                                    (t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
+                                                        ? { ...t, ...updatedTask, originalLine: serializeTaskLine(updatedTask) }
+                                                        : t
                                                 );
-                                                setTasks(newTasks);
-                                                Toast.show({ type: 'error', text1: 'Task file missing', text2: 'Removed orphan task.' });
-                                            } else {
-                                                throw e;
+                                                setTasks(updatedTasks);
+
+                                                const newTaskWithSource = { ...editingTask, ...updatedTask, originalLine: serializeTaskLine(updatedTask) };
+                                                useRelationsStore.getState().updateTask(editingTask, newTaskWithSource as TaskWithSource);
+
+                                                Toast.show({ type: 'success', text1: 'Task Updated' });
+
+                                                // Sync with Event (1-1 only)
+                                                const eventIds = updatedTask.properties['event_id']?.split(',').map((id: string) => id.trim()) || [];
+                                                if (eventIds.length === 1) {
+                                                    const eventId = eventIds[0];
+                                                    const relations = useRelationsStore.getState().relations[eventId];
+                                                    if (relations && relations.tasks.length === 1 && relations.notes.length === 0) {
+                                                        const event = events.find(e => (e.originalEvent?.id === eventId || e.id === eventId));
+                                                        if (event) {
+                                                            const eventDateStr = dayjs(event.start).format('YYYY-MM-DD');
+                                                            const isEventDone = !!completedEvents[`${event.title}::${eventDateStr}`];
+                                                            const shouldBeDone = updatedTask.status === 'x';
+                                                            if (isEventDone !== shouldBeDone) {
+                                                                toggleCompleted(event.title, eventDateStr);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } catch (e: any) {
+                                                if (e.message === 'FILE_NOT_FOUND') {
+                                                    const { tasks, setTasks } = useTasksStore.getState();
+                                                    const newTasks = tasks.filter(t =>
+                                                        !(t.filePath === editingTask.filePath && t.originalLine === editingTask.originalLine)
+                                                    );
+                                                    setTasks(newTasks);
+                                                    Toast.show({ type: 'error', text1: 'Task file missing', text2: 'Removed orphan task.' });
+                                                } else {
+                                                    throw e;
+                                                }
                                             }
                                         }
+                                    } else {
+                                        // === NEW TASK ===
+                                        const defaultFile = await TaskService.findDefaultTaskFile(targetFolderUri);
+                                        await TaskService.addTask(vaultUri, defaultFile.uri, updatedTask);
+
+                                        const { tasks, setTasks } = useTasksStore.getState();
+                                        const newTask: TaskWithSource = {
+                                            ...updatedTask,
+                                            fileUri: defaultFile.uri,
+                                            filePath: resolvedFolderPath ? `${resolvedFolderPath}/${defaultFile.name}` : defaultFile.name,
+                                            fileName: defaultFile.name,
+                                            originalLine: serializeTaskLine(updatedTask)
+                                        };
+                                        setTasks([...tasks, newTask]);
+                                        Toast.show({ type: 'success', text1: 'Task Created' });
                                     }
-                                } else {
-                                    // === NEW TASK ===
-                                    const defaultFile = await TaskService.findDefaultTaskFile(targetFolderUri);
-                                    await TaskService.addTask(vaultUri, defaultFile.uri, updatedTask);
-
-                                    const { tasks, setTasks } = useTasksStore.getState();
-                                    const newTask: TaskWithSource = {
-                                        ...updatedTask,
-                                        fileUri: defaultFile.uri,
-                                        filePath: resolvedFolderPath ? `${resolvedFolderPath}/${defaultFile.name}` : defaultFile.name,
-                                        fileName: defaultFile.name,
-                                        originalLine: serializeTaskLine(updatedTask)
-                                    };
-                                    setTasks([...tasks, newTask]);
-                                    Toast.show({ type: 'success', text1: 'Task Created' });
+                                } catch (e: any) {
+                                    console.error('[ScheduleScreen] Failed to save/move task', e);
+                                    Alert.alert("Error", `Failed to save task: ${e.message || 'Unknown error'}`);
+                                } finally {
+                                    setEditingTask(null);
                                 }
-                            } catch (e: any) {
-                                console.error('[ScheduleScreen] Failed to save/move task', e);
-                                Alert.alert("Error", `Failed to save task: ${e.message || 'Unknown error'}`);
-                            } finally {
+                            }}
+                            onCancel={() => setEditingTask(null)}
+                            onOpenEvent={(id) => {
                                 setEditingTask(null);
-                            }
-                        }}
-                        onCancel={() => setEditingTask(null)}
-                        onOpenEvent={(id) => {
-                            setEditingTask(null);
-                            // Calendar event editing is already handled by setEditingEvent
-                            Calendar.getEventAsync(id).then(evt => {
-                                if (evt) setEditingEvent(evt);
-                            });
-                        }}
+                                // Calendar event editing is already handled by setEditingEvent
+                                Calendar.getEventAsync(id).then(evt => {
+                                    if (evt) setEditingEvent(evt);
+                                });
+                            }}
+                        />
+                    )}
+
+                    <MoodEvaluationModal
+                        visible={moodModalVisible}
+                        onClose={() => setMoodModalVisible(false)}
+                        date={moodDate}
                     />
-                )}
 
-                <MoodEvaluationModal
-                    visible={moodModalVisible}
-                    onClose={() => setMoodModalVisible(false)}
-                    date={moodDate}
-                />
+                    <WeatherForecastModal
+                        visible={weatherModalVisible}
+                        onClose={() => setWeatherModalVisible(false)}
+                        weatherData={weatherData}
+                        currentDate={date}
+                    />
 
-                <WeatherForecastModal
-                    visible={weatherModalVisible}
-                    onClose={() => setWeatherModalVisible(false)}
-                    weatherData={weatherData}
-                    currentDate={date}
-                />
-
-                <DragOverlay />
-            </View>
-        </Layout>
+                    <DragOverlay />
+                </View>
+            </Layout>
         </DragDropProvider>
     );
 }

@@ -46,13 +46,15 @@ interface RichTaskItemProps {
     isSelected?: boolean;
     onTagPress?: (tag: string) => void;
     onReschedule?: () => void;
+    isHighlighted?: boolean;
+    highlightColor?: string;
 }
 
-export function RichTaskItem({ 
-    task, 
-    onToggle, 
-    onEdit, 
-    onDelete, 
+export function RichTaskItem({
+    task,
+    onToggle,
+    onEdit,
+    onDelete,
     onUpdate,
     onStatusLongPress,
     onPriorityLongPress,
@@ -64,15 +66,27 @@ export function RichTaskItem({
     selectionMode,
     isSelected,
     onTagPress,
-    onReschedule
+    onReschedule,
+    isHighlighted,
+    highlightColor
 }: RichTaskItemProps) {
     const { tagConfig, propertyConfig } = useSettingsStore();
 
+    const highlightStyle = isHighlighted ? {
+        borderWidth: 2,
+        borderColor: highlightColor || '#818cf8',
+        // backgroundColor: 'transparent',
+        shadowColor: highlightColor || '#818cf8',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.9,
+        shadowRadius: 20,
+    } : undefined;
+
     const updateStatus = (newStatus: string) => {
-        onUpdate({ 
-            ...task, 
-            status: newStatus, 
-            completed: newStatus === 'x' 
+        onUpdate({
+            ...task,
+            status: newStatus,
+            completed: newStatus === 'x'
         });
     };
 
@@ -99,15 +113,15 @@ export function RichTaskItem({
     };
 
     const leftIcon = (
-        <TouchableOpacity 
+        <TouchableOpacity
             onPress={onToggle}
             onLongPress={handleStatusLongPress}
             delayLongPress={500}
             className="items-center justify-center p-2"
         >
-            <TaskStatusIcon 
-                status={task.status} 
-                size={24} 
+            <TaskStatusIcon
+                status={task.status}
+                size={24}
             />
         </TouchableOpacity>
     );
@@ -125,7 +139,7 @@ export function RichTaskItem({
                 </View>
             )}
             {task.properties.event_id && (
-                <View 
+                <View
                     className="bg-indigo-900/30 px-1.5 py-0.5 rounded border border-indigo-500/30 flex-row items-center"
                     style={{ backgroundColor: '#818cf833', borderColor: '#818cf866' }}
                 >
@@ -142,18 +156,18 @@ export function RichTaskItem({
 
                 const valStr = String(value);
                 const valueConfig = config?.valueConfigs?.[valStr];
-                
+
                 const activeColor = valueConfig?.color || config?.color;
 
                 const customStyle = activeColor ? {
-                    backgroundColor: `${activeColor}33`, 
-                    borderColor: `${activeColor}66`, 
+                    backgroundColor: `${activeColor}33`,
+                    borderColor: `${activeColor}66`,
                 } : undefined;
                 const textStyle = activeColor ? { color: activeColor } : undefined;
 
                 return (
-                    <View 
-                        key={`prop-${key}`} 
+                    <View
+                        key={`prop-${key}`}
                         className="bg-slate-700/50 px-1.5 py-0.5 rounded border border-slate-600/50 flex-row items-center"
                         style={customStyle}
                     >
@@ -175,14 +189,14 @@ export function RichTaskItem({
                 if (config?.hidden) return null;
 
                 const customStyle = config?.color ? {
-                    backgroundColor: `${config.color}33`, 
-                    borderColor: `${config.color}66`, 
+                    backgroundColor: `${config.color}33`,
+                    borderColor: `${config.color}66`,
                 } : undefined;
                 const textStyle = config?.color ? { color: config.color } : undefined;
 
                 return (
                     <TouchableOpacity
-                        key={`tag-${tag}`} 
+                        key={`tag-${tag}`}
                         onPress={() => onTagPress?.(tag)}
                         className="bg-indigo-900/30 px-1.5 py-0.5 rounded border border-indigo-500/30"
                         style={customStyle}
@@ -239,7 +253,10 @@ export function RichTaskItem({
             onPress={selectionMode ? onToggle : onEdit}
             onLongPress={handleBodyLongPress}
             rightActions={rightActions}
-            containerStyle={task.status === 'x' || task.status === '-' ? { opacity: 0.8 } : undefined}
+            containerStyle={[
+                task.status === 'x' || task.status === '-' ? { opacity: 0.8 } : undefined,
+                highlightStyle
+            ]}
         />
     );
 }

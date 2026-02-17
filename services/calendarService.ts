@@ -492,9 +492,12 @@ export const updateEventRSVP = async (eventId: string, status: string, currentAt
         status: status
     };
 
+    console.log(`[CalendarService] Updating RSVP for ${eventId} to ${status}. Attendee:`, updatedAttendees[userAttendeeIndex]);
+
     try {
         // @ts-ignore - 'attendees' is not in the type definition but is required for RSVP updates
         await Calendar.updateEventAsync(eventId, { attendees: updatedAttendees } as any);
+        console.log(`[CalendarService] RSVP update successful for ${eventId}`);
     } catch (e) {
         console.error("Failed to update RSVP:", e);
         throw e;

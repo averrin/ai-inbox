@@ -16,6 +16,8 @@ interface DraggableTaskItemProps {
   fileName?: string;
   onTagPress?: (tag: string) => void;
   onReschedule?: () => void;
+  isHighlighted?: boolean;
+  highlightColor?: string;
 }
 
 export const DraggableTaskItem = ({
@@ -26,15 +28,17 @@ export const DraggableTaskItem = ({
   onUpdate,
   fileName,
   onTagPress,
-  onReschedule
+  onReschedule,
+  isHighlighted,
+  highlightColor
 }: DraggableTaskItemProps) => {
   const { isDragging, dragX, dragY, dragData } = useDragDrop();
 
   const handleDragStart = () => {
     try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (e) {
-        // Haptics not available
+      // Haptics not available
     }
   };
 
@@ -79,6 +83,8 @@ export const DraggableTaskItem = ({
           fileName={fileName}
           onTagPress={onTagPress}
           onReschedule={onReschedule}
+          isHighlighted={isHighlighted}
+          highlightColor={highlightColor}
           // Disable long press actions on RichTaskItem to avoid conflict with drag
           onStatusLongPress={undefined}
           onPriorityLongPress={undefined}
