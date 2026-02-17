@@ -225,8 +225,9 @@ class WatcherService {
                         const remainingMs = Math.max(0, item.estimatedDuration - elapsed);
                         const remainingMins = Math.ceil(remainingMs / 60000);
                         const commitMsg = item.run.head_commit?.message?.split('\n')[0] || 'No commit message';
-                        const body = `Repo: ${item.owner}/${item.repo} | Branch: ${item.run.head_branch}\nCommit: ${commitMsg}\nBuilding... ${percent}% (~${remainingMins}m left)`;
-                        await this.updateNotification(item, body, percent);
+                        const smallText = `${item.run.head_branch} • ${percent}% • ~${remainingMins}m left`;
+                        const body = `${item.run.head_branch} • ${percent}% • ~${remainingMins}m left\nRepo: ${item.owner}/${item.repo}\nCommit: ${commitMsg}`;
+                        await this.updateNotification(item, body, percent, false, smallText);
                     }
 
                     await this.save();
@@ -240,13 +241,13 @@ class WatcherService {
         }
     }
 
-    private async updateNotification(item: WatchedRun, body: string, progress?: number, readyToInstall = false) {
+    private async updateNotification(item: WatchedRun, body: string, progress?: number, readyToInstall = false, smallText?: string) {
         // Use native progress bar for Android if progress is available
         if (Platform.OS === 'android' && progress !== undefined) {
             try {
                 // Using the run ID as notification ID
                 const title = `Build: ${item.run.name}`;
-                await NativeModules.ApkInstaller.updateProgress(item.run.id.toString(), title, body, progress);
+                await NativeModules.ApkInstaller.updateProgress(item.run.id.toString(), title, body, smallText || body, progress);
                 return;
             } catch (e) {
                 console.warn("Failed to update native progress", e);
