@@ -486,17 +486,20 @@ export const updateEventRSVP = async (eventId: string, status: string, currentAt
         throw new Error("Current user is not an attendee of this event");
     }
 
-    const updatedAttendees = [...currentAttendees];
-    updatedAttendees[userAttendeeIndex] = {
-        ...updatedAttendees[userAttendeeIndex],
-        status: status
-    };
+    const userAttendee = currentAttendees[userAttendeeIndex];
 
-    console.log(`[CalendarService] Updating RSVP for ${eventId} to ${status}. Attendee:`, updatedAttendees[userAttendeeIndex]);
+    console.log(`[CalendarService] Updating RSVP for ${eventId} to ${status}. Attendee:`, { ...userAttendee, status });
 
     try {
-        // @ts-ignore - 'attendees' is not in the type definition but is required for RSVP updates
-        await Calendar.updateEventAsync(eventId, { attendees: updatedAttendees } as any);
+        if (Platform.OS === 'android' && userAttendee.id) {
+            // Android: attendees are in a separate table, update directly
+            await Calendar.updateAttendeeAsync(userAttendee.id, { status });
+        } else {
+            const updatedAttendees = [...currentAttendees];
+            updatedAttendees[userAttendeeIndex] = { ...userAttendee, status };
+            // @ts-ignore - 'attendees' is not in the type definition but is required for RSVP updates
+            await Calendar.updateEventAsync(eventId, { attendees: updatedAttendees } as any);
+        }
         console.log(`[CalendarService] RSVP update successful for ${eventId}`);
     } catch (e) {
         console.error("Failed to update RSVP:", e);
