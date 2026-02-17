@@ -929,10 +929,10 @@ function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { run
     const runningCount = runs.filter(r => r.status === 'in_progress' || r.status === 'queued').length;
 
     return (
-        <View className="mb-4">
+        <Card className="mb-4" padding="p-0">
             <TouchableOpacity
                 onPress={() => setExpanded(!expanded)}
-                className="flex-row items-center justify-between bg-slate-800/50 p-3 rounded-xl mb-0 border border-slate-700"
+                className="flex-row items-center justify-between p-3"
             >
                 <View className="flex-row items-center">
                     <Ionicons name="git-branch" size={20} color="#94a3b8" />
@@ -947,7 +947,7 @@ function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { run
             </TouchableOpacity>
 
             {expanded && (
-                <View>
+                <View className="px-3 pb-3">
                     {runs.map(run => (
                         <WorkflowRunItem
                             key={run.id}
@@ -956,12 +956,13 @@ function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { run
                             owner={owner}
                             repo={repo}
                             refreshTrigger={refreshTrigger}
+                            embedded={true}
                             compact={true}
                         />
                     ))}
                 </View>
             )}
-        </View>
+        </Card>
     );
 }
 
