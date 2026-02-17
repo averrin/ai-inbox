@@ -200,7 +200,7 @@ export class RelationService {
 
         RelationService.isGCInProgress = true;
         try {
-            console.log(`[RelationService] Running GC on ${eventIds.length} tracked events...`);
+            // console.log(`[RelationService] Running GC on ${eventIds.length} tracked events...`);
 
             const { ensureCalendarPermissions } = require('./calendarService'); // Late import to avoid cycles
             const Calendar = require('expo-calendar');

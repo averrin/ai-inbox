@@ -53,7 +53,8 @@ public class ApkInstallerModule extends ReactContextBaseJavaModule {
             Context context = getReactApplicationContext();
             Intent intent = new Intent(context, BuildWatcherService.class);
             intent.setAction("STOP");
-            context.startService(intent); // Start service with STOP action to kill it
+            intent.putExtra("id", id);
+            context.startService(intent); // Start service with STOP action to kill specific notification
             promise.resolve(true);
         } catch (Exception e) {
             promise.reject("CANCEL_ERROR", e.getMessage());
