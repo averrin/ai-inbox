@@ -32,6 +32,7 @@ import { getPropertyKeysFromCache } from '../../utils/propertyUtils';
 import { RichTaskItem } from '../markdown/RichTaskItem';
 import { TaskEditModal } from '../markdown/TaskEditModal';
 import { findTasks, updateTaskInText, RichTask, removeTaskFromText } from '../../utils/taskParser';
+import { useFab } from '../../hooks/useFab';
 
 interface PreviewScreenProps {
     data: ProcessedNote;
@@ -118,6 +119,15 @@ export function PreviewScreen({
     const { timeFormat, editorType } = useSettingsStore();
     const { metadataCache } = useVaultStore();
 
+    // Use FAB for Save Action
+    useFab({
+        onPress: onSave,
+        onLongPress: onSaveAndAddNew,
+        icon: 'checkmark',
+        color: '#6366f1', // indigo-500
+        iconColor: 'white',
+        visible: !isFocused // Hide FAB when in focus/editing mode
+    });
 
     // State for reminder editing
     const [isEditingReminder, setIsEditingReminder] = React.useState(false);
@@ -595,12 +605,12 @@ export function PreviewScreen({
                 </ScrollView>
 
 
-                {/* Floating Action Buttons - absolute within the shrinking KAV */}
-                <View
-                    className="absolute bottom-4 w-full flex-row justify-between px-6 px-[24px]"
-                    pointerEvents="box-none"
-                >
-                    {isFocused ? (
+                {/* Floating Action Buttons - Only Back button in focus mode now */}
+                {isFocused && (
+                    <View
+                        className="absolute bottom-4 w-full flex-row justify-start px-6 px-[24px]"
+                        pointerEvents="box-none"
+                    >
                         <TouchableOpacity
                             onPress={() => {
                                 setIsFocused(false);
@@ -611,34 +621,8 @@ export function PreviewScreen({
                         >
                             <Ionicons name="arrow-back" size={28} color="white" />
                         </TouchableOpacity>
-                    ) : (
-                        <View /> /* Spacer if no back button to keep save on right? No, standard layout relies on positioning. */
-                    )}
-
-                    {/* Save button - always visible or at least in focus mode too */}
-                    <LongPressButton
-                        onPress={onSave}
-                        onLongPress={onSaveAndAddNew}
-                        shortPressLabel="Save"
-                        longPressLabel="Save & Add New"
-                        disabled={saving || !vaultUri}
-                        style={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: 28,
-                            backgroundColor: '#6366f1', // indigo-500
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 4 },
-                            shadowOpacity: 0.3,
-                            shadowRadius: 4.65,
-                            elevation: 8,
-                            overflow: 'hidden',
-                            marginLeft: 'auto' // Push to right
-                        }}
-                    >
-                        <Ionicons name="checkmark" size={32} color="white" />
-                    </LongPressButton>
-                </View>
+                    </View>
+                )}
             </KeyboardAvoidingView>
 
             <EventFormModal
