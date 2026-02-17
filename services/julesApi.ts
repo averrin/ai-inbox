@@ -45,6 +45,16 @@ export interface Artifact {
     expired: boolean;
 }
 
+export async function fetchWorkflowRun(token: string, owner: string, repo: string, runId: number): Promise<WorkflowRun> {
+    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs/${runId}`;
+    const response = await fetch(url, { headers: getHeaders(token) });
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Failed to fetch workflow run: ${response.status} ${text}`);
+    }
+    return await response.json();
+}
+
 export async function fetchWorkflowRuns(token: string, owner: string, repo: string, workflowId?: string, limit: number = 25, branch?: string): Promise<WorkflowRun[]> {
     let url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs?per_page=${limit}`;
     if (branch) url += `&branch=${branch}`;

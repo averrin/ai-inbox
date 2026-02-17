@@ -129,6 +129,32 @@ const mockDeps = {
         if (!statuses.includes('Installing...')) throw new Error('Status Installing... missing');
     });
 
+    await runTest('Only Download (skip install)', async () => {
+        let downloading = false;
+        const setDownloading = (val: boolean) => downloading = val;
+
+        // Spy on ApkInstaller
+        let installCalled = false;
+        mockApkInstaller.install = async (uri) => {
+            installCalled = true;
+            return true;
+        };
+
+        const resultPath = await downloadAndInstallArtifact(
+            mockArtifact,
+            'token',
+            'branch',
+            setDownloading,
+            () => {},
+            mockDeps as any,
+            () => {},
+            true // onlyDownload
+        );
+
+        if (installCalled) throw new Error('ApkInstaller WAS called when onlyDownload=true');
+        if (!resultPath || !resultPath.includes('artifacts/1.apk')) throw new Error('Did not return correct artifact path');
+    });
+
     await runTest('Cache Management', async () => {
         const newArtifact = { ...mockArtifact, id: 999 };
 
