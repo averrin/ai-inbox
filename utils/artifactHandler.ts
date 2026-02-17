@@ -107,20 +107,35 @@ export async function downloadAndInstallArtifact(
         // 1. Download the zip
         console.log(`[Artifact] Resolving redirect for artifact URL...`);
         const redirectResponse = await fetch(artifact.archive_download_url, {
+            method: 'GET',
+            redirect: 'manual',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/vnd.github+json',
             },
         });
-        const finalUrl = redirectResponse.url;
-        const wasRedirected = finalUrl !== artifact.archive_download_url;
-        console.log(`[Artifact] Resolved download URL (redirected: ${wasRedirected})`);
 
-        try { await redirectResponse.body?.cancel(); } catch (_) {}
+        let finalUrl: string | null = null;
+        let wasRedirected = false;
 
-        if (!wasRedirected) {
-            console.warn(`[Artifact] No redirect detected, status: ${redirectResponse.status}`);
+        if (redirectResponse.status >= 300 && redirectResponse.status < 400) {
+            finalUrl = redirectResponse.headers.get('location');
+            wasRedirected = true;
+            console.log(`[Artifact] Handled manual redirect to: ${finalUrl}`);
+        } else if (redirectResponse.status === 200) {
+            finalUrl = redirectResponse.url;
+            wasRedirected = finalUrl !== artifact.archive_download_url;
+            console.warn(`[Artifact] Fetch followed redirect automatically (optimization skipped).`);
+            try { await redirectResponse.body?.cancel(); } catch (_) {}
+        } else {
+            throw new Error(`Unexpected status during URL resolution: ${redirectResponse.status}`);
         }
+
+        if (!finalUrl) {
+            throw new Error("Failed to resolve artifact URL");
+        }
+
+        console.log(`[Artifact] Resolved download URL (redirected: ${wasRedirected})`);
 
         if (onStatus) onStatus("Downloading...");
 

@@ -13,6 +13,43 @@ const runTest = async (name: string, fn: () => Promise<void>) => {
     }
 };
 
+let fetchSpy = { called: false, manual: false };
+const originalFetch = global.fetch;
+
+// Mock global fetch
+global.fetch = async (url: RequestInfo | URL, init?: RequestInit) => {
+    const urlStr = url.toString();
+    if (urlStr === 'http://example.com/zip') {
+        fetchSpy.called = true;
+        fetchSpy.manual = init?.redirect === 'manual';
+
+        if (init?.redirect === 'manual') {
+            return {
+                status: 302,
+                headers: { get: (name: string) => name.toLowerCase() === 'location' ? 'http://azure.com/blob' : null },
+                url: 'http://example.com/zip',
+                text: async () => '',
+                json: async () => ({}),
+                blob: async () => new Blob([]),
+                body: { cancel: async () => {} }
+            } as any;
+        } else {
+             // Simulate follow redirect (old behavior)
+             return {
+                 status: 200,
+                 url: 'http://azure.com/blob',
+                 headers: { get: () => null },
+                 text: async () => '',
+                 json: async () => ({}),
+                 blob: async () => new Blob([]),
+                 body: { cancel: async () => {} }
+             } as any;
+        }
+    }
+    if (originalFetch) return originalFetch(url, init);
+    throw new Error(`Unexpected fetch to ${urlStr}`);
+};
+
 const mockArtifact: Artifact = {
     id: 1,
     name: 'app-release',
@@ -112,6 +149,7 @@ const mockDeps = {
 
         // Reset deps
         mockPlatform.OS = 'android';
+        fetchSpy = { called: false, manual: false };
 
         // Ensure 1.apk is NOT cached
         mockFileSystem.getInfoAsync = async (uri) => {
@@ -127,6 +165,11 @@ const mockDeps = {
         if (!statuses.includes('Downloading...')) throw new Error('Status Downloading... missing');
         if (!statuses.includes('Unzipping...')) throw new Error('Status Unzipping... missing');
         if (!statuses.includes('Installing...')) throw new Error('Status Installing... missing');
+
+        // Verify optimization
+        if (!fetchSpy.called) throw new Error('Fetch was not called for URL resolution');
+        // This check will fail until we implement the fix
+        if (!fetchSpy.manual) throw new Error('Optimization failed: redirect: manual was not used');
     });
 
     await runTest('Cache Management', async () => {
