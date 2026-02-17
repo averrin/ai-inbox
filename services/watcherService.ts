@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules, Platform, NativeEventEmitter } from 'react-native';
 import { WorkflowRun, fetchWorkflowRun, fetchWorkflowRuns, fetchArtifacts, Artifact } from './julesApi';
 import { downloadAndInstallArtifact, installCachedArtifact } from '../utils/artifactHandler';
 import { artifactDeps } from '../utils/artifactDeps';
@@ -40,6 +40,7 @@ class WatcherService {
     private interval: NodeJS.Timeout | null = null;
     private initialized = false;
     private isChecking = false;
+    private eventEmitter: NativeEventEmitter | null = null;
 
     async init() {
         if (this.initialized) return;
@@ -73,6 +74,20 @@ class WatcherService {
                     name: 'Watch Result',
                     importance: Notifications.AndroidImportance.HIGH, // Sound/vibration
                 });
+
+                // Listen for heartbeat
+                try {
+                    const { ApkInstaller } = NativeModules;
+                    if (ApkInstaller) {
+                        this.eventEmitter = new NativeEventEmitter(ApkInstaller);
+                        this.eventEmitter.addListener('watcher-heartbeat', () => {
+                            console.log("[WatcherService] Heartbeat received, checking runs");
+                            this.checkRuns();
+                        });
+                    }
+                } catch (e) {
+                    console.warn("Failed to setup heartbeat listener", e);
+                }
             }
 
             this.initialized = true;
@@ -136,6 +151,7 @@ class WatcherService {
 
         this.watchedRuns[run.id] = watchedRun;
         await this.save();
+        this.updateHeartbeatState();
 
         // Immediate notification update
         const now = Date.now();
@@ -158,6 +174,7 @@ class WatcherService {
         if (this.watchedRuns[runId]) {
             delete this.watchedRuns[runId];
             await this.save();
+            this.updateHeartbeatState();
             await Notifications.dismissNotificationAsync(runId.toString());
         }
     }
@@ -170,9 +187,24 @@ class WatcherService {
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.watchedRuns));
     }
 
+    private updateHeartbeatState() {
+        if (Platform.OS === 'android') {
+            const { ApkInstaller } = NativeModules;
+            if (ApkInstaller) {
+                const hasRuns = Object.keys(this.watchedRuns).length > 0;
+                if (hasRuns) {
+                    ApkInstaller.startHeartbeat?.();
+                } else {
+                    ApkInstaller.stopHeartbeat?.();
+                }
+            }
+        }
+    }
+
     start() {
         if (this.interval) clearInterval(this.interval);
         this.interval = setInterval(() => this.checkRuns(), 30000); // Check every 30s
+        this.updateHeartbeatState();
     }
 
     async checkRuns() {
@@ -181,7 +213,10 @@ class WatcherService {
 
         try {
             const runIds = Object.keys(this.watchedRuns);
-            if (runIds.length === 0) return;
+            if (runIds.length === 0) {
+                 this.updateHeartbeatState();
+                 return;
+            }
 
             for (const id of runIds) {
                 const item = this.watchedRuns[id];
