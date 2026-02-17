@@ -18,7 +18,8 @@ export function useFab({
     onLongPress?: () => void;
     iconColor?: string;
 }) {
-    const { setFab, clearFab } = useUIStore();
+    const setFab = useUIStore(s => s.setFab);
+    const clearFab = useUIStore(s => s.clearFab);
 
     useFocusEffect(
         React.useCallback(() => {

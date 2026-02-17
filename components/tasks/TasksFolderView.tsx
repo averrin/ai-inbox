@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, ActivityIndicator, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { TaskWithSource } from '../../store/tasks';
 import { useSettingsStore } from '../../store/settings';
@@ -80,10 +80,10 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
         setIsModalVisible(true);
     };
 
-    const handleCreateTask = () => {
-        setEditingTask(null); 
+    const handleCreateTask = useCallback(() => {
+        setEditingTask(null);
         setIsModalVisible(true);
-    };
+    }, []);
 
    
     useFab({

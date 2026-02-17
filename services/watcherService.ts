@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import { NativeModules, Platform } from 'react-native';
 import { WorkflowRun, fetchWorkflowRun, fetchWorkflowRuns, fetchArtifacts, Artifact } from './julesApi';
 import { downloadAndInstallArtifact, installCachedArtifact } from '../utils/artifactHandler';
 import { artifactDeps } from '../utils/artifactDeps';
-import { Platform } from 'react-native';
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 
@@ -184,48 +184,48 @@ class WatcherService {
                     const elapsed = now - item.startTime;
 
                     if (freshRun.status === 'completed') {
-                         if (freshRun.conclusion === 'success') {
-                             // Download artifact
-                             await this.updateNotification(item, "Downloading artifact...", 100);
+                        if (freshRun.conclusion === 'success') {
+                            // Download artifact
+                            await this.updateNotification(item, "Downloading artifact...", 100);
 
-                             // Fetch artifacts list
-                             const artifacts = await fetchArtifacts(item.token, item.owner, item.repo, parseInt(id));
-                             // Select best artifact (reuse logic or simple filter)
-                             const artifact = artifacts.find(a => a.name.includes('app-release') || a.name.includes('app-debug')) || artifacts[0];
+                            // Fetch artifacts list
+                            const artifacts = await fetchArtifacts(item.token, item.owner, item.repo, parseInt(id));
+                            // Select best artifact (reuse logic or simple filter)
+                            const artifact = artifacts.find(a => a.name.includes('app-release') || a.name.includes('app-debug')) || artifacts[0];
 
-                             if (artifact) {
-                                 const path = await downloadAndInstallArtifact(
-                                     artifact,
-                                     item.token,
-                                     freshRun.head_branch,
-                                     () => {},
-                                     () => {},
-                                     artifactDeps,
-                                     undefined,
-                                     true // Only download
-                                 );
+                            if (artifact) {
+                                const path = await downloadAndInstallArtifact(
+                                    artifact,
+                                    item.token,
+                                    freshRun.head_branch,
+                                    () => { },
+                                    () => { },
+                                    artifactDeps,
+                                    undefined,
+                                    true // Only download
+                                );
 
-                                 if (path) {
-                                     item.artifactPath = path;
-                                     await this.updateNotification(item, "Ready to Install", undefined, true);
-                                 } else {
-                                     await this.updateNotification(item, "Artifact download failed");
-                                 }
-                             } else {
-                                 await this.updateNotification(item, "No artifact found");
-                             }
-                         } else {
-                             await this.updateNotification(item, `Build ${freshRun.conclusion}`);
-                             // Remove from watched list eventually, but for now just show notification
-                         }
+                                if (path) {
+                                    item.artifactPath = path;
+                                    await this.updateNotification(item, "Ready to Install", undefined, true);
+                                } else {
+                                    await this.updateNotification(item, "Artifact download failed");
+                                }
+                            } else {
+                                await this.updateNotification(item, "No artifact found");
+                            }
+                        } else {
+                            await this.updateNotification(item, `Build ${freshRun.conclusion}`);
+                            // Remove from watched list eventually, but for now just show notification
+                        }
                     } else {
                         // In progress
                         const progress = Math.min(0.99, elapsed / item.estimatedDuration);
                         const percent = Math.round(progress * 100);
                         const remainingMs = Math.max(0, item.estimatedDuration - elapsed);
                         const remainingMins = Math.ceil(remainingMs / 60000);
-
-                        await this.updateNotification(item, `Building... ${percent}% (~${remainingMins}m left)`, percent);
+                        const body = `Repo: ${item.owner}/${item.repo} | Branch: ${item.run.head_branch}\nBuilding... ${percent}% (~${remainingMins}m left)`;
+                        await this.updateNotification(item, body, percent);
                     }
 
                     await this.save();
@@ -239,25 +239,33 @@ class WatcherService {
         }
     }
 
-    private getProgressBar(percent: number): string {
-        const width = 10;
-        const filled = Math.max(0, Math.min(width, Math.round((percent / 100) * width)));
-        const empty = Math.max(0, width - filled);
-        return '▓'.repeat(filled) + '░'.repeat(empty);
-    }
-
     private async updateNotification(item: WatchedRun, body: string, progress?: number, readyToInstall = false) {
+        // Use native progress bar for Android if progress is available
+        if (Platform.OS === 'android' && progress !== undefined) {
+            try {
+                // Using the run ID as notification ID
+                const title = `Build: ${item.run.name}`;
+                await NativeModules.ApkInstaller.updateProgress(item.run.id, title, body, progress);
+                return;
+            } catch (e) {
+                console.warn("Failed to update native progress", e);
+                // Fallback to standard notification below
+            }
+        } else if (Platform.OS === 'android' && progress === undefined) {
+            // ensure progress bar is removed
+            try {
+                await NativeModules.ApkInstaller.cancelProgress(item.run.id);
+            } catch (e) {
+                console.warn("Failed to cancel native progress", e);
+            }
+        }
+
         const isImportant = readyToInstall || body.includes('Failed') || body.includes('Build Success');
         const channelId = isImportant ? 'watcher_result' : 'watcher_progress';
 
-        let finalBody = body;
-        if (progress !== undefined) {
-            finalBody = `${this.getProgressBar(progress)} ${progress}%\n${body}`;
-        }
-
         const content: any = {
             title: `Build: ${item.run.name}`,
-            body: finalBody,
+            body: body,
             data: {
                 runId: item.run.id,
                 artifactPath: item.artifactPath,
@@ -281,14 +289,14 @@ class WatcherService {
 
     async handleNotificationResponse(response: Notifications.NotificationResponse) {
         const { actionIdentifier, notification } = response;
-        const data = notification.request.content.data;
+        const data = notification.request.content.data as any;
 
         if (actionIdentifier === INSTALL_ACTION && data.artifactPath) {
-             await installCachedArtifact(data.artifactPath, artifactDeps);
-             // Optionally unwatch after install
-             if (data.runId) {
-                 this.unwatchRun(data.runId);
-             }
+            await installCachedArtifact(data.artifactPath, artifactDeps);
+            // Optionally unwatch after install
+            if (data.runId) {
+                this.unwatchRun(data.runId);
+            }
         }
     }
 }
