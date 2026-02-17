@@ -15,6 +15,7 @@ interface DraggableTaskItemProps {
   onUpdate: (updatedTask: RichTask) => void;
   fileName?: string;
   onTagPress?: (tag: string) => void;
+  onReschedule?: () => void;
 }
 
 export const DraggableTaskItem = ({
@@ -24,7 +25,8 @@ export const DraggableTaskItem = ({
   onDelete,
   onUpdate,
   fileName,
-  onTagPress
+  onTagPress,
+  onReschedule
 }: DraggableTaskItemProps) => {
   const { isDragging, dragX, dragY, dragData } = useDragDrop();
 
@@ -76,6 +78,7 @@ export const DraggableTaskItem = ({
           onUpdate={onUpdate}
           fileName={fileName}
           onTagPress={onTagPress}
+          onReschedule={onReschedule}
           // Disable long press actions on RichTaskItem to avoid conflict with drag
           onStatusLongPress={undefined}
           onPriorityLongPress={undefined}
