@@ -33,6 +33,7 @@ public class BuildWatcherService extends Service {
         if (intent != null) {
             String title = intent.getStringExtra("title");
             String body = intent.getStringExtra("body");
+            String smallText = intent.getStringExtra("smallText");
             int progress = intent.getIntExtra("progress", -1);
             int id = intent.getIntExtra("id", -1);
             String action = intent.getAction();
@@ -43,16 +44,16 @@ public class BuildWatcherService extends Service {
                 handleStop(id);
             } else {
                 if (title != null) {
-                    handleUpdate(id, title, body, progress);
+                    handleUpdate(id, title, body, smallText, progress);
                 }
             }
         }
         return START_NOT_STICKY;
     }
 
-    private void handleUpdate(int id, String title, String body, int progress) {
+    private void handleUpdate(int id, String title, String body, String smallText, int progress) {
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        Notification notification = buildNotification(title, body, progress);
+        Notification notification = buildNotification(title, body, smallText, progress);
         
         activeNotificationIds.add(id);
 
@@ -151,7 +152,7 @@ public class BuildWatcherService extends Service {
         }
     }
 
-    private Notification buildNotification(String title, String body, int progress) {
+    private Notification buildNotification(String title, String body, String smallText, int progress) {
         int iconId = getApplicationContext().getResources().getIdentifier("ic_launcher", "mipmap", getPackageName());
         if (iconId == 0) {
              iconId = getApplicationInfo().icon;
@@ -160,13 +161,18 @@ public class BuildWatcherService extends Service {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(iconId)
                 .setContentTitle(title)
-                .setContentText(body)
+                .setContentText(smallText != null ? smallText : body) // Collapsed text
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(body)) // Expanded text
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true);
 
         if (progress >= 0) {
             builder.setProgress(100, progress, false);
+            // Progress bar hides contentText, so use subText to keep it visible
+            if (smallText != null) {
+                builder.setSubText(smallText);
+            }
         }
         
         return builder.build();

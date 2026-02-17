@@ -39,6 +39,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+/local-modules/apk-installer/android/build/
+/local-modules/expo-calendar/android/build/
 
 # Firebase
 google-services.json

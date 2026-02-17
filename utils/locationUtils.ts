@@ -31,13 +31,20 @@ export const updateUserLocation = async () => {
             console.warn('[Location] Failed to reverse geocode', e);
         }
 
-        useSettingsStore.getState().setWeatherLocation({
-            lat: latitude,
-            lon: longitude,
-            city
-        });
+        const current = useSettingsStore.getState().weatherLocation;
+        const isSame = current &&
+            Math.abs(current.lat - latitude) < 0.01 &&
+            Math.abs(current.lon - longitude) < 0.01 &&
+            current.city === city;
 
-        console.log(`[Location] Updated to ${city} (${latitude}, ${longitude})`);
+        if (!isSame) {
+            useSettingsStore.getState().setWeatherLocation({
+                lat: latitude,
+                lon: longitude,
+                city
+            });
+            console.log(`[Location] Updated to ${city} (${latitude}, ${longitude})`);
+        }
 
     } catch (error) {
         console.error('[Location] Error getting location:', error);

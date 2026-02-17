@@ -410,33 +410,102 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
         const finalOptions = Object.keys(options).length > 0 ? options : undefined;
 
         console.log('[CalendarService] Updating event robustly:', eventId, { nativeEventData, finalOptions });
+
+        // --- ANDROID FIXES START ---
+        if (isAndroid) {
+            // FIX 1: "Moved whole series"
+            // The native patch expects `instanceStartDate` in the event payload (details), NOT in options.
+            // If we are editing "this" instance, we must inject it into nativeEventData.
+            if (eventData.editScope === 'this' && finalOptions?.instanceStartDate) {
+                console.log('[CalendarService] Injecting instanceStartDate into payload for Android exception handling');
+                nativeEventData.instanceStartDate = finalOptions.instanceStartDate;
+
+                // FIX 2: "Changed to 15min" / Data Corruption
+                // The native patch creates a NEW event (insert) for the exception.
+                // If we typically only send { title: 'New Title' }, the new event will have missing dates/duration.
+                // We must backfill `startDate` and `duration` (or `endDate`) from the original event if missing.
+                if (!nativeEventData.startDate || (!nativeEventData.endDate && !nativeEventData.duration)) {
+                    console.log('[CalendarService] Partial update detected for exception. Fetching original event to backfill...');
+                    try {
+                        const originalEvent = await Calendar.getEventAsync(eventId);
+                        if (originalEvent) {
+                            // Calculate duration of the master event
+                            const masterStart = new Date(originalEvent.startDate).getTime();
+                            const masterEnd = new Date(originalEvent.endDate).getTime();
+                            const durationMillis = masterEnd - masterStart;
+
+                            // Backfill Start Date
+                            if (!nativeEventData.startDate) {
+                                // If not changing time, it starts at the instance separation time
+                                nativeEventData.startDate = new Date(finalOptions.instanceStartDate as number);
+                            }
+
+                            // Backfill End Date (will be converted to duration below)
+                            if (!nativeEventData.endDate && !nativeEventData.duration) {
+                                const sTime = new Date(nativeEventData.startDate).getTime();
+                                nativeEventData.endDate = new Date(sTime + durationMillis);
+                            }
+                            console.log('[CalendarService] Backfilled data:', {
+                                startDate: nativeEventData.startDate,
+                                endDate: nativeEventData.endDate
+                            });
+                        }
+                    } catch (fetchErr) {
+                        console.warn('[CalendarService] Failed to fetch original event for backfilling:', fetchErr);
+                        // Fallback: If we can't fetch, we risk 15min default, but proceed to attempt save.
+                    }
+                }
+            }
+
+            // FIX 3: "Crash on Update" (Cannot have both DTEND and DURATION)
+            // Proactively convert endDate to DURATION for Android updates.
+            // BUT: skip this for single-instance edits (editScope === 'this') — exception
+            // events need DTEND, not DURATION. The native code handles DTEND directly.
+            if (nativeEventData.startDate && nativeEventData.endDate && eventData.editScope !== 'this') {
+                const sTime = new Date(nativeEventData.startDate).getTime();
+                const eTime = new Date(nativeEventData.endDate).getTime();
+                const durationSeconds = Math.max(0, Math.floor((eTime - sTime) / 1000));
+
+                // Android expects duration in RFC2445 format, e.g., PT1H or PT3600S.
+                nativeEventData.duration = `PT${durationSeconds}S`;
+
+                // Strictly exclude DTEND fields when sending DURATION
+                delete nativeEventData.endDate;
+                delete nativeEventData.endTime; // legacy
+                delete nativeEventData.lastDate; // legacy
+
+                console.log('[CalendarService] Converted to DURATION for Android update:', nativeEventData.duration);
+            }
+        }
+        // --- ANDROID FIXES END ---
+
         try {
             await Calendar.updateEventAsync(eventId, nativeEventData, finalOptions);
         } catch (e: any) {
+            // Keep retry logic as a safety net, though the proactive fix should catch most cases
             if (isAndroid && e.message?.includes('both DTEND and DURATION')) {
-                console.warn('[CalendarService] Detected DTEND/DURATION conflict, retrying with duration field...');
+                console.warn('[CalendarService] STILL detected DTEND/DURATION conflict, retrying...');
+                // If we somehow missed the conversion or it failed for another reason related to duration
+                // Retrying with same logic is redundant if we already applied it, but harmless.
+                // We might want to try forcing duration again or logging more details.
+
+                // Re-apply duration logic if not applied (e.g. if conditions above failed but error occurred)
                 const fallbackData = { ...nativeEventData };
-                if (fallbackData.startDate && fallbackData.endDate) {
+                if (!fallbackData.duration && fallbackData.startDate && fallbackData.endDate) {
                     const sTime = new Date(fallbackData.startDate).getTime();
                     const eTime = new Date(fallbackData.endDate).getTime();
                     const durationSeconds = Math.max(0, Math.floor((eTime - sTime) / 1000));
-                    // Android expects duration in RFC2445 format, e.g., PT1H or PT3600S. 
-                    // Using PT<n>S is precise.
                     (fallbackData as any).duration = `PT${durationSeconds}S`;
-                    // For recurrence, DTEND and DURATION are strictly mutual exclusive.
-                    // When using DURATION, we MUST NOT send DTEND.
                     delete fallbackData.endDate;
-                    delete (fallbackData as any).endTime; // Just in case
-
-                    // Also clear any other recurrence end markers if we are switching to duration
+                    delete (fallbackData as any).endTime;
                     delete (fallbackData as any).lastDate;
 
-                    console.log('[CalendarService] Retrying update with duration:', (fallbackData as any).duration);
+                    console.log('[CalendarService] Retrying update with duration fallback:', (fallbackData as any).duration);
                     await Calendar.updateEventAsync(eventId, fallbackData, finalOptions);
                     console.log('[CalendarService] Retry with duration succeeded');
-                } else {
-                    throw e;
+                    return; // Exit successfully
                 }
+                throw e;
             } else {
                 throw e;
             }
