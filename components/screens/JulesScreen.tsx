@@ -488,6 +488,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                             </TouchableOpacity>
                         )}
 
+
                         {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
                             <TouchableOpacity
                                 onPress={toggleWatch}
