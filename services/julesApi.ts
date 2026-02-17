@@ -11,6 +11,13 @@ export interface WorkflowRun {
     name: string;
     head_branch: string;
     head_sha: string;
+    head_commit: {
+        message: string;
+        author: {
+            name: string;
+            email: string;
+        };
+    };
     status: string; // queued, in_progress, completed
     conclusion: string | null; // success, failure, cancelled, skipped, timed_out, action_required
     created_at: string;

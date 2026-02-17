@@ -224,7 +224,8 @@ class WatcherService {
                         const percent = Math.round(progress * 100);
                         const remainingMs = Math.max(0, item.estimatedDuration - elapsed);
                         const remainingMins = Math.ceil(remainingMs / 60000);
-                        const body = `Repo: ${item.owner}/${item.repo} | Branch: ${item.run.head_branch}\nBuilding... ${percent}% (~${remainingMins}m left)`;
+                        const commitMsg = item.run.head_commit?.message?.split('\n')[0] || 'No commit message';
+                        const body = `Repo: ${item.owner}/${item.repo} | Branch: ${item.run.head_branch}\nCommit: ${commitMsg}\nBuilding... ${percent}% (~${remainingMins}m left)`;
                         await this.updateNotification(item, body, percent);
                     }
 
@@ -245,7 +246,7 @@ class WatcherService {
             try {
                 // Using the run ID as notification ID
                 const title = `Build: ${item.run.name}`;
-                await NativeModules.ApkInstaller.updateProgress(item.run.id, title, body, progress);
+                await NativeModules.ApkInstaller.updateProgress(item.run.id.toString(), title, body, progress);
                 return;
             } catch (e) {
                 console.warn("Failed to update native progress", e);
@@ -254,7 +255,7 @@ class WatcherService {
         } else if (Platform.OS === 'android' && progress === undefined) {
             // ensure progress bar is removed
             try {
-                await NativeModules.ApkInstaller.cancelProgress(item.run.id);
+                await NativeModules.ApkInstaller.cancelProgress(item.run.id.toString());
             } catch (e) {
                 console.warn("Failed to cancel native progress", e);
             }

@@ -27,11 +27,13 @@ public class ApkInstallerModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void updateProgress(int id, String title, String body, int progress, Promise promise) {
+    public void updateProgress(String id, String title, String body, int progress, Promise promise) {
         try {
             Context context = getReactApplicationContext();
             Intent intent = new Intent(context, BuildWatcherService.class);
-            intent.putExtra("id", id);
+            // Use hash code for notification ID
+            int notificationId = id.hashCode();
+            intent.putExtra("id", notificationId);
             intent.putExtra("title", title);
             intent.putExtra("body", body);
             intent.putExtra("progress", progress);
@@ -48,12 +50,14 @@ public class ApkInstallerModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void cancelProgress(int id, Promise promise) {
+    public void cancelProgress(String id, Promise promise) {
         try {
             Context context = getReactApplicationContext();
             Intent intent = new Intent(context, BuildWatcherService.class);
             intent.setAction("STOP");
-            intent.putExtra("id", id);
+            // Use hash code for notification ID
+            int notificationId = id.hashCode();
+            intent.putExtra("id", notificationId);
             context.startService(intent); // Start service with STOP action to kill specific notification
             promise.resolve(true);
         } catch (Exception e) {
