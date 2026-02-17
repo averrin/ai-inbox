@@ -11,7 +11,8 @@ import { useRelationsStore } from '../../store/relations';
 import { DraggableTaskItem } from '../DraggableTaskItem';
 import { RichTask } from '../../utils/taskParser';
 import { TaskService } from '../../services/taskService';
-import { findNextFreeSlot } from '../../services/calendarService';
+import { findNextFreeSlot, updateCalendarEvent } from '../../services/calendarService';
+import { RescheduleModal } from '../RescheduleModal';
 
 dayjs.extend(isBetween);
 
@@ -41,6 +42,10 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
   const { vaultUri } = useSettingsStore();
   const { completedEvents, toggleCompleted } = useEventTypesStore();
   const [expanded, setExpanded] = useState(true);
+
+  // Reschedule Modal State
+  const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
+  const [taskToReschedule, setTaskToReschedule] = useState<TaskWithSource | null>(null);
 
   const toggleExpanded = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -227,73 +232,106 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
   };
 
   const handleReschedule = (task: TaskWithSource) => {
-    const performReschedule = async (startSearchTime: Date) => {
-        try {
-            // Calculate duration
-            let durationMins = 30;
-            if (task.properties.start && task.properties.end) {
-                const s = dayjs(`2000-01-01T${task.properties.start}`);
-                const e = dayjs(`2000-01-01T${task.properties.end}`);
-                if (s.isValid() && e.isValid()) {
-                    const diff = e.diff(s, 'minute');
-                    if (diff > 0) durationMins = diff;
-                }
-            }
+      setTaskToReschedule(task);
+      setRescheduleModalVisible(true);
+  };
 
-            const slot = await findNextFreeSlot(startSearchTime, durationMins);
+  const executeReschedule = async (option: 'later' | 'tomorrow') => {
+      if (!taskToReschedule) return;
+      const task = taskToReschedule;
+      setRescheduleModalVisible(false);
 
-            const newDate = dayjs(slot).format('YYYY-MM-DD');
-            const newStart = dayjs(slot).format('HH:mm');
-            const newEnd = dayjs(slot).add(durationMins, 'minute').format('HH:mm');
+      const hasEvent = !!task.properties.event_id;
 
-            const newProps = { ...task.properties, date: newDate, start: newStart, end: newEnd };
+      try {
+          const now = dayjs();
+          const taskDate = task.properties.date ? dayjs(task.properties.date) : now;
 
-            handleTaskUpdate(task, { ...task, properties: newProps });
-            Toast.show({ type: 'success', text1: 'Rescheduled', text2: `Moved to ${newDate} at ${newStart}` });
-        } catch (e) {
-            console.error(e);
-            Alert.alert("Error", "Failed to reschedule");
-        }
-    };
+          // 1. Determine Search Start Time
+          let searchStart: Date;
 
-    Alert.alert('Quick Reschedule', 'Choose an option', [
-        {
-            text: 'Later (Today)',
-            onPress: () => {
-                const now = dayjs();
-                const taskDate = task.properties.date ? dayjs(task.properties.date) : now;
+          if (option === 'later') {
+               // Later (Today): Find a slot later today
+               if (taskDate.isBefore(now, 'day') || taskDate.isSame(now, 'day')) {
+                   searchStart = now.add(30, 'minute').toDate();
+               } else {
+                   // Future date -> start from same time + 30m? Or just start of day?
+                   // If "Later" on a future task, assume later in that day
+                   searchStart = taskDate.hour(now.hour()).minute(now.minute()).add(30, 'minute').toDate();
+               }
+          } else {
+               // Tomorrow: Find a slot tomorrow morning
+               let targetDate = taskDate.add(1, 'day');
+               if (taskDate.isBefore(now, 'day')) {
+                   targetDate = now.add(1, 'day'); // Tomorrow relative to today
+               }
+               searchStart = targetDate.hour(9).minute(0).second(0).toDate();
+          }
 
-                let searchStart;
-                if (taskDate.isBefore(now, 'day')) {
-                        // Overdue -> reschedule to today
-                        searchStart = now.add(30, 'minute').toDate();
-                } else if (taskDate.isSame(now, 'day')) {
-                        // Today -> reschedule to later today
-                        searchStart = now.add(30, 'minute').toDate();
-                } else {
-                        // Future -> reschedule to later in that day
-                        searchStart = taskDate.hour(now.hour()).minute(now.minute()).add(30, 'minute').toDate();
-                }
-                performReschedule(searchStart);
-            }
-        },
-        {
-            text: 'Tomorrow',
-            onPress: () => {
-                const now = dayjs();
-                const taskDate = task.properties.date ? dayjs(task.properties.date) : now;
-                let targetDate = taskDate.add(1, 'day');
+          // 2. Logic Branching
+          if (!hasEvent) {
+              // --- NO EVENT: Only update DATE ---
+              if (option === 'tomorrow') {
+                   const newDate = dayjs(searchStart).format('YYYY-MM-DD');
+                   const newProps = { ...task.properties, date: newDate };
 
-                if (taskDate.isBefore(now, 'day')) {
-                    targetDate = now.add(1, 'day');
-                }
+                   // Remove start/end if present (per requirements "doesn't add start/end properties")
+                   // Ideally we also remove them to avoid confusion if we just moved date
+                   // But requirement says "affects only date". If we remove time, it affects time.
+                   // Let's just update date.
 
-                const searchStart = targetDate.hour(9).minute(0).second(0).toDate();
-                performReschedule(searchStart);
-            }
-        },
-        { text: 'Cancel', style: 'cancel' }
-    ]);
+                   handleTaskUpdate(task, { ...task, properties: newProps });
+                   Toast.show({ type: 'success', text1: 'Rescheduled', text2: `Moved to ${newDate}` });
+              } else {
+                  // Should be unreachable if UI is correct
+                  console.warn("Attempted 'later' reschedule on task without event");
+              }
+          } else {
+              // --- HAS EVENT: Move Event & Update Task Date ---
+
+              // Calculate Duration
+              let durationMins = 30;
+              if (task.properties.start && task.properties.end) {
+                   const s = dayjs(`2000-01-01T${task.properties.start}`);
+                   const e = dayjs(`2000-01-01T${task.properties.end}`);
+                   if (s.isValid() && e.isValid()) {
+                       const diff = e.diff(s, 'minute');
+                       if (diff > 0) durationMins = diff;
+                   }
+              }
+
+              // Find Slot
+              const slot = await findNextFreeSlot(searchStart, durationMins);
+              const slotEnd = dayjs(slot).add(durationMins, 'minute').toDate();
+
+              // Update Calendar Event
+              const eventId = task.properties.event_id.split(',')[0].trim(); // Handle multiple IDs? Taking first.
+              if (eventId) {
+                  await updateCalendarEvent(eventId, {
+                      startDate: slot,
+                      endDate: slotEnd
+                  });
+              }
+
+              // Update Task Date (Sync)
+              const newDate = dayjs(slot).format('YYYY-MM-DD');
+
+              // We do NOT update start/end properties in text, relying on the event link.
+              // Just update the date property so it appears in the correct list.
+              const newProps = { ...task.properties, date: newDate };
+
+              handleTaskUpdate(task, { ...task, properties: newProps });
+              Toast.show({
+                  type: 'success',
+                  text1: 'Rescheduled',
+                  text2: `Moved to ${newDate} at ${dayjs(slot).format('HH:mm')}`
+              });
+          }
+
+      } catch (e) {
+          console.error('Reschedule failed', e);
+          Alert.alert("Error", "Failed to reschedule task/event");
+      }
   };
 
   return (
@@ -375,6 +413,13 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
             )}
         </View>
       )}
+
+      <RescheduleModal
+          visible={rescheduleModalVisible}
+          onClose={() => setRescheduleModalVisible(false)}
+          onSelect={executeReschedule}
+          showLater={!!taskToReschedule?.properties.event_id}
+      />
     </View>
   );
 };
