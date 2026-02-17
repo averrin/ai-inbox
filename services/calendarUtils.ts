@@ -15,13 +15,15 @@ export const mergeDuplicateEvents = (events: Event[], priorityCalendarId?: strin
 
         const existing = uniqueEventsMap.get(key);
         if (!existing) {
-            // Initialize mergedCalendarIds with the current event's calendarId
+            // Initialize mergedCalendarIds and ids with the current event's data
             (event as any).mergedCalendarIds = [event.calendarId];
+            (event as any).ids = [event.id];
             uniqueEventsMap.set(key, event);
         } else {
             // Duplicate found
             const existingCalId = existing.calendarId;
             const newCalId = event.calendarId;
+            const existingIds = (existing as any).ids || [existing.id];
 
             // Get existing merged IDs or initialize if missing (sanity check)
             const existingMergedIds = (existing as any).mergedCalendarIds || [existingCalId];
@@ -44,18 +46,17 @@ export const mergeDuplicateEvents = (events: Event[], priorityCalendarId?: strin
                 // Overwrite existing if current event is from the priority calendar
                 // Transfer accumulated IDs to the new event
                 (event as any).mergedCalendarIds = [...existingMergedIds, newCalId];
+                (event as any).ids = [...existingIds, event.id];
                 (event as any).attendees = mergedAttendees;
-                // console.log(`[EventMerge] -> SWAPPING for priority calendar: ${event.title}`);
                 uniqueEventsMap.set(key, event);
             } else {
-                // Keep existing, but add the new calendar ID to it
+                // Keep existing, but add the new calendar ID and event ID to it
                 (existing as any).mergedCalendarIds = [...existingMergedIds, newCalId];
+                (existing as any).ids = [...existingIds, event.id];
                 (existing as any).attendees = mergedAttendees;
-                // console.log(`[EventMerge] -> Keeping existing (New is not priority): ${event.title} (Existing: ${existingCalId})`);
             }
         }
     }
-
     return Array.from(uniqueEventsMap.values());
 };
 

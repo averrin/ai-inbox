@@ -42,13 +42,13 @@ function getBestArtifact(artifacts: Artifact[]): Artifact | null {
 function SessionActionMenu({ visible, onClose, actions }: { visible: boolean, onClose: () => void, actions: { label: string, icon: string, onPress: () => void, color?: string, disabled?: boolean }[] }) {
     return (
         <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-            <TouchableOpacity style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end'}} activeOpacity={1} onPress={onClose}>
+            <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={onClose}>
                 <View className="bg-slate-900 rounded-t-2xl p-4 pb-10 border-t border-slate-700">
                     <View className="items-center mb-4">
                         <View className="w-10 h-1 bg-slate-700 rounded-full" />
                     </View>
                     {actions.map((action, index) => (
-                         <TouchableOpacity
+                        <TouchableOpacity
                             key={index}
                             onPress={() => {
                                 if (!action.disabled) {
@@ -58,9 +58,9 @@ function SessionActionMenu({ visible, onClose, actions }: { visible: boolean, on
                             }}
                             className={`flex-row items-center py-4 border-b border-slate-800 ${action.disabled ? 'opacity-50' : ''}`}
                             disabled={action.disabled}
-                         >
-                            <Ionicons name={action.icon as any} size={20} color={action.color || "white"} style={{marginRight: 16}} />
-                            <Text className={`text-base font-medium ${action.color ? '' : 'text-white'}`} style={action.color ? {color: action.color} : {}}>{action.label}</Text>
+                        >
+                            <Ionicons name={action.icon as any} size={20} color={action.color || "white"} style={{ marginRight: 16 }} />
+                            <Text className={`text-base font-medium ${action.color ? '' : 'text-white'}`} style={action.color ? { color: action.color } : {}}>{action.label}</Text>
                         </TouchableOpacity>
                     ))}
                     <TouchableOpacity onPress={onClose} className="mt-4 py-3 bg-slate-800 rounded-xl items-center">
@@ -84,7 +84,7 @@ function MessageDialog({ visible, onClose, onSend, sending }: { visible: boolean
 
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-             <View className="flex-1 bg-black/80 justify-center px-4">
+            <View className="flex-1 bg-black/80 justify-center px-4">
                 <View className="bg-slate-900 rounded-2xl p-4 border border-slate-700">
                     <Text className="text-white font-bold text-lg mb-4">Send Message to Session</Text>
                     <TextInput
@@ -141,15 +141,15 @@ function RepoSelector({ visible, onClose, onSelect, token }: { visible: boolean,
                     </View>
                     <View className="p-4 bg-slate-900">
                         <View className="bg-slate-800 rounded-lg flex-row items-center px-3 mb-2 border border-slate-700">
-                             <Ionicons name="search" size={20} color="#94a3b8" />
-                             <TextInput
+                            <Ionicons name="search" size={20} color="#94a3b8" />
+                            <TextInput
                                 className="flex-1 text-white p-3"
                                 placeholder="Search repositories..."
                                 placeholderTextColor="#94a3b8"
                                 value={search}
                                 onChangeText={setSearch}
                                 autoCapitalize="none"
-                             />
+                            />
                         </View>
                     </View>
                     {loading ? (
@@ -180,7 +180,7 @@ function RepoSelector({ visible, onClose, onSelect, token }: { visible: boolean,
     );
 }
 
-function CheckStatusItem({ check }: { check: CheckRun }) {
+function CheckStatusItem({ check, compact = false }: { check: CheckRun, compact?: boolean }) {
     const spinValue = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -219,17 +219,17 @@ function CheckStatusItem({ check }: { check: CheckRun }) {
     };
 
     const getColor = () => {
-         if (check.status === 'queued') return '#94a3b8';
-         if (check.status === 'in_progress') return '#60a5fa';
-         if (check.conclusion === 'success') return '#4ade80';
-         if (check.conclusion === 'failure') return '#f87171';
-         return '#94a3b8';
+        if (check.status === 'queued') return '#94a3b8';
+        if (check.status === 'in_progress') return '#60a5fa';
+        if (check.conclusion === 'success') return '#4ade80';
+        if (check.conclusion === 'failure') return '#f87171';
+        return '#94a3b8';
     };
 
     return (
         <TouchableOpacity
             onPress={() => Linking.openURL(check.html_url)}
-            className="flex-row items-center justify-between mb-1"
+            className={`flex-row items-center justify-between ${compact ? 'mb-0.5' : 'mb-1'}`}
         >
             <View className="flex-row items-center flex-1">
                 <Animated.View style={{ transform: [{ rotate: spin }] }}>
@@ -313,10 +313,10 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
 
     useEffect(() => {
         if (refreshTrigger && refreshTrigger > 0) {
-             setChecks(null);
-             setChecksLoading(false);
-             setArtifacts(null);
-             fetchArtifactsData();
+            setChecks(null);
+            setChecksLoading(false);
+            setArtifacts(null);
+            fetchArtifactsData();
         }
     }, [refreshTrigger, fetchArtifactsData]);
 
@@ -354,15 +354,15 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
     // Auto-refetch artifacts every 15 seconds if missing
     useEffect(() => {
         let interval: any = null;
-        
+
         const shouldPoll = !artifacts || artifacts.length === 0;
-        
+
         if (shouldPoll && !artifactsLoading) {
             interval = setInterval(() => {
                 fetchArtifactsData();
             }, 15000);
         }
-        
+
         return () => {
             if (interval) clearInterval(interval);
         };
@@ -397,7 +397,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
     const getStatusInfo = () => {
         if (run.status === 'in_progress') return { color: '#60a5fa', icon: 'sync' };
         if (run.status === 'queued') return { color: '#94a3b8', icon: 'time-outline' };
-        
+
         switch (run.conclusion) {
             case 'success': return { color: '#4ade80', icon: 'checkmark-circle' };
             case 'failure': return { color: '#f87171', icon: 'close-circle' };
@@ -417,7 +417,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
     const stripeColors: string[] = [];
     const stripeLocations: number[] = [];
     if (prInactive) {
-        const step = 0.005; 
+        const step = 0.005;
         for (let i = 0; i < 200; i++) {
             const isColor = i % 2 === 1;
             const c = isColor ? 'rgba(148, 163, 184, 0.12)' : 'transparent';
@@ -426,11 +426,87 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
         }
     }
 
+    if (embedded) {
+        return (
+            <View className={`mt-3 pt-3 border-t border-slate-700/60 ${prInactive ? 'opacity-50' : ''}`}>
+                <View className="flex-row items-center justify-between mb-1">
+                    <TouchableOpacity
+                        onPress={() => Linking.openURL(run.html_url)}
+                        className="flex-row items-center flex-1"
+                    >
+                        <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                            <Ionicons name={statusInfo.icon as any} size={20} color={statusInfo.color} />
+                        </Animated.View>
+                        <View className="ml-3 flex-1">
+                            <View className="flex-row items-center">
+                                <Text className="text-white font-bold text-sm flex-1" numberOfLines={1}>{run.name}</Text>
+                            </View>
+                            <Text className="text-slate-500 text-[10px]">
+                                {dayjs(run.created_at).fromNow()} • {run.head_branch}
+                            </Text>
+                        </View>
+                    </TouchableOpacity>
+
+                    <View className="flex-row items-center gap-2">
+                        {artifacts && artifacts.length > 0 ? (
+                            <TouchableOpacity
+                                onPress={handleDownloadArtifact}
+                                disabled={isDownloading}
+                                className={`px-2 py-1 ${isDownloading ? 'bg-slate-600' : 'bg-slate-700/50'} rounded-lg flex-row items-center overflow-hidden`}
+                            >
+                                {isDownloading && (
+                                    <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
+                                )}
+                                {isDownloading ? (
+                                    <ActivityIndicator size="small" color="white" style={{ transform: [{ scale: 0.5 }] }} />
+                                ) : (
+                                    <Ionicons name={cachedArtifactPath ? "construct-outline" : "download-outline"} size={14} color="white" />
+                                )}
+                                <Text className="text-white text-[10px] font-semibold ml-1">{isDownloading ? (status || `${Math.round((progress || 0) * 100)}%`) : (cachedArtifactPath ? "Install" : "Artifact")}</Text>
+                            </TouchableOpacity>
+                        ) : artifactsLoading ? (
+                            <ActivityIndicator size="small" color="#94a3b8" />
+                        ) : (
+                            <TouchableOpacity
+                                onPress={fetchArtifactsData}
+                                className="px-2 py-1 bg-slate-800/30 border border-slate-700/50 rounded-lg flex-row items-center"
+                            >
+                                <Ionicons name="alert-circle-outline" size={12} color="#64748b" />
+                                <Text className="text-slate-500 text-[10px] font-medium ml-1">No Artifact</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        <TouchableOpacity onPress={() => setExpanded(!expanded)} className="p-1">
+                            <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color="#94a3b8" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {expanded && (
+                    <View className="mt-2 border-t border-slate-800 pt-2">
+                        <Text className="text-slate-500 text-[10px] font-bold mb-2 uppercase">Checks Status</Text>
+                        {checksLoading ? (
+                            <ActivityIndicator size="small" color="#94a3b8" />
+                        ) : checks && checks.length > 0 ? (
+                            <View>
+                                {checks.map(check => (
+                                    <CheckStatusItem key={check.id} check={check} compact={true} />
+                                ))}
+                            </View>
+                        ) : (
+                            <Text className="text-slate-500 text-[10px] italic">No checks found</Text>
+                        )}
+                    </View>
+                )}
+            </View>
+        );
+    }
+
     return (
-        <Card 
-            className={`mb-1 ${prInactive ? 'opacity-50' : ''}`} 
+        <Card
+            className={`mb-1 ${prInactive ? 'opacity-50' : ''}`}
             padding="p-3"
-            style={{ overflow: 'hidden', marginTop: embedded ? 8 : undefined }}
+            style={{ overflow: 'hidden' }}
             background={prInactive ? (
                 <View style={StyleSheet.absoluteFill} pointerEvents="none">
                     <LinearGradient
@@ -444,8 +520,8 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
             ) : undefined}
         >
             <View className="flex-row items-center justify-between mb-1">
-                <TouchableOpacity 
-                    onPress={() => Linking.openURL(run.html_url)} 
+                <TouchableOpacity
+                    onPress={() => Linking.openURL(run.html_url)}
                     className="flex-row items-center flex-1"
                 >
                     <Animated.View style={{ transform: [{ rotate: spin }] }}>
@@ -697,7 +773,7 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
         >
             <View className="flex-row items-center justify-between mb-1">
                 <View className="flex-row items-center flex-1">
-                     <TouchableOpacity onPress={() => Linking.openURL(ghRun?.html_url || webUrl)}>
+                    <TouchableOpacity onPress={() => Linking.openURL(ghRun?.html_url || webUrl)}>
                         <Animated.View style={{ transform: [{ rotate: spin }] }}>
                             <Ionicons name={statusObj.icon as any} size={24} color={statusObj.color} />
                         </Animated.View>
@@ -712,17 +788,17 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
                     </View>
                 </View>
                 <View className="flex-col items-center gap-1">
-                {ghRun && (
-                    <View className="flex-row items-center bg-slate-800/50 px-2 py-0.5 rounded">
-                        <Ionicons
-                            name={ghRun.conclusion === 'success' ? "logo-github" : "alert-circle"}
-                            size={12}
-                            color={getGhStatusColor(ghRun)}
-                        />
-                        <Text className="text-[10px] text-slate-400 uppercase ml-1.5 font-medium">{ghRun.status}</Text>
-                    </View>
-                )}
-                    </View>
+                    {ghRun && (
+                        <View className="flex-row items-center bg-slate-800/50 px-2 py-0.5 rounded">
+                            <Ionicons
+                                name={ghRun.conclusion === 'success' ? "logo-github" : "alert-circle"}
+                                size={12}
+                                color={getGhStatusColor(ghRun)}
+                            />
+                            <Text className="text-[10px] text-slate-400 uppercase ml-1.5 font-medium">{ghRun.status}</Text>
+                        </View>
+                    )}
+                </View>
             </View>
 
             <View className="flex-row gap-1">
@@ -748,12 +824,11 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
                     <TouchableOpacity
                         onPress={(!isMerged && !isClosed && mergeable !== false) ? handleMerge : undefined}
                         disabled={isMerging || isMerged || isClosed || mergeable === false}
-                        className={`flex-1 py-2 rounded-lg flex-row items-center justify-center ${
-                            isMerged ? 'bg-purple-600/50' :
+                        className={`flex-1 py-2 rounded-lg flex-row items-center justify-center ${isMerged ? 'bg-purple-600/50' :
                             isClosed ? 'bg-slate-600/50' :
-                            mergeable === false ? 'bg-red-900/50 border border-red-500/50' :
-                            'bg-green-600'
-                        }`}
+                                mergeable === false ? 'bg-red-900/50 border border-red-500/50' :
+                                    'bg-green-600'
+                            }`}
                     >
                         {isMerging ? (
                             <ActivityIndicator size="small" color="white" />
@@ -827,7 +902,7 @@ function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { run
         <View className="mb-4">
             <TouchableOpacity
                 onPress={() => setExpanded(!expanded)}
-                className="flex-row items-center justify-between bg-slate-800/50 p-3 rounded-xl mb-2 border border-slate-700"
+                className="flex-row items-center justify-between bg-slate-800/50 p-3 rounded-xl mb-0 border border-slate-700"
             >
                 <View className="flex-row items-center">
                     <Ionicons name="git-branch" size={20} color="#94a3b8" />
@@ -866,8 +941,8 @@ export default function JulesScreen() {
     const [masterRuns, setMasterRuns] = useState<WorkflowRun[]>([]);
     const [allRuns, setAllRuns] = useState<WorkflowRun[]>([]);
     const [julesSessions, setJulesSessions] = useState<JulesSession[]>([]);
-    const [sessionsWithRuns, setSessionsWithRuns] = useState<{session: JulesSession, matchedRun: WorkflowRun | null}[]>([]);
-    const [prStates, setPrStates] = useState<Record<string, {merged: boolean, state: string}>>({});
+    const [sessionsWithRuns, setSessionsWithRuns] = useState<{ session: JulesSession, matchedRun: WorkflowRun | null }[]>([]);
+    const [prStates, setPrStates] = useState<Record<string, { merged: boolean, state: string }>>({});
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -941,11 +1016,11 @@ export default function JulesScreen() {
             }
 
             // 2. Identify Repos to fetch runs from
-            const reposToFetch = new Map<string, {owner: string, repo: string}>();
+            const reposToFetch = new Map<string, { owner: string, repo: string }>();
 
             // Add current selected repo
             if (julesApiKey && julesOwner && julesRepo) {
-                reposToFetch.set(`${julesOwner}/${julesRepo}`, {owner: julesOwner, repo: julesRepo});
+                reposToFetch.set(`${julesOwner}/${julesRepo}`, { owner: julesOwner, repo: julesRepo });
 
                 // Also get default branch for current repo
                 try {
@@ -988,7 +1063,7 @@ export default function JulesScreen() {
 
             // 3. Fetch runs for all identified repos
             if (julesApiKey) {
-                const runPromises = Array.from(reposToFetch.values()).map(async ({owner, repo}) => {
+                const runPromises = Array.from(reposToFetch.values()).map(async ({ owner, repo }) => {
                     try {
                         // Fetch ALL recent runs (no branch filter) to enable matching
                         const runs = await fetchWorkflowRuns(julesApiKey, owner, repo, undefined, 50);
@@ -1029,12 +1104,12 @@ export default function JulesScreen() {
                 const prOwner = metadata?.owner || julesOwner;
                 const prRepo = metadata?.repo || julesRepo;
                 const prState = (prNumber && prOwner && prRepo) ? prStates[`${prOwner}/${prRepo}/${prNumber}`] : null;
-                
+
                 // Refined logic: If there's a PR, use its merged/closed status. 
                 // If no PR, use session COMPLETED/FAILED status.
                 // This prevents COMPLETED sessions with active PRs from dropping to bottom.
-                const isInactive = prNumber 
-                    ? (prState ? (prState.merged || prState.state === 'closed') : false) 
+                const isInactive = prNumber
+                    ? (prState ? (prState.merged || prState.state === 'closed') : false)
                     : (session.state === 'COMPLETED' || session.state === 'FAILED');
 
                 // If allRuns is empty, we can't match, so matchedRun remains null
@@ -1066,11 +1141,11 @@ export default function JulesScreen() {
                 const prA = mA?.pullRequestNumber ? prStates[`${mA.owner}/${mA.repo}/${mA.pullRequestNumber}`] : null;
                 const prB = mB?.pullRequestNumber ? prStates[`${mB.owner}/${mB.repo}/${mB.pullRequestNumber}`] : null;
 
-                const isInactiveA = mA?.pullRequestNumber 
-                    ? (prA ? (prA.merged || prA.state === 'closed') : false) 
+                const isInactiveA = mA?.pullRequestNumber
+                    ? (prA ? (prA.merged || prA.state === 'closed') : false)
                     : (a.session.state === 'COMPLETED' || a.session.state === 'FAILED');
-                const isInactiveB = mB?.pullRequestNumber 
-                    ? (prB ? (prB.merged || prB.state === 'closed') : false) 
+                const isInactiveB = mB?.pullRequestNumber
+                    ? (prB ? (prB.merged || prB.state === 'closed') : false)
                     : (b.session.state === 'COMPLETED' || b.session.state === 'FAILED');
 
                 // Move inactive to bottom
@@ -1082,7 +1157,7 @@ export default function JulesScreen() {
                 return timeB - timeA;
             });
 
-            setSessionsWithRuns(sorted as {session: JulesSession, matchedRun: WorkflowRun | null}[]);
+            setSessionsWithRuns(sorted as { session: JulesSession, matchedRun: WorkflowRun | null }[]);
         } else {
             setSessionsWithRuns([]);
         }
@@ -1111,7 +1186,7 @@ export default function JulesScreen() {
         const hasJulesConfig = !!julesGoogleApiKey;
 
         if (!hasGithubConfig && !hasJulesConfig) {
-             return (
+            return (
                 <View className="flex-1 justify-center items-center px-6">
                     <Ionicons name="options-outline" size={64} color="#475569" />
                     <Text className="text-white text-xl font-bold mt-4 text-center">Configuration Required</Text>
@@ -1154,7 +1229,7 @@ export default function JulesScreen() {
         }
 
         if (masterRuns.length === 0 && sessionsWithRuns.length === 0) {
-             return (
+            return (
                 <View className="flex-1 justify-center items-center px-6">
                     <Ionicons name="file-tray-outline" size={64} color="#475569" />
                     <Text className="text-white text-xl font-bold mt-4 text-center">No Activity Found</Text>
@@ -1175,7 +1250,7 @@ export default function JulesScreen() {
                 {hasJulesConfig && (
                     <TouchableOpacity
                         onPress={() => Linking.openURL('https://jules.google.com/session')}
-                        className="bg-indigo-600/20 border border-indigo-500/30 p-4 rounded-2xl mb-4 flex-row items-center justify-between mx-4"
+                        className="bg-indigo-600/20 border border-indigo-500/30 p-4 rounded-2xl mb-2 flex-row items-center justify-between mx-4"
                     >
                         <View className="flex-row items-center">
                             <View className="bg-indigo-600 p-2 rounded-xl mr-3">
@@ -1192,7 +1267,7 @@ export default function JulesScreen() {
 
                 {/* Master Branch Section */}
                 {hasGithubConfig && (
-                     <MasterBranchSection
+                    <MasterBranchSection
                         runs={masterRuns}
                         token={julesApiKey!}
                         owner={julesOwner!}
@@ -1204,7 +1279,7 @@ export default function JulesScreen() {
                 {/* Jules Sessions Section */}
                 {hasJulesConfig && (
                     <View>
-                        {sessionsWithRuns.map(({session, matchedRun}) => (
+                        {sessionsWithRuns.map(({ session, matchedRun }) => (
                             <JulesSessionItem
                                 key={session.id}
                                 session={session}

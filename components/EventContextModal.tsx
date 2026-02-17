@@ -17,6 +17,7 @@ import { TaskStatusIcon } from './ui/TaskStatusIcon';
 interface Props {
     visible: boolean;
     onClose: () => void;
+    onRefresh?: () => Promise<void> | void;
     onEdit?: () => void;
     onOpenTask?: (task: TaskWithSource) => void;
     event: {
@@ -27,7 +28,7 @@ interface Props {
     } | null;
 }
 
-export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event }: Props) {
+export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenTask, event }: Props) {
     const [fetchedAttendees, setFetchedAttendees] = useState<any[] | null>(null);
     const [showAttendeesPopup, setShowAttendeesPopup] = useState(false);
     const [showIconPicker, setShowIconPicker] = useState(false);
@@ -149,12 +150,27 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
 
     const handleAssign = async (typeId: string) => {
         await assignTypeToTitle(eventTitle, typeId);
-        // Do NOT close modal, allowing user to refine selection
+        onRefresh?.();
     };
 
     const handleUnassign = async () => {
         await unassignType(eventTitle);
-        // Do NOT close modal
+        onRefresh?.();
+    };
+
+    const handleSetDifficulty = (level: number) => {
+        setDifficulty(eventTitle, level);
+        onRefresh?.();
+    };
+
+    const handleToggleFlag = (flag: 'isEnglish' | 'movable' | 'skippable' | 'needPrep' | 'completable') => {
+        toggleEventFlag(eventTitle, flag);
+        onRefresh?.();
+    };
+
+    const handleSetIcon = (icon: string) => {
+        setEventIcon(eventTitle, icon);
+        onRefresh?.();
     };
 
     const handleRSVP = async (status: string) => {
@@ -180,6 +196,9 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
             for (const id of event.originalEvent.ids) {
                 await updateEventRSVP(id, status, targetAttendees);
             }
+            // Add a small delay to allow native calendar to process the update
+            await new Promise(resolve => setTimeout(resolve, 500));
+            if (onRefresh) await onRefresh();
             onClose();
         } catch (e) {
             console.error("RSVP failed", e);
@@ -300,7 +319,7 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                                     {[0, 1, 2, 3, 4, 5].map((level) => (
                                         <TouchableOpacity
                                             key={level}
-                                            onPress={() => setDifficulty(eventTitle, level === currentDifficulty ? 0 : level)}
+                                            onPress={() => handleSetDifficulty(level === currentDifficulty ? 0 : level)}
                                             className={`w-8 h-8 rounded-full items-center justify-center ${level <= currentDifficulty ? 'bg-indigo-600' : 'bg-slate-700'
                                                 }`}
                                         >
@@ -316,7 +335,7 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                                 {/* Flags */}
                                 <View className="flex-row gap-2">
                                     <TouchableOpacity
-                                        onPress={() => toggleEventFlag(eventTitle, 'isEnglish')}
+                                        onPress={() => handleToggleFlag('isEnglish')}
                                         className={`px-2 py-1 rounded-md border ${flags?.isEnglish ? 'bg-indigo-500/20 border-indigo-500' : 'bg-slate-700 border-transparent'}`}
                                     >
                                         <Text className={`text-xs ${flags?.isEnglish ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}>
@@ -325,7 +344,7 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
-                                        onPress={() => toggleEventFlag(eventTitle, 'movable')}
+                                        onPress={() => handleToggleFlag('movable')}
                                         className={`px-2 py-1 rounded-md border ${flags?.movable ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-700 border-transparent'}`}
                                     >
                                         <View className="flex-row items-center gap-1">
@@ -337,7 +356,7 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
-                                        onPress={() => toggleEventFlag(eventTitle, 'skippable')}
+                                        onPress={() => handleToggleFlag('skippable')}
                                         className={`px-2 py-1 rounded-md border ${flags?.skippable ? 'bg-rose-500/20 border-rose-500' : 'bg-slate-700 border-transparent'}`}
                                     >
                                         <View className="flex-row items-center gap-1">
@@ -349,7 +368,7 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
-                                        onPress={() => toggleEventFlag(eventTitle, 'needPrep')}
+                                        onPress={() => handleToggleFlag('needPrep')}
                                         className={`px-2 py-1 rounded-md border ${flags?.needPrep ? 'bg-amber-500/20 border-amber-500' : 'bg-slate-700 border-transparent'}`}
                                     >
                                         <View className="flex-row items-center gap-1">
@@ -361,7 +380,7 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
-                                        onPress={() => toggleEventFlag(eventTitle, 'completable')}
+                                        onPress={() => handleToggleFlag('completable')}
                                         className={`px-2 py-1 rounded-md border ${flags?.completable ? 'bg-cyan-500/20 border-cyan-500' : 'bg-slate-700 border-transparent'}`}
                                     >
                                         <View className="flex-row items-center gap-1">
@@ -554,7 +573,7 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                         {currentIcon && (
                             <TouchableOpacity
                                 onPress={() => {
-                                    setEventIcon(eventTitle, '');
+                                    handleSetIcon('');
                                     setShowIconPicker(false);
                                 }}
                                 className="flex-row items-center justify-center gap-2 p-3 bg-rose-500/10 rounded-xl border border-rose-500/20 mb-4"
@@ -567,7 +586,7 @@ export function EventContextModal({ visible, onClose, onEdit, onOpenTask, event 
                         <IconPicker
                             value={currentIcon || ''}
                             onChange={(icon) => {
-                                setEventIcon(eventTitle, icon);
+                                handleSetIcon(icon);
                                 setShowIconPicker(false);
                             }}
                         />
