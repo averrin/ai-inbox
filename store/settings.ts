@@ -172,6 +172,8 @@ interface SettingsState {
     hideArticles: (urls: string[]) => void; // Bulk hide
     navConfig: NavItemConfig[];
     setNavConfig: (config: NavItemConfig[]) => void;
+    savedNavConfig: NavItemConfig[] | null;
+    setSavedNavConfig: (config: NavItemConfig[] | null) => void;
     visualizationPrompt: string | null;
     setVisualizationPrompt: (prompt: string | null) => void;
 }
@@ -359,6 +361,8 @@ export const useSettingsStore = create<SettingsState>()(
             })),
             navConfig: DEFAULT_NAV_ITEMS,
             setNavConfig: (config) => set({ navConfig: config }),
+            savedNavConfig: null,
+            setSavedNavConfig: (config) => set({ savedNavConfig: config }),
             visualizationPrompt: null,
             setVisualizationPrompt: (prompt) => set({ visualizationPrompt: prompt }),
         }),
