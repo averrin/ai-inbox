@@ -11,6 +11,7 @@ import { useRelationsStore } from '../../store/relations';
 import { DraggableTaskItem } from '../DraggableTaskItem';
 import { RichTask } from '../../utils/taskParser';
 import { TaskService } from '../../services/taskService';
+import { findNextFreeSlot } from '../../services/calendarService';
 
 dayjs.extend(isBetween);
 
@@ -225,6 +226,76 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
       return !!completedEvents[key];
   };
 
+  const handleReschedule = (task: TaskWithSource) => {
+    const performReschedule = async (startSearchTime: Date) => {
+        try {
+            // Calculate duration
+            let durationMins = 30;
+            if (task.properties.start && task.properties.end) {
+                const s = dayjs(`2000-01-01T${task.properties.start}`);
+                const e = dayjs(`2000-01-01T${task.properties.end}`);
+                if (s.isValid() && e.isValid()) {
+                    const diff = e.diff(s, 'minute');
+                    if (diff > 0) durationMins = diff;
+                }
+            }
+
+            const slot = await findNextFreeSlot(startSearchTime, durationMins);
+
+            const newDate = dayjs(slot).format('YYYY-MM-DD');
+            const newStart = dayjs(slot).format('HH:mm');
+            const newEnd = dayjs(slot).add(durationMins, 'minute').format('HH:mm');
+
+            const newProps = { ...task.properties, date: newDate, start: newStart, end: newEnd };
+
+            handleTaskUpdate(task, { ...task, properties: newProps });
+            Toast.show({ type: 'success', text1: 'Rescheduled', text2: `Moved to ${newDate} at ${newStart}` });
+        } catch (e) {
+            console.error(e);
+            Alert.alert("Error", "Failed to reschedule");
+        }
+    };
+
+    Alert.alert('Quick Reschedule', 'Choose an option', [
+        {
+            text: 'Later (Today)',
+            onPress: () => {
+                const now = dayjs();
+                const taskDate = task.properties.date ? dayjs(task.properties.date) : now;
+
+                let searchStart;
+                if (taskDate.isBefore(now, 'day')) {
+                        // Overdue -> reschedule to today
+                        searchStart = now.add(30, 'minute').toDate();
+                } else if (taskDate.isSame(now, 'day')) {
+                        // Today -> reschedule to later today
+                        searchStart = now.add(30, 'minute').toDate();
+                } else {
+                        // Future -> reschedule to later in that day
+                        searchStart = taskDate.hour(now.hour()).minute(now.minute()).add(30, 'minute').toDate();
+                }
+                performReschedule(searchStart);
+            }
+        },
+        {
+            text: 'Tomorrow',
+            onPress: () => {
+                const now = dayjs();
+                const taskDate = task.properties.date ? dayjs(task.properties.date) : now;
+                let targetDate = taskDate.add(1, 'day');
+
+                if (taskDate.isBefore(now, 'day')) {
+                    targetDate = now.add(1, 'day');
+                }
+
+                const searchStart = targetDate.hour(9).minute(0).second(0).toDate();
+                performReschedule(searchStart);
+            }
+        },
+        { text: 'Cancel', style: 'cancel' }
+    ]);
+  };
+
   return (
     <View className="mx-4 mt-2 mb-2 bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
       <TouchableOpacity
@@ -270,6 +341,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                                 onToggle={() => handleToggleTask(item.data)}
                                 onUpdate={(updated) => handleTaskUpdate(item.data, updated)}
                                 onEdit={() => onEditTask?.(item.data)}
+                                onReschedule={() => handleReschedule(item.data)}
                             />
                         );
                     } else {

@@ -45,6 +45,7 @@ interface RichTaskItemProps {
     selectionMode?: boolean;
     isSelected?: boolean;
     onTagPress?: (tag: string) => void;
+    onReschedule?: () => void;
 }
 
 export function RichTaskItem({ 
@@ -62,7 +63,8 @@ export function RichTaskItem({
     isLastInFile,
     selectionMode,
     isSelected,
-    onTagPress
+    onTagPress,
+    onReschedule
 }: RichTaskItemProps) {
     const { tagConfig, propertyConfig } = useSettingsStore();
 
@@ -192,8 +194,9 @@ export function RichTaskItem({
         </ScrollView>
     );
 
-    const rightActions = (onEdit || onDelete) ? (
+    const rightActions = (onEdit || onDelete || onReschedule) ? (
         <>
+            {onReschedule && <ActionButton onPress={onReschedule} icon="time-outline" variant="neutral" />}
             {onEdit && <ActionButton onPress={onEdit} icon="pencil" variant="neutral" />}
             {onDelete && <ActionButton onPress={onDelete} icon="trash-outline" variant="danger" />}
         </>
