@@ -65,6 +65,25 @@ Output:
 Return ONLY the updated Profile JSON. No markdown formatting.
 `;
 
+export const PROFILE_FACT_EXTRACTOR_PROMPT = `
+You are the "Architect". Your task is to extract permanent facts, preferences, and psychological traits from the user's free-form text input.
+
+Input:
+1. Current Profile JSON
+2. User Input Text
+
+Instructions:
+1. Analyze the user's input text.
+2. Extract new information.
+3. Update the Current Profile JSON.
+4. Discard conversational fluff.
+5. Merge similar topics or create new categories as needed.
+6. If new info contradicts existing info, note the evolution or nuance.
+
+Output:
+Return ONLY the updated Profile JSON. No markdown formatting.
+`;
+
 export const DEFAULT_VIZ_PROMPT = `A high quality, photorealistic diorama of a scenery representing the following person's inner world.
 Facts: {{facts}}
 Traits: {{traits}}
@@ -204,6 +223,53 @@ User Answers: ${JSON.stringify(answers)}
             return resultProfile;
         } catch (e) {
             console.error('[ProfileLogic] Failed to process answers:', e);
+            throw e;
+        }
+    }
+
+    static async processFreeFormInput(
+        modelName: string,
+        apiKey: string,
+        profile: ProfileData,
+        inputText: string
+    ): Promise<ProfileData> {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: modelName || "gemini-1.5-flash" });
+
+        const prompt = `${PROFILE_FACT_EXTRACTOR_PROMPT}
+
+# INPUT
+Current Profile: ${JSON.stringify(profile)}
+User Input Text: ${inputText}
+`;
+
+        try {
+            const result = await model.generateContent(prompt);
+            const text = result.response.text();
+
+            // Extract JSON
+            const start = text.indexOf('{');
+            const end = text.lastIndexOf('}');
+            if (start === -1 || end === -1 || end < start) {
+                throw new Error("No valid JSON found in response");
+            }
+            const jsonStr = text.substring(start, end + 1);
+
+            const updated = JSON5.parse(jsonStr);
+
+            // Strictly merge
+            const resultProfile: ProfileData = {
+                facts: { ...(profile.facts || {}), ...(updated.facts || {}) },
+                topics: updated.topics || profile.topics || [],
+                traits: updated.traits || profile.traits || [],
+                recentQuestions: profile.recentQuestions || [],
+                profileImage: profile.profileImage,
+                lastUpdated: new Date().toISOString()
+            };
+
+            return resultProfile;
+        } catch (e) {
+            console.error('[ProfileLogic] Failed to process free form input:', e);
             throw e;
         }
     }
