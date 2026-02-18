@@ -6,9 +6,6 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
-import com.facebook.react.modules.core.DeviceEventManagerModule;
-import com.facebook.react.bridge.WritableMap;
-import com.facebook.react.bridge.Arguments;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -16,14 +13,9 @@ import android.content.Context;
 import android.os.Build;
 import androidx.core.app.NotificationCompat;
 
-import java.util.Timer;
-import java.util.TimerTask;
-import javax.annotation.Nullable;
-
 public class ApkInstallerModule extends ReactContextBaseJavaModule {
     private static final String CHANNEL_ID = "watcher_progress_native";
     private static final String CHANNEL_NAME = "Build Progress";
-    private Timer heartbeatTimer;
 
     public ApkInstallerModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -87,50 +79,6 @@ public class ApkInstallerModule extends ReactContextBaseJavaModule {
             promise.resolve(true);
         } catch (Exception e) {
             promise.reject("INSTALL_ERROR", e.getMessage());
-        }
-    }
-
-    @ReactMethod
-    public void startHeartbeat() {
-        if (heartbeatTimer != null) {
-            return;
-        }
-        heartbeatTimer = new Timer();
-        heartbeatTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                sendEvent("watcher-heartbeat", null);
-            }
-        }, 0, 30000); // 30 seconds
-    }
-
-    @ReactMethod
-    public void stopHeartbeat() {
-        if (heartbeatTimer != null) {
-            heartbeatTimer.cancel();
-            heartbeatTimer = null;
-        }
-    }
-
-    @ReactMethod
-    public void addListener(String eventName) {
-        // Required for RN built-in Event Emitter Calls.
-    }
-
-    @ReactMethod
-    public void removeListeners(Integer count) {
-        // Required for RN built-in Event Emitter Calls.
-    }
-
-    private void sendEvent(String eventName, @Nullable WritableMap params) {
-        try {
-            if (getReactApplicationContext().hasActiveCatalystInstance()) {
-                getReactApplicationContext()
-                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                    .emit(eventName, params);
-            }
-        } catch (Exception e) {
-            // Context might be invalid if app is closing
         }
     }
 }
