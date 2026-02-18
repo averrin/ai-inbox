@@ -15,7 +15,7 @@ import { useAuthRequest, makeRedirectUri, ResponseType } from 'expo-auth-session
 WebBrowser.maybeCompleteAuthSession();
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useNavigation } from '@react-navigation/native';
-import { downloadAndInstallArtifact, isArtifactCached, installCachedArtifact } from '../../utils/artifactHandler';
+import { downloadAndInstallArtifact, isArtifactCached, installCachedArtifact, deleteArtifact } from '../../utils/artifactHandler';
 import { artifactDeps } from '../../utils/artifactDeps';
 import { watcherService } from '../../services/watcherService';
 
@@ -264,6 +264,14 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
     const isFetchingRef = useRef(false);
 
     const pr = run.pull_requests && run.pull_requests.length > 0 ? run.pull_requests[0] : null;
+
+    useEffect(() => {
+        setArtifacts(null);
+        setCachedArtifactPath(null);
+        setChecks(null);
+        setChecksLoading(false);
+        setArtifactsLoading(false);
+    }, [run.id]);
 
     useEffect(() => {
         if (pr) {
@@ -723,6 +731,37 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
         );
     };
 
+    const handleRemoveArtifact = () => {
+        if (!ghRun || !ghToken || !owner || !repo) return;
+
+        Alert.alert(
+            "Remove Artifact",
+            "Are you sure you want to remove the downloaded artifact for this session? You can download it again later.",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Remove",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            const artifacts = await fetchArtifacts(ghToken, owner, repo, ghRun.id);
+                            if (artifacts && artifacts.length > 0) {
+                                for (const artifact of artifacts) {
+                                    await deleteArtifact(artifact, artifactDeps);
+                                }
+                            }
+                            Alert.alert("Success", "Artifact removed from cache.");
+                            if (onRefresh) onRefresh();
+                        } catch (e: any) {
+                            console.error("Failed to remove artifact", e);
+                            Alert.alert("Error", "Failed to remove artifact: " + e.message);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const handleSendMessage = async (message: string) => {
         if (!julesGoogleApiKey) return;
         setSendingMessage(true);
@@ -776,6 +815,13 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
     }
 
     const menuActions = [
+        {
+            label: "Remove Artifact",
+            icon: "trash-bin-outline",
+            color: "#fb923c",
+            onPress: handleRemoveArtifact,
+            disabled: !ghRun
+        },
         {
             label: "Delete Session",
             icon: "trash-outline",

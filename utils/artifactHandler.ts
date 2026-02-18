@@ -20,6 +20,26 @@ export async function isArtifactCached(artifact: Artifact, deps: ArtifactDeps): 
     return null;
 }
 
+export async function deleteArtifact(artifact: Artifact, deps: ArtifactDeps) {
+    const dir = deps.FileSystem.documentDirectory + 'artifacts/';
+    const path = dir + `${artifact.id}.apk`;
+    const info = await deps.FileSystem.getInfoAsync(path);
+    if (info.exists) {
+        await deps.FileSystem.deleteAsync(path, { idempotent: true });
+        console.log(`[Artifact] Deleted artifact: ${path}`);
+    }
+}
+
+export async function clearAllArtifacts(deps: ArtifactDeps) {
+    const dir = deps.FileSystem.documentDirectory + 'artifacts/';
+    const info = await deps.FileSystem.getInfoAsync(dir);
+    if (info.exists) {
+        await deps.FileSystem.deleteAsync(dir, { idempotent: true });
+        console.log(`[Artifact] Cleared all artifacts`);
+        await ensureArtifactsDirectory(deps);
+    }
+}
+
 export async function installCachedArtifact(apkUri: string, deps: ArtifactDeps) {
     console.log(`[Artifact] Installing cached artifact from ${apkUri}`);
     // Get content URI

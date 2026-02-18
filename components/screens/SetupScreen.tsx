@@ -38,6 +38,8 @@ import { useEventTypesStore } from '../../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../../utils/debugUtils';
 import gitInfo from '../../git-info.json';
+import { clearAllArtifacts } from '../../utils/artifactHandler';
+import { artifactDeps } from '../../utils/artifactDeps';
 
 type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile';
 
@@ -590,6 +592,33 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     }}
                     variant="secondary"
                 />
+
+                    <View className="mt-4">
+                        <Text className="text-slate-400 text-sm mb-4">
+                            Clear downloaded artifact cache (installers).
+                        </Text>
+                        <Button
+                            title="Clear Artifact Cache"
+                            onPress={async () => {
+                                try {
+                                    await clearAllArtifacts(artifactDeps);
+                                    Toast.show({
+                                        type: 'success',
+                                        text1: 'Artifacts Cleared',
+                                        text2: 'Cache has been emptied.'
+                                    });
+                                } catch (e) {
+                                    console.error(e);
+                                    Toast.show({
+                                        type: 'error',
+                                        text1: 'Failed to clear artifacts',
+                                        text2: 'Check logs for details.'
+                                    });
+                                }
+                            }}
+                            variant="secondary"
+                        />
+                    </View>
 
                 <View className="mt-6 mb-2 pt-4 border-t border-slate-700">
                     <Text className="text-indigo-200 mb-2 font-semibold">Debug Tools</Text>
