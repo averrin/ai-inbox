@@ -2,11 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert } from 'react-native';
 import { useSettingsStore, ThemeConfig, DEFAULT_THEME } from '../../store/settings';
 import { Ionicons } from '@expo/vector-icons';
+import { ColorPicker } from '../ui/ColorPicker';
 
-const COLOR_KEYS: (keyof ThemeConfig['colors'])[] = [
-    'background', 'surface', 'surfaceHighlight',
-    'primary', 'secondary', 'text', 'textSecondary',
-    'border', 'success', 'error', 'warning', 'info'
+const COLOR_GROUPS: { name: string; keys: (keyof ThemeConfig['colors'])[] }[] = [
+    {
+        name: 'Background Gradient',
+        keys: ['gradientStart', 'gradientMiddle', 'gradientEnd']
+    },
+    {
+        name: 'Main Colors',
+        keys: ['background', 'surface', 'surfaceHighlight', 'border']
+    },
+    {
+        name: 'Text & Accents',
+        keys: ['primary', 'secondary', 'text', 'textSecondary']
+    },
+    {
+        name: 'Status Colors',
+        keys: ['success', 'error', 'warning', 'info']
+    }
 ];
 
 export function AppearanceSettings() {
@@ -27,7 +41,7 @@ export function AppearanceSettings() {
         setEditingColors(newColors);
         setIsDirty(true);
 
-        // Live preview: Clone immediately to a "Custom" theme in store to see live changes.
+        // Live preview
         const previewTheme = {
             ...theme,
             id: theme.id === 'default' ? 'custom-preview' : theme.id,
@@ -90,9 +104,9 @@ export function AppearanceSettings() {
                             }`}
                         >
                             <View className="w-full h-12 rounded-lg mb-2 flex-row overflow-hidden border border-white/10">
-                                <View style={{ flex: 1, backgroundColor: t.colors.background }} />
-                                <View style={{ flex: 1, backgroundColor: t.colors.surface }} />
-                                <View style={{ flex: 1, backgroundColor: t.colors.primary }} />
+                                <View style={{ flex: 1, backgroundColor: t.colors.gradientStart }} />
+                                <View style={{ flex: 1, backgroundColor: t.colors.gradientMiddle }} />
+                                <View style={{ flex: 1, backgroundColor: t.colors.gradientEnd }} />
                             </View>
                             <Text className={`font-medium ${theme.id === t.id ? 'text-primary' : 'text-text-secondary'}`}>
                                 {t.name}
@@ -120,7 +134,7 @@ export function AppearanceSettings() {
                     )}
                 </View>
 
-                <View className="mb-4">
+                <View className="mb-6">
                     <Text className="text-text-secondary text-sm mb-1 font-semibold">Theme Name</Text>
                     <TextInput
                         value={themeName}
@@ -131,31 +145,40 @@ export function AppearanceSettings() {
                     />
                 </View>
 
-                <View className="gap-3">
-                    {COLOR_KEYS.map((key) => (
-                        <View key={key} className="flex-row items-center justify-between">
-                            <Text className="text-text-secondary capitalize w-1/3 text-sm">
-                                {key.replace(/([A-Z])/g, ' $1').trim()}
+                <View className="gap-6">
+                    {COLOR_GROUPS.map((group) => (
+                        <View key={group.name} className="gap-3">
+                            <Text className="text-white font-bold text-sm uppercase tracking-wider mb-1 border-b border-border pb-1">
+                                {group.name}
                             </Text>
-                            <View className="flex-row items-center flex-1 gap-3">
-                                <View
-                                    className="w-8 h-8 rounded-full border border-white/20 shadow-sm"
-                                    style={{ backgroundColor: editingColors[key] }}
-                                />
-                                <TextInput
-                                    value={editingColors[key]}
-                                    onChangeText={(text) => handleColorChange(key, text)}
-                                    className="flex-1 bg-background text-white p-2 rounded border border-border font-mono text-xs"
-                                    maxLength={9} // #RRGGBBAA
-                                />
-                            </View>
+                            {group.keys.map((key) => (
+                                <View key={key} className="mb-2">
+                                    <View className="flex-row items-center justify-between mb-2">
+                                        <Text className="text-text-secondary capitalize text-sm">
+                                            {key.replace(/([A-Z])/g, ' $1').trim()}
+                                        </Text>
+                                        <View className="flex-row items-center gap-2">
+                                            <View
+                                                className="w-4 h-4 rounded-full border border-white/20"
+                                                style={{ backgroundColor: editingColors[key] }}
+                                            />
+                                            <Text className="text-xs font-mono text-slate-500">{editingColors[key]}</Text>
+                                        </View>
+                                    </View>
+                                    <ColorPicker
+                                        value={editingColors[key]}
+                                        onChange={(color) => handleColorChange(key, color)}
+                                        columns={9}
+                                    />
+                                </View>
+                            ))}
                         </View>
                     ))}
                 </View>
 
                 <TouchableOpacity
                     onPress={handleSave}
-                    className="mt-6 bg-primary p-4 rounded-xl flex-row justify-center items-center"
+                    className="mt-8 bg-primary p-4 rounded-xl flex-row justify-center items-center"
                 >
                     <Ionicons name="save-outline" size={20} color="white" />
                     <Text className="text-white font-bold ml-2">Save Theme</Text>

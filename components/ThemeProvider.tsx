@@ -19,6 +19,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         '--color-error': theme.colors.error,
         '--color-warning': theme.colors.warning,
         '--color-info': theme.colors.info,
+        '--color-gradient-start': theme.colors.gradientStart,
+        '--color-gradient-middle': theme.colors.gradientMiddle,
+        '--color-gradient-end': theme.colors.gradientEnd,
     });
 
     return (

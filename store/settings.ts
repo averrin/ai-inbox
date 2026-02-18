@@ -64,6 +64,9 @@ export interface ThemeConfig {
         error: string;
         warning: string;
         info: string;
+        gradientStart: string;
+        gradientMiddle: string;
+        gradientEnd: string;
     };
 }
 
@@ -83,6 +86,9 @@ export const DEFAULT_THEME: ThemeConfig = {
         error: '#ef4444', // red-500
         warning: '#eab308', // yellow-500
         info: '#3b82f6', // blue-500
+        gradientStart: '#0f172a',
+        gradientMiddle: '#1e1b4b',
+        gradientEnd: '#312e81',
     }
 };
 

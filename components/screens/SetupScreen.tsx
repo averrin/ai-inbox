@@ -33,14 +33,13 @@ import { LogsSettings } from '../settings/LogsSettings';
 import { NewsSettings } from '../settings/NewsSettings';
 import { NavigationSettings } from '../settings/NavigationSettings';
 import { ProfileSettings } from '../settings/ProfileSettings';
-import { AppearanceSettings } from '../settings/AppearanceSettings';
 import { scanForReminders } from '../../services/reminderService';
 import { useEventTypesStore } from '../../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../../utils/debugUtils';
 import gitInfo from '../../git-info.json';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile' | 'appearance';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -656,12 +655,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "API Keys, Vault, Model"
             )}
             {renderMenuButton(
-                "Appearance",
-                "color-palette-outline",
-                () => setActiveSection('appearance'),
-                "Themes & Colors"
-            )}
-            {renderMenuButton(
                 "Navigation",
                 "map-outline",
                 () => setActiveSection('navigation'),
@@ -898,12 +891,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("Navigation", () => setActiveSection('root'))}
                                 <View className="px-0"><NavigationSettings /></View>
-                            </>
-                        )}
-                        {activeSection === 'appearance' && (
-                            <>
-                                {renderHeader("Appearance", () => setActiveSection('root'))}
-                                <View className="px-0"><AppearanceSettings /></View>
                             </>
                         )}
                         {activeSection === 'integrations' && (
