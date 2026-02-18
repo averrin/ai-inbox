@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
 import { ScreenHeader } from '../ui/ScreenHeader';
 import { TopTabBar } from '../ui/TopTabBar';
+import { MessageDialog } from '../ui/MessageDialog';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -32,6 +33,7 @@ export default function ProfileScreen() {
     const [isImageFull, setIsImageFull] = useState(false);
     const [activeTab, setActiveTab] = useState<'home' | 'details'>('home');
     const [showDepthModal, setShowDepthModal] = useState(false);
+    const [isAddingFact, setIsAddingFact] = useState(false);
 
     // Gesture shared values
     const scale = useSharedValue(1);
@@ -100,7 +102,8 @@ export default function ProfileScreen() {
         setAnswer,
         updateConfig,
         deleteFact,
-        updateFact
+        updateFact,
+        addFactFromText
     } = useProfileStore();
 
     useEffect(() => {
@@ -419,9 +422,14 @@ export default function ProfileScreen() {
                                         </View>
 
                                         <View className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-                                            <View className="bg-slate-800/50 px-4 py-3 border-b border-slate-800 flex-row items-center gap-2">
-                                                <Ionicons name="document-text-outline" size={16} color="#94a3b8" />
-                                                <Text className="text-slate-300 font-semibold">Current Profile Context</Text>
+                                            <View className="bg-slate-800/50 px-4 py-3 border-b border-slate-800 flex-row items-center justify-between">
+                                                <View className="flex-row items-center gap-2">
+                                                    <Ionicons name="document-text-outline" size={16} color="#94a3b8" />
+                                                    <Text className="text-slate-300 font-semibold">Current Profile Context</Text>
+                                                </View>
+                                                <TouchableOpacity onPress={() => setIsAddingFact(true)} className="p-1">
+                                                    <Ionicons name="add-circle" size={20} color="#818cf8" />
+                                                </TouchableOpacity>
                                             </View>
 
                                             {/* Search Bar */}
@@ -624,6 +632,33 @@ export default function ProfileScreen() {
                     </View>
                 </View>
             </Modal>
+
+            {/* Add Fact Modal */}
+            <MessageDialog
+                visible={isAddingFact}
+                onClose={() => setIsAddingFact(false)}
+                onSend={async (text) => {
+                    try {
+                        await addFactFromText(text);
+                        setIsAddingFact(false);
+                        Toast.show({
+                            type: 'success',
+                            text1: 'Fact Added',
+                            text2: 'Profile updated successfully'
+                        });
+                    } catch (e) {
+                         Toast.show({
+                            type: 'error',
+                            text1: 'Error',
+                            text2: 'Failed to add fact'
+                        });
+                    }
+                }}
+                sending={isLoading}
+                title="Add New Fact"
+                placeholder="Describe a new fact, preference, or trait..."
+                sendLabel="Add Fact"
+            />
 
             {/* Full Screen Image Modal - closing tag for Layout below */}
             <Modal
