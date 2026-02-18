@@ -74,6 +74,15 @@ export class ProfileService {
         return ProfileLogic.processAnswers(modelName, apiKey, profile, questions, answers);
     }
 
+    static async processFreeFormInput(
+        modelName: string,
+        apiKey: string,
+        profile: ProfileData,
+        inputText: string
+    ): Promise<ProfileData> {
+        return ProfileLogic.processFreeFormInput(modelName, apiKey, profile, inputText);
+    }
+
     static generateProfileImagePrompt(profile: ProfileData, customPrompt?: string): string {
         return ProfileLogic.generateProfileImagePrompt(profile, customPrompt);
     }

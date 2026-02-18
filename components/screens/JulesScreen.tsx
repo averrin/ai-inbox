@@ -15,6 +15,7 @@ import { useAuthRequest, makeRedirectUri, ResponseType } from 'expo-auth-session
 WebBrowser.maybeCompleteAuthSession();
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useNavigation } from '@react-navigation/native';
+import { MessageDialog } from '../ui/MessageDialog';
 import { downloadAndInstallArtifact, isArtifactCached, installCachedArtifact } from '../../utils/artifactHandler';
 import { artifactDeps } from '../../utils/artifactDeps';
 import { watcherService } from '../../services/watcherService';
@@ -69,45 +70,6 @@ function SessionActionMenu({ visible, onClose, actions }: { visible: boolean, on
                     </TouchableOpacity>
                 </View>
             </TouchableOpacity>
-        </Modal>
-    );
-}
-
-function MessageDialog({ visible, onClose, onSend, sending }: { visible: boolean, onClose: () => void, onSend: (message: string) => void, sending: boolean }) {
-    const [message, setMessage] = useState('');
-
-    const handleSend = () => {
-        if (message.trim()) {
-            onSend(message);
-            setMessage('');
-        }
-    };
-
-    return (
-        <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-            <View className="flex-1 bg-black/80 justify-center px-4">
-                <View className="bg-slate-900 rounded-2xl p-4 border border-slate-700">
-                    <Text className="text-white font-bold text-lg mb-4">Send Message to Session</Text>
-                    <TextInput
-                        className="bg-slate-800 text-white p-3 rounded-lg min-h-[100px] mb-4"
-                        placeholder="Type your message..."
-                        placeholderTextColor="#94a3b8"
-                        multiline
-                        textAlignVertical="top"
-                        value={message}
-                        onChangeText={setMessage}
-                        autoFocus
-                    />
-                    <View className="flex-row gap-2">
-                        <TouchableOpacity onPress={onClose} className="flex-1 bg-slate-800 py-3 rounded-xl items-center" disabled={sending}>
-                            <Text className="text-white font-bold">Cancel</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={handleSend} className="flex-1 bg-indigo-600 py-3 rounded-xl items-center" disabled={sending || !message.trim()}>
-                            {sending ? <ActivityIndicator size="small" color="white" /> : <Text className="text-white font-bold">Send</Text>}
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
         </Modal>
     );
 }
@@ -916,6 +878,7 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
                 onClose={() => setMessageVisible(false)}
                 onSend={handleSendMessage}
                 sending={sendingMessage}
+                title="Send Message to Session"
             />
         </Card>
     );

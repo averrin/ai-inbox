@@ -32,6 +32,7 @@ interface ProfileState {
     setAnswer: (question: string, text: string) => void;
     deleteFact: (key: string) => Promise<void>;
     updateFact: (key: string, value: any) => Promise<void>;
+    addFactFromText: (text: string) => Promise<void>;
     resetDaily: () => void;
 }
 
@@ -251,6 +252,36 @@ export const useProfileStore = create<ProfileState>()(
                 } catch (e) {
                     console.error('[ProfileStore] Failed to update fact', e);
                     set({ isLoading: false });
+                }
+            },
+
+            addFactFromText: async (text: string) => {
+                const { apiKey, vaultUri, selectedModel } = useSettingsStore.getState();
+                const { profile } = get();
+
+                if (!apiKey || !vaultUri) {
+                    console.warn('[ProfileStore] Missing API key or Vault URI');
+                    return;
+                }
+
+                set({ isLoading: true });
+                try {
+                    const updatedProfile = await ProfileService.processFreeFormInput(
+                        selectedModel,
+                        apiKey,
+                        profile,
+                        text
+                    );
+
+                    await ProfileService.saveProfile(vaultUri, updatedProfile);
+                    set({ profile: updatedProfile, isLoading: false });
+
+                    // Trigger image regeneration
+                    get().generateProfileImage();
+                } catch (e) {
+                    console.error('[ProfileStore] Failed to add fact from text', e);
+                    set({ isLoading: false });
+                    throw e;
                 }
             },
 
