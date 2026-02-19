@@ -63,6 +63,40 @@ export class SyncService {
         return signOut(firebaseAuth);
     }
 
+    public getTargets(): string[] {
+        return this.targets.map(t => t.name);
+    }
+
+    public async getRemoteData(targetName: string): Promise<any> {
+        const user = firebaseAuth.currentUser;
+        if (!user) throw new Error("Not logged in");
+
+        const target = this.targets.find(t => t.name === targetName);
+        if (!target) throw new Error(`Target ${targetName} not found`);
+
+        const docRef = doc(firebaseDb, target.docPath(user.uid));
+        const snap = await getDocFromServer(docRef);
+        return snap.exists() ? snap.data() : null;
+    }
+
+    public async setRemoteData(targetName: string, data: any): Promise<void> {
+        const user = firebaseAuth.currentUser;
+        if (!user) throw new Error("Not logged in");
+
+        const target = this.targets.find(t => t.name === targetName);
+        if (!target) throw new Error(`Target ${targetName} not found`);
+
+        const docRef = doc(firebaseDb, target.docPath(user.uid));
+        await setDoc(docRef, data);
+    }
+
+    public getSyncStatus() {
+        return {
+            isSyncing: this.isSyncing,
+            userId: firebaseAuth.currentUser?.uid
+        };
+    }
+
     private setupTargets() {
         this.targets = [
             {
