@@ -41,9 +41,17 @@ public class BuildWatcherService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BuildWatcherService::Lock");
-        wakeLock.acquire();
+        try {
+            PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+            if (powerManager != null) {
+                wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BuildWatcherService::Lock");
+                wakeLock.setReferenceCounted(false);
+                wakeLock.acquire();
+            }
+        } catch (Exception e) {
+            // Log failure but don't crash the service
+            System.err.println("BuildWatcherService: Failed to acquire WakeLock: " + e.getMessage());
+        }
 
         createNotificationChannel();
         startHeartbeat();
