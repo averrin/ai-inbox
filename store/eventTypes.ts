@@ -5,12 +5,6 @@ import { EventType, EventTypeConfig, loadEventTypesFromVault } from '../services
 import { useSettingsStore } from './settings';
 import { TimeRangeDefinition } from '../components/ui/calendar/interfaces';
 import * as Crypto from 'expo-crypto';
-import {
-    doc,
-    getDoc,
-    setDoc
-} from 'firebase/firestore';
-import { firebaseDb, firebaseAuth } from '../services/firebase';
 
 interface EventTypesState {
     eventTypes: EventType[];
@@ -37,7 +31,6 @@ interface EventTypesState {
     toggleEventFlag: (title: string, flag: 'isEnglish' | 'movable' | 'skippable' | 'needPrep' | 'completable') => Promise<void>;
     toggleCompleted: (title: string, dateStr: string) => void;
     updateLunchConfig: (config: { targetCalendarId?: string; defaultInvitee?: string }) => Promise<void>;
-    syncToFirestore: () => Promise<void>; // Direct sync
 }
 
 export const useEventTypesStore = create<EventTypesState>()(
@@ -53,113 +46,60 @@ export const useEventTypesStore = create<EventTypesState>()(
             lunchConfig: {},
             isLoaded: false,
 
-            syncToFirestore: async () => {
-                const user = firebaseAuth.currentUser;
-                if (!user) return;
-
-                const state = get();
-                
-                // Helper to remove empty keys
-                const sanitize = <T>(obj: Record<string, T>) => {
-                    const clean: Record<string, T> = {};
-                    Object.keys(obj).forEach(key => {
-                        if (key && key.trim().length > 0) {
-                            clean[key] = obj[key];
-                        }
-                    });
-                    return clean;
-                };
-
-                const config: EventTypeConfig = {
-                    types: state.eventTypes,
-                    assignments: sanitize(state.assignments),
-                    difficulties: sanitize(state.difficulties),
-                    ranges: state.ranges,
-                    eventFlags: sanitize(state.eventFlags),
-                    eventIcons: sanitize(state.eventIcons),
-                    lunchConfig: state.lunchConfig
-                };
-
-                try {
-                    const docRef = doc(firebaseDb, 'users', user.uid, 'config', 'eventTypes');
-                    await setDoc(docRef, config);
-                } catch (e) {
-                    console.error('[EventTypesStore] Firestore sync failed:', e);
-                }
-            },
-
             loadConfig: async () => {
-                const user = firebaseAuth.currentUser;
-                if (!user) {
-                    set({ isLoaded: true });
-                    return;
+                // If we already have types, assume loaded (from persistence or sync)
+                const state = get();
+                if (state.eventTypes.length > 0) {
+                     set({ isLoaded: true });
+                     return;
                 }
 
-                try {
-                    const docRef = doc(firebaseDb, 'users', user.uid, 'config', 'eventTypes');
-                    const snap = await getDoc(docRef);
-
-                    if (snap.exists()) {
-                        const config = snap.data() as EventTypeConfig;
-                        set({
-                            eventTypes: config.types || [],
-                            assignments: config.assignments || {},
-                            difficulties: config.difficulties || {},
-                            ranges: config.ranges || [],
-                            eventFlags: config.eventFlags || {},
-                            eventIcons: config.eventIcons || {},
-                            lunchConfig: config.lunchConfig || {},
-                            isLoaded: true
-                        });
-                    } else {
-                        // MIGRATION: Try loading from legacy Vault
-                        const vaultUri = useSettingsStore.getState().vaultUri;
-                        if (vaultUri) {
-                            const legacyConfig = await loadEventTypesFromVault(vaultUri);
-                            if (legacyConfig) {
-                                console.log('[EventTypesStore] Migrating legacy config to Firestore...');
-                                set({
-                                    eventTypes: legacyConfig.types,
-                                    assignments: legacyConfig.assignments,
-                                    difficulties: legacyConfig.difficulties || {},
-                                    ranges: legacyConfig.ranges || [],
-                                    eventFlags: legacyConfig.eventFlags || {},
-                                    eventIcons: legacyConfig.eventIcons || {},
-                                    lunchConfig: legacyConfig.lunchConfig || {},
-                                    isLoaded: true
-                                });
-                                // Save it to Firestore immediately
-                                await get().syncToFirestore();
-                            }
+                // If empty, try loading from Vault (Migration/Initial setup)
+                const vaultUri = useSettingsStore.getState().vaultUri;
+                if (vaultUri) {
+                    try {
+                        const legacyConfig = await loadEventTypesFromVault(vaultUri);
+                        if (legacyConfig) {
+                            console.log('[EventTypesStore] Migrating legacy config from Vault...');
+                            set({
+                                eventTypes: legacyConfig.types,
+                                assignments: legacyConfig.assignments,
+                                difficulties: legacyConfig.difficulties || {},
+                                ranges: legacyConfig.ranges || [],
+                                eventFlags: legacyConfig.eventFlags || {},
+                                eventIcons: legacyConfig.eventIcons || {},
+                                lunchConfig: legacyConfig.lunchConfig || {},
+                                isLoaded: true
+                            });
                         }
-                        set({ isLoaded: true });
+                    } catch (e) {
+                         console.error('[EventTypesStore] Failed to load from vault:', e);
                     }
-
-                    // Ensure "Walk" range exists (default if missing)
-                    const state = get();
-                    if (!state.ranges.some(r => r.title === 'Walk')) {
-                        console.log('[EventTypesStore] Creating default Walk range');
-                        await state.addRange({
-                            title: 'Walk',
-                            start: { hour: 10, minute: 0 },
-                            end: { hour: 19, minute: 0 },
-                            days: [1, 2, 3, 4, 5], // Mon-Fri
-                            color: '#10b981',
-                            isWork: false,
-                            isVisible: false
-                        } as any);
-                    }
-                } catch (e) {
-                    console.error('[EventTypesStore] Failed to load config:', e);
-                    set({ isLoaded: true });
                 }
+
+                // Ensure "Walk" range exists (default if missing)
+                // Re-get state as it might have changed
+                const currentState = get();
+                if (!currentState.ranges.some(r => r.title === 'Walk')) {
+                    console.log('[EventTypesStore] Creating default Walk range');
+                    await currentState.addRange({
+                        title: 'Walk',
+                        start: { hour: 10, minute: 0 },
+                        end: { hour: 19, minute: 0 },
+                        days: [1, 2, 3, 4, 5], // Mon-Fri
+                        color: '#10b981',
+                        isWork: false,
+                        isVisible: false
+                    } as any);
+                }
+
+                set({ isLoaded: true });
             },
 
             addType: async (type) => {
                 const state = get();
                 const newTypes = [...state.eventTypes, type];
                 set({ eventTypes: newTypes });
-                await get().syncToFirestore();
             },
 
             updateType: async (updatedType) => {
@@ -168,7 +108,6 @@ export const useEventTypesStore = create<EventTypesState>()(
                     t.id === updatedType.id ? updatedType : t
                 );
                 set({ eventTypes: newTypes });
-                await get().syncToFirestore();
             },
 
             deleteType: async (id) => {
@@ -184,7 +123,6 @@ export const useEventTypesStore = create<EventTypesState>()(
                 });
 
                 set({ eventTypes: newTypes, assignments: newAssignments });
-                await get().syncToFirestore();
             },
 
             assignTypeToTitle: async (title, typeId) => {
@@ -195,7 +133,6 @@ export const useEventTypesStore = create<EventTypesState>()(
                     [title]: typeId
                 };
                 set({ assignments: newAssignments });
-                await get().syncToFirestore();
             },
 
             unassignType: async (title) => {
@@ -204,7 +141,6 @@ export const useEventTypesStore = create<EventTypesState>()(
                 const newAssignments = { ...state.assignments };
                 delete newAssignments[title];
                 set({ assignments: newAssignments });
-                await get().syncToFirestore();
             },
 
             setDifficulty: async (title, level) => {
@@ -215,7 +151,6 @@ export const useEventTypesStore = create<EventTypesState>()(
                     [title]: level
                 };
                 set({ difficulties: newDifficulties });
-                await get().syncToFirestore();
             },
 
             setEventIcon: async (title, icon) => {
@@ -226,7 +161,6 @@ export const useEventTypesStore = create<EventTypesState>()(
                     [title]: icon
                 };
                 set({ eventIcons: newEventIcons });
-                await get().syncToFirestore();
             },
 
             addRange: async (range) => {
@@ -238,7 +172,6 @@ export const useEventTypesStore = create<EventTypesState>()(
                 };
                 const newRanges = [...state.ranges, newRange];
                 set({ ranges: newRanges });
-                await get().syncToFirestore();
             },
 
             updateRange: async (id, updates) => {
@@ -247,14 +180,12 @@ export const useEventTypesStore = create<EventTypesState>()(
                     range.id === id ? { ...range, ...updates } : range
                 );
                 set({ ranges: newRanges });
-                await get().syncToFirestore();
             },
 
             deleteRange: async (id) => {
                 const state = get();
                 const newRanges = state.ranges.filter(range => range.id !== id);
                 set({ ranges: newRanges });
-                await get().syncToFirestore();
             },
 
             toggleRange: async (id) => {
@@ -263,7 +194,6 @@ export const useEventTypesStore = create<EventTypesState>()(
                     range.id === id ? { ...range, isEnabled: !range.isEnabled } : range
                 );
                 set({ ranges: newRanges });
-                await get().syncToFirestore();
             },
 
             toggleEventFlag: async (title, flag) => {
@@ -278,7 +208,6 @@ export const useEventTypesStore = create<EventTypesState>()(
                     }
                 };
                 set({ eventFlags: newFlags });
-                await get().syncToFirestore();
             },
 
             toggleCompleted: (title, dateStr) => {
@@ -291,13 +220,11 @@ export const useEventTypesStore = create<EventTypesState>()(
                     newCompleted[key] = true;
                 }
                 set({ completedEvents: newCompleted });
-                // We don't sync completedEvents to configuration doc in Firestore for now
             },
 
             updateLunchConfig: async (config) => {
                 const state = get();
                 set({ lunchConfig: { ...state.lunchConfig, ...config } });
-                await get().syncToFirestore();
             }
         }),
         {
