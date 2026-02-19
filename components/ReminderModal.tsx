@@ -286,19 +286,6 @@ export function ReminderModal({ reminder, onClose }: ReminderModalProps) {
                                         <Text className="text-white font-semibold">Postpone</Text>
                                     </TouchableOpacity>
 
-                                    <TouchableOpacity
-                                        onPress={() => {
-                                            if (reminder) {
-                                                const encodedName = encodeURIComponent(reminder.fileName.replace('.md', ''));
-                                                Linking.openURL(`obsidian://open?file=${encodedName}`);
-                                                onClose();
-                                            }
-                                        }}
-                                        className="flex-1 bg-slate-800 p-4 rounded-xl items-center flex-row justify-center border border-slate-700"
-                                    >
-                                        <Ionicons name="document-text-outline" size={20} color="#94a3b8" style={{ marginRight: 8 }} />
-                                        <Text className="text-white font-semibold">Open Note</Text>
-                                    </TouchableOpacity>
                                 </View>
 
                                 <LongPressButton
@@ -306,17 +293,16 @@ export function ReminderModal({ reminder, onClose }: ReminderModalProps) {
                                     onLongPress={async () => {
                                         if (reminder) {
                                             try {
-                                                 const { StorageAccessFramework } = require('expo-file-system/legacy');
-                                                 await StorageAccessFramework.deleteAsync(reminder.fileUri);
-                                                 Toast.show({ type: 'success', text1: 'Note Deleted' });
+                                                 await updateReminder(reminder.fileUri, null);
+                                                 Toast.show({ type: 'success', text1: 'Reminder Deleted' });
                                                  onClose();
                                             } catch (e) {
-                                                Toast.show({ type: 'error', text1: 'Failed to delete note' });
+                                                Toast.show({ type: 'error', text1: 'Failed to delete reminder' });
                                             }
                                         }
                                     }}
                                     shortPressLabel="Done"
-                                    longPressLabel="Delete Note"
+                                    longPressLabel="Delete"
                                     style={{ width: '100%' }}
                                 />
                             </View>

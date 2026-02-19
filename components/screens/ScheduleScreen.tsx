@@ -590,21 +590,22 @@ export default function ScheduleScreen() {
                 // Create New Reminder
                 // Optimistic
                 const tempUri = `temp-${Date.now()}`;
-                const tempReminder = {
+                const tempReminder: Reminder = {
+                    id: tempUri,
                     fileUri: tempUri,
+                    fileName: data.title || 'Reminder',
                     title: data.title,
                     reminderTime,
                     recurrenceRule: recurrenceStr,
                     alarm: data.alarm,
                     persistent: data.persistent,
-                    content: content,
-                    isNew: true
+                    content: content || 'Created via Calendar',
                 };
 
-                setCachedReminders([...cachedReminders, tempReminder]);
+                setCachedReminders([...(cachedReminders || []), tempReminder]);
 
                 const tempEvent = {
-                    title: data.title,
+                    title: data.title || 'Reminder',
                     start: data.startDate,
                     end: data.startDate,
                     color: data.alarm ? '#ef4444' : '#f59e0b',
@@ -630,9 +631,14 @@ export default function ScheduleScreen() {
                         if (result) {
                             // Fixup cache
                             const { cachedReminders, setCachedReminders } = useSettingsStore.getState();
-                            const updatedCache = cachedReminders.map((r: any) => {
+                            const updatedCache = (cachedReminders || []).map((r: any) => {
                                 if (r.fileUri === tempUri) {
-                                    return { ...r, fileUri: result.uri, isNew: false, fileName: result.fileName };
+                                    return {
+                                        ...r,
+                                        id: result.uri,
+                                        fileUri: result.uri,
+                                        fileName: result.fileName
+                                    };
                                 }
                                 return r;
                             });
