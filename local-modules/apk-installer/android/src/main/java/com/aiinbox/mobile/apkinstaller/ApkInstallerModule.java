@@ -13,6 +13,8 @@ import com.facebook.react.bridge.Arguments;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
 import android.os.Build;
 import androidx.core.app.NotificationCompat;
 
@@ -25,8 +27,39 @@ public class ApkInstallerModule extends ReactContextBaseJavaModule {
     private static final String CHANNEL_NAME = "Build Progress";
     private Timer heartbeatTimer;
 
+    private final BroadcastReceiver heartbeatReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if ("com.aiinbox.mobile.apkinstaller.HEARTBEAT".equals(intent.getAction())) {
+                sendEvent("watcher-heartbeat", null);
+            }
+        }
+    };
+
     public ApkInstallerModule(ReactApplicationContext reactContext) {
         super(reactContext);
+    }
+
+    @Override
+    public void initialize() {
+        super.initialize();
+        IntentFilter filter = new IntentFilter("com.aiinbox.mobile.apkinstaller.HEARTBEAT");
+        if (Build.VERSION.SDK_INT >= 33) {
+            getReactApplicationContext().registerReceiver(heartbeatReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            getReactApplicationContext().registerReceiver(heartbeatReceiver, filter);
+        }
+    }
+
+    @Override
+    public void onCatalystInstanceDestroy() {
+        super.onCatalystInstanceDestroy();
+        try {
+            getReactApplicationContext().unregisterReceiver(heartbeatReceiver);
+        } catch (Exception e) {
+            // ignore
+        }
+        stopHeartbeat();
     }
 
     @Override
