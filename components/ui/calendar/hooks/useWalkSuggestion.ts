@@ -67,7 +67,8 @@ export function useWalkSuggestion({ events, extraEvents = [], selectedDate, weat
         const allBusy = [...events, ...extraEvents];
         const bestSlot = findBestSlot(dateObj, walkRangeDef, allBusy, eventFlags, 60);
 
-        if (!bestSlot) return;
+        // Only suggest walks in completely free slots (Tier 1) to avoid conflicts with personal/movable events
+        if (!bestSlot || bestSlot.tier > 1) return;
 
         setIsLoading(true);
         try {
