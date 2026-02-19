@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layout } from '../ui/Layout';
 import { Colors } from '../ui/design-tokens';
 
 export default function CanvasScreen() {
   const [isLoading, setIsLoading] = useState(true);
+  const insets = useSafeAreaInsets();
+
+  // Bottom tab bar height is approx 52 (44 icon + 8 padding) + 4 bottom offset
+  // We add a bit more (60) to ensure safe clearance for touch targets
+  const bottomPadding = insets.bottom + 60;
 
   return (
     <Layout fullBleed={true}>
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingBottom: bottomPadding }]}>
         <WebView
           source={{ uri: 'https://www.tldraw.com/' }}
           style={styles.webview}
