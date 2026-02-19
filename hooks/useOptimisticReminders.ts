@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Reminder, syncAllReminders, updateReminder } from '../services/reminderService';
 import { useSettingsStore } from '../store/settings';
-import { StorageAccessFramework } from 'expo-file-system/legacy';
+
 import Toast from 'react-native-toast-message';
 import { Alert } from 'react-native';
 
@@ -9,9 +9,6 @@ export function useOptimisticReminders() {
     const {
         cachedReminders,
         setCachedReminders,
-        vaultUri,
-        remindersScanFolder,
-        defaultReminderFolder
     } = useSettingsStore();
 
     const [pendingOperations, setPendingOperations] = useState<number>(0);
@@ -64,7 +61,7 @@ export function useOptimisticReminders() {
             console.error("Initialization failed in addReminder:", e);
             Toast.show({ type: 'error', text1: 'Failed to initialize reminder creation' });
         }
-    }, [cachedReminders, setCachedReminders, vaultUri, remindersScanFolder, defaultReminderFolder]);
+    }, [cachedReminders, setCachedReminders]);
 
     const editReminder = useCallback(async (
         originalReminder: Reminder,

@@ -10,7 +10,7 @@ class CalendarEventBuilder(
 ) {
   private val eventValues = ContentValues()
 
-  fun getAsLong(key: String): Long = eventValues.getAsLong(key)
+  fun getAsLong(key: String): Long? = eventValues.getAsLong(key)
 
   fun put(key: String, value: String) = apply {
     eventValues.put(key, value)

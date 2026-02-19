@@ -142,10 +142,13 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
     const isUltraCompact = duration <= 15;
     const isCompact = duration <= 30;
 
-    // Special styling for generated lunch suggestions
+    // Special styling for generated suggestions (Lunch, Walk)
     const isLunchSuggestion = evt.type === 'generated' && evt.typeTag === 'LUNCH_SUGGESTION';
+    const isWalkSuggestion = evt.type === 'walk-suggestion' || evt.typeTag === 'WALK_SUGGESTION';
+    const isSuggestion = isLunchSuggestion || isWalkSuggestion;
+
     const containerStyle: any = {};
-    if (isLunchSuggestion) {
+    if (isSuggestion) {
         containerStyle.backgroundColor = (evt.color || '#22c55e') + '66'; // Opacity 40% (hex 66)
         containerStyle.borderWidth = 2;
         containerStyle.borderColor = (evt.color || '#22c55e') + 'AA'; // Slightly higher border opacity
@@ -182,7 +185,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
     return (
         <TouchableOpacity key={key} {...restProps} style={[
             restProps.style,
-            isLunchSuggestion && containerStyle,
+            isSuggestion && containerStyle,
             nowStyle,
             isUltraCompact && { overflow: 'visible', padding: 2, paddingVertical: 0 },
             isCompleted && { opacity: 0.35 },
@@ -258,7 +261,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
                             <Ionicons name="link" size={10} color="white" />
                         </View>
                     )}
-                    {(evt.difficulty !== undefined && evt.difficulty !== null) && !isLunchSuggestion && (
+                    {(evt.difficulty !== undefined && evt.difficulty !== null) && !isSuggestion && (
                         <View
                             className="px-1.5 py-0.5 rounded"
                             style={{ backgroundColor: getDifficultyColor(difficultyValue) + 'CC' }} // CC adds 80% opacity
@@ -268,7 +271,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
                             </Text>
                         </View>
                     )}
-                    {evt.typeTag && evt.typeTag !== 'LUNCH_SUGGESTION' && (
+                    {evt.typeTag && !isSuggestion && (
                         <View className="bg-black/30 px-1.5 py-0.5 rounded">
                             <Text className="text-white text-[8px] font-bold uppercase tracking-wider">
                                 {evt.typeTag}

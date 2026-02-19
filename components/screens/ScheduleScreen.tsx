@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore } from '../../store/settings';
 import { useEventTypesStore } from '../../store/eventTypes';
 import { getCalendarEvents, ensureCalendarPermissions } from '../../services/calendarService';
-import { EventContextModal } from '../EventContextModal';
+import { UnifiedSuggestionModal } from '../UnifiedSuggestionModal';
 import { DateRuler } from '../DateRuler';
 import * as Calendar from 'expo-calendar';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -20,10 +20,11 @@ import { ScheduleEvent } from '../ui/calendar/components/ScheduleEvent';
 import { useTimeRangeEvents } from '../ui/calendar/hooks/useTimeRangeEvents';
 import { calculateEventDifficulty } from '../../utils/difficultyUtils';
 import { useLunchSuggestion } from '../ui/calendar/hooks/useLunchSuggestion';
-import { LunchContextModal } from '../LunchContextModal';
+import { useWalkSuggestion } from '../ui/calendar/hooks/useWalkSuggestion';
+import { EventContextModal } from '../EventContextModal';
+import { DaySummaryModal } from '../DaySummaryModal';
 import { calculateDayStatus, aggregateDayStats, DayBreakdown, DayStatusLevel } from '../../utils/difficultyUtils';
 import { DayStatusMarker } from '../DayStatusMarker';
-import { DaySummaryModal } from '../DaySummaryModal';
 import { updateReminder, toLocalISOString, createStandaloneReminder, Reminder, formatRecurrenceForReminder } from '../../services/reminderService';
 import { EventFormModal, EventSaveData, DeleteOptions } from '../EventFormModal';
 import { TaskEditModal } from '../markdown/TaskEditModal';
@@ -43,10 +44,12 @@ import { RelationService } from '../../services/relationService';
 import { useRelationsStore } from '../../store/relations';
 import { TaskService } from '../../services/taskService';
 import { useFab } from '../../hooks/useFab';
+import { useWeatherStore } from '../../store/weatherStore';
+import { WeatherHourGuide } from '../WeatherHourGuide';
 
 
 export default function ScheduleScreen() {
-    const { vaultUri, visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes, personalCalendarIds, workCalendarIds, useCurrentLocation } = useSettingsStore();
+    const { vaultUri, visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes, personalCalendarIds, workCalendarIds, useCurrentLocation, apiKey: geminiApiKey } = useSettingsStore();
     const { assignments, difficulties, eventTypes, eventFlags, eventIcons, ranges, loadConfig, completedEvents, toggleCompleted } = useEventTypesStore();
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
@@ -83,6 +86,7 @@ export default function ScheduleScreen() {
 
 
     // Fetch Weather Effect
+    const updateWeatherData = useWeatherStore(s => s.updateWeatherData);
     useEffect(() => {
         const start = dayjs(date).startOf('week').subtract(1, 'week').toDate();
         const end = dayjs(date).endOf('week').add(1, 'week').toDate();
@@ -90,8 +94,9 @@ export default function ScheduleScreen() {
         getWeatherForecast(weatherLocation.lat, weatherLocation.lon, start, end)
             .then(data => {
                 setWeatherData(prev => ({ ...prev, ...data }));
+                updateWeatherData(data);
             });
-    }, [date, weatherLocation]);
+    }, [date, weatherLocation, updateWeatherData]);
 
 
     // Load event types config on mount
@@ -297,7 +302,9 @@ export default function ScheduleScreen() {
             });
 
             // Map reminders to BigCalendar format (markers)
-            const mappedReminders = (cachedReminders || [])
+            // Read from store at call time to avoid stale closure data
+            const latestReminders = useSettingsStore.getState().cachedReminders;
+            const mappedReminders = (latestReminders || [])
                 .filter((r: any) => r.reminderTime)
                 .map((r: any) => ({
                     title: r.title || r.fileName?.replace('.md', '') || 'Untitled Reminder',
@@ -906,6 +913,16 @@ export default function ScheduleScreen() {
 
     const { lunchEvents, dayDifficulties: lunchDifficulties } = useLunchSuggestion(events, hookDateRange);
 
+    const { walkEvent, dismiss: dismissWalk, refresh: refreshWalk, isLoading: isWalkLoading } = useWalkSuggestion({
+        events,
+        extraEvents: lunchEvents,
+        selectedDate: date,
+        weather: weatherData[dayjs(date).format('YYYY-MM-DD')]?.hourly || [],
+        apiKey: geminiApiKey || ''
+    });
+
+
+
     const dayStatuses = useMemo(() => {
         const map: Record<string, DayStatusLevel> = {};
         const eventsByDay: Record<string, any[]> = {};
@@ -1095,8 +1112,10 @@ export default function ScheduleScreen() {
 
 
     const allEvents = useMemo(() => {
-        return [...events, ...timeRangeEvents, ...focusRanges, ...freeTimeZones, ...lunchEvents];
-    }, [events, timeRangeEvents, focusRanges, freeTimeZones, lunchEvents]);
+        const base = [...events, ...timeRangeEvents, ...focusRanges, ...freeTimeZones, ...lunchEvents];
+        if (walkEvent) base.push(walkEvent);
+        return base;
+    }, [events, timeRangeEvents, focusRanges, freeTimeZones, lunchEvents, walkEvent]);
 
     const eventCellStyle = useCallback((event: any) => {
         const now = dayjs();
@@ -1452,6 +1471,9 @@ export default function ScheduleScreen() {
                                 )}
                                 onQuickAction={handleQuickAction}
                                 onExternalDrop={handleTaskDrop}
+                                hourComponent={useCallback(({ hour, ampm }: { hour: number, ampm: boolean }) => (
+                                    <WeatherHourGuide hour={hour} ampm={ampm} date={date} />
+                                ), [date])}
                             />
                         </View>
                     )}
@@ -1460,7 +1482,7 @@ export default function ScheduleScreen() {
 
                     {/* Context Menu Modal */}
                     <EventContextModal
-                        visible={!!selectedEvent && !selectedEvent?.typeTag?.includes('LUNCH_SUGGESTION')}
+                        visible={!!selectedEvent && !selectedEvent?.typeTag?.includes('LUNCH_SUGGESTION') && !selectedEvent?.typeTag?.includes('WALK_SUGGESTION')}
                         onClose={() => setSelectedEvent(null)}
                         onRefresh={fetchEvents}
                         onEdit={() => setEditingEvent(selectedEvent)}
@@ -1471,11 +1493,35 @@ export default function ScheduleScreen() {
                         event={selectedEvent}
                     />
 
-                    <LunchContextModal
+                    <UnifiedSuggestionModal
                         visible={!!selectedEvent && selectedEvent?.typeTag === 'LUNCH_SUGGESTION'}
                         onClose={() => setSelectedEvent(null)}
-                        event={selectedEvent}
+                        type="lunch"
+                        suggestion={selectedEvent ? {
+                             start: selectedEvent.start, 
+                             end: selectedEvent.end,
+                             title: selectedEvent.title
+                        } : null}
                         onEventCreated={fetchEvents}
+                        onDismiss={() => setSelectedEvent(null)}
+                    />
+
+                    <UnifiedSuggestionModal
+                        visible={!!selectedEvent && selectedEvent?.typeTag === 'WALK_SUGGESTION'}
+                        onClose={() => setSelectedEvent(null)}
+                        type="walk"
+                        suggestion={selectedEvent ? { 
+                            start: selectedEvent.startDate, 
+                            reason: selectedEvent.reason 
+                        } : null}
+                        onEventCreated={() => {
+                            dismissWalk();
+                            fetchEvents();
+                        }}
+                        onDismiss={() => {
+                            dismissWalk();
+                            setSelectedEvent(null);
+                        }}
                     />
 
                     <DaySummaryModal

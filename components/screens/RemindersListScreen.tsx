@@ -23,8 +23,6 @@ export default function RemindersListScreen() {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
 
   const {
-    vaultUri,
-    remindersScanFolder,
     setCachedReminders,
     timeFormat,
   } = useSettingsStore();
@@ -117,12 +115,9 @@ export default function RemindersListScreen() {
         {reminders.length === 0 ? (
           <View className="bg-slate-800/50 p-8 rounded-xl border border-slate-700 items-center mt-4">
             <Ionicons name="alarm-outline" size={64} color="#64748b" />
-            <Text className="text-slate-400 italic text-center mt-4 text-lg">No reminders found in vault.</Text>
-            <Text className="text-slate-500 text-sm text-center mt-2">
-              Add 'reminder_datetime: YYYY-MM-DDTHH:mm:ss' to your note's frontmatter.
-            </Text>
+            <Text className="text-slate-400 italic text-center mt-4 text-lg">No reminders found.</Text>
             <Text className="text-slate-500 text-sm text-center mt-4">
-              Or tap the + button to create a test reminder!
+              Tap the + button to create a reminder!
             </Text>
           </View>
         ) : (

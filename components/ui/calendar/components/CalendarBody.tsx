@@ -377,9 +377,9 @@ function _CalendarBody<T extends ICalendarEventBase>({
   const rangeOffsetsByEvent = React.useMemo(() => {
     const map = new Map<T, number>()
 
-    // Group ranges by day
+    // Group ranges by day (only visible ones for layout)
     const rangesByDay = new Map<string, T[]>()
-    ranges.forEach((r) => {
+    ranges.filter(r => (r as any).isVisible !== false).forEach((r) => {
       const d = dayjs(r.start).format(SIMPLE_DATE_FORMAT)
       if (!rangesByDay.has(d)) rangesByDay.set(d, [])
       rangesByDay.get(d)!.push(r)
@@ -441,7 +441,9 @@ function _CalendarBody<T extends ICalendarEventBase>({
 
         // Check if ranges overlap in time
         // Overlap if (StartA < EndB) and (EndA > StartB)
+        // Only count visible ranges for layout shifts
         const isActive =
+          (range as any).isVisible !== false &&
           eventStart.isBefore(rangeEnd) &&
           eventEnd.isAfter(rangeStart) &&
           !eventEnd.isSame(rangeStart, 'minute') &&
@@ -478,6 +480,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
       const eventEnd = dayjs(event.end)
 
       return dayRanges.some(range => {
+        if ((range as any).isVisible === false) return false // Skip invisible
         const rangeStart = dayjs(range.start)
         const rangeEnd = dayjs(range.end)
         // Exclude exact boundary matches
@@ -602,7 +605,10 @@ function _CalendarBody<T extends ICalendarEventBase>({
 
   const _renderRanges = React.useCallback(
     (date: dayjs.Dayjs) => {
-      const dayRanges = ranges.filter((event) => dayjs(event.start).isSame(date, 'day'))
+      const dayRanges = ranges.filter((event) => 
+        dayjs(event.start).isSame(date, 'day') && 
+        (event as any).isVisible !== false
+      )
 
       return dayRanges.map((event, index) => {
         const offset = rangeOffsetsByEvent.get(event) || 0
@@ -859,7 +865,7 @@ function _CalendarBody<T extends ICalendarEventBase>({
                       }}
                     >
                       {(() => {
-                        const activeEvent = standardEvents.find((e) => {
+                        const activeEvent = standardEvents.find((e: T) => {
                           const s = dayjs(e.start)
                           const d = dayjs(e.end)
                           return now.isBetween(s, d, null, '[)')

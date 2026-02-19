@@ -81,7 +81,7 @@ class WatcherService {
                     if (ApkInstaller) {
                         this.eventEmitter = new NativeEventEmitter(ApkInstaller);
                         this.eventEmitter.addListener('watcher-heartbeat', () => {
-                            console.log("[WatcherService] Heartbeat received, checking runs");
+                            // console.log("[WatcherService] Heartbeat received, checking runs");
                             this.checkRuns();
                         });
                     }
@@ -214,8 +214,8 @@ class WatcherService {
         try {
             const runIds = Object.keys(this.watchedRuns);
             if (runIds.length === 0) {
-                 this.updateHeartbeatState();
-                 return;
+                this.updateHeartbeatState();
+                return;
             }
 
             for (const id of runIds) {

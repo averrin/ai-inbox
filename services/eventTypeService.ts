@@ -26,16 +26,7 @@ export interface EventTypeConfig {
 
 const CONFIG_FILENAME = 'event-types.json';
 
-export const saveEventTypesToVault = async (config: EventTypeConfig, vaultUri: string) => {
-    try {
-        const content = JSON.stringify(config, null, 2);
-        await saveToVault(vaultUri, CONFIG_FILENAME, content, undefined, 'application/json');
-    } catch (e) {
-        console.error('[EventTypeService] Failed to save config:', e);
-        throw e;
-    }
-};
-
+/** @deprecated Use Firestore instead. This is only kept for one-time migration. */
 export const loadEventTypesFromVault = async (vaultUri: string): Promise<EventTypeConfig | null> => {
     try {
         const exists = await checkFileExists(vaultUri, CONFIG_FILENAME);
@@ -44,7 +35,7 @@ export const loadEventTypesFromVault = async (vaultUri: string): Promise<EventTy
         const content = await readFileContent(vaultUri, CONFIG_FILENAME);
         return JSON.parse(content);
     } catch (e) {
-        console.error('[EventTypeService] Failed to load config:', e);
+        console.error('[EventTypeService] Failed to load legacy config:', e);
         return null;
     }
 };
