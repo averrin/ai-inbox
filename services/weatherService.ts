@@ -1,5 +1,12 @@
 import dayjs from 'dayjs';
 
+export interface HourlyWeather {
+    temp: number;
+    weatherCode: number;
+    icon: string;
+    label: string;
+}
+
 export interface WeatherData {
     date: string; // YYYY-MM-DD
     minTemp: number;
@@ -7,6 +14,7 @@ export interface WeatherData {
     weatherCode: number;
     icon: string; // Ionicons name
     label: string;
+    hourly?: Record<number, HourlyWeather>; // hour (0-23) -> data
 }
 
 // WMO Weather interpretation codes (WW)
@@ -54,7 +62,7 @@ export async function getWeatherForecast(
     const startStr = dayjs(startDate).format('YYYY-MM-DD');
     const endStr = dayjs(endDate).format('YYYY-MM-DD');
 
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&start_date=${startStr}&end_date=${endStr}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min&hourly=temperature_2m,weather_code&timezone=auto&start_date=${startStr}&end_date=${endStr}`;
 
     try {
         const response = await fetch(url);
@@ -80,9 +88,36 @@ export async function getWeatherForecast(
                 maxTemp: data.daily.temperature_2m_max[index],
                 weatherCode: code,
                 icon,
-                label
+                label,
+                hourly: {}
             };
         });
+
+        // Parse hourly data
+        if (data.hourly && data.hourly.time) {
+            data.hourly.time.forEach((timeStr: string, index: number) => {
+                // timeStr format: "YYYY-MM-DDTHH:00"
+                const dt = dayjs(timeStr);
+                const dateKey = dt.format('YYYY-MM-DD');
+                const hour = dt.hour();
+
+                if (result[dateKey]) {
+                    const code = data.hourly.weather_code[index];
+                    const { icon, label } = getWeatherDetails(code);
+
+                    if (!result[dateKey].hourly) {
+                        result[dateKey].hourly = {};
+                    }
+
+                    result[dateKey].hourly![hour] = {
+                        temp: data.hourly.temperature_2m[index],
+                        weatherCode: code,
+                        icon,
+                        label
+                    };
+                }
+            });
+        }
 
         return result;
 

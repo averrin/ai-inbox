@@ -12,6 +12,7 @@ import { useEventTypesStore } from '../../store/eventTypes';
 import { getCalendarEvents, ensureCalendarPermissions } from '../../services/calendarService';
 import { EventContextModal } from '../EventContextModal';
 import { DateRuler } from '../DateRuler';
+import { formatHour } from '../ui/calendar/utils/datetime';
 import * as Calendar from 'expo-calendar';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useFocusEffect } from '@react-navigation/native';
@@ -1343,6 +1344,28 @@ export default function ScheduleScreen() {
         }
     };
 
+    const WeatherHour = useCallback(({ hour, ampm }: { hour: number, ampm: boolean }) => {
+        const dateStr = dayjs(date).format('YYYY-MM-DD');
+        const dayWeather = weatherData[dateStr];
+        const hourWeather = dayWeather?.hourly?.[hour];
+
+        return (
+            <View className="h-full justify-center items-center">
+                <Text className="text-slate-400 text-[10px] mb-0.5">
+                    {formatHour(hour, ampm)}
+                </Text>
+                {hourWeather && (
+                    <View className="items-center opacity-80">
+                        <Ionicons name={hourWeather.icon as any} size={12} color="#cbd5e1" />
+                        <Text className="text-slate-300 text-[9px]">
+                            {Math.round(hourWeather.temp)}°
+                        </Text>
+                    </View>
+                )}
+            </View>
+        );
+    }, [date, weatherData]);
+
     return (
         <DragDropProvider>
             <Layout fullBleed noPadding>
@@ -1393,6 +1416,7 @@ export default function ScheduleScreen() {
                                     setDate(d);
                                 }}
                                 scrollOffsetMinutes={scrollOffset.current}
+                                hourComponent={WeatherHour}
                                 // onScroll={handleScroll}
                                 theme={{
                                     palette: {
