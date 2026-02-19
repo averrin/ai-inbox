@@ -2,7 +2,7 @@ import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, Aler
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layout } from '../ui/Layout';
-import { ScreenHeader } from '../ui/ScreenHeader';
+import { IslandHeader } from '../ui/IslandHeader';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -14,11 +14,12 @@ import { useAuthRequest, makeRedirectUri, ResponseType } from 'expo-auth-session
 
 WebBrowser.maybeCompleteAuthSession();
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { MessageDialog } from '../ui/MessageDialog';
 import { downloadAndInstallArtifact, isArtifactCached, installCachedArtifact } from '../../utils/artifactHandler';
 import { artifactDeps } from '../../utils/artifactDeps';
 import { watcherService } from '../../services/watcherService';
+import { useUIStore } from '../../store/ui';
 
 dayjs.extend(relativeTime);
 
@@ -944,6 +945,26 @@ export default function JulesScreen() {
     const [showRepoSelector, setShowRepoSelector] = useState(false);
     const [defaultBranch, setDefaultBranch] = useState('main');
 
+    const { setFab, clearFab } = useUIStore();
+
+    useFocusEffect(
+        useCallback(() => {
+            if (julesGoogleApiKey) {
+                setFab({
+                    visible: true,
+                    icon: 'add',
+                    onPress: () => Linking.openURL('https://jules.google.com/session'),
+                    color: '#4f46e5',
+                    iconColor: 'white'
+                });
+            } else {
+                clearFab();
+            }
+
+            return () => clearFab();
+        }, [julesGoogleApiKey])
+    );
+
     const [request, response, promptAsync] = useAuthRequest(
         {
             clientId: githubClientId || 'placeholder',
@@ -1237,28 +1258,9 @@ export default function JulesScreen() {
         return (
             <ScrollView
                 className="flex-1"
-                contentContainerStyle={{ paddingBottom: insets.bottom + 80, paddingTop: 10 }}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 80, paddingTop: 2 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#818cf8" />}
             >
-                {/* New Session Button - Placed at Top as requested */}
-                {hasJulesConfig && (
-                    <TouchableOpacity
-                        onPress={() => Linking.openURL('https://jules.google.com/session')}
-                        className="bg-indigo-600/20 border border-indigo-500/30 p-4 rounded-2xl mb-2 flex-row items-center justify-between mx-4"
-                    >
-                        <View className="flex-row items-center">
-                            <View className="bg-indigo-600 p-2 rounded-xl mr-3">
-                                <Ionicons name="add-circle" size={20} color="white" />
-                            </View>
-                            <View>
-                                <Text className="text-white font-bold">New Jules Session</Text>
-                                <Text className="text-indigo-300 text-xs">Create a new session in web</Text>
-                            </View>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color="#818cf8" />
-                    </TouchableOpacity>
-                )}
-
                 {/* Master Branch Section */}
                 {hasGithubConfig && (
                     <MasterBranchSection
@@ -1307,7 +1309,7 @@ export default function JulesScreen() {
 
     return (
         <Layout>
-            <ScreenHeader
+            <IslandHeader
                 title="Jules"
                 subtitle={julesOwner && julesRepo ? `${julesOwner}/${julesRepo}` : undefined}
                 rightActions={[
