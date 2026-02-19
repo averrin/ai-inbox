@@ -32,7 +32,7 @@ const islandContainerStyle: ViewStyle = {
     flexDirection: 'row',
     backgroundColor: '#1e293b', // slate-800
     borderRadius: 30, // match bottom navbar
-    padding: 4,       // match bottom navbar
+    padding: 2,       // reduced padding for slimmer look (was 4)
     alignItems: 'center',
     ...Shadows.default,
     opacity: 0.95
@@ -57,7 +57,7 @@ export function IslandHeader({
                     {leftContent ? (
                         leftContent
                     ) : (
-                        <View className="flex-col justify-center px-4 py-2">
+                        <View className="flex-col justify-center px-3 py-1.5">
                             <Text className="text-white font-bold text-lg leading-tight" numberOfLines={1}>
                                 {title}
                             </Text>
