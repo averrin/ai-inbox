@@ -4,6 +4,7 @@ import { NativeModules, Platform, NativeEventEmitter } from 'react-native';
 import { WorkflowRun, fetchWorkflowRun, fetchWorkflowRuns, fetchArtifacts, Artifact } from './julesApi';
 import { downloadAndInstallArtifact, installCachedArtifact } from '../utils/artifactHandler';
 import { artifactDeps } from '../utils/artifactDeps';
+import { useSettingsStore } from '../store/settings';
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 
@@ -170,12 +171,37 @@ class WatcherService {
         this.checkRuns(); // Immediate check
     }
 
-    async unwatchRun(runId: number) {
+    async checkForNewRuns() {
+        try {
+            const { julesApiKey, julesOwner, julesRepo } = useSettingsStore.getState();
+
+            if (!julesApiKey || !julesOwner || !julesRepo) {
+                return;
+            }
+
+            const runs = await fetchWorkflowRuns(julesApiKey, julesOwner, julesRepo, undefined, 10);
+
+            for (const run of runs) {
+                if (run.status === 'in_progress' || run.status === 'queued') {
+                    if (!this.isWatching(run.id)) {
+                        console.log(`[WatcherService] Auto-watching run: ${run.id}`);
+                        await this.watchRun(run, julesApiKey, julesOwner, julesRepo);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("[WatcherService] Failed to check for new runs", e);
+        }
+    }
+
+    async unwatchRun(runId: number, dismiss = true) {
         if (this.watchedRuns[runId]) {
             delete this.watchedRuns[runId];
             await this.save();
             this.updateHeartbeatState();
-            await Notifications.dismissNotificationAsync(runId.toString());
+            if (dismiss) {
+                await Notifications.dismissNotificationAsync(runId.toString());
+            }
         }
     }
 
@@ -212,14 +238,17 @@ class WatcherService {
         this.isChecking = true;
 
         try {
+            await this.checkForNewRuns();
+
             const runIds = Object.keys(this.watchedRuns);
             if (runIds.length === 0) {
                  this.updateHeartbeatState();
-                 return;
+                 // Continue to ensure we save/update state if needed, though with 0 runs nothing happens
             }
 
             for (const id of runIds) {
                 const item = this.watchedRuns[id];
+                if (!item) continue; // Safety check
 
                 // Skip if finished and artifact ready (user hasn't installed yet)
                 if (item.artifactPath) continue;
@@ -258,15 +287,20 @@ class WatcherService {
                                 if (path) {
                                     item.artifactPath = path;
                                     await this.updateNotification(item, "Ready to Install", undefined, true);
+                                    // Automatically unwatch but keep notification
+                                    await this.unwatchRun(parseInt(id), false);
                                 } else {
                                     await this.updateNotification(item, "Artifact download failed");
+                                    await this.unwatchRun(parseInt(id), false);
                                 }
                             } else {
                                 await this.updateNotification(item, "No artifact found");
+                                await this.unwatchRun(parseInt(id), false);
                             }
                         } else {
                             await this.updateNotification(item, `Build ${freshRun.conclusion}`);
-                            // Remove from watched list eventually, but for now just show notification
+                            // Automatically unwatch failed runs but keep notification
+                            await this.unwatchRun(parseInt(id), false);
                         }
                     } else {
                         // In progress
