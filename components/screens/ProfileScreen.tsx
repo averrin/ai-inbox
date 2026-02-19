@@ -6,6 +6,7 @@ import { Layout } from '../ui/Layout';
 import { ScreenHeader } from '../ui/ScreenHeader';
 import { TopTabBar } from '../ui/TopTabBar';
 import { MessageDialog } from '../ui/MessageDialog';
+import { JulesLoader } from '../ui/JulesLoader';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -269,8 +270,7 @@ export default function ProfileScreen() {
 
                     {isLoading ? (
                         <View className="py-10 items-center">
-                            <ActivityIndicator size="large" color="#818cf8" />
-                            <Text className="text-slate-500 mt-4 text-sm">Consulting the Architect...</Text>
+                            <JulesLoader size="large" message="Consulting the Architect..." />
                         </View>
                     ) : (
                         <>

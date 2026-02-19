@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import * as Clipboard from 'expo-clipboard';
@@ -7,6 +7,7 @@ import Toast from 'react-native-toast-message';
 import { useForecastStore } from '../store/forecastStore';
 import { generateDayForecast, buildDayForecastPrompt } from '../services/forecastService';
 import { MarkdownView } from './ui/MarkdownView';
+import { JulesLoader } from './ui/JulesLoader';
 
 interface ForecastSectionProps {
     date: Date;
@@ -62,8 +63,7 @@ export function ForecastSection({ date }: ForecastSectionProps) {
     if (loading) {
         return (
             <View className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 mb-6 items-center justify-center py-8">
-                <ActivityIndicator color="#6366f1" />
-                <Text className="text-slate-400 mt-2 text-sm">Generating AI Forecast...</Text>
+                <JulesLoader size="medium" message="Generating AI Forecast..." />
             </View>
         );
     }
