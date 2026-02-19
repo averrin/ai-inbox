@@ -2,6 +2,7 @@ import React from 'react';
 import dayjs from 'dayjs';
 import { useEventTypesStore } from '../../../../store/eventTypes';
 import { ICalendarEventBase } from '../interfaces';
+import { findBestSlot } from '../../../../utils/slotFinder';
 
 interface LunchSuggestionResult {
     lunchEvents: any[];
@@ -73,71 +74,8 @@ export function useLunchSuggestion(
                 rEnd = rEnd.add(1, 'day');
             }
 
-            // Search for best 60m slot
-            let bestSlot: { start: dayjs.Dayjs, tier: number } | null = null;
-            // Tier 1: Free (Priority 1)
-            // Tier 2: Skippable (Priority 2)
-            // Tier 3: Movable (Priority 3 -> Penalty +1)
-
-            // Iterate in 5-minute steps
-            // Limit loop to ensure we don't go infinite
-            const maxIterations = 288; // 24 hours * 12 slots 
-            let iterations = 0;
-
-            for (let t = rStart; t.isBefore(rEnd.subtract(59, 'minute')) && iterations < maxIterations; t = t.add(5, 'minute')) {
-                iterations++;
-                const slotStart = t;
-                const slotEnd = t.add(60, 'minute');
-
-                // Find overlaps with "Busy" events (difficulty >= 1)
-                const overlaps = dayEvents.filter(e => {
-                    // Ignore markers/zones
-                    if (e.type === 'marker' || e.type === 'zone' || e.type === 'range') return false;
-
-                    // Ignore 0 difficulty events (unless we want to treat them as busy?) 
-                    // Prompt says "ignore zero difficulties".
-                    if (e.difficulty?.total === 0 || (e.difficulty === undefined && e.type !== 'marker')) return false;
-
-                    const eStart = dayjs(e.start);
-                    const eEnd = dayjs(e.end);
-
-                    // Check intersection
-                    return eStart.isBefore(slotEnd) && eEnd.isAfter(slotStart);
-                });
-
-                if (overlaps.length === 0) {
-                    // Perfect slot found (Tier 1)
-                    bestSlot = { start: slotStart, tier: 1 };
-                    // We can stop immediately if we prioritize earliest free slot
-                    break;
-                }
-
-                // Check overlap attributes
-                const isAllSkippable = overlaps.every(e => {
-                    const flags = eventFlags[e.title];
-                    // Also check enriched event props if flags lookup fails (though store is source of truth)
-                    return flags?.skippable || e.isSkippable;
-                });
-
-                if (isAllSkippable) {
-                    if (!bestSlot || bestSlot.tier > 2) {
-                        bestSlot = { start: slotStart, tier: 2 };
-                    }
-                    continue; // Keep looking for a Tier 1
-                }
-
-                const isAllMovable = overlaps.every(e => {
-                    const flags = eventFlags[e.title];
-                    return flags?.movable || e.movable;
-                });
-
-                if (isAllMovable) {
-                    if (!bestSlot || bestSlot.tier > 3) {
-                        bestSlot = { start: slotStart, tier: 3 };
-                    }
-                    continue; // Keep looking for Tier 1 or 2
-                }
-            }
+            // Search for best 60m slot using shared utility
+            const bestSlot = findBestSlot(currentDay, lunchRangeDef, dayEvents, eventFlags, 60);
 
             if (bestSlot) {
                 // Tier 1 & 2: No penalty. Tier 3: +1 penalty.

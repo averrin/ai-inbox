@@ -1,10 +1,16 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { EventType, EventTypeConfig, saveEventTypesToVault, loadEventTypesFromVault } from '../services/eventTypeService';
+import { EventType, EventTypeConfig, loadEventTypesFromVault } from '../services/eventTypeService';
 import { useSettingsStore } from './settings';
 import { TimeRangeDefinition } from '../components/ui/calendar/interfaces';
 import * as Crypto from 'expo-crypto';
+import {
+    doc,
+    getDoc,
+    setDoc
+} from 'firebase/firestore';
+import { firebaseDb, firebaseAuth } from '../services/firebase';
 
 interface EventTypesState {
     eventTypes: EventType[];
@@ -31,6 +37,7 @@ interface EventTypesState {
     toggleEventFlag: (title: string, flag: 'isEnglish' | 'movable' | 'skippable' | 'needPrep' | 'completable') => Promise<void>;
     toggleCompleted: (title: string, dateStr: string) => void;
     updateLunchConfig: (config: { targetCalendarId?: string; defaultInvitee?: string }) => Promise<void>;
+    syncToFirestore: () => Promise<void>; // Direct sync
 }
 
 export const useEventTypesStore = create<EventTypesState>()(
@@ -46,24 +53,104 @@ export const useEventTypesStore = create<EventTypesState>()(
             lunchConfig: {},
             isLoaded: false,
 
-            loadConfig: async () => {
-                const vaultUri = useSettingsStore.getState().vaultUri;
-                if (!vaultUri) return;
+            syncToFirestore: async () => {
+                const user = firebaseAuth.currentUser;
+                if (!user) return;
 
-                const config = await loadEventTypesFromVault(vaultUri);
-                if (config) {
-                    set({
-                        eventTypes: config.types,
-                        assignments: config.assignments,
-                        difficulties: config.difficulties || {},
-                        ranges: config.ranges || [],
-                        eventFlags: config.eventFlags || {},
-                        eventIcons: config.eventIcons || {},
-                        lunchConfig: config.lunchConfig || {},
-                        isLoaded: true
+                const state = get();
+                
+                // Helper to remove empty keys
+                const sanitize = <T>(obj: Record<string, T>) => {
+                    const clean: Record<string, T> = {};
+                    Object.keys(obj).forEach(key => {
+                        if (key && key.trim().length > 0) {
+                            clean[key] = obj[key];
+                        }
                     });
-                } else {
-                    // No config exists yet, start fresh
+                    return clean;
+                };
+
+                const config: EventTypeConfig = {
+                    types: state.eventTypes,
+                    assignments: sanitize(state.assignments),
+                    difficulties: sanitize(state.difficulties),
+                    ranges: state.ranges,
+                    eventFlags: sanitize(state.eventFlags),
+                    eventIcons: sanitize(state.eventIcons),
+                    lunchConfig: state.lunchConfig
+                };
+
+                try {
+                    const docRef = doc(firebaseDb, 'users', user.uid, 'config', 'eventTypes');
+                    await setDoc(docRef, config);
+                } catch (e) {
+                    console.error('[EventTypesStore] Firestore sync failed:', e);
+                }
+            },
+
+            loadConfig: async () => {
+                const user = firebaseAuth.currentUser;
+                if (!user) {
+                    set({ isLoaded: true });
+                    return;
+                }
+
+                try {
+                    const docRef = doc(firebaseDb, 'users', user.uid, 'config', 'eventTypes');
+                    const snap = await getDoc(docRef);
+
+                    if (snap.exists()) {
+                        const config = snap.data() as EventTypeConfig;
+                        set({
+                            eventTypes: config.types || [],
+                            assignments: config.assignments || {},
+                            difficulties: config.difficulties || {},
+                            ranges: config.ranges || [],
+                            eventFlags: config.eventFlags || {},
+                            eventIcons: config.eventIcons || {},
+                            lunchConfig: config.lunchConfig || {},
+                            isLoaded: true
+                        });
+                    } else {
+                        // MIGRATION: Try loading from legacy Vault
+                        const vaultUri = useSettingsStore.getState().vaultUri;
+                        if (vaultUri) {
+                            const legacyConfig = await loadEventTypesFromVault(vaultUri);
+                            if (legacyConfig) {
+                                console.log('[EventTypesStore] Migrating legacy config to Firestore...');
+                                set({
+                                    eventTypes: legacyConfig.types,
+                                    assignments: legacyConfig.assignments,
+                                    difficulties: legacyConfig.difficulties || {},
+                                    ranges: legacyConfig.ranges || [],
+                                    eventFlags: legacyConfig.eventFlags || {},
+                                    eventIcons: legacyConfig.eventIcons || {},
+                                    lunchConfig: legacyConfig.lunchConfig || {},
+                                    isLoaded: true
+                                });
+                                // Save it to Firestore immediately
+                                await get().syncToFirestore();
+                            }
+                        }
+                        set({ isLoaded: true });
+                    }
+
+                    // Ensure "Walk" range exists (default if missing)
+                    const state = get();
+                    if (!state.ranges.some(r => r.title === 'Walk')) {
+                        console.log('[EventTypesStore] Creating default Walk range');
+                        await state.addRange({
+                            title: 'Walk',
+                            start: { hour: 10, minute: 0 },
+                            end: { hour: 19, minute: 0 },
+                            days: [1, 2, 3, 4, 5], // Mon-Fri
+                            color: '#10b981',
+                            isWork: false,
+                            isVisible: false
+                        } as any);
+                    }
+                } catch (e) {
+                    console.error('[EventTypesStore] Failed to load config:', e);
                     set({ isLoaded: true });
                 }
             },
@@ -71,22 +158,8 @@ export const useEventTypesStore = create<EventTypesState>()(
             addType: async (type) => {
                 const state = get();
                 const newTypes = [...state.eventTypes, type];
-                const newConfig: EventTypeConfig = {
-                    types: newTypes,
-                    assignments: state.assignments,
-                    difficulties: state.difficulties,
-                    ranges: state.ranges,
-                    eventFlags: state.eventFlags,
-                    eventIcons: state.eventIcons,
-                    lunchConfig: state.lunchConfig
-                };
-
                 set({ eventTypes: newTypes });
-
-                const vaultUri = useSettingsStore.getState().vaultUri;
-                if (vaultUri) {
-                    await saveEventTypesToVault(newConfig, vaultUri);
-                }
+                await get().syncToFirestore();
             },
 
             updateType: async (updatedType) => {
@@ -94,22 +167,8 @@ export const useEventTypesStore = create<EventTypesState>()(
                 const newTypes = state.eventTypes.map(t =>
                     t.id === updatedType.id ? updatedType : t
                 );
-                const newConfig: EventTypeConfig = {
-                    types: newTypes,
-                    assignments: state.assignments,
-                    difficulties: state.difficulties,
-                    ranges: state.ranges,
-                    eventFlags: state.eventFlags,
-                    eventIcons: state.eventIcons,
-                    lunchConfig: state.lunchConfig
-                };
-
                 set({ eventTypes: newTypes });
-
-                const vaultUri = useSettingsStore.getState().vaultUri;
-                if (vaultUri) {
-                    await saveEventTypesToVault(newConfig, vaultUri);
-                }
+                await get().syncToFirestore();
             },
 
             deleteType: async (id) => {
@@ -124,120 +183,50 @@ export const useEventTypesStore = create<EventTypesState>()(
                     }
                 });
 
-                const newConfig: EventTypeConfig = {
-                    types: newTypes,
-                    assignments: newAssignments,
-                    difficulties: state.difficulties,
-                    ranges: state.ranges,
-                    eventFlags: state.eventFlags,
-                    eventIcons: state.eventIcons,
-                    lunchConfig: state.lunchConfig
-                };
-
                 set({ eventTypes: newTypes, assignments: newAssignments });
-
-                const vaultUri = useSettingsStore.getState().vaultUri;
-                if (vaultUri) {
-                    await saveEventTypesToVault(newConfig, vaultUri);
-                }
+                await get().syncToFirestore();
             },
 
             assignTypeToTitle: async (title, typeId) => {
+                if (!title) return;
                 const state = get();
                 const newAssignments = {
                     ...state.assignments,
                     [title]: typeId
                 };
-
-                const newConfig: EventTypeConfig = {
-                    types: state.eventTypes,
-                    assignments: newAssignments,
-                    difficulties: state.difficulties,
-                    ranges: state.ranges,
-                    eventFlags: state.eventFlags,
-                    eventIcons: state.eventIcons,
-                    lunchConfig: state.lunchConfig
-                };
-
                 set({ assignments: newAssignments });
-
-                const vaultUri = useSettingsStore.getState().vaultUri;
-                if (vaultUri) {
-                    await saveEventTypesToVault(newConfig, vaultUri);
-                }
+                await get().syncToFirestore();
             },
 
             unassignType: async (title) => {
+                if (!title) return;
                 const state = get();
                 const newAssignments = { ...state.assignments };
                 delete newAssignments[title];
-
-                const newConfig: EventTypeConfig = {
-                    types: state.eventTypes,
-                    assignments: newAssignments,
-                    difficulties: state.difficulties,
-                    ranges: state.ranges,
-                    eventFlags: state.eventFlags,
-                    eventIcons: state.eventIcons,
-                    lunchConfig: state.lunchConfig
-                };
-
                 set({ assignments: newAssignments });
-
-                const vaultUri = useSettingsStore.getState().vaultUri;
-                if (vaultUri) {
-                    await saveEventTypesToVault(newConfig, vaultUri);
-                }
+                await get().syncToFirestore();
             },
 
             setDifficulty: async (title, level) => {
+                if (!title) return;
                 const state = get();
                 const newDifficulties = {
                     ...state.difficulties,
                     [title]: level
                 };
-
-                const newConfig: EventTypeConfig = {
-                    types: state.eventTypes,
-                    assignments: state.assignments,
-                    difficulties: newDifficulties,
-                    ranges: state.ranges,
-                    eventFlags: state.eventFlags,
-                    eventIcons: state.eventIcons,
-                    lunchConfig: state.lunchConfig
-                };
-
                 set({ difficulties: newDifficulties });
-
-                const vaultUri = useSettingsStore.getState().vaultUri;
-                if (vaultUri) {
-                    await saveEventTypesToVault(newConfig, vaultUri);
-                }
+                await get().syncToFirestore();
             },
 
             setEventIcon: async (title, icon) => {
+                if (!title) return;
                 const state = get();
                 const newEventIcons = {
                     ...state.eventIcons,
                     [title]: icon
                 };
-
-                const newConfig: EventTypeConfig = {
-                    types: state.eventTypes,
-                    assignments: state.assignments,
-                    difficulties: state.difficulties,
-                    ranges: state.ranges,
-                    eventFlags: state.eventFlags,
-                    eventIcons: newEventIcons,
-                    lunchConfig: state.lunchConfig
-                };
-
                 set({ eventIcons: newEventIcons });
-
-                const vaultUri = useSettingsStore.getState().vaultUri;
-                if (vaultUri) {
-                    await saveEventTypesToVault(newConfig, vaultUri);
-                }
+                await get().syncToFirestore();
             },
 
             addRange: async (range) => {
@@ -248,22 +237,8 @@ export const useEventTypesStore = create<EventTypesState>()(
                     isEnabled: true
                 };
                 const newRanges = [...state.ranges, newRange];
-                const newConfig: EventTypeConfig = {
-                    types: state.eventTypes,
-                    assignments: state.assignments,
-                    difficulties: state.difficulties,
-                    ranges: newRanges,
-                    eventFlags: state.eventFlags,
-                    eventIcons: state.eventIcons,
-                    lunchConfig: state.lunchConfig
-                };
-
                 set({ ranges: newRanges });
-
-                const vaultUri = useSettingsStore.getState().vaultUri;
-                if (vaultUri) {
-                    await saveEventTypesToVault(newConfig, vaultUri);
-                }
+                await get().syncToFirestore();
             },
 
             updateRange: async (id, updates) => {
@@ -271,43 +246,15 @@ export const useEventTypesStore = create<EventTypesState>()(
                 const newRanges = state.ranges.map(range =>
                     range.id === id ? { ...range, ...updates } : range
                 );
-                const newConfig: EventTypeConfig = {
-                    types: state.eventTypes,
-                    assignments: state.assignments,
-                    difficulties: state.difficulties,
-                    ranges: newRanges,
-                    eventFlags: state.eventFlags,
-                    eventIcons: state.eventIcons,
-                    lunchConfig: state.lunchConfig
-                };
-
                 set({ ranges: newRanges });
-
-                const vaultUri = useSettingsStore.getState().vaultUri;
-                if (vaultUri) {
-                    await saveEventTypesToVault(newConfig, vaultUri);
-                }
+                await get().syncToFirestore();
             },
 
             deleteRange: async (id) => {
                 const state = get();
                 const newRanges = state.ranges.filter(range => range.id !== id);
-                const newConfig: EventTypeConfig = {
-                    types: state.eventTypes,
-                    assignments: state.assignments,
-                    difficulties: state.difficulties,
-                    ranges: newRanges,
-                    eventFlags: state.eventFlags,
-                    eventIcons: state.eventIcons,
-                    lunchConfig: state.lunchConfig
-                };
-
                 set({ ranges: newRanges });
-
-                const vaultUri = useSettingsStore.getState().vaultUri;
-                if (vaultUri) {
-                    await saveEventTypesToVault(newConfig, vaultUri);
-                }
+                await get().syncToFirestore();
             },
 
             toggleRange: async (id) => {
@@ -315,25 +262,12 @@ export const useEventTypesStore = create<EventTypesState>()(
                 const newRanges = state.ranges.map(range =>
                     range.id === id ? { ...range, isEnabled: !range.isEnabled } : range
                 );
-                const newConfig: EventTypeConfig = {
-                    types: state.eventTypes,
-                    assignments: state.assignments,
-                    difficulties: state.difficulties,
-                    ranges: newRanges,
-                    eventFlags: state.eventFlags,
-                    eventIcons: state.eventIcons,
-                    lunchConfig: state.lunchConfig
-                };
-
                 set({ ranges: newRanges });
-
-                const vaultUri = useSettingsStore.getState().vaultUri;
-                if (vaultUri) {
-                    await saveEventTypesToVault(newConfig, vaultUri);
-                }
+                await get().syncToFirestore();
             },
 
             toggleEventFlag: async (title, flag) => {
+                if (!title) return;
                 const state = get();
                 const currentFlags = state.eventFlags[title] || {};
                 const newFlags = {
@@ -343,23 +277,8 @@ export const useEventTypesStore = create<EventTypesState>()(
                         [flag]: !currentFlags[flag]
                     }
                 };
-
-                const newConfig: EventTypeConfig = {
-                    types: state.eventTypes,
-                    assignments: state.assignments,
-                    difficulties: state.difficulties,
-                    ranges: state.ranges,
-                    eventFlags: newFlags,
-                    eventIcons: state.eventIcons,
-                    lunchConfig: state.lunchConfig
-                };
-
                 set({ eventFlags: newFlags });
-
-                const vaultUri = useSettingsStore.getState().vaultUri;
-                if (vaultUri) {
-                    await saveEventTypesToVault(newConfig, vaultUri);
-                }
+                await get().syncToFirestore();
             },
 
             toggleCompleted: (title, dateStr) => {
@@ -372,26 +291,13 @@ export const useEventTypesStore = create<EventTypesState>()(
                     newCompleted[key] = true;
                 }
                 set({ completedEvents: newCompleted });
+                // We don't sync completedEvents to configuration doc in Firestore for now
             },
 
             updateLunchConfig: async (config) => {
                 const state = get();
-                const newConfig: EventTypeConfig = {
-                    types: state.eventTypes,
-                    assignments: state.assignments,
-                    difficulties: state.difficulties,
-                    ranges: state.ranges,
-                    eventFlags: state.eventFlags,
-                    eventIcons: state.eventIcons,
-                    lunchConfig: { ...state.lunchConfig, ...config }
-                };
-
-                set({ lunchConfig: newConfig.lunchConfig });
-
-                const vaultUri = useSettingsStore.getState().vaultUri;
-                if (vaultUri) {
-                    await saveEventTypesToVault(newConfig, vaultUri);
-                }
+                set({ lunchConfig: { ...state.lunchConfig, ...config } });
+                await get().syncToFirestore();
             }
         }),
         {

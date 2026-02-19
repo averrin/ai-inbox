@@ -15,8 +15,8 @@ import { IntegrationsSettings } from '../settings/IntegrationsSettings';
 import { FolderInput } from '../ui/FolderInput';
 import { FileInput } from '../ui/FileInput';
 import { openInObsidian } from '../../utils/obsidian';
-import { GoogleSettings } from '../settings/GoogleSettings';
-import { RemindersSettings } from '../settings/RemindersSettings';
+
+
 import { CalendarsMainSettings } from '../settings/CalendarsMainSettings';
 import { AdditionalCalendars } from '../settings/AdditionalCalendars';
 import { EventTypesSettings } from '../settings/EventTypesSettings';
@@ -38,8 +38,9 @@ import { useEventTypesStore } from '../../store/eventTypes';
 import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../../utils/debugUtils';
 import gitInfo from '../../git-info.json';
+import { WalkSettings } from '../settings/WalkSettings';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile' | 'walk';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -714,12 +715,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 () => setActiveSection('contacts'),
                 "My emails, contacts, auto-typing"
             )}
-            {renderMenuButton(
-                "Reminders",
-                "alarm-outline",
-                () => setActiveSection('reminders'),
-                "Local notifications"
-            )}
+
             {renderMenuButton(
                 "Weather",
                 "cloud-outline",
@@ -731,6 +727,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "sparkles-outline",
                 () => setActiveSection('forecast'),
                 "Daily Forecast Prompt"
+            )}
+            {renderMenuButton(
+                "Walk Suggestions",
+                "walk-outline",
+                () => setActiveSection('walk'),
+                "AI Walk Planner"
             )}
             {renderMenuButton(
                 "Advanced",
@@ -924,6 +926,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                 <View className="px-0"><ForecastSettings /></View>
                             </>
                         )}
+                        {activeSection === 'walk' && (
+                            <>
+                                {renderHeader("Walk Suggestions", () => setActiveSection('root'))}
+                                <View className="px-0"><WalkSettings /></View>
+                            </>
+                        )}
                         {activeSection === 'event-types' && (
                             <>
                                 {renderHeader("Event Types", () => setActiveSection('root'))}
@@ -960,12 +968,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                 <View className="px-0"><ContactsSettings /></View>
                             </>
                         )}
-                        {activeSection === 'reminders' && (
-                            <>
-                                {renderHeader("Reminders", () => setActiveSection('root'))}
-                                <View className="px-0"><RemindersSettings /></View>
-                            </>
-                        )}
+
                         {activeSection === 'weather' && (
                             <>
                                 {renderHeader("Weather", () => setActiveSection('root'))}

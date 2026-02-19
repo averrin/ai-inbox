@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Reminder, syncAllReminders, updateReminder } from '../services/reminderService';
 import { useSettingsStore } from '../store/settings';
-import { StorageAccessFramework } from 'expo-file-system/legacy';
+
 import Toast from 'react-native-toast-message';
 import { Alert } from 'react-native';
 
@@ -9,9 +9,6 @@ export function useOptimisticReminders() {
     const {
         cachedReminders,
         setCachedReminders,
-        vaultUri,
-        remindersScanFolder,
-        defaultReminderFolder
     } = useSettingsStore();
 
     const [pendingOperations, setPendingOperations] = useState<number>(0);
@@ -23,50 +20,24 @@ export function useOptimisticReminders() {
         alarm: boolean,
         persistent?: number
     ) => {
-        if (!vaultUri) {
-            Alert.alert("Error", "Vault URI not set.");
-            return;
-        }
-
         const tempId = `temp-${Date.now()}`;
 
         try {
             // Use local ISO format for storage/display
-            const { toLocalISOString, getUniqueFilename } = await import('../services/reminderService');
+            const { toLocalISOString } = await import('../services/reminderService');
             const timeStr = toLocalISOString(date);
-
-            // 1. Determine Target Folder
-            let targetUri = vaultUri;
-            const { checkDirectoryExists } = await import('../utils/saf');
-
-            if (defaultReminderFolder && defaultReminderFolder.trim()) {
-                const folderUri = await checkDirectoryExists(vaultUri, defaultReminderFolder.trim());
-                if (folderUri) targetUri = folderUri;
-            } else if (remindersScanFolder && remindersScanFolder.trim()) {
-                const folderUri = await checkDirectoryExists(vaultUri, remindersScanFolder.trim());
-                if (folderUri) targetUri = folderUri;
-            }
-
-            // 2. Generate Unique Filename
-            const fileName = await getUniqueFilename(targetUri, title);
 
             // 3. Optimistic Update
             const newReminder: Reminder = {
+                id: tempId,
                 fileUri: tempId, // Temporary ID/URI
-                fileName: fileName,
+                fileName: title || 'Reminder',
+                title: title || 'Reminder',
                 reminderTime: timeStr,
                 recurrenceRule: recurrence || undefined,
                 alarm: alarm,
                 persistent: persistent,
-                content: `---
-reminder_datetime: ${timeStr}
-${recurrence ? `reminder_recurrent: ${recurrence}` : ''}
-${alarm ? `reminder_alarm: true` : ''}
-${persistent ? `reminder_persistent: ${persistent}` : ''}
----
-# ${title}
-
-Created via Reminders App.`
+                content: 'Created via Reminders App.'
             };
 
             const previousReminders = [...(cachedReminders || [])];
@@ -90,7 +61,7 @@ Created via Reminders App.`
             console.error("Initialization failed in addReminder:", e);
             Toast.show({ type: 'error', text1: 'Failed to initialize reminder creation' });
         }
-    }, [cachedReminders, setCachedReminders, vaultUri, remindersScanFolder, defaultReminderFolder]);
+    }, [cachedReminders, setCachedReminders]);
 
     const editReminder = useCallback(async (
         originalReminder: Reminder,
@@ -150,12 +121,8 @@ Created via Reminders App.`
 
         try {
             // 2. Actual Operation
-            if (deleteFileArg) {
-                const { deleteFile } = await import('../utils/saf');
-                await deleteFile(reminder.fileUri);
-            } else {
-                await updateReminder(reminder.fileUri, null); // Remove property only
-            }
+            // In new service, null time means delete document
+            await updateReminder(reminder.fileUri, null);
             await syncAllReminders();
         } catch (e) {
             console.error(e);

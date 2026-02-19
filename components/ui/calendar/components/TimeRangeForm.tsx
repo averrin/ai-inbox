@@ -12,6 +12,7 @@ interface TimeRangeFormProps {
         days: number[]
         color: string
         isWork?: boolean
+        isVisible?: boolean
     }
     onSubmit: (values: {
         title: string
@@ -20,6 +21,7 @@ interface TimeRangeFormProps {
         days: number[]
         color: string
         isWork?: boolean
+        isVisible?: boolean
     }) => void
     onCancel: () => void
 }
@@ -42,31 +44,39 @@ export const TimeRangeForm = ({
             ? dayjs().hour(initialValues.end.hour).minute(initialValues.end.minute).toDate()
             : dayjs().hour(17).minute(0).toDate()
     )
-    const [days, setDays] = React.useState<number[]>(initialValues?.days || [1, 2, 3, 4, 5]) // Mon-Fri by default
+    // Convert initial Dayjs values to UI indices for state
+    const [days, setDays] = React.useState<number[]>(
+        initialValues?.days.map(d => (d + 6) % 7) || [0, 1, 2, 3, 4] // Mon-Fri by UI index
+    )
     const [color, setColor] = React.useState(initialValues?.color || '#3b82f6')
     const [isWork, setIsWork] = React.useState(initialValues?.isWork || false)
+    const [isVisible, setIsVisible] = React.useState(initialValues?.isVisible ?? true)
 
     const [showStartPicker, setShowStartPicker] = React.useState(false)
     const [showEndPicker, setShowEndPicker] = React.useState(false)
 
-    const toggleDay = (dayIndex: number) => {
+    const toggleDay = (uiIndex: number) => {
         setDays((prev) =>
-            prev.includes(dayIndex)
-                ? prev.filter((d) => d !== dayIndex)
-                : [...prev, dayIndex].sort()
+            prev.includes(uiIndex)
+                ? prev.filter((d) => d !== uiIndex)
+                : [...prev, uiIndex].sort()
         )
     }
 
     const handleSubmit = () => {
         if (!title.trim()) return
 
+        // Convert UI indices back to Dayjs values for storage
+        const dayjsDays = days.map(idx => (idx + 1) % 7).sort()
+
         onSubmit({
             title,
             start: { hour: dayjs(start).hour(), minute: dayjs(start).minute() },
             end: { hour: dayjs(end).hour(), minute: dayjs(end).minute() },
-            days,
+            days: dayjsDays,
             color,
             isWork,
+            isVisible,
         })
     }
 
@@ -89,6 +99,19 @@ export const TimeRangeForm = ({
                 <Switch
                     value={isWork}
                     onValueChange={setIsWork}
+                    trackColor={{ false: '#334155', true: color }}
+                    thumbColor="#fff"
+                />
+            </View>
+
+            <View className="flex-row items-center justify-between py-2">
+                <View>
+                    <Text className="text-slate-400 text-xs uppercase font-bold">Show on Calendar</Text>
+                    <Text className="text-slate-600 text-[10px]">If off, range stays invisible but affects suggestions.</Text>
+                </View>
+                <Switch
+                    value={isVisible}
+                    onValueChange={setIsVisible}
                     trackColor={{ false: '#334155', true: color }}
                     thumbColor="#fff"
                 />

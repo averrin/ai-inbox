@@ -1,5 +1,13 @@
 import dayjs from 'dayjs';
 
+export interface HourlyWeatherData {
+    time: string; // ISO string
+    temp: number;
+    weatherCode: number;
+    icon: string;
+    label: string;
+}
+
 export interface WeatherData {
     date: string; // YYYY-MM-DD
     minTemp: number;
@@ -7,11 +15,12 @@ export interface WeatherData {
     weatherCode: number;
     icon: string; // Ionicons name
     label: string;
+    hourly: HourlyWeatherData[];
 }
 
 // WMO Weather interpretation codes (WW)
 // https://open-meteo.com/en/docs
-const getWeatherDetails = (code: number): { icon: string; label: string } => {
+export const getWeatherDetails = (code: number): { icon: string; label: string } => {
     switch (code) {
         case 0: return { icon: 'sunny-outline', label: 'Clear' };
         case 1: return { icon: 'partly-sunny-outline', label: 'Mainly Clear' };
@@ -54,7 +63,7 @@ export async function getWeatherForecast(
     const startStr = dayjs(startDate).format('YYYY-MM-DD');
     const endStr = dayjs(endDate).format('YYYY-MM-DD');
 
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&start_date=${startStr}&end_date=${endStr}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min&hourly=temperature_2m,weather_code&timezone=auto&start_date=${startStr}&end_date=${endStr}`;
 
     try {
         const response = await fetch(url);
@@ -74,13 +83,32 @@ export async function getWeatherForecast(
             const code = data.daily.weather_code[index];
             const { icon, label } = getWeatherDetails(code);
 
+            // Group hourly data for this day
+            const hourly: HourlyWeatherData[] = [];
+            if (data.hourly && data.hourly.time) {
+                data.hourly.time.forEach((hTime: string, hIdx: number) => {
+                    if (hTime.startsWith(time)) {
+                        const hCode = data.hourly.weather_code[hIdx];
+                        const { icon: hIcon, label: hLabel } = getWeatherDetails(hCode);
+                        hourly.push({
+                            time: hTime,
+                            temp: data.hourly.temperature_2m[hIdx],
+                            weatherCode: hCode,
+                            icon: hIcon,
+                            label: hLabel
+                        });
+                    }
+                });
+            }
+
             result[time] = {
                 date: time,
                 minTemp: data.daily.temperature_2m_min[index],
                 maxTemp: data.daily.temperature_2m_max[index],
                 weatherCode: code,
                 icon,
-                label
+                label,
+                hourly
             };
         });
 
