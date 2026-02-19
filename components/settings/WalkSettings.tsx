@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, TextInput, Alert, ScrollView } from 'reac
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { useSettingsStore } from '../../store/settings';
+import { useWalkStore } from '../../store/walkStore';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 
@@ -25,6 +26,7 @@ If no suitable time is found, return null.
 
 export function WalkSettings() {
     const { walkPrompt, setWalkPrompt, walkLookaheadDays, setWalkLookaheadDays } = useSettingsStore();
+    const { clearSuggestions } = useWalkStore();
     const [prompt, setPrompt] = useState(walkPrompt || DEFAULT_WALK_PROMPT);
     const [lookahead, setLookahead] = useState(walkLookaheadDays.toString());
     const [isDirty, setIsDirty] = useState(false);
@@ -134,6 +136,28 @@ export function WalkSettings() {
                             <Ionicons name="refresh-outline" size={20} color="#ef4444" />
                         </TouchableOpacity>
                     </View>
+                </View>
+            </Card>
+
+            <Card className="mt-4">
+                <View className="mb-2">
+                    <Text className="text-indigo-200 mb-2 font-semibold">Data Management</Text>
+                    <Text className="text-slate-400 text-sm mb-4">
+                        Clear cached suggestions if they are outdated or incorrect.
+                    </Text>
+
+                    <Button
+                        title="Clear Cached Suggestions"
+                        variant="secondary"
+                        onPress={() => {
+                            clearSuggestions();
+                            Toast.show({
+                                type: 'success',
+                                text1: 'Suggestions Cleared',
+                                text2: 'New suggestions will be generated shortly.'
+                            });
+                        }}
+                    />
                 </View>
             </Card>
         </ScrollView>
