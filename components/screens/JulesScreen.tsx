@@ -1258,7 +1258,7 @@ export default function JulesScreen() {
         return (
             <ScrollView
                 className="flex-1"
-                contentContainerStyle={{ paddingBottom: insets.bottom + 80, paddingTop: 10 }}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 80, paddingTop: 2 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#818cf8" />}
             >
                 {/* Master Branch Section */}

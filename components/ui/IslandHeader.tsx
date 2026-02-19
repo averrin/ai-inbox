@@ -34,6 +34,8 @@ const islandContainerStyle: ViewStyle = {
     borderRadius: 30, // match bottom navbar
     padding: 2,       // reduced padding for slimmer look (was 4)
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,    // Enforce minimum height to match 44px buttons + padding
     ...Shadows.default,
     opacity: 0.95
 };
@@ -48,16 +50,16 @@ export function IslandHeader({
     noMargin = false,
 }: IslandHeaderProps) {
     return (
-        <View className={`${noMargin ? '' : 'mb-4'} pt-2 px-2`}>
+        <View className={`${noMargin ? '' : 'mb-2'} pt-2 px-2`}>
             {/* Top Row: Left and Right Islands */}
-            <View className="flex-row justify-between items-start mb-4">
+            <View className="flex-row justify-between items-center">
 
                 {/* Left Island */}
                 <View style={islandContainerStyle}>
                     {leftContent ? (
                         leftContent
                     ) : (
-                        <View className="flex-col justify-center px-3 py-1.5">
+                        <View className="flex-col justify-center px-4 py-1.5">
                             <Text className="text-white font-bold text-lg leading-tight" numberOfLines={1}>
                                 {title}
                             </Text>
