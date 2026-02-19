@@ -494,13 +494,16 @@ class CalendarModule : Module() {
         if (opts.endDate == null && opts.occurrence == null && !details.containsKey("instanceStartDate")) {
           val eventStartDate = calendarEventBuilder.getAsLong(CalendarContract.Events.DTSTART)
           val eventEndDate = calendarEventBuilder.getAsLong(CalendarContract.Events.DTEND)
-          val duration = (eventEndDate - eventStartDate) / 1000
-          calendarEventBuilder
-            .putNull(CalendarContract.Events.LAST_DATE)
-            .putNull(CalendarContract.Events.DTEND)
-            .put(CalendarContract.Events.DURATION, "PT${duration}S")
-          
-          calendarEventBuilder.remove(CalendarContract.Events.DTEND)
+          if (eventStartDate != null && eventEndDate != null) {
+            val duration = (eventEndDate - eventStartDate) / 1000
+            calendarEventBuilder
+              .putNull(CalendarContract.Events.LAST_DATE)
+              .putNull(CalendarContract.Events.DTEND)
+              .put(CalendarContract.Events.DURATION, "PT${duration}S")
+            calendarEventBuilder.remove(CalendarContract.Events.DTEND)
+          } else {
+            Log.w(TAG, "Skipping DURATION conversion: DTSTART=$eventStartDate, DTEND=$eventEndDate")
+          }
         }
         val rule = createRecurrenceRule(opts)
         calendarEventBuilder.put(CalendarContract.Events.RRULE, rule)
@@ -521,6 +524,7 @@ class CalendarModule : Module() {
       .putEventTimeZone(CalendarContract.Events.EVENT_TIMEZONE, "timeZone")
       .putEventTimeZone(CalendarContract.Events.EVENT_END_TIMEZONE, "endTimeZone")
       .putEventString(CalendarContract.Events.ACCESS_LEVEL, "accessLevel", ::accessConstantMatchingString)
+      .putEventString(CalendarContract.Events.DURATION, "duration")
 
     return if (details.containsKey("id")) {
       val eventID = details.getString("id").toInt()
@@ -545,6 +549,18 @@ class CalendarModule : Module() {
             cv.put(CalendarContract.Events.ORIGINAL_ID, eventID.toString())
             cv.put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, originalInstanceTime)
             cv.put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CONFIRMED)
+
+            // Look up the parent event's CALENDAR_ID — Android requires it for inserts
+            if (!cv.containsKey(CalendarContract.Events.CALENDAR_ID)) {
+                val parentEvent = findEventById(eventID.toString())
+                val calId = parentEvent?.getString("calendarId")
+                if (calId != null) {
+                    cv.put(CalendarContract.Events.CALENDAR_ID, calId.toInt())
+                    Log.d(TAG, "Inherited CALENDAR_ID=$calId from parent event $eventID")
+                } else {
+                    Log.e(TAG, "Could not determine CALENDAR_ID for exception event (parent=$eventID)")
+                }
+            }
 
             // For instances of recurring events, clear recurrence fields
             cv.remove(CalendarContract.Events.RRULE)
@@ -576,14 +592,16 @@ class CalendarModule : Module() {
                 }
             }
 
-            // Now safe to remove DURATION — DTEND is guaranteed set
-            cv.remove(CalendarContract.Events.DURATION)
+            // Debug Log to see what we are about to insert
+            val dtStartLog = if (cv.containsKey(CalendarContract.Events.DTSTART)) cv.getAsLong(CalendarContract.Events.DTSTART) else "null"
+            val dtEndLog = if (cv.containsKey(CalendarContract.Events.DTEND)) cv.getAsLong(CalendarContract.Events.DTEND) else "null"
+            val durLog = if (cv.containsKey(CalendarContract.Events.DURATION)) cv.getAsString(CalendarContract.Events.DURATION) else "missing"
+            
+            Log.w(TAG, "[DEBUG_EXCEPTION] About to insert exception. DTSTART=$dtStartLog, DTEND=$dtEndLog, DURATION=$durLog")
 
-            // Final safety check
-            if (cv.containsKey(CalendarContract.Events.DTEND) && cv.containsKey(CalendarContract.Events.DURATION)) {
-                Log.e(TAG, "STILL CONFLICTING! Removing DURATION as a last resort.")
-                cv.remove(CalendarContract.Events.DURATION)
-            }
+            // Explicitly set DURATION to NULL instead of removing it.
+            // This ensures we override any default value (that the provider might try to inject/inherit) with proper NULL.
+            cv.putNull(CalendarContract.Events.DURATION)
 
             val uri = contentResolver.insert(CalendarContract.Events.CONTENT_URI, cv) ?: throw EventNotSavedException()
             return uri.lastPathSegment!!.toInt()
@@ -592,17 +610,28 @@ class CalendarModule : Module() {
 
       val updateUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventID.toLong())
       val updateValues = calendarEventBuilder.build()
-      // Safety: Android forbids both DTEND and DURATION in a single update
-      if (updateValues.containsKey(CalendarContract.Events.DTEND) && updateValues.containsKey(CalendarContract.Events.DURATION)) {
-        // DTEND takes precedence for non-recurring / exception updates; null out DURATION
-        val dtendVal = updateValues.getAsLong(CalendarContract.Events.DTEND)
-        if (dtendVal != null) {
+
+      // Aggressive Conflict Resolution: Accessing one implies clearing the other.
+      // If we don't do this, the update might merge with the existing row state, causing "Cannot have both" error.
+      val hasDtend = updateValues.containsKey(CalendarContract.Events.DTEND) && updateValues.getAsLong(CalendarContract.Events.DTEND) != null
+      val hasDuration = updateValues.containsKey(CalendarContract.Events.DURATION) && updateValues.getAsString(CalendarContract.Events.DURATION) != null
+
+      if (hasDtend) {
+          // If setting DTEND, must clear DURATION
           updateValues.putNull(CalendarContract.Events.DURATION)
-        } else {
-          updateValues.remove(CalendarContract.Events.DTEND)
-        }
-        Log.w(TAG, "Resolved DTEND/DURATION conflict before update")
+          Log.w(TAG, "Setting DTEND, forcing DURATION=null")
+      } else if (hasDuration) {
+          // If setting DURATION, must clear DTEND
+          updateValues.putNull(CalendarContract.Events.DTEND)
+          Log.w(TAG, "Setting DURATION, forcing DTEND=null")
       }
+
+      // Standard Update Debug Log
+      val finalStart = if (updateValues.containsKey(CalendarContract.Events.DTSTART)) updateValues.getAsLong(CalendarContract.Events.DTSTART) else "unchanged"
+      val finalEnd = if (updateValues.containsKey(CalendarContract.Events.DTEND)) updateValues.get(CalendarContract.Events.DTEND) else "n/a"
+      val finalDur = if (updateValues.containsKey(CalendarContract.Events.DURATION)) updateValues.get(CalendarContract.Events.DURATION) else "n/a"
+      Log.w(TAG, "[DEBUG_UPDATE] Event ID $eventID. DTSTART=$finalStart, DTEND=$finalEnd, DURATION=$finalDur")
+
       contentResolver.update(updateUri, updateValues, null, null)
       removeRemindersForEvent(eventID)
       if (details.containsKey("alarms")) {

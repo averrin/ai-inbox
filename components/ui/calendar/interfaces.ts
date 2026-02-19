@@ -43,6 +43,7 @@ export interface TimeRangeDefinition {
   color: string
   isEnabled: boolean
   isWork?: boolean
+  isVisible?: boolean
 }
 
 export type CalendarTouchableOpacityProps = {

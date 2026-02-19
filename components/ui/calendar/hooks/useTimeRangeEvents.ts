@@ -54,7 +54,8 @@ export function useTimeRangeEvents(dateRange: dayjs.Dayjs[]): ICalendarEventBase
                         color: range.color,
                         type: 'range',
                         isWork: range.isWork,
-                    } as ICalendarEventBase & { color: string; isWork?: boolean })
+                        isVisible: range.isVisible,
+                    } as ICalendarEventBase & { color: string; isWork?: boolean; isVisible?: boolean })
                 }
             })
         })

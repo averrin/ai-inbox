@@ -5,25 +5,28 @@
 5    <uses-sdk android:minSdkVersion="23" />
 6
 7    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-7-->/home/averrin/projects/ai-inbox/local-modules/apk-installer/android/src/main/AndroidManifest.xml:3:5-83
-7-->/home/averrin/projects/ai-inbox/local-modules/apk-installer/android/src/main/AndroidManifest.xml:3:22-80
+7-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\apk-installer\android\src\main\AndroidManifest.xml:3:5-83
+7-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\apk-installer\android\src\main\AndroidManifest.xml:3:22-80
 8    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-8-->/home/averrin/projects/ai-inbox/local-modules/apk-installer/android/src/main/AndroidManifest.xml:4:5-77
-8-->/home/averrin/projects/ai-inbox/local-modules/apk-installer/android/src/main/AndroidManifest.xml:4:22-74
+8-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\apk-installer\android\src\main\AndroidManifest.xml:4:5-77
+8-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\apk-installer\android\src\main\AndroidManifest.xml:4:22-74
 9    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-9-->/home/averrin/projects/ai-inbox/local-modules/apk-installer/android/src/main/AndroidManifest.xml:5:5-87
-9-->/home/averrin/projects/ai-inbox/local-modules/apk-installer/android/src/main/AndroidManifest.xml:5:22-84
-10
-11    <application>
-11-->/home/averrin/projects/ai-inbox/local-modules/apk-installer/android/src/main/AndroidManifest.xml:6:5-8:19
-12        <service
-12-->/home/averrin/projects/ai-inbox/local-modules/apk-installer/android/src/main/AndroidManifest.xml:7:9-122
-13            android:name="com.aiinbox.mobile.apkinstaller.BuildWatcherService"
-13-->/home/averrin/projects/ai-inbox/local-modules/apk-installer/android/src/main/AndroidManifest.xml:7:18-53
-14            android:exported="false"
-14-->/home/averrin/projects/ai-inbox/local-modules/apk-installer/android/src/main/AndroidManifest.xml:7:95-119
-15            android:foregroundServiceType="dataSync" />
-15-->/home/averrin/projects/ai-inbox/local-modules/apk-installer/android/src/main/AndroidManifest.xml:7:54-94
-16    </application>
-17
-18</manifest>
+9-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\apk-installer\android\src\main\AndroidManifest.xml:5:5-87
+9-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\apk-installer\android\src\main\AndroidManifest.xml:5:22-84
+10    <uses-permission android:name="android.permission.WAKE_LOCK" />
+10-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\apk-installer\android\src\main\AndroidManifest.xml:6:5-68
+10-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\apk-installer\android\src\main\AndroidManifest.xml:6:22-65
+11
+12    <application>
+12-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\apk-installer\android\src\main\AndroidManifest.xml:7:5-9:19
+13        <service
+13-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\apk-installer\android\src\main\AndroidManifest.xml:8:9-122
+14            android:name="com.aiinbox.mobile.apkinstaller.BuildWatcherService"
+14-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\apk-installer\android\src\main\AndroidManifest.xml:8:18-53
+15            android:exported="false"
+15-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\apk-installer\android\src\main\AndroidManifest.xml:8:95-119
+16            android:foregroundServiceType="dataSync" />
+16-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\apk-installer\android\src\main\AndroidManifest.xml:8:54-94
+17    </application>
+18
+19</manifest>

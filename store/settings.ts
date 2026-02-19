@@ -83,12 +83,8 @@ interface SettingsState {
     setGoogleAndroidClientId: (id: string) => void;
     setGoogleIosClientId: (id: string) => void;
     setGoogleWebClientId: (id: string) => void;
-    remindersScanFolder: string | null;
-    setRemindersScanFolder: (folder: string) => void;
     linksRoot: string | null;
     setLinksRoot: (folder: string) => void;
-    defaultReminderFolder: string | null;
-    setDefaultReminderFolder: (folder: string) => void;
     backgroundSyncInterval: number;
     setBackgroundSyncInterval: (interval: number) => void;
     reminderBypassDnd: boolean;
@@ -176,6 +172,12 @@ interface SettingsState {
     setSavedNavConfig: (config: NavItemConfig[] | null) => void;
     visualizationPrompt: string | null;
     setVisualizationPrompt: (prompt: string | null) => void;
+    walkPrompt: string | null;
+    setWalkPrompt: (prompt: string | null) => void;
+    walkLookaheadDays: number;
+    setWalkLookaheadDays: (days: number) => void;
+    myEmails: string[];
+    setMyEmails: (emails: string[]) => void;
 }
 
 
@@ -253,12 +255,8 @@ export const useSettingsStore = create<SettingsState>()(
             setGoogleAndroidClientId: (id) => set({ googleAndroidClientId: id }),
             setGoogleIosClientId: (id) => set({ googleIosClientId: id }),
             setGoogleWebClientId: (id) => set({ googleWebClientId: id }),
-            remindersScanFolder: null,
-            setRemindersScanFolder: (folder) => set({ remindersScanFolder: folder }),
             linksRoot: null,
             setLinksRoot: (folder) => set({ linksRoot: folder }),
-            defaultReminderFolder: null,
-            setDefaultReminderFolder: (folder) => set({ defaultReminderFolder: folder }),
             backgroundSyncInterval: 15,
             setBackgroundSyncInterval: (interval) => set({ backgroundSyncInterval: interval }),
             reminderBypassDnd: true,
@@ -365,6 +363,12 @@ export const useSettingsStore = create<SettingsState>()(
             setSavedNavConfig: (config) => set({ savedNavConfig: config }),
             visualizationPrompt: null,
             setVisualizationPrompt: (prompt) => set({ visualizationPrompt: prompt }),
+            walkPrompt: null,
+            setWalkPrompt: (prompt) => set({ walkPrompt: prompt }),
+            walkLookaheadDays: 3,
+            setWalkLookaheadDays: (days) => set({ walkLookaheadDays: days }),
+            myEmails: [],
+            setMyEmails: (emails) => set({ myEmails: emails }),
         }),
 
         {

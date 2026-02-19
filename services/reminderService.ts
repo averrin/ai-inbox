@@ -21,7 +21,7 @@ import {
 } from 'firebase/firestore';
 import { firebaseDb, firebaseAuth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { scanForReminders as scanLegacyReminders } from './legacyReminderService';
+
 import Toast from 'react-native-toast-message';
 
 export function getHash(str: string): number {
@@ -281,54 +281,6 @@ export async function createStandaloneReminder(
     }
 }
 
-// Migration Function
-export async function migrateReminders(): Promise<boolean> {
-    const user = firebaseAuth.currentUser;
-    if (!user) {
-        Toast.show({ type: 'error', text1: 'Sign in required', text2: 'Please sign in to migrate reminders.' });
-        return false;
-    }
-
-    try {
-        const legacyReminders = await scanLegacyReminders();
-
-        if (legacyReminders.length === 0) {
-            Toast.show({ type: 'info', text1: 'No reminders found', text2: 'No local reminders to migrate.' });
-            return true;
-        }
-
-        console.log(`[Migration] Found ${legacyReminders.length} legacy reminders.`);
-
-        const remindersRef = collection(firebaseDb, 'users', user.uid, 'reminders');
-        let count = 0;
-
-        for (const rem of legacyReminders) {
-            // Avoid duplicates? We can check if similar title/time exists but for now simple migration is better.
-            // Or better, check if we already have it in firestore?
-            // Let's just add them.
-
-            await addDoc(remindersRef, {
-                title: rem.title || rem.fileName.replace('.md', ''),
-                reminderTime: rem.reminderTime,
-                recurrenceRule: rem.recurrenceRule || null,
-                alarm: !!rem.alarm,
-                persistent: rem.persistent || null,
-                content: rem.content,
-                createdAt: Timestamp.now(),
-                migratedFrom: rem.fileUri
-            });
-            count++;
-        }
-
-        Toast.show({ type: 'success', text1: 'Migration Complete', text2: `Migrated ${count} reminders to cloud.` });
-        await syncAllReminders();
-        return true;
-    } catch (e) {
-        console.error('[Migration] Failed:', e);
-        Toast.show({ type: 'error', text1: 'Migration Failed', text2: 'Check logs for details.' });
-        return false;
-    }
-}
 
 // Helper to sync mood daily reminders
 export async function syncMoodReminders() {
@@ -554,12 +506,12 @@ async function manageNotifications(activeReminders: Reminder[]) {
                 if (!reminderData) {
                     // Fallback attempt: Fetch by ID
                     try {
-                         const user = firebaseAuth.currentUser;
-                         if (user) {
+                        const user = firebaseAuth.currentUser;
+                        if (user) {
                             const docRef = doc(firebaseDb, 'users', user.uid, 'reminders', fileUri);
                             // We don't have async fetch here easily without complicating logic.
                             // But usually activeReminders has latest.
-                         }
+                        }
                     } catch (e) {
                         // ignore
                     }

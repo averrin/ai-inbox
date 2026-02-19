@@ -226,6 +226,9 @@ export class SyncService {
                 const allKeys = new Set([...Object.keys(remoteState), ...Object.keys(localData)]);
 
                 for (const key of allKeys) {
+                    // Start of fix: If remote doesn't have the key, ignore it (local is newer/more complete)
+                    if (remoteState[key] === undefined) continue;
+
                     const rv = JSON.stringify(remoteState[key]);
                     const lv = JSON.stringify(localData[key]);
                     if (rv !== lv) {

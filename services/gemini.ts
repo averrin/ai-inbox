@@ -109,33 +109,52 @@ export const DEFAULT_PROMPT = `
 {{content}}
 `;
 
+
+
+export const DEFAULT_WALK_PROMPT = `
+You are an expert scheduler and wellness coach.
+Your goal is to find the BEST 1 - HOURLY slot for a "Walk" event between 10:00 and 19:00.
+
+    Consider:
+1. ** Weather **: Avoid rain / extreme heat.Prefer sunny / mild times.
+2. ** Schedule **: Avoid conflicts.Look for gaps.If busy, find a "Movable" or "Skippable" block to replace / move.
+3. ** Productivity **: A walk is good for a break.Mid - day or late afternoon is often best.
+
+Return valid JSON with:
+{
+    "start": "ISO_DATE_STRING",
+        "reason": "Short explanation of why this time was chosen (e.g., 'Sunny break between meetings')."
+}
+If no suitable time is found, return null.
+`;
+
 export const RESCHEDULE_PROMPT = `
-    You are an expert personal assistant. Your goal is to reschedule a reminder to an optimal time slot.
-    
-    Target: {{type}}
-    - "later": Find a slot later today within work hours. If no free slot exists today, move to tomorrow morning.
+    You are an expert personal assistant.Your goal is to reschedule a reminder to an optimal time slot.
+
+    Target: { { type } }
+- "later": Find a slot later today within work hours.If no free slot exists today, move to tomorrow morning.
     - "tomorrow": Find a slot tomorrow around the same time as originally scheduled.
-    
+
     Context:
-    - Current Time: {{currentTime}}
-    - Work Hours: {{workRanges}}
-    - Upcoming Schedule: {{upcomingEvents}}
-    
-    Rules:
-    1. **Avoid Overlaps**: Never overlap with events that have a difficulty > 0.
-    2. **Work Hours**: For "later", prioritize work hours.
-    3. **Contextual Suitability**: 
-        - Business calls/appointments should be within 09:00 - 17:00.
+- Current Time: { { currentTime } }
+- Work Hours: { { workRanges } }
+- Upcoming Schedule: { { upcomingEvents } }
+
+Rules:
+1. ** Avoid Overlaps **: Never overlap with events that have a difficulty > 0.
+2. ** Work Hours **: For "later", prioritize work hours.
+    3. ** Contextual Suitability **:
+- Business calls / appointments should be within 09:00 - 17:00.
         - Chores can be early morning or evening.
         - Creative work is best in the morning or deep night.
-    4. **Safety**: Do not suggest a time in the past.
-    
+    4. ** Safety **: Do not suggest a time in the past.
+
     Output:
-    Return ONLY a single RFC3339 timestamp (e.g., "2023-10-27T14:30:00"). No other text.
+    Return ONLY a single RFC3339 timestamp(e.g., "2023-10-27T14:30:00").No other text.
     
     Reminder to Reschedule:
-    Title: {{title}}
-    Content: {{content}}
+Title: { { title } }
+Content: { { content } }
 `;
 
 export async function processContent(apiKey: string, content: string, promptOverride?: string | null, model?: string, vaultStructure?: string, contextRootFolder?: string): Promise<ProcessedNote[] | null> {
@@ -384,6 +403,56 @@ export async function rescheduleReminderWithAI(
         return match ? match[0] : null;
     } catch (e) {
         console.error("[Gemini] Rescheduling AI failed:", e);
+        return null;
+    }
+}
+
+export interface WalkSuggestionContext {
+    schedule: any[]; // Event[]
+    weather: any[]; // HourlyWeatherData[]
+    preferredTimeRange: { start: number, end: number }; // 10-19
+    date: string; // YYYY-MM-DD
+}
+
+export async function suggestWalkTime(
+    apiKey: string,
+    context: WalkSuggestionContext,
+    promptTemplate: string = DEFAULT_WALK_PROMPT,
+    model?: string
+): Promise<{ start: string; reason: string } | null> {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const modelName = model || "gemini-3-flash-preview";
+    const genModel = genAI.getGenerativeModel({ model: modelName, generationConfig: { responseMimeType: "application/json" } });
+
+    // Ensure prompt includes context placeholders if using custom prompt, 
+    // but for now we append context to ensure it's always there.
+    // The DEFAULT_WALK_PROMPT defined above is just the instruction.
+
+    const finalPrompt = `
+${promptTemplate}
+
+Context:
+Date: ${context.date}
+Preferred Range: ${context.preferredTimeRange.start}:00 - ${context.preferredTimeRange.end}:00
+
+Schedule:
+${JSON.stringify(context.schedule)}
+
+Weather:
+${JSON.stringify(context.weather)}
+`;
+
+    try {
+        const result = await genModel.generateContent(finalPrompt);
+        const text = result.response.text();
+        const json = JSON5.parse(text);
+
+        if (json && json.start) {
+            return { start: json.start, reason: json.reason };
+        }
+        return null;
+    } catch (e) {
+        console.error("[Gemini] Walk suggestion failed:", e);
         return null;
     }
 }

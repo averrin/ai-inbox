@@ -199,7 +199,7 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup, 
   return (
     <View style={{
       position: 'absolute',
-      bottom: insets.bottom + 10,
+      bottom: insets.bottom + 4,
       left: 0,
       right: 0,
       flexDirection: 'row',

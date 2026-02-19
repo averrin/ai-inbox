@@ -37,7 +37,11 @@ export const TimeRangeItem = ({
                 {/* Days indicators */}
                 <View className="flex-row gap-1">
                     {DAYS.map((day, index) => {
-                        const isActive = range.days.includes(index)
+                        // Map UI index to Dayjs index to check against store
+                        // UI 0 (M) -> Dayjs 1
+                        // UI 6 (S) -> Dayjs 0
+                        const dayjsValue = (index + 1) % 7
+                        const isActive = range.days.includes(dayjsValue)
                         return (
                             <View
                                 key={index}
