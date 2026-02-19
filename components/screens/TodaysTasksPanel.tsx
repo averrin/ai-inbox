@@ -456,13 +456,11 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                                 } : {};
 
                                 return (
-                                    <View key={`event-wrap-${index}`} className='rounded-lg '
-                                        style={highlightStyle}
-                                    >
+                                    <View key={`event-wrap-${index}`}>
                                         <TouchableOpacity
                                             key={`event-${index}`}
-                                            className={`mb-2 flex-row items-center p-3 bg-slate-800/30 rounded-lg border border-slate-800/50 ${isCompleted ? 'opacity-40' : ''}`}
-                                            // style={highlightStyle}
+                                            className={`mb-2 flex-row items-center p-3 bg-slate-800/30 rounded-xl border border-slate-800/50 ${isCompleted ? 'opacity-40' : ''}`}
+                                            style={highlightStyle}
                                             onPress={() => handleToggleEvent(item.data)}
                                         >
                                             <View className={`w-5 h-5 rounded border items-center justify-center mr-3 ${isCompleted ? 'bg-indigo-600 border-indigo-600' : 'border-slate-600'}`}>
