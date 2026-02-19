@@ -2,7 +2,7 @@ import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, Aler
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layout } from '../ui/Layout';
-import { ScreenHeader } from '../ui/ScreenHeader';
+import { IslandHeader } from '../ui/IslandHeader';
 import { Card } from '../ui/Card';
 import { useSettingsStore } from '../../store/settings';
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -1240,25 +1240,6 @@ export default function JulesScreen() {
                 contentContainerStyle={{ paddingBottom: insets.bottom + 80, paddingTop: 10 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#818cf8" />}
             >
-                {/* New Session Button - Placed at Top as requested */}
-                {hasJulesConfig && (
-                    <TouchableOpacity
-                        onPress={() => Linking.openURL('https://jules.google.com/session')}
-                        className="bg-indigo-600/20 border border-indigo-500/30 p-4 rounded-2xl mb-2 flex-row items-center justify-between mx-4"
-                    >
-                        <View className="flex-row items-center">
-                            <View className="bg-indigo-600 p-2 rounded-xl mr-3">
-                                <Ionicons name="add-circle" size={20} color="white" />
-                            </View>
-                            <View>
-                                <Text className="text-white font-bold">New Jules Session</Text>
-                                <Text className="text-indigo-300 text-xs">Create a new session in web</Text>
-                            </View>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color="#818cf8" />
-                    </TouchableOpacity>
-                )}
-
                 {/* Master Branch Section */}
                 {hasGithubConfig && (
                     <MasterBranchSection
@@ -1307,14 +1288,32 @@ export default function JulesScreen() {
 
     return (
         <Layout>
-            <ScreenHeader
+            <IslandHeader
                 title="Jules"
                 subtitle={julesOwner && julesRepo ? `${julesOwner}/${julesRepo}` : undefined}
                 rightActions={[
                     ...(julesApiKey ? [{ icon: 'git-network-outline', onPress: () => setShowRepoSelector(true) }] : []),
                     { icon: 'refresh', onPress: onRefresh },
                 ]}
-            />
+            >
+                {!!julesGoogleApiKey && (
+                    <TouchableOpacity
+                        onPress={() => Linking.openURL('https://jules.google.com/session')}
+                        className="bg-indigo-600/20 border border-indigo-500/30 p-4 rounded-2xl mb-2 flex-row items-center justify-between"
+                    >
+                        <View className="flex-row items-center">
+                            <View className="bg-indigo-600 p-2 rounded-xl mr-3">
+                                <Ionicons name="add-circle" size={20} color="white" />
+                            </View>
+                            <View>
+                                <Text className="text-white font-bold">New Jules Session</Text>
+                                <Text className="text-indigo-300 text-xs">Create a new session in web</Text>
+                            </View>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#818cf8" />
+                    </TouchableOpacity>
+                )}
+            </IslandHeader>
             <RepoSelector
                 visible={showRepoSelector}
                 onClose={() => setShowRepoSelector(false)}
