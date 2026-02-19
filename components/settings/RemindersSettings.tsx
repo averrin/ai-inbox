@@ -5,7 +5,7 @@ import { Button } from '../ui/Button';
 import { FolderInput } from '../ui/FolderInput';
 import { useState, useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
-import { scanForReminders, Reminder, updateReminder, registerReminderTask, syncAllReminders } from '../../services/reminderService';
+import { scanForReminders, Reminder, updateReminder, registerReminderTask, syncAllReminders, migrateReminders } from '../../services/reminderService';
 import { Layout } from '../ui/Layout';
 import { useSettingsStore } from '../../store/settings';
 import Toast from 'react-native-toast-message';
@@ -196,6 +196,25 @@ Ensure the app is in background to test the notification, or foreground to test 
                             <Text className="text-white text-xs font-bold">Enable</Text>
                         </TouchableOpacity>
                     )}
+                </View>
+            </View>
+
+            <View className="mb-6">
+                <Text className="text-indigo-200 mb-2 font-semibold">Migration</Text>
+                <View className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                    <Text className="text-slate-400 text-sm mb-3">
+                        Migrate your local file-based reminders to the cloud (Firebase). This allows syncing across devices and ensures your data is backed up.
+                    </Text>
+                    <Button
+                        title={loading ? "Migrating..." : "Migrate to Cloud"}
+                        onPress={async () => {
+                            setLoading(true);
+                            await migrateReminders();
+                            setLoading(false);
+                            loadReminders(); // Refresh list
+                        }}
+                        disabled={loading}
+                    />
                 </View>
             </View>
 
