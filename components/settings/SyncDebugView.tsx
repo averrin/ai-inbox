@@ -1,4 +1,4 @@
-import { View, Text, Alert, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, Alert, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal } from 'react-native';
 import { useState, useEffect, useMemo } from 'react';
 import { SyncService } from '../../services/syncService';
 import { Card } from '../ui/Card';
@@ -13,6 +13,11 @@ export const SyncDebugView = () => {
     const [status, setStatus] = useState<{ isSyncing: boolean, userId?: string | null }>({ isSyncing: false });
     const [isLoading, setIsLoading] = useState(false);
     const [viewMode, setViewMode] = useState<'raw' | 'tree'>('tree');
+
+    // Edit Modal State
+    const [editModalVisible, setEditModalVisible] = useState(false);
+    const [editPath, setEditPath] = useState<string[]>([]);
+    const [editValue, setEditValue] = useState('');
 
     useEffect(() => {
         const load = () => {
@@ -35,12 +40,14 @@ export const SyncDebugView = () => {
         }
     };
 
-    const handleSave = async () => {
+    const handleSave = async (newData?: string) => {
         if (!selectedTarget) return;
         setIsLoading(true);
         try {
-            const parsed = JSON.parse(remoteData);
+            const dataToSave = newData || remoteData;
+            const parsed = JSON.parse(dataToSave);
             await SyncService.getInstance().setRemoteData(selectedTarget, parsed);
+            if (newData) setRemoteData(newData); // Update local state if successful
             Alert.alert("Success", "Remote data updated.");
         } catch (e: any) {
             Alert.alert("Error saving remote data", e.message);
@@ -62,6 +69,134 @@ export const SyncDebugView = () => {
             return { parsedData: null, isJsonValid: false };
         }
     }, [remoteData]);
+
+    // Recursive function to update a nested object
+    const updateNestedData = (obj: any, path: string[], newValue: any, operation: 'update' | 'delete'): any => {
+        if (path.length === 0) return newValue;
+
+        const [head, ...tail] = path;
+
+        // Handle array indices
+        const isArray = Array.isArray(obj);
+        const key = isArray ? parseInt(head) : head;
+
+        if (tail.length === 0) {
+            if (operation === 'delete') {
+                if (isArray) {
+                    const newArr = [...obj];
+                    newArr.splice(key as number, 1);
+                    return newArr;
+                } else {
+                    const newObj = { ...obj };
+                    delete newObj[key];
+                    return newObj;
+                }
+            } else {
+                if (isArray) {
+                    const newArr = [...obj];
+                    newArr[key as number] = newValue;
+                    return newArr;
+                } else {
+                    return { ...obj, [key]: newValue };
+                }
+            }
+        }
+
+        // Recursion
+        const nextObj = obj[key];
+
+        // Check if nextObj is a stringified JSON that we need to parse, update, and re-stringify
+        if (typeof nextObj === 'string') {
+             try {
+                 const parsed = JSON.parse(nextObj);
+                 // If the path continues into this stringified object
+                 const updatedInner = updateNestedData(parsed, tail, newValue, operation);
+                 const reStringified = JSON.stringify(updatedInner);
+
+                 if (isArray) {
+                    const newArr = [...obj];
+                    newArr[key as number] = reStringified;
+                    return newArr;
+                 } else {
+                    return { ...obj, [key]: reStringified };
+                 }
+             } catch (e) {
+                 // Not a JSON string, just normal traversal
+             }
+        }
+
+        const updatedChild = updateNestedData(nextObj, tail, newValue, operation);
+
+        if (isArray) {
+            const newArr = [...obj];
+            newArr[key as number] = updatedChild;
+            return newArr;
+        } else {
+            return { ...obj, [key]: updatedChild };
+        }
+    };
+
+    const onTreeDelete = (path: string[]) => {
+        Alert.alert(
+            "Confirm Delete",
+            `Are you sure you want to delete the key '${path.join('.')}'?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => {
+                        try {
+                            const newData = updateNestedData(parsedData, path, null, 'delete');
+                            const newString = JSON.stringify(newData, null, 2);
+                            setRemoteData(newString);
+                            // Optional: Auto-save? or just let user click save?
+                            // Let's auto-save for better UX in tree mode, or prompt?
+                            // For safety, let's just update local state and let user click "Save to Remote"
+                        } catch (e) {
+                            Alert.alert("Error deleting", "Could not delete item.");
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const onTreeEdit = (path: string[], value: any) => {
+        setEditPath(path);
+        if (typeof value === 'object' && value !== null) {
+            setEditValue(JSON.stringify(value, null, 2));
+        } else {
+            setEditValue(String(value));
+        }
+        setEditModalVisible(true);
+    };
+
+    const saveEdit = () => {
+        try {
+            let valToSave: any = editValue;
+
+            // Try to parse if it looks like JSON (object/array) or numbers/booleans
+            if (editValue === 'true') valToSave = true;
+            else if (editValue === 'false') valToSave = false;
+            else if (editValue === 'null') valToSave = null;
+            else if (!isNaN(Number(editValue)) && editValue.trim() !== '') valToSave = Number(editValue);
+            else {
+                 try {
+                     const parsed = JSON.parse(editValue);
+                     if (typeof parsed === 'object') valToSave = parsed;
+                 } catch (e) {
+                     // Keep as string
+                 }
+            }
+
+            const newData = updateNestedData(parsedData, editPath, valToSave, 'update');
+            setRemoteData(JSON.stringify(newData, null, 2));
+            setEditModalVisible(false);
+        } catch (e) {
+            Alert.alert("Update Error", "Failed to update tree data.");
+        }
+    };
 
     return (
         <View className="flex-1 px-4">
@@ -123,7 +258,11 @@ export const SyncDebugView = () => {
                     <ScrollView className="flex-1 mb-4">
                         {viewMode === 'tree' ? (
                             isJsonValid ? (
-                                <JsonTreeView data={parsedData} />
+                                <JsonTreeView
+                                    data={parsedData}
+                                    onEdit={onTreeEdit}
+                                    onDelete={onTreeDelete}
+                                />
                             ) : (
                                 <View className="p-4 bg-slate-900 rounded-lg border border-slate-700 items-center">
                                     <Text className="text-red-400">Invalid JSON data. Switch to Raw mode to fix.</Text>
@@ -153,17 +292,61 @@ export const SyncDebugView = () => {
                         )}
                     </ScrollView>
 
-                    {viewMode === 'raw' && (
-                        <View className="mb-8">
-                            <Button
-                                title={isLoading ? "Saving..." : "Save to Remote"}
-                                onPress={handleSave}
-                                disabled={isLoading}
-                            />
-                        </View>
-                    )}
+                    <View className="mb-8">
+                        <Button
+                            title={isLoading ? "Saving..." : "Save to Remote"}
+                            onPress={() => handleSave()}
+                            disabled={isLoading}
+                        />
+                    </View>
                 </View>
             )}
+
+            <Modal
+                transparent={true}
+                visible={editModalVisible}
+                animationType="fade"
+                onRequestClose={() => setEditModalVisible(false)}
+            >
+                <View className="flex-1 bg-black/80 justify-center items-center px-4">
+                    <View className="bg-slate-800 w-full max-w-md p-4 rounded-xl border border-slate-700">
+                        <Text className="text-white font-bold text-lg mb-4">Edit Value</Text>
+                        <Text className="text-slate-400 text-xs mb-2 font-mono">{editPath.join(' > ')}</Text>
+
+                        <View className="bg-slate-900 rounded-lg p-2 mb-4 border border-slate-700 max-h-60">
+                            <TextInput
+                                multiline
+                                value={editValue}
+                                onChangeText={setEditValue}
+                                style={{
+                                    fontFamily: 'monospace',
+                                    fontSize: 14,
+                                    color: '#fff',
+                                    textAlignVertical: 'top',
+                                    minHeight: 40
+                                }}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                        </View>
+
+                        <View className="flex-row justify-end space-x-3">
+                            <TouchableOpacity
+                                onPress={() => setEditModalVisible(false)}
+                                className="px-4 py-2 rounded-lg bg-slate-700"
+                            >
+                                <Text className="text-white font-semibold">Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={saveEdit}
+                                className="px-4 py-2 rounded-lg bg-indigo-600"
+                            >
+                                <Text className="text-white font-semibold">Update</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
