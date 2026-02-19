@@ -1,38 +1,44 @@
 import {
-    getAuth,
     onAuthStateChanged,
     GoogleAuthProvider,
     signInWithCredential,
     signOut
 } from 'firebase/auth';
 import {
-    getFirestore,
-    collection,
     doc,
     onSnapshot,
     setDoc,
-    getDoc,
     serverTimestamp,
-    getDocFromCache, // JS SDK uses getDocFromCache / getDocFromServer separately
     getDocFromServer
 } from 'firebase/firestore';
 import { firebaseAuth, firebaseDb } from './firebase';
 import { useSettingsStore } from '../store/settings';
+import { useEventTypesStore } from '../store/eventTypes';
+import { StoreApi } from 'zustand';
+
+interface SyncTarget {
+    name: string;
+    store: StoreApi<any>;
+    docPath: (uid: string) => string;
+    selector: (state: any) => any;
+    transformOut: (state: any) => any;
+    transformIn: (data: any) => any;
+}
 
 export class SyncService {
     private static instance: SyncService;
-    private unsubscribeFirestore: (() => void) | null = null;
-    private unsubscribeAuth: (() => void) | null = null;
-    private unsubscribeStore: (() => void) | null = null;
+    private targets: SyncTarget[] = [];
+    private unsubscribes: Record<string, (() => void)> = {};
     private isSyncing = false;
-    private isApplyingRemote = false;
-    private debounceTimer: NodeJS.Timeout | null = null;
+    private isApplyingRemote: Record<string, boolean> = {};
+    private debounceTimers: Record<string, NodeJS.Timeout> = {};
 
     private constructor() {
-        this.unsubscribeAuth = onAuthStateChanged(firebaseAuth, async (user) => {
+        this.setupTargets();
+        onAuthStateChanged(firebaseAuth, async (user) => {
             if (user) {
                 console.log('[SyncService] User logged in:', user.uid);
-                await this.pullFromCloud();
+                await this.pullAllFromCloud();
                 this.startSync();
             } else {
                 console.log('[SyncService] User logged out');
@@ -57,6 +63,68 @@ export class SyncService {
         return signOut(firebaseAuth);
     }
 
+    private setupTargets() {
+        this.targets = [
+            {
+                name: 'settings',
+                store: useSettingsStore,
+                docPath: (uid) => `users/${uid}/settings/current`,
+                selector: (state) => {
+                    const clean: any = {};
+                    Object.keys(state).forEach(key => {
+                        const val = state[key];
+                        if (typeof val !== 'function' && key !== 'cachedReminders') clean[key] = val;
+                    });
+                    return clean;
+                },
+                transformOut: (state) => ({
+                    updatedAt: serverTimestamp(),
+                    data: JSON.stringify({ state, version: 5 }),
+                    schemaVersion: 5
+                }),
+                transformIn: (data) => {
+                    if (!data || !data.data) return null;
+                    try {
+                        const parsed = JSON.parse(data.data);
+                        return parsed?.state || null;
+                    } catch (e) {
+                        console.error('[SyncService:settings] Parse error', e);
+                        return null;
+                    }
+                }
+            },
+            {
+                name: 'eventTypes',
+                store: useEventTypesStore,
+                docPath: (uid) => `users/${uid}/config/eventTypes`,
+                selector: (state) => {
+                    const clean: any = {};
+                    Object.keys(state).forEach(key => {
+                        const val = state[key];
+                        if (typeof val !== 'function' && key !== 'isLoaded') clean[key] = val;
+                    });
+                    return clean;
+                },
+                transformOut: (state) => {
+                    const { eventTypes, ...rest } = state;
+                    return {
+                        ...rest,
+                        types: eventTypes,
+                        updatedAt: serverTimestamp()
+                    };
+                },
+                transformIn: (data) => {
+                    if (!data) return null;
+                    const { types, updatedAt, ...rest } = data;
+                    return {
+                        ...rest,
+                        eventTypes: types || [] // Default to empty array if missing
+                    };
+                }
+            }
+        ];
+    }
+
     private startSync() {
         if (this.isSyncing) return;
         this.isSyncing = true;
@@ -64,124 +132,91 @@ export class SyncService {
         const user = firebaseAuth.currentUser;
         if (!user) return;
 
-        // 1. Subscribe to local changes -> Push to Cloud
-        this.unsubscribeStore = useSettingsStore.subscribe((state, prevState) => {
-            if (this.isApplyingRemote) return;
+        this.targets.forEach(target => {
+            // 1. Subscribe to local changes -> Push to Cloud
+            const unsubStore = target.store.subscribe((state, prevState) => {
+                if (this.isApplyingRemote[target.name]) return;
 
-            // Compare only serializable data keys
-            const cleanState: any = {};
-            const cleanPrev: any = {};
+                const cleanState = target.selector(state);
+                const cleanPrev = target.selector(prevState);
 
-            Object.keys(state).forEach(key => {
-                const val = (state as any)[key];
-                if (typeof val !== 'function' && key !== 'cachedReminders') cleanState[key] = val;
-            });
-            Object.keys(prevState).forEach(key => {
-                const val = (prevState as any)[key];
-                if (typeof val !== 'function' && key !== 'cachedReminders') cleanPrev[key] = val;
-            });
-
-            if (JSON.stringify(cleanState) !== JSON.stringify(cleanPrev)) {
-                // Log what changed locally
-                Object.keys(cleanState).forEach(key => {
-                    const nextV = JSON.stringify(cleanState[key]);
-                    const prevV = JSON.stringify(cleanPrev[key]);
-                    if (nextV !== prevV) {
-                        console.log(`[SyncService] Local change in "${key}": ${prevV} -> ${nextV}`);
-                    }
-                });
-                this.debouncedPush(state);
-            }
-        });
-
-        // 2. Subscribe to remote changes -> Pull to Local
-        const docRef = doc(firebaseDb, 'users', user.uid, 'settings', 'current');
-        console.log('[SyncService] Listening to:', docRef.path);
-
-        this.unsubscribeFirestore = onSnapshot(docRef, { includeMetadataChanges: true }, (snapshot) => {
-
-            // Ignore updates that were triggered by local writes
-            if (snapshot.metadata.hasPendingWrites) {
-                return;
-            }
-
-            if (snapshot.exists()) {
-                const data = snapshot.data();
-                if (data) {
-                    this.handleRemoteUpdate(data);
+                if (JSON.stringify(cleanState) !== JSON.stringify(cleanPrev)) {
+                    this.debouncedPush(target, cleanState);
                 }
-            }
-        }, (error) => {
-            console.warn('[SyncService] Firestore listen error:', error);
+            });
+
+            // 2. Subscribe to remote changes -> Pull to Local
+            const docRef = doc(firebaseDb, target.docPath(user.uid));
+            console.log(`[SyncService] Listening to ${target.name} at:`, docRef.path);
+
+            const unsubFirestore = onSnapshot(docRef, { includeMetadataChanges: true }, (snapshot) => {
+                if (snapshot.metadata.hasPendingWrites) return;
+
+                if (snapshot.exists()) {
+                    const data = snapshot.data();
+                    if (data) {
+                        this.handleRemoteUpdate(target, data);
+                    }
+                }
+            }, (error) => {
+                console.warn(`[SyncService:${target.name}] Firestore listen error:`, error);
+            });
+
+            this.unsubscribes[target.name] = () => {
+                unsubStore();
+                unsubFirestore();
+            };
         });
     }
 
     private stopSync() {
         this.isSyncing = false;
-        if (this.unsubscribeFirestore) {
-            this.unsubscribeFirestore();
-            this.unsubscribeFirestore = null;
-        }
-        if (this.unsubscribeStore) {
-            this.unsubscribeStore();
-            this.unsubscribeStore = null;
-        }
+        Object.values(this.unsubscribes).forEach(unsub => unsub());
+        this.unsubscribes = {};
     }
 
-    private debouncedPush(state: any) {
-        if (this.debounceTimer) clearTimeout(this.debounceTimer);
-        this.debounceTimer = setTimeout(() => {
-            this.pushToCloud(state);
+    private debouncedPush(target: SyncTarget, cleanState: any) {
+        if (this.debounceTimers[target.name]) clearTimeout(this.debounceTimers[target.name]);
+        this.debounceTimers[target.name] = setTimeout(() => {
+            this.pushToCloud(target, cleanState);
         }, 2000);
     }
 
-    private async pushToCloud(state: any) {
+    private async pushToCloud(target: SyncTarget, cleanState: any) {
         const user = firebaseAuth.currentUser;
         if (!user) return;
 
         try {
-            // Strip functions and cached data
-            const cleanState: any = {};
-            Object.keys(state).forEach(key => {
-                if (typeof state[key] !== 'function' && key !== 'cachedReminders') {
-                    cleanState[key] = state[key];
-                }
-            });
+            const docRef = doc(firebaseDb, target.docPath(user.uid));
+            const payload = target.transformOut(cleanState);
 
-            const docRef = doc(firebaseDb, 'users', user.uid, 'settings', 'current');
-
-            // Wrap in race to detect hanging setDoc
             const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('Firestore write TIMEOUT (10s)')), 10000)
             );
 
             await Promise.race([
-                setDoc(docRef, {
-                    updatedAt: serverTimestamp(),
-                    data: JSON.stringify({ state: cleanState, version: 5 }),
-                    schemaVersion: 5
-                }),
+                setDoc(docRef, payload),
                 timeoutPromise
             ]);
 
-            console.log('[SyncService] Pushed to cloud SUCCESS (settings updated)');
+            console.log(`[SyncService:${target.name}] Pushed to cloud SUCCESS`);
         } catch (e: any) {
-            console.error('[SyncService] Push FAILED:', e.message || e);
-            if (e.code) console.error('[SyncService] Error Code:', e.code);
-            if (e.stack) console.error('[SyncService] Stack:', e.stack);
+            console.error(`[SyncService:${target.name}] Push FAILED:`, e.message || e);
         }
     }
 
-    // Explicit pull (e.g. on login)
-    public async pullFromCloud() {
+    private async pullAllFromCloud() {
         const user = firebaseAuth.currentUser;
         if (!user) return;
 
-        try {
-            const docRef = doc(firebaseDb, 'users', user.uid, 'settings', 'current');
-            console.log('[SyncService] Force-checking server for remote state...');
+        await Promise.all(this.targets.map(target => this.pullTargetFromCloud(target, user)));
+    }
 
-            // Explicitly fetch from server to verify actual connection/project
+    private async pullTargetFromCloud(target: SyncTarget, user: any) {
+        try {
+            const docRef = doc(firebaseDb, target.docPath(user.uid));
+            console.log(`[SyncService:${target.name}] Force-checking server...`);
+
             const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('Firestore pull TIMEOUT (10s)')), 10000)
             );
@@ -192,67 +227,58 @@ export class SyncService {
             ]) as any;
 
             if (docSnap.exists()) {
-                this.handleRemoteUpdate(docSnap.data());
+                this.handleRemoteUpdate(target, docSnap.data());
             } else {
+                console.log(`[SyncService:${target.name}] No remote data found.`);
+                const localState = target.selector(target.store.getState());
+                if (Object.keys(localState).length > 0) {
+                     console.log(`[SyncService:${target.name}] Pushing local state to empty remote (Migration).`);
+                     this.pushToCloud(target, localState);
+                }
             }
         } catch (e: any) {
-            console.error('[SyncService] Pull FAILED:', e.message || e);
-            // Only log stack if strictly necessary for debugging specific failures, avoid noise in production
-            if (e.code === 'unavailable') {
-                console.warn('[SyncService] Firestore unavailable (offline or network issue).');
-            }
+            console.error(`[SyncService:${target.name}] Pull FAILED:`, e.message || e);
         }
     }
 
-    private handleRemoteUpdate(data: any | undefined) {
-        if (!data || !data.data) return;
+    private handleRemoteUpdate(target: SyncTarget, data: any) {
+        if (!data) return;
 
         try {
-            const parsed = JSON.parse(data.data);
-            if (parsed && parsed.state) {
-                const currentState = useSettingsStore.getState();
+            const remoteState = target.transformIn(data);
+            if (!remoteState) return;
 
-                // Compare only data keys
-                const remoteState = parsed.state;
-                const localData: any = {};
-                Object.keys(currentState).forEach(key => {
-                    if (typeof (currentState as any)[key] !== 'function' && key !== 'cachedReminders') {
-                        localData[key] = (currentState as any)[key];
-                    }
-                });
+            const currentState = target.store.getState();
+            const localClean = target.selector(currentState);
 
-                // Compare keys robustly
-                const diffs: string[] = [];
-                const allKeys = new Set([...Object.keys(remoteState), ...Object.keys(localData)]);
+            // Compare robustly
+            const diffs: string[] = [];
+            const allKeys = new Set([...Object.keys(remoteState), ...Object.keys(localClean)]);
 
-                for (const key of allKeys) {
-                    // Start of fix: If remote doesn't have the key, ignore it (local is newer/more complete)
-                    if (remoteState[key] === undefined) continue;
+            for (const key of allKeys) {
+                if (remoteState[key] === undefined) continue;
 
-                    const rv = JSON.stringify(remoteState[key]);
-                    const lv = JSON.stringify(localData[key]);
-                    if (rv !== lv) {
-                        diffs.push(`"${key}": Local=${lv}, Remote=${rv}`);
-                    }
+                const rv = JSON.stringify(remoteState[key]);
+                const lv = JSON.stringify(localClean[key]);
+                if (rv !== lv) {
+                    diffs.push(`"${key}"`);
                 }
+            }
 
-                if (diffs.length > 0) {
-                    console.log(`[SyncService] >>> DETECTED ${diffs.length} CHANGES IN REMOTE STATE <<<`);
-                    diffs.forEach(d => console.log(`  [Diff] ${d}`));
+            if (diffs.length > 0) {
+                console.log(`[SyncService:${target.name}] Applying remote update (${diffs.length} fields changed)`);
 
-                    this.isApplyingRemote = true;
-                    try {
-                        useSettingsStore.setState(parsed.state);
-                    } finally {
-                        setTimeout(() => {
-                            this.isApplyingRemote = false;
-                        }, 50);
-                    }
-                } else {
+                this.isApplyingRemote[target.name] = true;
+                try {
+                    target.store.setState(remoteState);
+                } finally {
+                    setTimeout(() => {
+                        this.isApplyingRemote[target.name] = false;
+                    }, 50);
                 }
             }
         } catch (e) {
-            console.error('[SyncService] Failed to process remote update', e);
+            console.error(`[SyncService:${target.name}] Failed to process remote update`, e);
         }
     }
 }
