@@ -3,7 +3,8 @@ import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvo
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './ui/Button';
 import { HabitDefinition } from '../store/habitStore';
-import { ColorPicker, PRESET_COLORS } from './ui/ColorPicker';
+import { ColorPicker } from './ui/ColorPicker';
+import { Palette } from './ui/design-tokens';
 import { IconPicker } from './ui/IconPicker';
 
 interface HabitModalProps {
@@ -16,7 +17,7 @@ interface HabitModalProps {
 export function HabitModal({ visible, onClose, onSave, initialData }: HabitModalProps) {
     const [title, setTitle] = useState('');
     const [selectedIcon, setSelectedIcon] = useState('star');
-    const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
+    const [selectedColor, setSelectedColor] = useState(Palette[0]);
 
     useEffect(() => {
         if (visible) {
@@ -27,7 +28,7 @@ export function HabitModal({ visible, onClose, onSave, initialData }: HabitModal
             } else {
                 setTitle('');
                 setSelectedIcon('star');
-                setSelectedColor(PRESET_COLORS[0]);
+                setSelectedColor(Palette[0]);
             }
         }
     }, [visible, initialData]);

@@ -5,7 +5,8 @@ import { useEventTypesStore } from '../../store/eventTypes';
 import { EventType } from '../../services/eventTypeService';
 import { ActionButton } from '../ui/ActionButton';
 import { SettingsListItem } from '../ui/SettingsListItem';
-import { ColorPicker, PRESET_COLORS } from '../ui/ColorPicker';
+import { ColorPicker } from '../ui/ColorPicker';
+import { Palette } from '../ui/design-tokens';
 import { IconPicker } from '../ui/IconPicker';
 import { EventTypeBadge } from '../ui/EventTypeBadge';
 import * as Crypto from 'expo-crypto';
@@ -14,7 +15,7 @@ export function EventTypesSettings() {
     const { eventTypes, addType, updateType, deleteType } = useEventTypesStore();
     const [editingType, setEditingType] = useState<EventType | null>(null);
     const [title, setTitle] = useState('');
-    const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
+    const [selectedColor, setSelectedColor] = useState(Palette[0]);
     const [hideBadges, setHideBadges] = useState(false);
     const [isInverted, setIsInverted] = useState(false);
     const [icon, setIcon] = useState<string>('');
@@ -33,7 +34,7 @@ export function EventTypesSettings() {
     const handleCreate = () => {
         setEditingType(null);
         setTitle('');
-        setSelectedColor(PRESET_COLORS[0]);
+        setSelectedColor(Palette[0]);
         setHideBadges(false);
         setIsInverted(false);
         setIcon('');
