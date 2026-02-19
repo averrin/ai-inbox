@@ -91,7 +91,8 @@ export default function ScheduleScreen() {
         getWeatherForecast(weatherLocation.lat, weatherLocation.lon, start, end)
             .then(data => {
                 setWeatherData(prev => ({ ...prev, ...data }));
-            });
+            })
+            .catch(err => console.error('[ScheduleScreen] Weather fetch failed', err));
     }, [date, weatherLocation]);
 
 
@@ -1349,15 +1350,17 @@ export default function ScheduleScreen() {
         const dayWeather = weatherData[dateStr];
         const hourWeather = dayWeather?.hourly?.[hour];
 
+        // console.log('[ScheduleScreen] WeatherHour rendering:', dateStr, hour, !!dayWeather, !!hourWeather);
+
         return (
-            <View className="h-full justify-center items-center">
-                <Text className="text-slate-400 text-[10px] mb-0.5">
+            <View className="h-full justify-center items-center py-1">
+                <Text className="text-slate-400 text-xs font-medium mb-0.5">
                     {formatHour(hour, ampm)}
                 </Text>
                 {hourWeather && (
-                    <View className="items-center opacity-80">
-                        <Ionicons name={hourWeather.icon as any} size={12} color="#cbd5e1" />
-                        <Text className="text-slate-300 text-[9px]">
+                    <View className="items-center opacity-70">
+                        <Ionicons name={hourWeather.icon as any} size={14} color="#94a3b8" />
+                        <Text className="text-slate-400 text-[10px] font-medium">
                             {Math.round(hourWeather.temp)}°
                         </Text>
                     </View>
