@@ -2,7 +2,7 @@ import React from 'react'
 import { View, Text, TextInput, TouchableOpacity, Switch } from 'react-native'
 import dayjs from 'dayjs'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { ColorPicker, PRESET_COLORS } from '../../ColorPicker'
+import { ColorPicker } from '../../ColorPicker'
 
 interface TimeRangeFormProps {
     initialValues?: {

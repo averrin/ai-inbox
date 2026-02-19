@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { useWeatherStore } from '../store/weatherStore';
 import { formatHour } from './ui/calendar/utils/datetime';
+import { Colors, Typography } from './ui/design-tokens';
 
 interface Props {
     hour: number;
@@ -24,13 +25,13 @@ export function WeatherHourGuide({ hour, ampm, date }: Props) {
 
     return (
         <View className="flex-1 items-center justify-center py-1">
-            <Text className="text-slate-500 text-[10px] font-bold">
+            <Text className="text-slate-500 font-bold" style={{ fontSize: Typography.sizes.xs }}>
                 {formatHour(hour, ampm)}
             </Text>
             {hourlyWeather && (
                 <View className="mt-1 items-center">
-                    <Ionicons name={hourlyWeather.icon as any} size={14} color="#94a3b8" />
-                    <Text className="text-slate-600 text-[8px]">
+                    <Ionicons name={hourlyWeather.icon as any} size={14} color={Colors.text.tertiary} />
+                    <Text className="text-slate-600" style={{ fontSize: Typography.sizes.xxs }}>
                         {Math.round(hourlyWeather.temp)}°
                     </Text>
                 </View>
