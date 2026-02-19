@@ -39,8 +39,9 @@ import Toast from 'react-native-toast-message';
 import { generateDebugSnapshot } from '../../utils/debugUtils';
 import gitInfo from '../../git-info.json';
 import { WalkSettings } from '../settings/WalkSettings';
+import { SyncDebugView } from '../settings/SyncDebugView';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile' | 'walk';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile' | 'walk' | 'sync-debug';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -624,6 +625,13 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             variant="secondary"
                         />
                     </View>
+                    <View className="mt-4">
+                        <Button
+                            title="Debug Cloud Sync"
+                            onPress={() => setActiveSection('sync-debug')}
+                            variant="secondary"
+                        />
+                    </View>
                 </View>
             </View>
         </Card>
@@ -979,6 +987,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <>
                                 {renderHeader("Advanced", () => setActiveSection('root'))}
                                 <View className="px-0">{renderAdvancedSettings()}</View>
+                            </>
+                        )}
+                        {activeSection === 'sync-debug' && (
+                            <>
+                                {renderHeader("Cloud Sync Debug", () => setActiveSection('advanced'))}
+                                <View className="px-0"><SyncDebugView /></View>
                             </>
                         )}
                     </ScrollView>
