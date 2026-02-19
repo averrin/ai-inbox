@@ -1,9 +1,10 @@
 import { View, Text, Alert, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { SyncService } from '../../services/syncService';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Ionicons } from '@expo/vector-icons';
+import { JsonTreeView } from '../ui/JsonTreeView';
 
 export const SyncDebugView = () => {
     const [targets, setTargets] = useState<string[]>([]);
@@ -11,6 +12,7 @@ export const SyncDebugView = () => {
     const [remoteData, setRemoteData] = useState('');
     const [status, setStatus] = useState<{ isSyncing: boolean, userId?: string | null }>({ isSyncing: false });
     const [isLoading, setIsLoading] = useState(false);
+    const [viewMode, setViewMode] = useState<'raw' | 'tree'>('tree');
 
     useEffect(() => {
         const load = () => {
@@ -52,6 +54,15 @@ export const SyncDebugView = () => {
         fetchRemote(t);
     };
 
+    const { parsedData, isJsonValid } = useMemo(() => {
+        try {
+            const res = JSON.parse(remoteData);
+            return { parsedData: res, isJsonValid: true };
+        } catch (e) {
+            return { parsedData: null, isJsonValid: false };
+        }
+    }, [remoteData]);
+
     return (
         <View className="flex-1 px-4">
             <Card>
@@ -90,38 +101,67 @@ export const SyncDebugView = () => {
             {selectedTarget && (
                 <View className="flex-1">
                     <View className="flex-row justify-between items-center mb-2 px-1">
-                        <Text className="text-indigo-200 font-semibold">Remote Data (JSON)</Text>
-                        {isLoading && <ActivityIndicator size="small" color="#818cf8" />}
+                        <Text className="text-indigo-200 font-semibold">Remote Data</Text>
+                        <View className="flex-row bg-slate-800 rounded-lg p-1 border border-slate-700">
+                            <TouchableOpacity
+                                onPress={() => setViewMode('tree')}
+                                className={`px-3 py-1 rounded ${viewMode === 'tree' ? 'bg-indigo-600' : ''}`}
+                            >
+                                <Text className={`text-xs font-bold ${viewMode === 'tree' ? 'text-white' : 'text-slate-400'}`}>Tree</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => setViewMode('raw')}
+                                className={`px-3 py-1 rounded ${viewMode === 'raw' ? 'bg-indigo-600' : ''}`}
+                            >
+                                <Text className={`text-xs font-bold ${viewMode === 'raw' ? 'text-white' : 'text-slate-400'}`}>Raw</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
-                    <View className="h-96 bg-slate-900 rounded-xl border border-slate-700 p-2 mb-4 overflow-hidden">
-                        <TextInput
-                            multiline
-                            numberOfLines={15}
-                            value={remoteData}
-                            onChangeText={setRemoteData}
-                            placeholder="{}"
-                            placeholderTextColor="#64748b"
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                            style={{
-                                fontFamily: 'monospace',
-                                fontSize: 12,
-                                color: '#cbd5e1',
-                                textAlignVertical: 'top',
-                                height: '100%',
-                                padding: 8
-                            }}
-                        />
-                    </View>
+                    {isLoading && <ActivityIndicator size="small" color="#818cf8" className="mb-2" />}
 
-                    <View className="mb-8">
-                        <Button
-                            title={isLoading ? "Saving..." : "Save to Remote"}
-                            onPress={handleSave}
-                            disabled={isLoading}
-                        />
-                    </View>
+                    <ScrollView className="flex-1 mb-4">
+                        {viewMode === 'tree' ? (
+                            isJsonValid ? (
+                                <JsonTreeView data={parsedData} />
+                            ) : (
+                                <View className="p-4 bg-slate-900 rounded-lg border border-slate-700 items-center">
+                                    <Text className="text-red-400">Invalid JSON data. Switch to Raw mode to fix.</Text>
+                                </View>
+                            )
+                        ) : (
+                            <View className="min-h-[300px] bg-slate-900 rounded-xl border border-slate-700 p-2 overflow-hidden">
+                                <TextInput
+                                    multiline
+                                    numberOfLines={15}
+                                    value={remoteData}
+                                    onChangeText={setRemoteData}
+                                    placeholder="{}"
+                                    placeholderTextColor="#64748b"
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    style={{
+                                        fontFamily: 'monospace',
+                                        fontSize: 12,
+                                        color: '#cbd5e1',
+                                        textAlignVertical: 'top',
+                                        height: '100%',
+                                        padding: 8
+                                    }}
+                                />
+                            </View>
+                        )}
+                    </ScrollView>
+
+                    {viewMode === 'raw' && (
+                        <View className="mb-8">
+                            <Button
+                                title={isLoading ? "Saving..." : "Save to Remote"}
+                                onPress={handleSave}
+                                disabled={isLoading}
+                            />
+                        </View>
+                    )}
                 </View>
             )}
         </View>
