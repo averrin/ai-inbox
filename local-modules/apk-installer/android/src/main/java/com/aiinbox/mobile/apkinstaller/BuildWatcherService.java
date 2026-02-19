@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.Handler;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
@@ -17,6 +18,19 @@ import java.util.Set;
 public class BuildWatcherService extends Service {
     public static final String CHANNEL_ID = "watcher_progress_native_service";
     public static final String CHANNEL_NAME = "Build Watcher Service";
+    public static final String HEARTBEAT_ACTION = "com.aiinbox.mobile.apkinstaller.HEARTBEAT";
+
+    // Heartbeat
+    private Handler heartbeatHandler = new Handler();
+    private Runnable heartbeatRunnable = new Runnable() {
+        @Override
+        public void run() {
+            Intent intent = new Intent(HEARTBEAT_ACTION);
+            intent.setPackage(getPackageName());
+            sendBroadcast(intent);
+            heartbeatHandler.postDelayed(this, 30000); // 30 seconds
+        }
+    };
     
     // Track active notification IDs
     private Set<Integer> activeNotificationIds = new HashSet<>();
@@ -26,6 +40,22 @@ public class BuildWatcherService extends Service {
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
+        startHeartbeat();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        stopHeartbeat();
+    }
+
+    private void startHeartbeat() {
+        stopHeartbeat(); // ensure no duplicates
+        heartbeatHandler.post(heartbeatRunnable);
+    }
+
+    private void stopHeartbeat() {
+        heartbeatHandler.removeCallbacks(heartbeatRunnable);
     }
 
     @Override
