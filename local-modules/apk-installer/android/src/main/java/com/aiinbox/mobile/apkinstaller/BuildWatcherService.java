@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Handler;
+import android.os.PowerManager;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
@@ -35,10 +36,23 @@ public class BuildWatcherService extends Service {
     // Track active notification IDs
     private Set<Integer> activeNotificationIds = new HashSet<>();
     private int currentForegroundId = -1;
+    private PowerManager.WakeLock wakeLock;
 
     @Override
     public void onCreate() {
         super.onCreate();
+        try {
+            PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+            if (powerManager != null) {
+                wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BuildWatcherService::Lock");
+                wakeLock.setReferenceCounted(false);
+                wakeLock.acquire();
+            }
+        } catch (Exception e) {
+            // Log failure but don't crash the service
+            System.err.println("BuildWatcherService: Failed to acquire WakeLock: " + e.getMessage());
+        }
+
         createNotificationChannel();
         startHeartbeat();
     }
@@ -46,6 +60,9 @@ public class BuildWatcherService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
+        }
         stopHeartbeat();
     }
 
