@@ -1,6 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { DayStatusLevel } from '../utils/difficultyUtils';
+import { Colors } from './ui/design-tokens';
 
 interface Props {
     status: DayStatusLevel;
@@ -10,11 +11,11 @@ interface Props {
 export function DayStatusMarker({ status, size = 12 }: Props) {
     const getColor = (s: DayStatusLevel) => {
         switch (s) {
-            case 'healthy': return '#22c55e'; // Green
-            case 'moderate': return '#eab308'; // Yellow
-            case 'busy': return '#f97316'; // Orange
-            case 'overloaded': return '#ef4444'; // Red
-            default: return '#22c55e';
+            case 'healthy': return Colors.status.healthy;
+            case 'moderate': return Colors.status.moderate;
+            case 'busy': return Colors.status.busy;
+            case 'overloaded': return Colors.status.overloaded;
+            default: return Colors.status.healthy;
         }
     };
 

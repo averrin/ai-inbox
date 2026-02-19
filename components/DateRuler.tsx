@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, FlatList, Dimensions, StyleSheet } from '
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { DayStatusLevel } from '../utils/difficultyUtils';
+import { Colors, Shadows, Sizes, Spacing } from './ui/design-tokens';
 
 interface DateRulerProps {
     date: Date;
@@ -18,17 +19,17 @@ interface DateRulerProps {
     isSyncing?: boolean;
 }
 
-const ITEM_WIDTH = 56; // Width (48)n+ Margin (4*2)
+const ITEM_WIDTH = Sizes.dateRulerItemWidth; // Width (48)n+ Margin (4*2)
 const VISIBLE_RANGE_DAYS = 180; // Render +/- 180 days
 
 // Status color helper
 const getStatusColor = (status: DayStatusLevel) => {
     switch (status) {
-        case 'healthy': return '#22c55e'; // Green
-        case 'moderate': return '#eab308'; // Yellow
-        case 'busy': return '#f97316'; // Orange
-        case 'overloaded': return '#ef4444'; // Red
-        default: return '#22c55e';
+        case 'healthy': return Colors.status.healthy;
+        case 'moderate': return Colors.status.moderate;
+        case 'busy': return Colors.status.busy;
+        case 'overloaded': return Colors.status.overloaded;
+        default: return Colors.status.healthy;
     }
 };
 
@@ -215,14 +216,10 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
                         style={{
                             flexDirection: 'row',
                             alignItems: 'center',
-                            backgroundColor: '#1e293b',
+                            backgroundColor: Colors.surface,
                             borderRadius: 30,
-                            padding: 4,
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 4 },
-                            shadowOpacity: 0.3,
-                            shadowRadius: 4.65,
-                            elevation: 8,
+                            padding: Spacing.xs,
+                            ...Shadows.default,
                             opacity: 0.95,
                         }}
                     >
@@ -239,7 +236,7 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
                                     opacity: isSyncing ? 0.5 : 1,
                                 }}
                             >
-                                <Ionicons name="sync-outline" size={22} color="#94a3b8" />
+                                <Ionicons name="sync-outline" size={22} color={Colors.text.tertiary} />
                             </TouchableOpacity>
                         )}
 
@@ -253,7 +250,7 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
                                 alignItems: 'center',
                             }}
                         >
-                            <Ionicons name="chevron-back" size={22} color="#94a3b8" />
+                            <Ionicons name="chevron-back" size={22} color={Colors.text.tertiary} />
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -264,10 +261,10 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
                                 borderRadius: 22,
                                 justifyContent: 'center',
                                 alignItems: 'center',
-                                backgroundColor: isTodaySelected ? '#334155' : 'transparent',
+                                backgroundColor: isTodaySelected ? Colors.surfaceHighlight : Colors.transparent,
                             }}
                         >
-                            <Ionicons name="today" size={22} color={isTodaySelected ? '#3b82f6' : '#94a3b8'} />
+                            <Ionicons name="today" size={22} color={isTodaySelected ? Colors.primary : Colors.text.tertiary} />
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -280,7 +277,7 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
                                 alignItems: 'center',
                             }}
                         >
-                            <Ionicons name="chevron-forward" size={22} color="#94a3b8" />
+                            <Ionicons name="chevron-forward" size={22} color={Colors.text.tertiary} />
                         </TouchableOpacity>
 
                         {onSettingsPress && (
@@ -294,7 +291,7 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
                                     alignItems: 'center',
                                 }}
                             >
-                                <Ionicons name="options-outline" size={22} color="#94a3b8" />
+                                <Ionicons name="options-outline" size={22} color={Colors.text.tertiary} />
                             </TouchableOpacity>
                         )}
                     </View>

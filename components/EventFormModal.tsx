@@ -11,7 +11,8 @@ import dayjs from 'dayjs';
 import { RecurrenceScopeModal } from './RecurrenceScopeModal';
 import { useTasksStore, TaskWithSource } from '../store/tasks';
 import { TaskStatusIcon } from './ui/TaskStatusIcon';
-import { ColorPicker, PRESET_COLORS } from './ui/ColorPicker';
+import { ColorPicker } from './ui/ColorPicker';
+import { Palette } from './ui/design-tokens';
 
 
 
@@ -82,7 +83,7 @@ export function EventFormModal({
     const [recurrenceInterval, setRecurrenceInterval] = useState<string>('1');
     const [persistent, setPersistent] = useState<string>(''); // For Alarm
     const [content, setContent] = useState('');
-    const [color, setColor] = useState(PRESET_COLORS[0]); // Default Red
+    const [color, setColor] = useState(Palette[0]); // Default Red
     const [isNonFree, setIsNonFree] = useState(false);
 
     // UI State
@@ -131,7 +132,7 @@ export function EventFormModal({
                 setAllDay(initialEvent.allDay || false);
                 setIsWork(initialEvent.isWork || false);
                 setContent(initialEvent.originalEvent?.content || '');
-                setColor(initialEvent.color || PRESET_COLORS[0]);
+                setColor(initialEvent.color || Palette[0]);
                 
                 // Initialize isNonFree from content/notes
                 const noteContent = initialEvent.originalEvent?.content || initialEvent.originalEvent?.notes || '';
@@ -188,7 +189,7 @@ export function EventFormModal({
                 setPersistent('');
                 setIsCustomDuration(false);
                 setContent('');
-                setColor(PRESET_COLORS[0]);
+                setColor(Palette[0]);
                 setIsNonFree(false);
             }
         }

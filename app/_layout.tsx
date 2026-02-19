@@ -20,6 +20,7 @@ import Toast, { BaseToast, ErrorToast, ToastConfig } from 'react-native-toast-me
 import { LogBox, View, Text, Platform } from 'react-native';
 import { SyncService } from "../services/syncService";
 import { watcherService } from "../services/watcherService";
+import { Colors, Spacing, Typography } from "../components/ui/design-tokens";
 
 // Suppress deprecation warnings from dependencies
 LogBox.ignoreLogs([
@@ -51,48 +52,48 @@ const toastConfig: ToastConfig = {
   success: (props) => (
     <BaseToast
       {...props}
-      style={{ borderLeftColor: '#22c55e', backgroundColor: '#1e293b', borderBottomColor: '#334155', borderBottomWidth: 1 }}
-      contentContainerStyle={{ paddingHorizontal: 15 }}
+      style={{ borderLeftColor: Colors.success, backgroundColor: Colors.surface, borderBottomColor: Colors.border, borderBottomWidth: 1 }}
+      contentContainerStyle={{ paddingHorizontal: Spacing.screenPadding }}
       text1Style={{
-        fontSize: 15,
+        fontSize: Typography.sizes.base,
         fontWeight: 'bold',
-        color: '#f8fafc'
+        color: Colors.text.primary
       }}
       text2Style={{
-        fontSize: 13,
-        color: '#cbd5e1'
+        fontSize: Typography.sizes.sm,
+        color: Colors.text.secondary
       }}
     />
   ),
   error: (props) => (
     <ErrorToast
       {...props}
-      style={{ borderLeftColor: '#ef4444', backgroundColor: '#1e293b', borderBottomColor: '#334155', borderBottomWidth: 1 }}
-      contentContainerStyle={{ paddingHorizontal: 15 }}
+      style={{ borderLeftColor: Colors.error, backgroundColor: Colors.surface, borderBottomColor: Colors.border, borderBottomWidth: 1 }}
+      contentContainerStyle={{ paddingHorizontal: Spacing.screenPadding }}
       text1Style={{
-        fontSize: 15,
+        fontSize: Typography.sizes.base,
         fontWeight: 'bold',
-        color: '#f8fafc'
+        color: Colors.text.primary
       }}
       text2Style={{
-        fontSize: 13,
-        color: '#cbd5e1'
+        fontSize: Typography.sizes.sm,
+        color: Colors.text.secondary
       }}
     />
   ),
   info: (props) => (
     <BaseToast
       {...props}
-      style={{ borderLeftColor: '#3b82f6', backgroundColor: '#1e293b', borderBottomColor: '#334155', borderBottomWidth: 1 }}
-      contentContainerStyle={{ paddingHorizontal: 15 }}
+      style={{ borderLeftColor: Colors.info, backgroundColor: Colors.surface, borderBottomColor: Colors.border, borderBottomWidth: 1 }}
+      contentContainerStyle={{ paddingHorizontal: Spacing.screenPadding }}
       text1Style={{
-        fontSize: 15,
+        fontSize: Typography.sizes.base,
         fontWeight: 'bold',
-        color: '#f8fafc'
+        color: Colors.text.primary
       }}
       text2Style={{
-        fontSize: 13,
-        color: '#cbd5e1'
+        fontSize: Typography.sizes.sm,
+        color: Colors.text.secondary
       }}
     />
   )
@@ -215,8 +216,8 @@ function AppContent() {
         onClose={closeReminder}
       />
       {__DEV__ && (
-        <View style={{ position: 'absolute', bottom: 50, right: 10, backgroundColor: 'rgba(220, 38, 38, 0.6)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, zIndex: 999 }} pointerEvents="none">
-          <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>DEBUG</Text>
+        <View style={{ position: 'absolute', bottom: 50, right: 10, backgroundColor: Colors.debug, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, zIndex: 999 }} pointerEvents="none">
+          <Text style={{ color: Colors.white, fontSize: Typography.sizes.xs, fontWeight: 'bold' }}>DEBUG</Text>
         </View>
       )}
       <Toast config={toastConfig} />

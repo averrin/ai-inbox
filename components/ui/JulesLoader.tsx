@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Colors, Gradients, Sizes } from './design-tokens';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -17,19 +18,11 @@ interface JulesLoaderProps {
   children?: React.ReactNode;
 }
 
-const SIZE_MAP = {
-  small: 24,
-  medium: 48,
-  large: 96,
-};
+const SIZE_MAP = Sizes.loader;
 
-const BORDER_WIDTH_MAP = {
-  small: 2,
-  medium: 3,
-  large: 4,
-};
+const BORDER_WIDTH_MAP = Sizes.loaderBorder;
 
-export function JulesLoader({ size = 'medium', message, innerColor = '#1e293b', children }: JulesLoaderProps) {
+export function JulesLoader({ size = 'medium', message, innerColor = Colors.surface, children }: JulesLoaderProps) {
   const rotation = useSharedValue(0);
   const sizeValue = SIZE_MAP[size];
   const borderWidth = BORDER_WIDTH_MAP[size];
@@ -56,7 +49,7 @@ export function JulesLoader({ size = 'medium', message, innerColor = '#1e293b', 
       <View style={{ width: sizeValue, height: sizeValue, justifyContent: 'center', alignItems: 'center' }}>
         <Animated.View style={[animatedStyle, { width: sizeValue, height: sizeValue, borderRadius: sizeValue / 2, overflow: 'hidden' }]}>
             <LinearGradient
-                colors={['#06b6d4', '#ec4899', '#f59e0b']}
+                colors={Gradients.loader}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={{ width: '100%', height: '100%', padding: borderWidth }}
@@ -82,7 +75,7 @@ const styles = StyleSheet.create({
   },
   message: {
     marginTop: 12,
-    color: '#94a3b8', // slate-400
+    color: Colors.text.tertiary, // slate-400
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
