@@ -295,7 +295,7 @@ export function EventFormModal({
     };
 
     const handlePreSave = () => {
-        const isRecurrent = initialEvent?.originalEvent?.recurrenceRule || initialEvent?.recurrenceRule || initialEvent?.isRecurrent;
+        const isRecurrent = initialEvent?.originalEvent?.recurrenceRule || initialEvent?.recurrenceRule || initialEvent?.isRecurrent || !!initialEvent?.originalEvent?.originalId || !!initialEvent?.originalEvent?.instanceStartDate;
 
         // Use scope selector only for Calendar Events that are recurring
         // Reminders handle recurrence differently (editing the file usually updates the rule for future too)
