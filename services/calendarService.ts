@@ -461,7 +461,10 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
             // Proactively convert endDate to DURATION for Android updates.
             // BUT: skip this for single-instance edits (editScope === 'this') — exception
             // events need DTEND, not DURATION. The native code handles DTEND directly.
-            if (nativeEventData.startDate && nativeEventData.endDate && eventData.editScope !== 'this') {
+            // AND: skip this for normal (non-recurring) events — they use DTEND.
+            const isRecurrenceUpdate = eventData.editScope === 'all' || eventData.editScope === 'future' || nativeEventData.recurrenceRule;
+
+            if (nativeEventData.startDate && nativeEventData.endDate && isRecurrenceUpdate) {
                 const sTime = new Date(nativeEventData.startDate).getTime();
                 const eTime = new Date(nativeEventData.endDate).getTime();
                 const durationSeconds = Math.max(0, Math.floor((eTime - sTime) / 1000));
