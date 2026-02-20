@@ -15,7 +15,7 @@ export default function CanvasScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.white }}>
-      <View style={[styles.container, { paddingBottom: bottomPadding }]}>
+      <View style={[styles.container, { paddingBottom: bottomPadding, backgroundColor: Colors.white }]}>
         <WebView
           source={{ uri: 'https://www.tldraw.com/' }}
           style={styles.webview}
@@ -42,7 +42,7 @@ export default function CanvasScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.white,
   },
   webview: {
     flex: 1,

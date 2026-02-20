@@ -387,7 +387,7 @@ export function EventFormModal({
                                         value={title}
                                         onChangeText={setTitle}
                                         placeholder={type === 'event' ? "Event Title" : type === 'zone' ? "Zone Title" : "Reminder Title"}
-                                        placeholderTextColor={Colors.text.tertiary}
+                                        placeholderTextColor={Colors.text.secondary}
                                         autoFocus={!initialEvent}
                                     />
                                 </View>
@@ -411,7 +411,7 @@ export function EventFormModal({
                                             value={content}
                                             onChangeText={setContent}
                                             placeholder="Details..."
-                                            placeholderTextColor={Colors.text.tertiary}
+                                            placeholderTextColor={Colors.text.secondary}
                                             multiline
                                             textAlignVertical="top"
                                         />
@@ -431,7 +431,10 @@ export function EventFormModal({
                                             <View className="flex-row items-center">
                                                 <Ionicons name="calendar-outline" size={20} color="#818cf8" />
                                                 <Text className="text-white font-bold text-lg ml-3">
-                                                    {startDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                                    {dayjs(startDate).isSame(dayjs(), 'day')
+                                                        ? `Today, ${dayjs(startDate).format('MMM D')}`
+                                                        : startDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+                                                    }
                                                 </Text>
                                             </View>
                                             <Ionicons name="chevron-forward" size={16} color={Colors.secondary} />
@@ -654,7 +657,7 @@ export function EventFormModal({
                                                     <TextInput
                                                         className="bg-surface text-white p-3 rounded-lg border border-border"
                                                         placeholder="Nag interval (minutes)"
-                                                        placeholderTextColor={Colors.text.tertiary}
+                                                        placeholderTextColor={Colors.text.secondary}
                                                         keyboardType="numeric"
                                                         value={persistent}
                                                         onChangeText={setPersistent}
