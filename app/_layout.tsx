@@ -20,7 +20,7 @@ import Toast, { BaseToast, ErrorToast, ToastConfig } from 'react-native-toast-me
 import { LogBox, View, Text, Platform } from 'react-native';
 import { SyncService } from "../services/syncService";
 import { watcherService } from "../services/watcherService";
-import { Colors, Spacing, Typography } from "../components/ui/design-tokens";
+import { Colors, Spacing, Typography } from '../components/ui/design-tokens';
 
 // Suppress deprecation warnings from dependencies
 LogBox.ignoreLogs([
@@ -209,7 +209,7 @@ function AppContent() {
 
   return (
     <>
-      <StatusBar style="light" backgroundColor="transparent" translucent />
+      <StatusBar style="light" backgroundColor={Colors.transparent} translucent />
       <Slot />
       <ReminderModal
         reminder={activeReminder}

@@ -3,6 +3,7 @@ import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { WeatherData } from '../services/weatherService';
+import { Colors } from './ui/design-tokens';
 
 interface Props {
     visible: boolean;
@@ -42,7 +43,7 @@ export function WeatherForecastModal({ visible, onClose, weatherData, currentDat
                             <Text className="text-slate-400 text-xs">{startDate.format('MMM D')} - {startDate.add(6, 'day').format('MMM D, YYYY')}</Text>
                         </View>
                         <TouchableOpacity onPress={onClose} className="p-2 bg-slate-800 rounded-full">
-                            <Ionicons name="close" size={20} color="#94a3b8" />
+                            <Ionicons name="close" size={20} color={Colors.text.tertiary} />
                         </TouchableOpacity>
                     </View>
 
@@ -69,7 +70,7 @@ export function WeatherForecastModal({ visible, onClose, weatherData, currentDat
 
                                         {weather ? (
                                             <View className="flex-row items-center gap-3">
-                                                <Ionicons name={weather.icon as any} size={24} color={isToday ? '#818cf8' : '#94a3b8'} />
+                                                <Ionicons name={weather.icon as any} size={24} color={isToday ? '#818cf8' : Colors.text.tertiary} />
                                                 <View>
                                                     <Text className="text-slate-200 text-sm font-medium">{weather.label}</Text>
                                                 </View>

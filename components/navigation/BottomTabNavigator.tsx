@@ -20,12 +20,13 @@ import { useSettingsStore, NavItemConfig, DEFAULT_NAV_ITEMS } from '../../store/
 import { GroupMenuOverlay } from './GroupMenuOverlay';
 import { useUIStore } from '../../store/ui';
 import { IslandBar } from '../ui/IslandBar';
+import { Colors, Palette } from '../ui/design-tokens';
 
 const TransparentTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    background: 'transparent',
+    background: Colors.transparent,
   },
 };
 
@@ -113,7 +114,7 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup, 
           }}
         >
           <LinearGradient
-            colors={['#06b6d4', '#ec4899', '#f59e0b']}
+            colors={[Palette[11], Palette[2], Palette[5]]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{
@@ -125,7 +126,7 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup, 
               alignItems: 'center'
             }}
           >
-            <View style={{ flex: 1, backgroundColor: '#1e293b', borderRadius: 15, width: '100%', height: '100%' }} />
+            <View style={{ flex: 1, backgroundColor: Colors.surface, borderRadius: 15, width: '100%', height: '100%' }} />
           </LinearGradient>
         </TouchableOpacity>
       );
@@ -183,7 +184,7 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup, 
           height: 44,
           justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor: isFocused ? '#334155' : 'transparent',
+          backgroundColor: isFocused ? Colors.surfaceHighlight : Colors.transparent,
           borderRadius: 22,
           marginHorizontal: 2
         }}
@@ -192,7 +193,7 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup, 
           // @ts-ignore
           name={isFocused ? activeIconName : iconName}
           size={24}
-          color={isFocused ? '#3b82f6' : '#94a3b8'}
+          color={isFocused ? Colors.primary : Colors.text.tertiary}
         />
       </TouchableOpacity>
     );

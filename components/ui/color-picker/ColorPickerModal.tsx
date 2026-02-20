@@ -3,6 +3,7 @@ import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet } from 'reac
 import { Ionicons } from '@expo/vector-icons';
 import { GradientSlider } from './GradientSlider';
 import { hslToHex, hexToHsl } from './colorUtils';
+import { Colors } from '../design-tokens';
 
 interface ColorPickerModalProps {
     visible: boolean;
@@ -68,9 +69,9 @@ export function ColorPickerModal({ visible, initialColor, onClose, onSelect }: C
         hslToHex(hsl.h, 100, hsl.l)
     ];
     const lightGradient = [
-        '#000000',
+        Colors.black,
         hslToHex(hsl.h, hsl.s, 50),
-        '#FFFFFF'
+        Colors.white
     ];
 
     return (
@@ -80,7 +81,7 @@ export function ColorPickerModal({ visible, initialColor, onClose, onSelect }: C
                     <View style={styles.header}>
                         <Text style={styles.title}>Custom Color</Text>
                         <TouchableOpacity onPress={onClose}>
-                            <Ionicons name="close" size={24} color="#94a3b8" />
+                            <Ionicons name="close" size={24} color={Colors.text.tertiary} />
                         </TouchableOpacity>
                     </View>
 
@@ -139,11 +140,11 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     container: {
-        backgroundColor: '#1e293b',
+        backgroundColor: Colors.surface,
         borderRadius: 16,
         padding: 20,
         borderWidth: 1,
-        borderColor: '#334155',
+        borderColor: Colors.surfaceHighlight,
     },
     header: {
         flexDirection: 'row',
@@ -154,7 +155,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#f8fafc',
+        color: Colors.text.primary,
     },
     previewContainer: {
         flexDirection: 'row',
@@ -172,11 +173,11 @@ const styles = StyleSheet.create({
     hexInput: {
         flex: 1,
         height: 48,
-        backgroundColor: '#0f172a',
+        backgroundColor: Colors.background,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#334155',
-        color: '#f8fafc',
+        borderColor: Colors.surfaceHighlight,
+        color: Colors.text.primary,
         paddingHorizontal: 16,
         fontSize: 16,
         fontFamily: 'monospace',
@@ -185,13 +186,13 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     label: {
-        color: '#94a3b8',
+        color: Colors.text.tertiary,
         fontSize: 12,
         marginBottom: 8,
         fontWeight: '600',
     },
     saveButton: {
-        backgroundColor: '#3b82f6',
+        backgroundColor: Colors.primary,
         paddingVertical: 12,
         borderRadius: 8,
         alignItems: 'center',

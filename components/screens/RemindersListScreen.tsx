@@ -12,6 +12,7 @@ import { ReminderItem } from '../ui/ReminderItem';
 import { EventFormModal, EventSaveData, DeleteOptions } from '../EventFormModal';
 import { useOptimisticReminders } from '../../hooks/useOptimisticReminders';
 import { useFab } from '../../hooks/useFab';
+import { Colors } from '../ui/design-tokens';
 
 export default function RemindersListScreen() {
   const insets = useSafeAreaInsets();
@@ -114,7 +115,7 @@ export default function RemindersListScreen() {
 
         {reminders.length === 0 ? (
           <View className="bg-slate-800/50 p-8 rounded-xl border border-slate-700 items-center mt-4">
-            <Ionicons name="alarm-outline" size={64} color="#64748b" />
+            <Ionicons name="alarm-outline" size={64} color={Colors.secondary} />
             <Text className="text-slate-400 italic text-center mt-4 text-lg">No reminders found.</Text>
             <Text className="text-slate-500 text-sm text-center mt-4">
               Tap the + button to create a reminder!

@@ -8,6 +8,7 @@ import { useForecastStore } from '../store/forecastStore';
 import { generateDayForecast, buildDayForecastPrompt } from '../services/forecastService';
 import { MarkdownView } from './ui/MarkdownView';
 import { JulesLoader } from './ui/JulesLoader';
+import { Colors } from './ui/design-tokens';
 
 interface ForecastSectionProps {
     date: Date;
@@ -72,7 +73,7 @@ export function ForecastSection({ date }: ForecastSectionProps) {
         return (
             <View className="bg-red-900/10 p-4 rounded-2xl border border-red-900/20 mb-6">
                 <View className="flex-row items-center mb-1">
-                    <Ionicons name="warning-outline" size={16} color="#ef4444" />
+                    <Ionicons name="warning-outline" size={16} color={Colors.error} />
                     <Text className="text-red-400 ml-2 font-bold text-xs uppercase tracking-wider">Forecast Error</Text>
                 </View>
                 <Text className="text-red-200/80 text-sm mb-2">{error}</Text>

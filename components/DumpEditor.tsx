@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { View, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { Colors } from './ui/design-tokens';
 
 interface DumpEditorProps {
     value: string;
@@ -193,13 +194,13 @@ const styles = StyleSheet.create({
     },
     webView: {
         flex: 1,
-        backgroundColor: '#0f172a',
+        backgroundColor: Colors.background,
     },
     loading: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#0f172a',
+        backgroundColor: Colors.background,
     }
 });
 

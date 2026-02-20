@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { UniversalIcon } from './UniversalIcon';
+import { Colors } from './design-tokens';
 
 // Get all available icons from the glyph map
 const ION_ICONS = Object.keys(Ionicons.glyphMap) as string[];
@@ -43,7 +44,7 @@ export const IconPicker = ({
             <UniversalIcon
                 name={item}
                 size={24}
-                color={value === item ? '#818cf8' : '#64748b'}
+                color={value === item ? '#818cf8' : Colors.secondary}
             />
         </TouchableOpacity>
     );
@@ -58,7 +59,7 @@ export const IconPicker = ({
             <TextInput
                 className="bg-slate-800 text-white p-3 rounded-xl border border-slate-700 mb-3"
                 placeholder="Search icons..."
-                placeholderTextColor="#64748b"
+                placeholderTextColor={Colors.secondary}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
             />

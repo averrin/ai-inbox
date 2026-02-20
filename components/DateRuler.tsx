@@ -201,7 +201,7 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
     const isTodaySelected = dayjs(date).isSame(dayjs(), 'day');
 
     return (
-        <View className="border-b border-slate-800 pb-4" style={{ backgroundColor: 'transparent' }}>
+        <View className="border-b border-slate-800 pb-4" style={{ backgroundColor: Colors.transparent }}>
             <IslandHeader
                 title="Schedule"
                 subtitle={dayjs(date).format('MMMM YYYY')}

@@ -5,6 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { getLogs, clearLogs, LogEntry } from '../../utils/logger';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
+import { Colors } from '../ui/design-tokens';
 
 export function LogsSettings() {
     const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -78,7 +79,7 @@ export function LogsSettings() {
                     <Ionicons
                         name={isSelected ? "checkbox" : "square-outline"}
                         size={16}
-                        color={isSelected ? "#818cf8" : "#64748b"}
+                        color={isSelected ? "#818cf8" : Colors.secondary}
                     />
                 </View>
                 <View className="flex-1">

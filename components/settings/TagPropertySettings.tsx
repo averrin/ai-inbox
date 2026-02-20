@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { SettingsListItem } from '../ui/SettingsListItem';
 import { TagPropertyConfigModal } from '../TagPropertyConfigModal';
+import { Colors, Palette } from '../ui/design-tokens';
 
 export function TagPropertySettings() {
     const { 
@@ -140,8 +141,8 @@ export function TagPropertySettings() {
                     <Switch
                         value={!config.hidden}
                         onValueChange={(val) => updateFn(item, { ...config, hidden: !val })}
-                        trackColor={{ false: '#334155', true: '#6366f1' }}
-                        thumbColor={!config.hidden ? '#e0e7ff' : '#94a3b8'}
+                        trackColor={{ false: Colors.surfaceHighlight, true: Palette[14] }}
+                        thumbColor={!config.hidden ? '#e0e7ff' : Colors.text.tertiary}
                     />
                 </View>
             </SettingsListItem>
@@ -188,7 +189,7 @@ export function TagPropertySettings() {
                     <TextInput 
                         className="flex-1 bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-white"
                         placeholder={`Add new ${activeTab === 'tags' ? 'tag' : 'property'}...`}
-                        placeholderTextColor="#64748b"
+                        placeholderTextColor={Colors.secondary}
                         value={newItemName}
                         onChangeText={setNewItemName}
                     />

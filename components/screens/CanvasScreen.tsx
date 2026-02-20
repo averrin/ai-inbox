@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.transparent,
   },
   loadingContainer: {
     ...StyleSheet.absoluteFillObject,

@@ -20,6 +20,7 @@ import { downloadAndInstallArtifact, isArtifactCached, installCachedArtifact } f
 import { artifactDeps } from '../../utils/artifactDeps';
 import { watcherService } from '../../services/watcherService';
 import { useUIStore } from '../../store/ui';
+import { Colors } from '../ui/design-tokens';
 
 dayjs.extend(relativeTime);
 
@@ -105,11 +106,11 @@ function RepoSelector({ visible, onClose, onSelect, token }: { visible: boolean,
                     </View>
                     <View className="p-4 bg-slate-900">
                         <View className="bg-slate-800 rounded-lg flex-row items-center px-3 mb-2 border border-slate-700">
-                            <Ionicons name="search" size={20} color="#94a3b8" />
+                            <Ionicons name="search" size={20} color={Colors.text.tertiary} />
                             <TextInput
                                 className="flex-1 text-white p-3"
                                 placeholder="Search repositories..."
-                                placeholderTextColor="#94a3b8"
+                                placeholderTextColor={Colors.text.tertiary}
                                 value={search}
                                 onChangeText={setSearch}
                                 autoCapitalize="none"
@@ -133,7 +134,7 @@ function RepoSelector({ visible, onClose, onSelect, token }: { visible: boolean,
                                         <Text className="text-white font-medium text-base">{item.full_name}</Text>
                                         {item.description && <Text className="text-slate-500 text-xs" numberOfLines={1}>{item.description}</Text>}
                                     </View>
-                                    {item.private && <Ionicons name="lock-closed" size={14} color="#94a3b8" />}
+                                    {item.private && <Ionicons name="lock-closed" size={14} color={Colors.text.tertiary} />}
                                 </TouchableOpacity>
                             )}
                         />
@@ -183,11 +184,11 @@ function CheckStatusItem({ check, compact = false }: { check: CheckRun, compact?
     };
 
     const getColor = () => {
-        if (check.status === 'queued') return '#94a3b8';
+        if (check.status === 'queued') return Colors.text.tertiary;
         if (check.status === 'in_progress') return '#60a5fa';
         if (check.conclusion === 'success') return '#4ade80';
         if (check.conclusion === 'failure') return '#f87171';
-        return '#94a3b8';
+        return Colors.text.tertiary;
     };
 
     return (
@@ -371,16 +372,16 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
 
     const getStatusInfo = () => {
         if (run.status === 'in_progress') return { color: '#60a5fa', icon: 'sync' };
-        if (run.status === 'queued') return { color: '#94a3b8', icon: 'time-outline' };
+        if (run.status === 'queued') return { color: Colors.text.tertiary, icon: 'time-outline' };
 
         switch (run.conclusion) {
             case 'success': return { color: '#4ade80', icon: 'checkmark-circle' };
             case 'failure': return { color: '#f87171', icon: 'close-circle' };
             case 'cancelled': return { color: '#fb923c', icon: 'stop-circle-outline' };
-            case 'skipped': return { color: '#94a3b8', icon: 'play-skip-forward-outline' };
+            case 'skipped': return { color: Colors.text.tertiary, icon: 'play-skip-forward-outline' };
             case 'timed_out': return { color: '#f87171', icon: 'timer-outline' };
             case 'action_required': return { color: '#facc15', icon: 'alert-circle-outline' };
-            default: return { color: '#94a3b8', icon: 'help-circle-outline' };
+            default: return { color: Colors.text.tertiary, icon: 'help-circle-outline' };
         }
     };
 
@@ -395,7 +396,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
         const step = 0.005;
         for (let i = 0; i < 200; i++) {
             const isColor = i % 2 === 1;
-            const c = isColor ? 'rgba(148, 163, 184, 0.12)' : 'transparent';
+            const c = isColor ? 'rgba(148, 163, 184, 0.12)' : Colors.transparent;
             stripeColors.push(c, c);
             stripeLocations.push(i * step, (i + 1) * step);
         }
@@ -440,13 +441,13 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                                 <Text className="text-white text-[10px] font-semibold ml-1">{isDownloading ? (status || `${Math.round((progress || 0) * 100)}%`) : (cachedArtifactPath ? "Install" : "Artifact")}</Text>
                             </TouchableOpacity>
                         ) : artifactsLoading ? (
-                            <ActivityIndicator size="small" color="#94a3b8" />
+                            <ActivityIndicator size="small" color={Colors.text.tertiary} />
                         ) : (
                             <TouchableOpacity
                                 onPress={fetchArtifactsData}
                                 className="px-2 py-1 bg-slate-800/30 border border-slate-700/50 rounded-lg flex-row items-center"
                             >
-                                <Ionicons name="alert-circle-outline" size={12} color="#64748b" />
+                                <Ionicons name="alert-circle-outline" size={12} color={Colors.secondary} />
                                 <Text className="text-slate-500 text-[10px] font-medium ml-1">No Artifact</Text>
                             </TouchableOpacity>
                         )}
@@ -456,12 +457,12 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                                 onPress={toggleWatch}
                                 className={`p-1.5 ml-1 rounded-lg ${isWatched ? 'bg-indigo-500/20' : ''}`}
                             >
-                                <Ionicons name={isWatched ? "eye" : "eye-outline"} size={16} color={isWatched ? "#818cf8" : "#94a3b8"} />
+                                <Ionicons name={isWatched ? "eye" : "eye-outline"} size={16} color={isWatched ? "#818cf8" : Colors.text.tertiary} />
                             </TouchableOpacity>
                         )}
 
                         <TouchableOpacity onPress={() => setExpanded(!expanded)} className="p-1">
-                            <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color="#94a3b8" />
+                            <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={Colors.text.tertiary} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -470,7 +471,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                     <View className="mt-2 border-t border-slate-800 pt-2">
                         <Text className="text-slate-500 text-[10px] font-bold mb-2 uppercase">Checks Status</Text>
                         {checksLoading ? (
-                            <ActivityIndicator size="small" color="#94a3b8" />
+                            <ActivityIndicator size="small" color={Colors.text.tertiary} />
                         ) : checks && checks.length > 0 ? (
                             <View>
                                 {checks.map(check => (
@@ -539,13 +540,13 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                             <Text className="text-white text-xs font-semibold ml-1">{isDownloading ? (status || `${Math.round((progress || 0) * 100)}%`) : (cachedArtifactPath ? "Install" : "Artifact")}</Text>
                         </TouchableOpacity>
                     ) : artifactsLoading ? (
-                        <ActivityIndicator size="small" color="#94a3b8" />
+                        <ActivityIndicator size="small" color={Colors.text.tertiary} />
                     ) : (
                         <TouchableOpacity
                             onPress={fetchArtifactsData}
                             className="px-3 py-1.5 bg-slate-800/50 border border-slate-700 rounded-lg flex-row items-center"
                         >
-                            <Ionicons name="alert-circle-outline" size={14} color="#64748b" />
+                            <Ionicons name="alert-circle-outline" size={14} color={Colors.secondary} />
                             <Text className="text-slate-500 text-xs font-medium ml-1">No Artifact</Text>
                         </TouchableOpacity>
                     )}
@@ -555,12 +556,12 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                             onPress={toggleWatch}
                             className={`p-1.5 ml-1 rounded-lg ${isWatched ? 'bg-indigo-500/20' : ''}`}
                         >
-                            <Ionicons name={isWatched ? "eye" : "eye-outline"} size={20} color={isWatched ? "#818cf8" : "#94a3b8"} />
+                            <Ionicons name={isWatched ? "eye" : "eye-outline"} size={20} color={isWatched ? "#818cf8" : Colors.text.tertiary} />
                         </TouchableOpacity>
                     )}
 
                     <TouchableOpacity onPress={() => setExpanded(!expanded)} className="p-1">
-                        <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={20} color="#94a3b8" />
+                        <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={20} color={Colors.text.tertiary} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -581,7 +582,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
 
                     <Text className="text-slate-400 text-xs font-bold mb-2 uppercase">Checks Status</Text>
                     {checksLoading ? (
-                        <ActivityIndicator size="small" color="#94a3b8" />
+                        <ActivityIndicator size="small" color={Colors.text.tertiary} />
                     ) : checks && checks.length > 0 ? (
                         <View>
                             {checks.map(check => (
@@ -709,9 +710,9 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
             case 'PLANNING': return { icon: 'sync', color: '#60a5fa' };
             case 'AWAITING_PLAN_APPROVAL':
             case 'AWAITING_USER_FEEDBACK': return { icon: 'alert-circle', color: '#facc15' };
-            case 'QUEUED': return { icon: 'time-outline', color: '#94a3b8' };
-            case 'PAUSED': return { icon: 'pause-circle-outline', color: '#94a3b8' };
-            default: return { icon: 'help-circle-outline', color: '#94a3b8' };
+            case 'QUEUED': return { icon: 'time-outline', color: Colors.text.tertiary };
+            case 'PAUSED': return { icon: 'pause-circle-outline', color: Colors.text.tertiary };
+            default: return { icon: 'help-circle-outline', color: Colors.text.tertiary };
         }
     };
 
@@ -719,7 +720,7 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
         if (run.status === 'in_progress') return '#60a5fa';
         if (run.conclusion === 'success') return '#4ade80';
         if (run.conclusion === 'failure') return '#f87171';
-        return '#94a3b8';
+        return Colors.text.tertiary;
     };
 
     const statusObj = getStatusIcon(session.state);
@@ -732,7 +733,7 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
         const step = 0.02;
         for (let i = 0; i < 200; i++) {
             const isColor = i % 2 === 1;
-            const c = isColor ? 'rgba(148, 163, 184, 0.12)' : 'transparent';
+            const c = isColor ? 'rgba(148, 163, 184, 0.12)' : Colors.transparent;
             stripeColors.push(c, c);
             stripeLocations.push(i * step, (i + 1) * step);
         }
@@ -899,7 +900,7 @@ function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { run
                 className="flex-row items-center justify-between p-3"
             >
                 <View className="flex-row items-center">
-                    <Ionicons name="git-branch" size={20} color="#94a3b8" />
+                    <Ionicons name="git-branch" size={20} color={Colors.text.tertiary} />
                     <Text className="text-white font-bold text-base ml-2">Master Branch</Text>
                     {runningCount > 0 && (
                         <View className="bg-blue-600/30 px-2 py-0.5 rounded ml-2 border border-blue-500/50">
@@ -907,7 +908,7 @@ function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { run
                         </View>
                     )}
                 </View>
-                <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={20} color="#94a3b8" />
+                <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={20} color={Colors.text.tertiary} />
             </TouchableOpacity>
 
             {expanded && (

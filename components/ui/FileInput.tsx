@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, TextInput, Alert, Modal, ScrollView } from 'react-native';
 import { useState } from 'react';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
+import { Colors } from './design-tokens';
 
 interface FileInputProps {
     label: string;
@@ -89,7 +90,7 @@ export function FileInput({
                             value={value} 
                             onChangeText={onChangeText} 
                             placeholder={placeholder || `Enter ${fileExtension} file path...`}
-                            placeholderTextColor="#94a3b8"
+                            placeholderTextColor={Colors.text.tertiary}
                             className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 pr-12 text-white font-medium"
                         />
                         {fileStatus !== 'neutral' && (

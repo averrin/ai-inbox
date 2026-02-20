@@ -5,6 +5,7 @@ import type { ICalendarEventBase } from '../interfaces'
 import { getRelativeTopInDay, DAY_MINUTES } from '../utils/datetime'
 import { LinearGradient } from 'expo-linear-gradient'
 import { hexToRgba } from '../../color-picker/colorUtils'
+import { Colors } from '../../design-tokens';
 
 const styles = StyleSheet.create({
   container: {
@@ -35,7 +36,7 @@ export function CalendarZone<T extends ICalendarEventBase>({
   const relativeHeight = 100 * (1 / totalMinutesInRange) * durationInMinutes
 
   // Default to semi-transparent gray if no color provided
-  const color = (event as any).color || '#64748b' // Default slate-500 if missing
+  const color = (event as any).color || Colors.secondary // Default slate-500 if missing
   const borderColor = (event as any).borderColor || color
   const borderWidth = (event as any).borderWidth !== undefined ? (event as any).borderWidth : 2
   
@@ -51,11 +52,11 @@ export function CalendarZone<T extends ICalendarEventBase>({
   const stripeLocations: number[] = []
 
   // Ensure color is a valid string before converting
-  const bgRgba = isFreeTime ? 'rgba(200, 255, 200, 0.3)' : hexToRgba(color.startsWith('#') ? color : '#64748b', 0.6)
+  const bgRgba = isFreeTime ? 'rgba(200, 255, 200, 0.3)' : hexToRgba(color.startsWith('#') ? color : Colors.secondary, 0.6)
 
   for (let i = 0; i < 20; i++) {
     const isColor = i % 2 === 1
-    const c = isColor ? bgRgba : 'transparent'
+    const c = isColor ? bgRgba : Colors.transparent
     stripeColors.push(c, c)
     stripeLocations.push(i * step, (i + 1) * step)
   }
@@ -136,8 +137,8 @@ export function CalendarZone<T extends ICalendarEventBase>({
         style={{
           position: 'absolute',
           right: 4,
-          backgroundColor: '#0f172a',
-          borderColor: borderColor || '#334155',
+          backgroundColor: Colors.background,
+          borderColor: borderColor || Colors.surfaceHighlight,
           borderWidth: 1,
           paddingHorizontal: 6,
           paddingVertical: 2,

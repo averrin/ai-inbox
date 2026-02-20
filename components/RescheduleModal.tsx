@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors } from './ui/design-tokens';
 
 interface RescheduleModalProps {
     visible: boolean;
@@ -35,7 +36,7 @@ export function RescheduleModal({
                                     <Text className="text-white font-semibold">Later Today</Text>
                                     <Text className="text-slate-400 text-xs">Find a free slot +30m from now</Text>
                                 </View>
-                                <Ionicons name="time-outline" size={20} color="#94a3b8" />
+                                <Ionicons name="time-outline" size={20} color={Colors.text.tertiary} />
                             </TouchableOpacity>
                         )}
 
@@ -47,7 +48,7 @@ export function RescheduleModal({
                                 <Text className="text-white font-semibold">Tomorrow</Text>
                                 <Text className="text-slate-400 text-xs">Find a free slot tomorrow morning</Text>
                             </View>
-                            <Ionicons name="sunny-outline" size={20} color="#94a3b8" />
+                            <Ionicons name="sunny-outline" size={20} color={Colors.text.tertiary} />
                         </TouchableOpacity>
 
                         <TouchableOpacity

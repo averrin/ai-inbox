@@ -14,6 +14,7 @@ import { TaskService } from '../../services/taskService';
 import { findNextFreeSlot, updateCalendarEvent } from '../../services/calendarService';
 import { RescheduleModal } from '../RescheduleModal';
 import { useNow } from '../ui/calendar/hooks/useNow';
+import { Colors } from '../ui/design-tokens';
 
 dayjs.extend(isBetween);
 
@@ -361,7 +362,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                     <TouchableOpacity onPress={(e) => { e.stopPropagation(); onAdd(); }}>
                         <Ionicons name="add" size={20} color="#818cf8" />
                     </TouchableOpacity>
-                    <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color="#64748b" />
+                    <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={Colors.secondary} />
                 </View>
             </TouchableOpacity>
 
@@ -391,7 +392,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
 
                                 if (isOverdue) {
                                     isHighlighted = true;
-                                    highlightColor = '#ef4444';
+                                    highlightColor = Colors.error;
                                 } else if (isNow) {
                                     isHighlighted = true;
                                     highlightColor = item.data.color || highlightColor;
@@ -419,7 +420,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
 
                                         if (eventIsOverdue) {
                                             isHighlighted = true;
-                                            highlightColor = '#ef4444';
+                                            highlightColor = Colors.error;
                                             break; // Red glow wins
                                         } else if (eventIsNow) {
                                             isHighlighted = true;
@@ -448,7 +449,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                                 const highlightStyle = isHighlighted ? {
                                     borderWidth: 2,
                                     borderColor: highlightColor,
-                                    // backgroundColor: 'transparent',
+                                    // backgroundColor: Colors.transparent,
                                     shadowColor: highlightColor,
                                     shadowOffset: { width: 0, height: 0 },
                                     shadowOpacity: 0.9,

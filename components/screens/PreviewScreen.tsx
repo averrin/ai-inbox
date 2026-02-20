@@ -33,6 +33,7 @@ import { RichTaskItem } from '../markdown/RichTaskItem';
 import { TaskEditModal } from '../markdown/TaskEditModal';
 import { findTasks, updateTaskInText, RichTask, removeTaskFromText } from '../../utils/taskParser';
 import { useFab } from '../../hooks/useFab';
+import { Colors, Palette } from '../ui/design-tokens';
 
 interface PreviewScreenProps {
     data: ProcessedNote;
@@ -124,7 +125,7 @@ export function PreviewScreen({
         onPress: onSave,
         onLongPress: onSaveAndAddNew,
         icon: 'checkmark',
-        color: '#6366f1', // indigo-500
+        color: Palette[14], // indigo-500
         iconColor: 'white',
         visible: !isFocused // Hide FAB when in focus/editing mode
     });
@@ -368,7 +369,7 @@ export function PreviewScreen({
                                                     value={data.icon}
                                                     onChangeText={onIconChange}
                                                     placeholder="Mood"
-                                                    placeholderTextColor="#94a3b8"
+                                                    placeholderTextColor={Colors.text.tertiary}
                                                     className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white font-medium text-center]"
                                                 />
                                                 <TouchableOpacity
@@ -383,7 +384,7 @@ export function PreviewScreen({
                                                 onPress={() => onIconChange('📝')}
                                                 className="bg-slate-800/50 border border-slate-700 rounded-xl p-3  justify-center items-center"
                                             >
-                                                <Ionicons name="happy-outline" size={20} color="#94a3b8" />
+                                                <Ionicons name="happy-outline" size={20} color={Colors.text.tertiary} />
                                             </TouchableOpacity>
                                         )}
                                     </View>
@@ -395,7 +396,7 @@ export function PreviewScreen({
                                             onChangeText={onTitleChange}
                                             className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white font-medium text-base]"
                                             placeholder="Note Title"
-                                            placeholderTextColor="#94a3b8"
+                                            placeholderTextColor={Colors.text.tertiary}
                                         />
                                     </View>
                                 </View>

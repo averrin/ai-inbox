@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TouchableOpacity, ActivityIndicator, Alert, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { Colors } from './design-tokens';
 
 interface ImageAttachmentButtonProps {
     onImageSelected: (base64: string, mimeType?: string) => void;
@@ -35,7 +36,7 @@ export function ImageAttachmentButton({ onImageSelected, style, className, disab
             className={`p-2 bg-slate-800 rounded-full border border-slate-700 items-center justify-center ${className || ''}`}
             style={style}
         >
-            <Ionicons name="camera-outline" size={20} color="#94a3b8" />
+            <Ionicons name="camera-outline" size={20} color={Colors.text.tertiary} />
         </TouchableOpacity>
     );
 }

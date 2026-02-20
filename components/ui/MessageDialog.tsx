@@ -4,6 +4,7 @@ import { ImageAttachmentButton } from './ImageAttachmentButton';
 import { Ionicons } from '@expo/vector-icons';
 import { analyzeImage } from '../../services/gemini';
 import { useSettingsStore } from '../../store/settings';
+import { Colors } from './design-tokens';
 
 interface MessageDialogProps {
     visible: boolean;
@@ -103,7 +104,7 @@ export function MessageDialog({
                     <TextInput
                         className="bg-slate-800 text-white p-3 rounded-lg min-h-[100px] mb-4"
                         placeholder={placeholder}
-                        placeholderTextColor="#94a3b8"
+                        placeholderTextColor={Colors.text.tertiary}
                         multiline
                         textAlignVertical="top"
                         value={message}

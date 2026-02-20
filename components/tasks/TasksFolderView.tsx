@@ -15,6 +15,7 @@ import { EventFormModal, EventSaveData } from '../EventFormModal';
 import * as Calendar from 'expo-calendar';
 import { ensureDirectory } from '../../utils/saf';
 import { useFab } from '../../hooks/useFab';
+import { Colors } from '../ui/design-tokens';
 
 
 interface TasksFolderViewProps {
@@ -47,9 +48,9 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
 
     const SORT_OPTIONS: SelectionOption[] = [
         { id: 'smart', label: 'Smart Sort (Status + Priority)', icon: 'flash-outline', color: '#818cf8' },
-        { id: 'file', label: 'File Order', icon: 'document-text-outline', color: '#94a3b8' },
-        { id: 'title', label: 'Alphabetical (Title)', icon: 'text-outline', color: '#94a3b8' },
-        { id: 'priority', label: 'Priority Only', icon: 'flag-outline', color: '#ef4444' },
+        { id: 'file', label: 'File Order', icon: 'document-text-outline', color: Colors.text.tertiary },
+        { id: 'title', label: 'Alphabetical (Title)', icon: 'text-outline', color: Colors.text.tertiary },
+        { id: 'priority', label: 'Priority Only', icon: 'flag-outline', color: Colors.error },
     ];
 
     const handleToggleTask = async (task: TaskWithSource) => {
@@ -448,7 +449,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                         <TextInput
                             className="bg-slate-800 text-white p-3 rounded-lg border border-slate-700 mb-6"
                             placeholder="e.g. MyProject"
-                            placeholderTextColor="#64748b"
+                            placeholderTextColor={Colors.secondary}
                             value={mergeFileName}
                             onChangeText={setMergeFileName}
                             autoFocus

@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore } from '../../store/settings';
 import { useState } from 'react';
 import { Card } from '../ui/Card';
+import { Colors } from '../ui/design-tokens';
 
 export function NewsSettings() {
     const {
@@ -61,7 +62,7 @@ export function NewsSettings() {
                 <TextInput
                     className="bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3 mb-2"
                     placeholder="Enter NewsAPI Key"
-                    placeholderTextColor="#64748b"
+                    placeholderTextColor={Colors.secondary}
                     secureTextEntry
                     value={newsApiKey || ''}
                     onChangeText={setNewsApiKey}
@@ -82,7 +83,7 @@ export function NewsSettings() {
                         <View key={topic} className="bg-slate-800 border border-slate-700 rounded-full px-3 py-1 flex-row items-center">
                             <Text className="text-white mr-2">{topic}</Text>
                             <TouchableOpacity onPress={() => handleDeleteTopic(topic)}>
-                                <Ionicons name="close-circle" size={16} color="#ef4444" />
+                                <Ionicons name="close-circle" size={16} color={Colors.error} />
                             </TouchableOpacity>
                         </View>
                     ))}
@@ -95,7 +96,7 @@ export function NewsSettings() {
                     <TextInput
                         className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3"
                         placeholder="Add a topic (e.g., Crypto)"
-                        placeholderTextColor="#64748b"
+                        placeholderTextColor={Colors.secondary}
                         value={newTopic}
                         onChangeText={setNewTopic}
                         onSubmitEditing={handleAddTopic}
@@ -121,7 +122,7 @@ export function NewsSettings() {
                         <View key={feed} className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 flex-row items-center justify-between">
                             <Text className="text-white flex-1 mr-2" numberOfLines={1}>{feed}</Text>
                             <TouchableOpacity onPress={() => handleDeleteRssFeed(feed)}>
-                                <Ionicons name="close-circle" size={20} color="#ef4444" />
+                                <Ionicons name="close-circle" size={20} color={Colors.error} />
                             </TouchableOpacity>
                         </View>
                     ))}
@@ -134,7 +135,7 @@ export function NewsSettings() {
                     <TextInput
                         className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3"
                         placeholder="Add RSS URL"
-                        placeholderTextColor="#64748b"
+                        placeholderTextColor={Colors.secondary}
                         value={newRssFeed}
                         onChangeText={setNewRssFeed}
                         onSubmitEditing={handleAddRssFeed}
@@ -163,7 +164,7 @@ export function NewsSettings() {
                         <View key={hostname} className="bg-slate-800 border border-slate-700 rounded-full px-3 py-1 flex-row items-center">
                             <Text className="text-white mr-2">{hostname}</Text>
                             <TouchableOpacity onPress={() => handleDeleteHostname(hostname)}>
-                                <Ionicons name="close-circle" size={16} color="#ef4444" />
+                                <Ionicons name="close-circle" size={16} color={Colors.error} />
                             </TouchableOpacity>
                         </View>
                     ))}
@@ -176,7 +177,7 @@ export function NewsSettings() {
                     <TextInput
                         className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3"
                         placeholder="Add domain (e.g., example.com)"
-                        placeholderTextColor="#64748b"
+                        placeholderTextColor={Colors.secondary}
                         value={newHostname}
                         onChangeText={setNewHostname}
                         onSubmitEditing={handleAddHostname}

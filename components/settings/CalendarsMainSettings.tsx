@@ -6,6 +6,7 @@ import { Card } from '../ui/Card';
 import { PersonalSettings } from './PersonalSettings';
 import { WorkSettings } from './WorkSettings';
 import { AdditionalCalendars } from './AdditionalCalendars';
+import { Colors } from '../ui/design-tokens';
 
 type CalendarSubSection = 'none' | 'personal' | 'work' | 'additional';
 
@@ -34,7 +35,7 @@ export function CalendarsMainSettings() {
                     {subtitle && <Text className="text-slate-400 text-sm mt-0.5" numberOfLines={1}>{subtitle}</Text>}
                 </View>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#64748b" className="ml-2" />
+            <Ionicons name="chevron-forward" size={20} color={Colors.secondary} className="ml-2" />
         </TouchableOpacity>
     );
 
@@ -80,8 +81,8 @@ export function CalendarsMainSettings() {
                     <Switch
                         value={hideDeclinedEvents}
                         onValueChange={setHideDeclinedEvents}
-                        trackColor={{ false: "#334155", true: "#818cf8" }}
-                        thumbColor={hideDeclinedEvents ? "#ffffff" : "#94a3b8"}
+                        trackColor={{ false: Colors.surfaceHighlight, true: "#818cf8" }}
+                        thumbColor={hideDeclinedEvents ? Colors.white : Colors.text.tertiary}
                     />
                 </View>
 

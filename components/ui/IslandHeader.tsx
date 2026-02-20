@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Shadows } from './design-tokens';
+import { Shadows, Colors } from './design-tokens';
 import { IslandBar } from './IslandBar';
 
 export interface HeaderAction {
@@ -81,7 +81,7 @@ export function IslandHeader({
                                 <Ionicons
                                     name={action.icon as any}
                                     size={22}
-                                    color={action.color || '#94a3b8'}
+                                    color={action.color || Colors.text.tertiary}
                                 />
                             </TouchableOpacity>
                         )

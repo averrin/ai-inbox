@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors } from './design-tokens';
 
 interface JsonTreeItemProps {
   label?: string;
@@ -126,7 +127,7 @@ const JsonTreeItem: React.FC<JsonTreeItemProps> = ({
                 <Ionicons
                 name={isExpanded ? 'chevron-down' : 'chevron-forward'}
                 size={14}
-                color="#94a3b8"
+                color={Colors.text.tertiary}
                 />
             )}
             </View>
@@ -141,12 +142,12 @@ const JsonTreeItem: React.FC<JsonTreeItemProps> = ({
             <View className="flex-row items-center space-x-2 mr-2 opacity-50">
                 {onEdit && (
                     <TouchableOpacity onPress={() => onEdit(path, value)} className="p-1">
-                        <Ionicons name="pencil" size={12} color="#94a3b8" />
+                        <Ionicons name="pencil" size={12} color={Colors.text.tertiary} />
                     </TouchableOpacity>
                 )}
                 {onDelete && (
                     <TouchableOpacity onPress={() => onDelete(path)} className="p-1">
-                        <Ionicons name="trash" size={12} color="#ef4444" />
+                        <Ionicons name="trash" size={12} color={Colors.error} />
                     </TouchableOpacity>
                 )}
             </View>

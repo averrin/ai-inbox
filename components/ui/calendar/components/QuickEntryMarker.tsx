@@ -4,6 +4,7 @@ import { StyleSheet, View, TextInput } from 'react-native'
 import Animated, { useAnimatedStyle, withSpring, withTiming, SharedValue, useAnimatedProps } from 'react-native-reanimated'
 import { u } from '../commonStyles'
 import { useTheme } from '../theme/ThemeContext'
+import { Colors, Palette } from '../../design-tokens';
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput)
 
@@ -67,7 +68,7 @@ export const QuickEntryMarker = ({ touchY, isActive, cellHeight, minHour = 0 }: 
         >
             <View style={[styles.labelContainer, { backgroundColor: theme.palette.primary.main }]}>
                 <AnimatedTextInput
-                    underlineColorAndroid="transparent"
+                    underlineColorAndroid={Colors.transparent}
                     editable={false}
                     value="12:00 AM" // Initial value
                     animatedProps={animatedProps}
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(99, 102, 241, 0.15)', // Indigo-500 with opacity
         borderTopWidth: 1,
         borderBottomWidth: 1,
-        borderColor: '#6366f1',
+        borderColor: Palette[14],
     },
     line: {
         display: 'none', // Removed internal line in favor of container borders
@@ -100,13 +101,13 @@ const styles = StyleSheet.create({
     labelContainer: {
         position: 'absolute',
         left: 8,
-        backgroundColor: '#6366f1',
+        backgroundColor: Palette[14],
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: 4,
     },
     labelText: {
-        color: '#ffffff',
+        color: Colors.white,
         fontSize: 12,
         fontWeight: 'bold',
         fontVariant: ['tabular-nums'],

@@ -5,6 +5,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { JsonTreeView } from '../ui/JsonTreeView';
+import { Colors } from '../ui/design-tokens';
 
 export const SyncDebugView = () => {
     const [targets, setTargets] = useState<string[]>([]);
@@ -276,13 +277,13 @@ export const SyncDebugView = () => {
                                     value={remoteData}
                                     onChangeText={setRemoteData}
                                     placeholder="{}"
-                                    placeholderTextColor="#64748b"
+                                    placeholderTextColor={Colors.secondary}
                                     autoCapitalize="none"
                                     autoCorrect={false}
                                     style={{
                                         fontFamily: 'monospace',
                                         fontSize: 12,
-                                        color: '#cbd5e1',
+                                        color: Colors.text.secondary,
                                         textAlignVertical: 'top',
                                         height: '100%',
                                         padding: 8

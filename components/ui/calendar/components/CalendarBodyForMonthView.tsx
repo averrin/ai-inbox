@@ -27,6 +27,7 @@ import { useTheme } from '../theme/ThemeContext'
 import { SIMPLE_DATE_FORMAT, getWeeksWithAdjacentMonths } from '../utils/datetime'
 import { typedMemo } from '../utils/react'
 import { CalendarEventForMonthView } from './CalendarEventForMonthView'
+import { Colors } from '../../design-tokens';
 
 interface CalendarBodyForMonthViewProps<T extends ICalendarEventBase> {
   containerHeight: number
@@ -494,7 +495,7 @@ function TouchableGradually({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={onPress}
-      underlayColor="transparent"
+      underlayColor={Colors.transparent}
       style={style}
     >
       <Animated.View

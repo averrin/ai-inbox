@@ -46,6 +46,7 @@ import { TaskService } from '../../services/taskService';
 import { useFab } from '../../hooks/useFab';
 import { useWeatherStore } from '../../store/weatherStore';
 import { WeatherHourGuide } from '../WeatherHourGuide';
+import { Colors, Palette } from '../ui/design-tokens';
 
 
 export default function ScheduleScreen() {
@@ -322,7 +323,7 @@ export default function ScheduleScreen() {
                     title: r.title || r.fileName?.replace('.md', '') || 'Untitled Reminder',
                     start: new Date(r.reminderTime),
                     end: new Date(r.reminderTime),
-                    color: r.alarm ? '#ef4444' : '#f59e0b',
+                    color: r.alarm ? Colors.error : Palette[5],
                     originalEvent: r,
                     type: 'marker' as const,
                     difficulty: undefined,
@@ -529,7 +530,7 @@ export default function ScheduleScreen() {
                     title: data.title || (isNew ? 'Reminder' : 'Untitled'),
                     start: data.startDate,
                     end: data.startDate,
-                    color: data.alarm ? '#ef4444' : '#f59e0b',
+                    color: data.alarm ? Colors.error : Palette[5],
                     type: 'marker',
                     originalEvent: updatedReminder,
                     typeTag: 'REMINDER'
@@ -616,7 +617,7 @@ export default function ScheduleScreen() {
                     title: data.title || 'Reminder',
                     start: data.startDate,
                     end: data.startDate,
-                    color: data.alarm ? '#ef4444' : '#f59e0b',
+                    color: data.alarm ? Colors.error : Palette[5],
                     type: 'marker',
                     originalEvent: tempReminder,
                     typeTag: 'REMINDER'
@@ -1014,7 +1015,7 @@ export default function ScheduleScreen() {
         // Mood Logic
         // Display mood and weather in the header
         const moodEntry = moods[dayStr];
-        const moodColors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
+        const moodColors = [Colors.error, Colors.busy, Colors.warning, Palette[7], Colors.success];
         const moodColor = moodEntry ? moodColors[moodEntry.mood - 1] : undefined;
 
         // All Day Events for this day
@@ -1047,7 +1048,7 @@ export default function ScheduleScreen() {
                                 onPress={() => setWeatherModalVisible(true)}
                                 className="flex-row items-center gap-1"
                             >
-                                <Ionicons name={weather.icon as any} size={16} color="#94a3b8" />
+                                <Ionicons name={weather.icon as any} size={16} color={Colors.text.tertiary} />
                                 <Text className="text-slate-400 text-xs font-semibold">
                                     {Math.round(weather.maxTemp)}°C
                                 </Text>
@@ -1077,7 +1078,7 @@ export default function ScheduleScreen() {
                             Day Score: <Text className="text-indigo-400 text-sm">{Math.round(dayStats.totalScore)}</Text>
                         </Text>
 
-                        <Ionicons name="information-circle-outline" size={16} color="#64748b" />
+                        <Ionicons name="information-circle-outline" size={16} color={Colors.secondary} />
                     </TouchableOpacity>
                 </View>
 
@@ -1133,7 +1134,7 @@ export default function ScheduleScreen() {
         const isCompletedEvent = isEventCompleted;
 
         const style: any = {
-            backgroundColor: event.isInverted ? '#0f172a' : (event.color || '#4f46e5'),
+            backgroundColor: event.isInverted ? Colors.background : (event.color || '#4f46e5'),
             borderColor: event.isInverted ? (event.color || '#4f46e5') : '#eeeeee66',
             borderWidth: 1,
             borderRadius: 4,
@@ -1142,9 +1143,9 @@ export default function ScheduleScreen() {
         };
 
         if (isOverdueCompletable) {
-            style.borderColor = '#ef4444';
+            style.borderColor = Colors.error;
             style.borderWidth = 2;
-            style.shadowColor = '#ef4444';
+            style.shadowColor = Colors.error;
             style.shadowOffset = { width: 0, height: 4 };
             style.shadowOpacity = 0.8;
             style.shadowRadius = 12;
@@ -1189,7 +1190,7 @@ export default function ScheduleScreen() {
                 title: title,
                 start: newStart,
                 end: newEnd,
-                color: isWalk ? '#10b981' : '#3b82f6', // emerald-500 or blue-500
+                color: isWalk ? Palette[9] : Colors.primary, // emerald-500 or blue-500
                 type: undefined, // Real event
                 originalEvent: {
                     title: title,
@@ -1462,7 +1463,7 @@ export default function ScheduleScreen() {
                     {/* Calendar View */}
                     {visibleCalendarIds.length === 0 ? (
                         <View className="flex-1 justify-center items-center p-6">
-                            <Ionicons name="calendar-outline" size={64} color="#334155" />
+                            <Ionicons name="calendar-outline" size={64} color={Colors.surfaceHighlight} />
                             <Text className="text-slate-400 text-center mt-4">
                                 No calendars selected.
                             </Text>
@@ -1495,11 +1496,11 @@ export default function ScheduleScreen() {
                                             contrastText: '#fff',
                                         },
                                         gray: {
-                                            100: '#334155',
-                                            200: '#1e293b',
-                                            300: '#94a3b8',
-                                            500: '#cbd5e1',
-                                            800: '#f8fafc',
+                                            100: Colors.surfaceHighlight,
+                                            200: Colors.surface,
+                                            300: Colors.text.tertiary,
+                                            500: Colors.text.secondary,
+                                            800: Colors.text.primary,
                                         },
                                     },
                                     typography: {
@@ -1528,8 +1529,8 @@ export default function ScheduleScreen() {
                                         setSelectedEvent({ title: event.title, start: event.start, end: event.end, ...event }); // Spread all props to include color/typeTag
                                     }
                                 }}
-                                calendarCellStyle={{ borderColor: '#334155', backgroundColor: '#0f172a' }}
-                                bodyContainerStyle={{ backgroundColor: '#0f172a' }}
+                                calendarCellStyle={{ borderColor: Colors.surfaceHighlight, backgroundColor: Colors.background }}
+                                bodyContainerStyle={{ backgroundColor: Colors.background }}
                                 renderEvent={(evt, touchableOpacityProps) => (
                                     <ScheduleEvent
                                         event={evt}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, Text, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors } from '../ui/design-tokens';
 
 interface TasksFilterPanelProps {
     search: string;
@@ -27,17 +28,17 @@ export function TasksFilterPanel({
     return (
         <View className="p-4 pb-2 bg-transparent border-b border-slate-700">
             <View className="flex-row items-center bg-slate-800 rounded-xl px-4 py-2 mb-3">
-                <Ionicons name="search-outline" size={20} color="#64748b" />
+                <Ionicons name="search-outline" size={20} color={Colors.secondary} />
                 <TextInput
                     className="flex-1 ml-2 text-white font-medium"
                     placeholder="Search tasks..."
-                    placeholderTextColor="#64748b"
+                    placeholderTextColor={Colors.secondary}
                     value={search}
                     onChangeText={setSearch}
                 />
                 {search.length > 0 && (
                     <TouchableOpacity onPress={() => setSearch('')}>
-                        <Ionicons name="close-circle" size={20} color="#64748b" />
+                        <Ionicons name="close-circle" size={20} color={Colors.secondary} />
                     </TouchableOpacity>
                 )}
             </View>
@@ -89,7 +90,7 @@ export function TasksFilterPanel({
                         onPress={() => setShowMenu(!showMenu)}
                         className="bg-slate-800 p-2 rounded-lg border border-slate-700"
                     >
-                        <Ionicons name="ellipsis-vertical" size={20} color="#94a3b8" />
+                        <Ionicons name="ellipsis-vertical" size={20} color={Colors.text.tertiary} />
                     </TouchableOpacity>
                 </View>
 
@@ -116,7 +117,7 @@ export function TasksFilterPanel({
                                 }}
                                 className="flex-row items-center p-4 border-b border-slate-700 active:bg-slate-700"
                             >
-                                <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                                <Ionicons name="trash-outline" size={18} color={Colors.error} />
                                 <Text className="text-red-400 ml-3 font-medium">Clear Completed</Text>
                             </TouchableOpacity>
                             

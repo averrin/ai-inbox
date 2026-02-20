@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors } from './design-tokens';
 
 export interface HeaderAction {
     icon: string;
@@ -37,7 +38,7 @@ export function ScreenHeader({
     return (
         <View
             className={`px-4 pt-3 pb-2 ${noBorder ? '' : 'border-b border-slate-800'}`}
-            style={{ backgroundColor: 'transparent' }}
+            style={{ backgroundColor: Colors.transparent }}
         >
             <View className="flex-row items-center justify-between">
                 {/* Left side: optional back + title */}
@@ -78,7 +79,7 @@ export function ScreenHeader({
                                     <Ionicons
                                         name={action.icon as any}
                                         size={22}
-                                        color={action.color || '#94a3b8'}
+                                        color={action.color || Colors.text.tertiary}
                                     />
                                 </TouchableOpacity>
                             )

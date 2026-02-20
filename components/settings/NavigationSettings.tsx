@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import * as Crypto from 'expo-crypto';
 import { NavIconPicker } from '../ui/NavIconPicker';
+import { Colors } from '../ui/design-tokens';
 
 export function NavigationSettings() {
     const { navConfig, setNavConfig, savedNavConfig, setSavedNavConfig } = useSettingsStore();
@@ -229,7 +230,7 @@ export function NavigationSettings() {
                                             // @ts-ignore
                                             name={screen.icon}
                                             size={20}
-                                            color={isSelected ? '#818cf8' : '#94a3b8'}
+                                            color={isSelected ? '#818cf8' : Colors.text.tertiary}
                                         />
                                         <Text className={`font-medium ${isSelected ? 'text-white' : 'text-slate-400'}`}>
                                             {screen.title}
@@ -299,7 +300,7 @@ export function NavigationSettings() {
                             onPress={() => handleDelete(item.id)}
                             className="bg-red-500/20 w-8 h-8 items-center justify-center rounded-full ml-1"
                         >
-                            <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                            <Ionicons name="trash-outline" size={18} color={Colors.error} />
                         </TouchableOpacity>
                     </View>
                 </View>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors } from './design-tokens';
 
 interface ActionButtonProps {
     onPress: () => void;
@@ -30,7 +31,7 @@ export function ActionButton({ onPress, icon, variant = 'neutral', size = 16 }: 
             default: // neutral
                 return {
                     container: 'bg-slate-700/50',
-                    color: '#94a3b8'
+                    color: Colors.text.tertiary
                 };
         }
     };

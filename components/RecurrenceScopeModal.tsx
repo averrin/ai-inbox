@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors } from './ui/design-tokens';
 
 interface RecurrenceScopeModalProps {
     visible: boolean;
@@ -33,7 +34,7 @@ export function RecurrenceScopeModal({
                             className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
                         >
                             <Text className="text-white font-semibold">This event only</Text>
-                            <Ionicons name="calendar-outline" size={20} color="#94a3b8" />
+                            <Ionicons name="calendar-outline" size={20} color={Colors.text.tertiary} />
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -41,7 +42,7 @@ export function RecurrenceScopeModal({
                             className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
                         >
                             <Text className="text-white font-semibold">This and following events</Text>
-                            <Ionicons name="albums-outline" size={20} color="#94a3b8" />
+                            <Ionicons name="albums-outline" size={20} color={Colors.text.tertiary} />
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -49,7 +50,7 @@ export function RecurrenceScopeModal({
                             className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
                         >
                             <Text className="text-white font-semibold">All events in series</Text>
-                            <Ionicons name="infinite-outline" size={20} color="#94a3b8" />
+                            <Ionicons name="infinite-outline" size={20} color={Colors.text.tertiary} />
                         </TouchableOpacity>
 
                         <TouchableOpacity

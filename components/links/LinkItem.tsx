@@ -6,6 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 import { LinkWithSource } from '../../services/linkService';
 import Toast from 'react-native-toast-message';
 import { useSettingsStore } from '../../store/settings';
+import { Colors } from '../ui/design-tokens';
 
 interface LinkItemProps {
     link: LinkWithSource;
@@ -117,10 +118,10 @@ export function LinkItem({ link, onDelete, onTagPress }: LinkItemProps) {
                     <Ionicons name="open-outline" size={18} color="#818cf8" />
                  </TouchableOpacity>
                  <TouchableOpacity onPress={handleCopy} className="flex-1 justify-center items-center w-full">
-                    <Ionicons name="copy-outline" size={18} color="#94a3b8" />
+                    <Ionicons name="copy-outline" size={18} color={Colors.text.tertiary} />
                  </TouchableOpacity>
                  <TouchableOpacity onPress={handleDelete} className="flex-1 justify-center items-center w-full">
-                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                    <Ionicons name="trash-outline" size={18} color={Colors.error} />
                  </TouchableOpacity>
             </View>
         </View>

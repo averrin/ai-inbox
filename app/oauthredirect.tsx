@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity } from "react-native";
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect } from "react";
 import { router } from "expo-router";
+import { Colors } from '../components/ui/design-tokens';
 
 export default function OAuthRedirect() {
     useEffect(() => {
@@ -17,9 +18,9 @@ export default function OAuthRedirect() {
     }, []);
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <View style={{ flex: 1, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
             <Text style={{ color: 'white', fontSize: 18, marginBottom: 20 }}>Completing login...</Text>
-            <Text style={{ color: '#94a3b8', textAlign: 'center', marginBottom: 20 }}>
+            <Text style={{ color: Colors.text.tertiary, textAlign: 'center', marginBottom: 20 }}>
                 Returning you to the app...
             </Text>
         </View>

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NavItemConfig } from '../../store/settings';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors } from '../ui/design-tokens';
 
 interface Props {
   visible: boolean;
@@ -90,7 +91,7 @@ export function GroupMenuOverlay({ visible, config, targetX, onClose }: Props & 
           */}
           <View style={{
             flexDirection: 'row',
-            backgroundColor: '#1e293b', // slate-800
+            backgroundColor: Colors.surface, // slate-800
             borderRadius: 30,
             padding: 4,
             alignItems: 'center',
@@ -117,7 +118,7 @@ export function GroupMenuOverlay({ visible, config, targetX, onClose }: Props & 
                   // @ts-ignore
                   name={child.icon}
                   size={24}
-                  color="#94a3b8"
+                  color={Colors.text.tertiary}
                 />
               </TouchableOpacity>
             ))}

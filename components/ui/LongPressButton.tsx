@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, View, Text } from 'react-native';
-import Animated, { 
+import { Palette } from './design-tokens';
+import Animated, {
     useSharedValue, 
     useAnimatedStyle, 
     withTiming,
@@ -130,7 +131,7 @@ export function LongPressButton({
                     style={[
                         animatedStyle, 
                         { position: 'absolute', top: 0, left: 0, bottom: 0, zIndex: 0 },
-                        children ? { backgroundColor: 'rgba(255,255,255,0.3)' } : { backgroundColor: '#6366f1' } // indigo-500
+                        children ? { backgroundColor: 'rgba(255,255,255,0.3)' } : { backgroundColor: Palette[14] } // indigo-500
                     ]} 
                 />
             </View>

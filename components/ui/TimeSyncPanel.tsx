@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors } from './design-tokens';
 
 interface TimeSyncPanelProps {
     isSynced: boolean;
@@ -22,8 +23,8 @@ export function TimeSyncPanel({
                 <Switch
                     value={isSynced}
                     onValueChange={onToggleSync}
-                    trackColor={{ false: '#334155', true: '#4f46e5' }}
-                    thumbColor={isSynced ? '#e0e7ff' : '#94a3b8'}
+                    trackColor={{ false: Colors.surfaceHighlight, true: '#4f46e5' }}
+                    thumbColor={isSynced ? '#e0e7ff' : Colors.text.tertiary}
                     style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
                 />
             </View>

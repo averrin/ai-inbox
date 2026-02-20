@@ -13,6 +13,7 @@ import { RelationService } from '../services/relationService';
 import { TaskPicker } from './ui/TaskPicker';
 import { TaskWithSource } from '../store/tasks';
 import { TaskStatusIcon } from './ui/TaskStatusIcon';
+import { Colors, Palette } from './ui/design-tokens';
 
 interface Props {
     visible: boolean;
@@ -292,7 +293,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                     className={`w-8 h-8 rounded-full items-center justify-center border ${currentIcon ? 'bg-indigo-500/20 border-indigo-500' : 'bg-slate-800 border-slate-700'}`}
                                 >
                                     {currentIcon ? (
-                                        <UniversalIcon name={currentIcon} size={16} color={currentIcon ? '#818cf8' : '#64748b'} />
+                                        <UniversalIcon name={currentIcon} size={16} color={currentIcon ? '#818cf8' : Colors.secondary} />
                                     ) : (
                                         <Ionicons name="happy-outline" size={16} color="#475569" />
                                     )}
@@ -348,7 +349,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                         className={`px-2 py-1 rounded-md border ${flags?.movable ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-700 border-transparent'}`}
                                     >
                                         <View className="flex-row items-center gap-1">
-                                            <Ionicons name="move" size={12} color={flags?.movable ? '#34d399' : '#94a3b8'} />
+                                            <Ionicons name="move" size={12} color={flags?.movable ? '#34d399' : Colors.text.tertiary} />
                                             <Text className={`text-xs ${flags?.movable ? 'text-emerald-400 font-bold' : 'text-slate-400'}`}>
                                                 Movable
                                             </Text>
@@ -360,7 +361,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                         className={`px-2 py-1 rounded-md border ${flags?.skippable ? 'bg-rose-500/20 border-rose-500' : 'bg-slate-700 border-transparent'}`}
                                     >
                                         <View className="flex-row items-center gap-1">
-                                            <Ionicons name="return-up-forward" size={12} color={flags?.skippable ? '#fb7185' : '#94a3b8'} />
+                                            <Ionicons name="return-up-forward" size={12} color={flags?.skippable ? '#fb7185' : Colors.text.tertiary} />
                                             <Text className={`text-xs ${flags?.skippable ? 'text-rose-400 font-bold' : 'text-slate-400'}`}>
                                                 Skippable
                                             </Text>
@@ -372,7 +373,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                         className={`px-2 py-1 rounded-md border ${flags?.needPrep ? 'bg-amber-500/20 border-amber-500' : 'bg-slate-700 border-transparent'}`}
                                     >
                                         <View className="flex-row items-center gap-1">
-                                            <Ionicons name="pricetag-outline" size={12} color={flags?.needPrep ? '#fbbf24' : '#94a3b8'} />
+                                            <Ionicons name="pricetag-outline" size={12} color={flags?.needPrep ? '#fbbf24' : Colors.text.tertiary} />
                                             <Text className={`text-xs ${flags?.needPrep ? 'text-amber-400 font-bold' : 'text-slate-400'}`}>
                                                 Prep
                                             </Text>
@@ -384,7 +385,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                         className={`px-2 py-1 rounded-md border ${flags?.completable ? 'bg-cyan-500/20 border-cyan-500' : 'bg-slate-700 border-transparent'}`}
                                     >
                                         <View className="flex-row items-center gap-1">
-                                            <Ionicons name="checkbox-outline" size={12} color={flags?.completable ? '#22d3ee' : '#94a3b8'} />
+                                            <Ionicons name="checkbox-outline" size={12} color={flags?.completable ? '#22d3ee' : Colors.text.tertiary} />
                                             <Text className={`text-xs ${flags?.completable ? 'text-cyan-400 font-bold' : 'text-slate-400'}`}>
                                                 Checkbox
                                             </Text>
@@ -420,9 +421,9 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                 const isInv = item.isInverted;
                                 const textColor = isSelected ? (isInv ? item.color : 'white') : (isInv ? item.color : 'white');
                                 const bgColor = isSelected
-                                    ? (isInv ? 'transparent' : item.color)
-                                    : (isInv ? 'transparent' : `${item.color}40`); // 25% opacity for unselected
-                                const borderColor = isSelected ? '#818cf8' : 'transparent';
+                                    ? (isInv ? Colors.transparent : item.color)
+                                    : (isInv ? Colors.transparent : `${item.color}40`); // 25% opacity for unselected
+                                const borderColor = isSelected ? '#818cf8' : Colors.transparent;
                                 const borderWidth = isSelected ? 2 : 0;
 
                                 return (
@@ -431,8 +432,8 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                         onPress={() => handleAssign(item.id)}
                                         className="flex-row items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
                                         style={{
-                                            backgroundColor: isInv ? 'transparent' : (isSelected ? item.color : `${item.color}30`),
-                                            borderColor: isSelected ? 'white' : (isInv ? item.color : 'transparent'),
+                                            backgroundColor: isInv ? Colors.transparent : (isSelected ? item.color : `${item.color}30`),
+                                            borderColor: isSelected ? 'white' : (isInv ? item.color : Colors.transparent),
                                             borderWidth: isInv ? 1 : (isSelected ? 2 : 0)
                                         }}
                                     >
@@ -466,7 +467,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                         <View className="flex-row items-center justify-between mb-2">
                              <Text className="text-slate-400 text-xs font-semibold uppercase">Linked Tasks</Text>
                              <TouchableOpacity onPress={() => setShowTaskPicker(true)} className="p-1">
-                                <Ionicons name="add-circle-outline" size={20} color="#94a3b8" />
+                                <Ionicons name="add-circle-outline" size={20} color={Colors.text.tertiary} />
                              </TouchableOpacity>
                         </View>
                         <View className="gap-2">
@@ -481,7 +482,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                 >
                                     <TaskStatusIcon status={task.status} size={14} />
                                     <Text className="text-slate-300 text-xs flex-1" numberOfLines={1}>{task.title}</Text>
-                                    <Ionicons name="chevron-forward" size={12} color="#64748b" />
+                                    <Ionicons name="chevron-forward" size={12} color={Colors.secondary} />
                                 </TouchableOpacity>
                             ))}
                             {linkedTasks.length === 0 && (
@@ -499,7 +500,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                     <View key={cal.id} className="flex-row items-center gap-2">
                                         <View
                                             className="w-3 h-3 rounded-full"
-                                            style={{ backgroundColor: cal.color || '#64748b' }}
+                                            style={{ backgroundColor: cal.color || Colors.secondary }}
                                         />
                                         <Text className="text-slate-300 text-sm">{cal.title}</Text>
                                     </View>
@@ -515,7 +516,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                 onPress={() => { onClose(); onEdit?.(); }}
                                 className="flex-1 py-3 flex-row items-center justify-center gap-2 rounded-xl bg-slate-800 border border-slate-700"
                             >
-                                <Ionicons name="create-outline" size={18} color="#f59e0b" />
+                                <Ionicons name="create-outline" size={18} color={Palette[5]} />
                                 <Text className="text-amber-500 font-medium text-xs" numberOfLines={1}>Edit</Text>
                             </TouchableOpacity>
 
@@ -532,7 +533,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                     onPress={handleUnassign}
                                     className="flex-1 py-3 flex-row items-center justify-center gap-2 rounded-xl bg-slate-800 border border-slate-700"
                                 >
-                                    <Ionicons name="close-circle-outline" size={18} color="#ef4444" />
+                                    <Ionicons name="close-circle-outline" size={18} color={Colors.error} />
                                     <Text className="text-red-500 font-medium text-xs" numberOfLines={1}>Unassign</Text>
                                 </TouchableOpacity>
                             )}
@@ -566,7 +567,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                 onPress={() => setShowIconPicker(false)}
                                 className="w-8 h-8 rounded-full bg-slate-800 items-center justify-center"
                             >
-                                <Ionicons name="close" size={20} color="#94a3b8" />
+                                <Ionicons name="close" size={20} color={Colors.text.tertiary} />
                             </TouchableOpacity>
                         </View>
 
@@ -618,7 +619,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                 onPress={() => setShowAttendeesPopup(false)}
                                 className="w-8 h-8 rounded-full bg-slate-700 items-center justify-center"
                             >
-                                <Ionicons name="close" size={20} color="#94a3b8" />
+                                <Ionicons name="close" size={20} color={Colors.text.tertiary} />
                             </TouchableOpacity>
                         </View>
                         <FlatList
@@ -653,13 +654,13 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
 
                                 if (isMe) {
                                     displayName = "Me";
-                                    displayColor = '#8b5cf6'; // Violet-500
+                                    displayColor = Palette[15]; // Violet-500
                                     displayIcon = 'person';
                                 } else if (isResource) {
-                                    displayColor = '#64748b'; // Slate-500 (Neutral)
+                                    displayColor = Colors.secondary; // Slate-500 (Neutral)
                                     displayIcon = 'business'; // Conference room/Business icon
                                 } else if (isGoodTimeBot) {
-                                    displayColor = '#64748b'; // Slate-500 (Neutral)
+                                    displayColor = Colors.secondary; // Slate-500 (Neutral)
                                     displayIcon = 'mc/robot'; // Bot icon
                                 }
 
@@ -689,7 +690,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                             <View className="flex-row items-center gap-2">
                                                 <Text className="text-white font-semibold text-base">{displayName}</Text>
                                                 {contact?.isWife && !isMe && (
-                                                    <Ionicons name="heart" size={12} color="#ec4899" />
+                                                    <Ionicons name="heart" size={12} color={Palette[2]} />
                                                 )}
                                             </View>
                                             {item.email && <Text className="text-slate-500 text-xs mt-0.5">{item.email}</Text>}
@@ -710,7 +711,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                             }}
                             ListEmptyComponent={
                                 <View className="p-12 items-center">
-                                    <Ionicons name="people-outline" size={48} color="#334155" />
+                                    <Ionicons name="people-outline" size={48} color={Colors.surfaceHighlight} />
                                     <Text className="text-slate-500 mt-4 text-center">No attendee details available</Text>
                                 </View>
                             }

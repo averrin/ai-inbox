@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SettingsListItem } from '../ui/SettingsListItem';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { Colors, Palette } from '../ui/design-tokens';
 
 export function PersonalSettings() {
     const {
@@ -101,8 +102,8 @@ export function PersonalSettings() {
                     <Switch
                         value={isPersonal}
                         onValueChange={() => togglePersonalCalendar(cal.id, cal.source.name)}
-                        trackColor={{ false: "#334155", true: "#818cf8" }}
-                        thumbColor={isPersonal ? "#ffffff" : "#94a3b8"}
+                        trackColor={{ false: Colors.surfaceHighlight, true: "#818cf8" }}
+                        thumbColor={isPersonal ? Colors.white : Colors.text.tertiary}
                     />
                 </SettingsListItem>
 
@@ -114,7 +115,7 @@ export function PersonalSettings() {
                                 onPress={() => setDefaultCreateCalendarId(cal.id)}
                                 className={`flex-row items-center gap-1 px-2 py-1 rounded-md border ${isCreateDefault ? 'bg-emerald-500/10 border-emerald-500/50' : 'bg-slate-800 border-slate-700'}`}
                             >
-                                <Ionicons name="add-circle" size={14} color={isCreateDefault ? "#10b981" : "#64748b"} />
+                                <Ionicons name="add-circle" size={14} color={isCreateDefault ? Palette[9] : Colors.secondary} />
                                 <Text className={`text-xs ${isCreateDefault ? 'text-emerald-500 font-bold' : 'text-slate-400'}`}>
                                     Default Create
                                 </Text>
@@ -124,7 +125,7 @@ export function PersonalSettings() {
                                 onPress={() => setDefaultOpenCalendarId(cal.id)}
                                 className={`flex-row items-center gap-1 px-2 py-1 rounded-md border ${isOpenDefault ? 'bg-amber-500/10 border-amber-500/50' : 'bg-slate-800 border-slate-700'}`}
                             >
-                                <Ionicons name="eye" size={14} color={isOpenDefault ? "#f59e0b" : "#64748b"} />
+                                <Ionicons name="eye" size={14} color={isOpenDefault ? Palette[5] : Colors.secondary} />
                                 <Text className={`text-xs ${isOpenDefault ? 'text-amber-500 font-bold' : 'text-slate-400'}`}>
                                     Default Open
                                 </Text>
@@ -146,7 +147,7 @@ export function PersonalSettings() {
                                 ) : (
                                     <Text className="text-slate-500 text-xs italic">None</Text>
                                 )}
-                                <Ionicons name="chevron-down" size={12} color="#64748b" />
+                                <Ionicons name="chevron-down" size={12} color={Colors.secondary} />
                             </View>
                         </TouchableOpacity>
                     </View>

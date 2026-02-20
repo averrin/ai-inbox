@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { useSettingsStore } from '../../store/settings';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
+import { Colors } from '../ui/design-tokens';
 
 const DEFAULT_PROMPT = `
 You are a highly perceptive and motivating AI productivity expert.
@@ -98,7 +99,7 @@ export function ForecastSettings() {
                             multiline
                             textAlignVertical="top"
                             placeholder="Enter your custom prompt..."
-                            placeholderTextColor="#64748b"
+                            placeholderTextColor={Colors.secondary}
                         />
                     </View>
 
@@ -115,7 +116,7 @@ export function ForecastSettings() {
                             onPress={handleReset}
                             className="bg-red-500/10 border border-red-500/20 px-4 rounded-xl items-center justify-center"
                         >
-                            <Ionicons name="refresh-outline" size={20} color="#ef4444" />
+                            <Ionicons name="refresh-outline" size={20} color={Colors.error} />
                         </TouchableOpacity>
                     </View>
                 </View>

@@ -4,6 +4,7 @@ import { ActionButton } from '../../ActionButton'
 import { SettingsListItem } from '../../SettingsListItem'
 import { Ionicons } from '@expo/vector-icons';
 import type { HabitDefinition } from '../../../../store/habitStore'
+import { Colors } from '../../design-tokens';
 
 interface HabitItemProps {
     habit: HabitDefinition
@@ -33,8 +34,8 @@ export const HabitItem = ({
                 <Switch
                     value={habit.isEnabled}
                     onValueChange={onToggle}
-                    trackColor={{ false: '#334155', true: habit.color }}
-                    thumbColor={habit.isEnabled ? '#ffffff' : '#94a3b8'}
+                    trackColor={{ false: Colors.surfaceHighlight, true: habit.color }}
+                    thumbColor={habit.isEnabled ? Colors.white : Colors.text.tertiary}
                     className="scale-75"
                 />
                 <ActionButton

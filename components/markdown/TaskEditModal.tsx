@@ -25,6 +25,7 @@ import {
 import { getParentFolderUri, findFile } from '../../utils/saf';
 import { TaskStatusIcon, getStatusConfig } from '../ui/TaskStatusIcon';
 import { FolderInput } from '../ui/FolderInput';
+import { Colors, Palette } from '../ui/design-tokens';
 
 interface TaskEditModalProps {
     visible: boolean;
@@ -343,11 +344,11 @@ export function TaskEditModal({
                         <View className="flex-row gap-2">
                              {task && task.fileUri && (
                                 <TouchableOpacity onPress={handleOpenNote} className="p-2 bg-slate-800 rounded-lg">
-                                    <Ionicons name="document-text-outline" size={20} color="#94a3b8" />
+                                    <Ionicons name="document-text-outline" size={20} color={Colors.text.tertiary} />
                                 </TouchableOpacity>
                             )}
                             <TouchableOpacity onPress={onCancel} className="p-2">
-                                <Ionicons name="close" size={24} color="#94a3b8" />
+                                <Ionicons name="close" size={24} color={Colors.text.tertiary} />
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -360,7 +361,7 @@ export function TaskEditModal({
                                 value={title}
                                 onChangeText={setTitle}
                                 placeholder="Task title..."
-                                placeholderTextColor="#64748b"
+                                placeholderTextColor={Colors.secondary}
                                 multiline
                             />
                         </View>
@@ -428,10 +429,10 @@ export function TaskEditModal({
                             <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Priority</Text>
                             <View className="flex-row gap-2">
                                 {[
-                                    { id: 'high', icon: 'arrow-up-circle', label: 'High', color: '#ef4444' },
-                                    { id: 'medium', icon: 'remove-circle', label: 'Medium', color: '#f59e0b' },
-                                    { id: 'low', icon: 'arrow-down-circle', label: 'Low', color: '#22c55e' },
-                                    { id: 'clear', icon: 'close-circle', label: 'None', color: '#94a3b8' },
+                                    { id: 'high', icon: 'arrow-up-circle', label: 'High', color: Colors.error },
+                                    { id: 'medium', icon: 'remove-circle', label: 'Medium', color: Palette[5] },
+                                    { id: 'low', icon: 'arrow-down-circle', label: 'Low', color: Colors.success },
+                                    { id: 'clear', icon: 'close-circle', label: 'None', color: Colors.text.tertiary },
                                 ].map((p) => {
                                     const isSelected = p.id === 'clear' ? !properties.priority : properties.priority === p.id;
                                     return (
@@ -488,7 +489,7 @@ export function TaskEditModal({
                                     onPress={() => setShowReminderModal(true)}
                                     className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex-row items-center justify-center border-dashed"
                                 >
-                                    <Ionicons name="alarm-outline" size={20} color="#94a3b8" />
+                                    <Ionicons name="alarm-outline" size={20} color={Colors.text.tertiary} />
                                     <Text className="text-slate-400 ml-2 font-medium">Add Reminder</Text>
                                 </TouchableOpacity>
                             )}

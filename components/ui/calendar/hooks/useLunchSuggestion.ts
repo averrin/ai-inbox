@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import { useEventTypesStore } from '../../../../store/eventTypes';
 import { ICalendarEventBase } from '../interfaces';
 import { findBestSlot } from '../../../../utils/slotFinder';
+import { Colors } from '../../design-tokens';
 
 interface LunchSuggestionResult {
     lunchEvents: any[];
@@ -106,7 +107,7 @@ export function useLunchSuggestion(
                     start: rEnd.toDate(),
                     end: rEnd.toDate(),
                     type: 'marker',
-                    color: '#ef4444', // Red warning
+                    color: Colors.error, // Red warning
                     typeTag: 'LUNCH_MISSED'
                 });
             }

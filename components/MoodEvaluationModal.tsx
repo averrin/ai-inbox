@@ -7,6 +7,7 @@ import { useMoodStore } from '../store/moodStore';
 import { useHabitStore } from '../store/habitStore';
 import { syncMoodReminders } from '../services/reminderService';
 import { ForecastSection } from './ForecastSection';
+import { Colors, Palette } from './ui/design-tokens';
 
 interface MoodEvaluationModalProps {
     visible: boolean;
@@ -15,11 +16,11 @@ interface MoodEvaluationModalProps {
 }
 
 const MOOD_OPTIONS = [
-    { value: 1, color: '#ef4444', label: 'Very Bad', icon: 'thunderstorm-outline' },
-    { value: 2, color: '#f97316', label: 'Bad', icon: 'rainy-outline' },
-    { value: 3, color: '#eab308', label: 'Neutral', icon: 'cloudy-outline' },
-    { value: 4, color: '#84cc16', label: 'Good', icon: 'partly-sunny-outline' },
-    { value: 5, color: '#22c55e', label: 'Excellent', icon: 'sunny-outline' },
+    { value: 1, color: Colors.error, label: 'Very Bad', icon: 'thunderstorm-outline' },
+    { value: 2, color: Colors.busy, label: 'Bad', icon: 'rainy-outline' },
+    { value: 3, color: Colors.warning, label: 'Neutral', icon: 'cloudy-outline' },
+    { value: 4, color: Palette[7], label: 'Good', icon: 'partly-sunny-outline' },
+    { value: 5, color: Colors.success, label: 'Excellent', icon: 'sunny-outline' },
 ];
 
 export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationModalProps) {
@@ -89,7 +90,7 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
                             onPress={onClose}
                             className="bg-slate-800 p-2 rounded-full"
                         >
-                            <Ionicons name="close" size={20} color="#94a3b8" />
+                            <Ionicons name="close" size={20} color={Colors.text.tertiary} />
                         </TouchableOpacity>
                     </View>
 
@@ -107,7 +108,7 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
                                     className="items-center justify-center w-12 h-12 rounded-full border-2"
                                     style={{
                                         backgroundColor: option.color,
-                                        borderColor: isSelected ? 'white' : 'transparent',
+                                        borderColor: isSelected ? 'white' : Colors.transparent,
                                         opacity: isSelected ? 1 : 0.8,
                                         transform: [{ scale: isSelected ? 1.1 : 1 }]
                                     }}
@@ -130,7 +131,7 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
                         value={note}
                         onChangeText={setNote}
                         placeholder="What happened today? Any reflections?"
-                        placeholderTextColor="#64748b"
+                        placeholderTextColor={Colors.secondary}
                         multiline
                         textAlignVertical="top"
                     />
@@ -152,7 +153,7 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
                                             <Ionicons 
                                                 name={habit.icon as any} 
                                                 size={18} 
-                                                color={isChecked ? habit.color : '#64748b'} 
+                                                color={isChecked ? habit.color : Colors.secondary} 
                                             />
                                             <Text className={`ml-2 font-medium ${isChecked ? 'text-white' : 'text-slate-400'}`}>
                                                 {habit.title}

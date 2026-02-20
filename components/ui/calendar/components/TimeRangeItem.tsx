@@ -4,6 +4,7 @@ import dayjs from 'dayjs'
 import { ActionButton } from '../../ActionButton'
 import { SettingsListItem } from '../../SettingsListItem'
 import type { TimeRangeDefinition } from '../interfaces'
+import { Colors } from '../../design-tokens';
 
 interface TimeRangeItemProps {
     range: TimeRangeDefinition
@@ -46,7 +47,7 @@ export const TimeRangeItem = ({
                             <View
                                 key={index}
                                 style={{
-                                    backgroundColor: isActive ? range.color : '#1e293b',
+                                    backgroundColor: isActive ? range.color : Colors.surface,
                                     borderColor: isActive ? range.color : '#475569',
                                 }}
                                 className="px-2 py-0.5 rounded border"
@@ -67,8 +68,8 @@ export const TimeRangeItem = ({
                 <Switch
                     value={range.isEnabled}
                     onValueChange={onToggle}
-                    trackColor={{ false: '#334155', true: range.color }}
-                    thumbColor={range.isEnabled ? '#ffffff' : '#94a3b8'}
+                    trackColor={{ false: Colors.surfaceHighlight, true: range.color }}
+                    thumbColor={range.isEnabled ? Colors.white : Colors.text.tertiary}
                     className="scale-75"
                 />
                 <ActionButton

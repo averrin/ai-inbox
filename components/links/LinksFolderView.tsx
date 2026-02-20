@@ -6,6 +6,7 @@ import { LinksList } from './LinksList';
 import { LinkService, LinkWithSource } from '../../services/linkService';
 import { useSettingsStore } from '../../store/settings';
 import Toast from 'react-native-toast-message';
+import { Colors } from '../ui/design-tokens';
 
 interface LinksFolderViewProps {
     folderUri: string;
@@ -50,11 +51,11 @@ export function LinksFolderView({ folderUri, folderPath }: LinksFolderViewProps)
              {/* Search Bar */}
              <View className="px-4 py-2 bg-slate-900/50 border-b border-slate-800">
                 <View className="flex-row items-center bg-slate-800 rounded-lg px-3 py-2 border border-slate-700">
-                    <Ionicons name="search" size={18} color="#94a3b8" />
+                    <Ionicons name="search" size={18} color={Colors.text.tertiary} />
                     <TextInput
                         className="flex-1 ml-2 text-white text-sm"
                         placeholder="Search links..."
-                        placeholderTextColor="#64748b"
+                        placeholderTextColor={Colors.secondary}
                         value={search}
                         onChangeText={setSearch}
                     />
@@ -62,7 +63,7 @@ export function LinksFolderView({ folderUri, folderPath }: LinksFolderViewProps)
                         <Ionicons
                             name="close-circle"
                             size={18}
-                            color="#64748b"
+                            color={Colors.secondary}
                             onPress={() => setSearch('')}
                         />
                     )}
