@@ -7,6 +7,8 @@ import { artifactDeps } from '../utils/artifactDeps';
 import { useSettingsStore } from '../store/settings';
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
+import { useEventTypesStore } from '../store/eventTypes';
+import { isInInvisibleRange } from '../utils/timeRangeUtils';
 
 const STORAGE_KEY = 'watched_runs';
 const INSTALL_CATEGORY = 'INSTALL_ARTIFACT';
@@ -326,6 +328,16 @@ class WatcherService {
     }
 
     private async updateNotification(item: WatchedRun, body: string, progress?: number, readyToInstall = false, smallText?: string) {
+        const isImportant = readyToInstall || body.includes('Failed') || body.includes('Build Success');
+
+        // Suppress non-important notifications if in an invisible range
+        if (!isImportant) {
+            const { ranges } = useEventTypesStore.getState();
+            if (isInInvisibleRange(ranges)) {
+                return;
+            }
+        }
+
         // Use native progress bar for Android if progress is available
         if (Platform.OS === 'android' && progress !== undefined) {
             try {
@@ -346,7 +358,6 @@ class WatcherService {
             }
         }
 
-        const isImportant = readyToInstall || body.includes('Failed') || body.includes('Build Success');
         const channelId = isImportant ? 'watcher_result' : 'watcher_progress';
 
         const content: any = {
