@@ -28,11 +28,11 @@ export function DaySummaryModal({ visible, onClose, breakdown, status, date }: P
 
     const getStatusColorText = (s: DayStatusLevel) => {
         switch (s) {
-            case 'healthy': return 'text-emerald-400';
-            case 'moderate': return 'text-yellow-400';
-            case 'busy': return 'text-orange-400';
-            case 'overloaded': return 'text-red-400';
-            default: return 'text-slate-200';
+            case 'healthy': return 'text-success';
+            case 'moderate': return 'text-warning';
+            case 'busy': return 'text-busy';
+            case 'overloaded': return 'text-error';
+            default: return 'text-text-primary';
         }
     };
 
@@ -54,12 +54,12 @@ export function DaySummaryModal({ visible, onClose, breakdown, status, date }: P
             >
                 <TouchableOpacity
                     activeOpacity={1}
-                    className="bg-slate-900 w-full max-w-sm rounded-2xl border border-slate-700 overflow-hidden"
+                    className="bg-background w-full max-w-sm rounded-2xl border border-border overflow-hidden"
                 >
                     {/* Header */}
-                    <View className="bg-slate-800 p-4 border-b border-slate-700 flex-row justify-between items-center">
+                    <View className="bg-surface p-4 border-b border-border flex-row justify-between items-center">
                         <View>
-                            <Text className="text-slate-400 text-xs font-bold uppercase mb-1">
+                            <Text className="text-text-tertiary text-xs font-bold uppercase mb-1">
                                 {date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
                             </Text>
                             <View className="flex-row items-center gap-2">
@@ -69,7 +69,7 @@ export function DaySummaryModal({ visible, onClose, breakdown, status, date }: P
                                 </Text>
                             </View>
                         </View>
-                        <TouchableOpacity onPress={onClose} className="bg-slate-700 p-2 rounded-full">
+                        <TouchableOpacity onPress={onClose} className="bg-surface-highlight p-2 rounded-full">
                             <Ionicons name="close" size={20} color={Colors.text.tertiary} />
                         </TouchableOpacity>
                     </View>
@@ -77,35 +77,35 @@ export function DaySummaryModal({ visible, onClose, breakdown, status, date }: P
                     <ScrollView className="p-4 max-h-[400px]">
                         {/* High Level Metrics */}
                         <View className="flex-row gap-4 mb-6">
-                            <View className="flex-1 bg-slate-800 p-3 rounded-xl border border-slate-700 items-center">
-                                <Text className="text-slate-400 text-xs font-bold uppercase mb-1">Diff Score</Text>
+                            <View className="flex-1 bg-surface p-3 rounded-xl border border-border items-center">
+                                <Text className="text-text-tertiary text-xs font-bold uppercase mb-1">Diff Score</Text>
                                 <Text className="text-white text-2xl font-black">{Math.round(breakdown.totalScore)}</Text>
                             </View>
-                            <View className="flex-1 bg-slate-800 p-3 rounded-xl border border-slate-700 items-center">
-                                <Text className="text-slate-400 text-xs font-bold uppercase mb-1">Deep Work</Text>
+                            <View className="flex-1 bg-surface p-3 rounded-xl border border-border items-center">
+                                <Text className="text-text-tertiary text-xs font-bold uppercase mb-1">Deep Work</Text>
                                 <Text className="text-white text-2xl font-black">{durationStr}</Text>
                             </View>
                         </View>
 
                         {/* Event Breakdown */}
-                        <Text className="text-slate-400 text-xs font-bold uppercase mb-2 ml-1">Composition</Text>
-                        <View className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden mb-6">
+                        <Text className="text-text-tertiary text-xs font-bold uppercase mb-2 ml-1">Composition</Text>
+                        <View className="bg-surface rounded-xl border border-border overflow-hidden mb-6">
                             {Object.entries(breakdown.breakdown).map(([type, stats], index) => (
                                 <View
                                     key={type}
-                                    className={`flex-row justify-between p-3 ${index !== 0 ? 'border-t border-slate-700' : ''}`}
+                                    className={`flex-row justify-between p-3 ${index !== 0 ? 'border-t border-border' : ''}`}
                                 >
-                                    <Text className="text-slate-300 font-medium">{type}</Text>
-                                    <Text className="text-slate-400">
+                                    <Text className="text-text-secondary font-medium">{type}</Text>
+                                    <Text className="text-text-tertiary">
                                         <Text className="text-white font-bold">{stats.count}</Text> evts
-                                        <Text className="text-slate-600"> • </Text>
-                                        <Text className="text-indigo-400 font-bold">{Math.round(stats.score)}</Text> pts
+                                        <Text className="text-text-tertiary"> • </Text>
+                                        <Text className="text-primary font-bold">{Math.round(stats.score)}</Text> pts
                                     </Text>
                                 </View>
                             ))}
                             {Object.keys(breakdown.breakdown).length === 0 && (
                                 <View className="p-4 items-center">
-                                    <Text className="text-slate-500 italic">No events recorded</Text>
+                                    <Text className="text-secondary italic">No events recorded</Text>
                                 </View>
                             )}
                         </View>
@@ -113,17 +113,17 @@ export function DaySummaryModal({ visible, onClose, breakdown, status, date }: P
                         {/* Penalties / Reasons */}
                         {breakdown.penalties.length > 0 && (
                             <>
-                                <Text className="text-slate-400 text-xs font-bold uppercase mb-2 ml-1">Score Factors</Text>
-                                <View className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden mb-2">
+                                <Text className="text-text-tertiary text-xs font-bold uppercase mb-2 ml-1">Score Factors</Text>
+                                <View className="bg-surface rounded-xl border border-border overflow-hidden mb-2">
                                     {breakdown.penalties.map((penalty, index) => (
                                         <View
                                             key={index}
-                                            className={`flex-row justify-between p-3 ${index !== 0 ? 'border-t border-slate-700' : ''}`}
+                                            className={`flex-row justify-between p-3 ${index !== 0 ? 'border-t border-border' : ''}`}
                                         >
-                                            <Text className="text-slate-300 font-medium">{penalty.reason}</Text>
+                                            <Text className="text-text-secondary font-medium">{penalty.reason}</Text>
                                             <View className="flex-row items-center gap-2">
-                                                <View className="bg-slate-700 px-2 py-0.5 rounded text-xs">
-                                                    <Text className="text-slate-400 text-xs">x{penalty.count}</Text>
+                                                <View className="bg-surface-highlight px-2 py-0.5 rounded text-xs">
+                                                    <Text className="text-text-tertiary text-xs">x{penalty.count}</Text>
                                                 </View>
                                             </View>
                                         </View>

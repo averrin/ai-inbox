@@ -15,7 +15,7 @@ export function SettingsListItem({ children, onPress, color, style }: SettingsLi
         <Container
             onPress={onPress}
             activeOpacity={onPress ? 0.7 : 1}
-            className="bg-slate-800 rounded-lg p-3 mb-2 flex-row items-center border border-slate-700"
+            className="bg-surface rounded-lg p-3 mb-2 flex-row items-center border border-border"
             style={style}
         >
             {color && (

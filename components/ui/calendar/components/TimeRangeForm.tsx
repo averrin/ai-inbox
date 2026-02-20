@@ -82,12 +82,12 @@ export const TimeRangeForm = ({
     }
 
     return (
-        <View className="bg-slate-900 p-4 rounded-lg space-y-4">
+        <View className="bg-background p-4 rounded-lg space-y-4">
             {/* Title */}
             <View>
-                <Text className="text-slate-400 text-xs uppercase font-bold mb-1">Title</Text>
+                <Text className="text-text-tertiary text-xs uppercase font-bold mb-1">Title</Text>
                 <TextInput
-                    className="bg-slate-800 text-white p-3 rounded-md border border-slate-700 font-medium"
+                    className="bg-surface text-white p-3 rounded-md border border-border font-medium"
                     placeholder="Works Hours, Gym, etc."
                     placeholderTextColor={Colors.secondary}
                     value={title}
@@ -96,7 +96,7 @@ export const TimeRangeForm = ({
             </View>
 
             <View className="flex-row items-center justify-between py-2">
-                <Text className="text-slate-400 text-xs uppercase font-bold">Is Work Range?</Text>
+                <Text className="text-text-tertiary text-xs uppercase font-bold">Is Work Range?</Text>
                 <Switch
                     value={isWork}
                     onValueChange={setIsWork}
@@ -107,8 +107,8 @@ export const TimeRangeForm = ({
 
             <View className="flex-row items-center justify-between py-2">
                 <View>
-                    <Text className="text-slate-400 text-xs uppercase font-bold">Show on Calendar</Text>
-                    <Text className="text-slate-600 text-[10px]">If off, range stays invisible but affects suggestions.</Text>
+                    <Text className="text-text-tertiary text-xs uppercase font-bold">Show on Calendar</Text>
+                    <Text className="text-text-tertiary text-[10px]">If off, range stays invisible but affects suggestions.</Text>
                 </View>
                 <Switch
                     value={isVisible}
@@ -121,9 +121,9 @@ export const TimeRangeForm = ({
             {/* Time */}
             <View className="flex-row gap-4">
                 <View className="flex-1">
-                    <Text className="text-slate-400 text-xs uppercase font-bold mb-1">Start Time</Text>
+                    <Text className="text-text-tertiary text-xs uppercase font-bold mb-1">Start Time</Text>
                     <TouchableOpacity
-                        className="bg-slate-800 p-3 rounded-md border border-slate-700"
+                        className="bg-surface p-3 rounded-md border border-border"
                         onPress={() => setShowStartPicker(true)}
                     >
                         <Text className="text-white text-center font-medium">
@@ -132,9 +132,9 @@ export const TimeRangeForm = ({
                     </TouchableOpacity>
                 </View>
                 <View className="flex-1">
-                    <Text className="text-slate-400 text-xs uppercase font-bold mb-1">End Time</Text>
+                    <Text className="text-text-tertiary text-xs uppercase font-bold mb-1">End Time</Text>
                     <TouchableOpacity
-                        className="bg-slate-800 p-3 rounded-md border border-slate-700"
+                        className="bg-surface p-3 rounded-md border border-border"
                         onPress={() => setShowEndPicker(true)}
                     >
                         <Text className="text-white text-center font-medium">
@@ -146,7 +146,7 @@ export const TimeRangeForm = ({
 
             {/* Day Selector */}
             <View>
-                <Text className="text-slate-400 text-xs uppercase font-bold mb-1">Repeat Days</Text>
+                <Text className="text-text-tertiary text-xs uppercase font-bold mb-1">Repeat Days</Text>
                 <View className="flex-row justify-between gap-1">
                     {DAYS.map((dayLabel, index) => {
                         const isSelected = days.includes(index)
@@ -161,7 +161,7 @@ export const TimeRangeForm = ({
                                 className={`flex-1 h-10 rounded-lg items-center justify-center border-2`}
                             >
                                 <Text
-                                    className={`font-bold text-sm ${isSelected ? 'text-white' : 'text-slate-500'
+                                    className={`font-bold text-sm ${isSelected ? 'text-white' : 'text-secondary'
                                         }`}
                                 >
                                     {dayLabel}
@@ -182,16 +182,16 @@ export const TimeRangeForm = ({
             {/* Actions */}
             <View className="flex-row justify-end gap-3 mt-4">
                 <TouchableOpacity onPress={onCancel} className="px-4 py-2">
-                    <Text className="text-slate-400 font-medium">Cancel</Text>
+                    <Text className="text-text-tertiary font-medium">Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     onPress={handleSubmit}
-                    className={`px-4 py-2 rounded-md ${title.trim() ? 'bg-blue-600' : 'bg-slate-700'
+                    className={`px-4 py-2 rounded-md ${title.trim() ? 'bg-primary' : 'bg-surface-highlight'
                         }`}
                     disabled={!title.trim()}
                 >
                     <Text
-                        className={`font-bold ${title.trim() ? 'text-white' : 'text-slate-500'
+                        className={`font-bold ${title.trim() ? 'text-white' : 'text-secondary'
                             }`}
                     >
                         Save Range

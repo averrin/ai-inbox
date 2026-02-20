@@ -45,7 +45,7 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
             <View className="flex-row flex-wrap gap-2 mt-2">
                 <TouchableOpacity
                     onPress={() => update({ ...currentConfig, color: undefined })}
-                    className={`w-8 h-8 rounded-full border items-center justify-center ${!currentConfig?.color ? 'border-indigo-400 bg-indigo-500/20' : 'border-slate-600 bg-slate-800'}`}
+                    className={`w-8 h-8 rounded-full border items-center justify-center ${!currentConfig?.color ? 'border-primary bg-primary' : 'border-border bg-surface'}`}
                 >
                     {!currentConfig?.color && <Ionicons name="close" size={16} color="#818cf8" />}
                 </TouchableOpacity>
@@ -82,23 +82,23 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
             onRequestClose={onClose}
         >
             <View className="flex-1 bg-slate-950/80 justify-end">
-                <View className="bg-slate-900 rounded-t-3xl border-t border-slate-800 max-h-[85%]">
+                <View className="bg-background rounded-t-3xl border-t border-border max-h-[85%]">
                     
                     {/* Header */}
-                    <View className="flex-row items-center justify-between p-4 border-b border-slate-800">
+                    <View className="flex-row items-center justify-between p-4 border-b border-border">
                         <Text className="text-white text-xl font-bold">{prefix}{item}</Text>
-                        <TouchableOpacity onPress={onClose} className="p-2 bg-slate-800 rounded-full">
+                        <TouchableOpacity onPress={onClose} className="p-2 bg-surface rounded-full">
                             <Ionicons name="close" size={24} color={Colors.text.tertiary} />
                         </TouchableOpacity>
                     </View>
 
                     <ScrollView className="p-4" contentContainerStyle={{ paddingBottom: 40 }}>
                         {/* Visibility */}
-                        <View className="bg-slate-800 p-4 rounded-xl mb-4 border border-slate-700">
+                        <View className="bg-surface p-4 rounded-xl mb-4 border border-border">
                             <View className="flex-row items-center justify-between">
                                 <View>
                                     <Text className="text-white font-medium text-base">Visibility</Text>
-                                    <Text className="text-slate-400 text-sm">Show this metadata in task lists</Text>
+                                    <Text className="text-text-tertiary text-sm">Show this metadata in task lists</Text>
                                 </View>
                                 <Switch
                                     value={!config.hidden}
@@ -111,7 +111,7 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
 
                         {/* Property Type */}
                         {type === 'properties' && (
-                            <View className="bg-slate-800 p-4 rounded-xl mb-4 border border-slate-700">
+                            <View className="bg-surface p-4 rounded-xl mb-4 border border-border">
                                 <Text className="text-white font-medium text-base mb-2">Property Type</Text>
                                 <View className="flex-row gap-2">
                                     {['text', 'date', 'number', 'boolean'].map((t) => (
@@ -120,12 +120,12 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
                                             onPress={() => updateFn(item, { ...config, type: t as any })}
                                             className={`px-3 py-2 rounded-lg border ${
                                                 (config.type || 'text') === t
-                                                    ? 'bg-indigo-600 border-indigo-500'
-                                                    : 'bg-slate-700 border-slate-600'
+                                                    ? 'bg-primary border-primary'
+                                                    : 'bg-surface-highlight border-border'
                                             }`}
                                         >
                                             <Text className={`text-xs font-medium ${
-                                                (config.type || 'text') === t ? 'text-white' : 'text-slate-300'
+                                                (config.type || 'text') === t ? 'text-white' : 'text-text-secondary'
                                             }`}>
                                                 {t.charAt(0).toUpperCase() + t.slice(1)}
                                             </Text>
@@ -136,25 +136,25 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
                         )}
 
                         {/* Default Color */}
-                        <View className="bg-slate-800 p-4 rounded-xl mb-4 border border-slate-700">
+                        <View className="bg-surface p-4 rounded-xl mb-4 border border-border">
                             <Text className="text-white font-medium text-base mb-1">Default Color</Text>
-                            <Text className="text-slate-400 text-sm mb-3">Applied to all instances unless overridden</Text>
+                            <Text className="text-text-tertiary text-sm mb-3">Applied to all instances unless overridden</Text>
                             {renderColorPicker(item, config, (newCfg) => updateFn(item, newCfg))}
                         </View>
 
                          {/* Property Values */}
                          {type === 'properties' && knownValues.length > 0 && (
-                             <View className="bg-slate-800 p-4 rounded-xl mb-4 border border-slate-700">
+                             <View className="bg-surface p-4 rounded-xl mb-4 border border-border">
                                 <Text className="text-white font-medium text-base mb-1">Value Overrides</Text>
-                                <Text className="text-slate-400 text-sm mb-4">Set specific colors for specific values</Text>
+                                <Text className="text-text-tertiary text-sm mb-4">Set specific colors for specific values</Text>
                                 
                                 {knownValues.map(val => {
                                     const valConfig = config.valueConfigs?.[val] || {};
                                     return (
-                                        <View key={val} className="mb-6 last:mb-0 border-t border-slate-700 pt-4 first:pt-0 first:border-t-0">
+                                        <View key={val} className="mb-6 last:mb-0 border-t border-border pt-4 first:pt-0 first:border-t-0">
                                             <View className="flex-row items-center mb-2">
                                                 <Ionicons name="git-commit-outline" size={16} color={Colors.text.tertiary} className="mr-2"/>
-                                                <Text className="text-slate-200 font-medium">{val}</Text>
+                                                <Text className="text-text-primary font-medium">{val}</Text>
                                             </View>
                                             {renderColorPicker(
                                                 val, 

@@ -1025,7 +1025,7 @@ export default function ScheduleScreen() {
         );
 
         return (
-            <View className="bg-slate-900 border-b border-slate-800">
+            <View className="bg-background border-b border-border">
                 <View className="px-4 py-2 flex-row justify-between items-center">
                     {/* Left: Mood Tracker and Weather */}
                     <View className="flex-row items-center gap-4">
@@ -1049,7 +1049,7 @@ export default function ScheduleScreen() {
                                 className="flex-row items-center gap-1"
                             >
                                 <Ionicons name={weather.icon as any} size={16} color={Colors.text.tertiary} />
-                                <Text className="text-slate-400 text-xs font-semibold">
+                                <Text className="text-text-tertiary text-xs font-semibold">
                                     {Math.round(weather.maxTemp)}°C
                                 </Text>
                             </TouchableOpacity>
@@ -1068,14 +1068,14 @@ export default function ScheduleScreen() {
                         <View className="flex-row items-center gap-2">
                             <DayStatusMarker status={status} />
                             {dayStats.deepWorkMinutes > 0 && (
-                                <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                                    Deep Work: <Text className="text-emerald-400 text-sm">{deepWorkStr}</Text>
+                                <Text className="text-text-tertiary text-xs font-semibold uppercase tracking-wider">
+                                    Deep Work: <Text className="text-success text-sm">{deepWorkStr}</Text>
                                 </Text>
                             )}
                         </View>
 
-                        <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                            Day Score: <Text className="text-indigo-400 text-sm">{Math.round(dayStats.totalScore)}</Text>
+                        <Text className="text-text-tertiary text-xs font-semibold uppercase tracking-wider">
+                            Day Score: <Text className="text-primary text-sm">{Math.round(dayStats.totalScore)}</Text>
                         </Text>
 
                         <Ionicons name="information-circle-outline" size={16} color={Colors.secondary} />
@@ -1464,10 +1464,10 @@ export default function ScheduleScreen() {
                     {visibleCalendarIds.length === 0 ? (
                         <View className="flex-1 justify-center items-center p-6">
                             <Ionicons name="calendar-outline" size={64} color={Colors.surfaceHighlight} />
-                            <Text className="text-slate-400 text-center mt-4">
+                            <Text className="text-text-tertiary text-center mt-4">
                                 No calendars selected.
                             </Text>
-                            <Text className="text-slate-500 text-center mt-2 text-sm">
+                            <Text className="text-secondary text-center mt-2 text-sm">
                                 Go to Settings {'>'} Calendars to configure.
                             </Text>
                         </View>

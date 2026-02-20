@@ -80,15 +80,15 @@ export function WalkSettings() {
         <ScrollView>
             <Card>
                 <View className="mb-4">
-                    <Text className="text-indigo-200 mb-2 font-semibold">Walk Suggestion Settings</Text>
-                    <Text className="text-slate-400 text-sm mb-4">
+                    <Text className="text-text-secondary mb-2 font-semibold">Walk Suggestion Settings</Text>
+                    <Text className="text-text-tertiary text-sm mb-4">
                         Customize how the AI suggests walk times.
                     </Text>
 
                     <View className="mb-4">
-                        <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">Lookahead Days</Text>
+                        <Text className="text-text-secondary mb-1 ml-1 text-sm font-semibold">Lookahead Days</Text>
                         <TextInput
-                            className="bg-slate-800 border border-slate-700 rounded-xl p-4 text-white"
+                            className="bg-surface border border-border rounded-xl p-4 text-white"
                             value={lookahead}
                             onChangeText={(text) => {
                                 setLookahead(text);
@@ -98,13 +98,13 @@ export function WalkSettings() {
                             placeholder="3"
                             placeholderTextColor={Colors.secondary}
                         />
-                        <Text className="text-slate-500 text-xs mt-1 ml-1">
+                        <Text className="text-secondary text-xs mt-1 ml-1">
                             How many days in advance to generate suggestons (1-7).
                         </Text>
                     </View>
 
-                    <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">Custom Prompt</Text>
-                    <View className="bg-slate-800 border border-slate-700 rounded-xl p-0 overflow-hidden mb-4">
+                    <Text className="text-text-secondary mb-1 ml-1 text-sm font-semibold">Custom Prompt</Text>
+                    <View className="bg-surface border border-border rounded-xl p-0 overflow-hidden mb-4">
                         <TextInput
                             className="text-white p-4 text-sm font-mono leading-5 min-h-[200px]"
                             value={prompt}
@@ -130,7 +130,7 @@ export function WalkSettings() {
                         </View>
                         <TouchableOpacity
                             onPress={handleReset}
-                            className="bg-red-500/10 border border-red-500/20 px-4 rounded-xl items-center justify-center"
+                            className="bg-error/10 border border-error/20 px-4 rounded-xl items-center justify-center"
                         >
                             <Ionicons name="refresh-outline" size={20} color={Colors.error} />
                         </TouchableOpacity>

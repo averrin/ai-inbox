@@ -120,6 +120,9 @@ export function PreviewScreen({
     const { timeFormat, editorType } = useSettingsStore();
     const { metadataCache } = useVaultStore();
 
+    // Focus Mode
+    const [isFocused, setIsFocused] = React.useState(false);
+
     // Use FAB for Save Action
     useFab({
         onPress: onSave,
@@ -136,10 +139,6 @@ export function PreviewScreen({
     const [editRecurrence, setEditRecurrence] = React.useState<string>('');
     const [editAlarm, setEditAlarm] = React.useState<boolean>(false);
     const [editPersistent, setEditPersistent] = React.useState<number | undefined>(undefined);
-
-
-    // Focus Mode
-    const [isFocused, setIsFocused] = React.useState(false);
 
     // Time Sync State
     const [isTimeSynced, setIsTimeSynced] = React.useState(false);
@@ -339,12 +338,12 @@ export function PreviewScreen({
                                     key={index}
                                     onPress={() => onTabChange?.(index)}
                                     className={`px-4 py-2 rounded-full border ${currentTabIndex === index
-                                        ? 'bg-indigo-600 border-indigo-500'
-                                        : 'bg-slate-800 border-slate-700'
+                                        ? 'bg-primary border-primary'
+                                        : 'bg-surface-highlight border-border'
                                         } mr-2`}
                                 >
                                     <Text
-                                        className={`${currentTabIndex === index ? 'text-white font-bold' : 'text-slate-400'
+                                        className={`${currentTabIndex === index ? 'text-white font-bold' : 'text-text-secondary'
                                             }`}
                                     >
                                         Note {index + 1}
@@ -370,11 +369,11 @@ export function PreviewScreen({
                                                     onChangeText={onIconChange}
                                                     placeholder="Mood"
                                                     placeholderTextColor={Colors.text.tertiary}
-                                                    className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white font-medium text-center]"
+                                                    className="bg-surface-highlight border border-border rounded-xl p-3 text-white font-medium text-center]"
                                                 />
                                                 <TouchableOpacity
                                                     onPress={onRemoveIcon}
-                                                    className="absolute -top-1 -right-1 bg-slate-700 rounded-full p-1 border border-slate-600 shadow-sm z-10"
+                                                    className="absolute -top-1 -right-1 bg-surface-highlight rounded-full p-1 border border-border shadow-sm z-10"
                                                 >
                                                     <Ionicons name="close" size={10} color="white" />
                                                 </TouchableOpacity>
@@ -382,7 +381,7 @@ export function PreviewScreen({
                                         ) : (
                                             <TouchableOpacity
                                                 onPress={() => onIconChange('📝')}
-                                                className="bg-slate-800/50 border border-slate-700 rounded-xl p-3  justify-center items-center"
+                                                className="bg-surface-highlight border border-border rounded-xl p-3  justify-center items-center"
                                             >
                                                 <Ionicons name="happy-outline" size={20} color={Colors.text.tertiary} />
                                             </TouchableOpacity>
@@ -394,7 +393,7 @@ export function PreviewScreen({
                                         <TextInput
                                             value={title}
                                             onChangeText={onTitleChange}
-                                            className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white font-medium text-base]"
+                                            className="bg-surface-highlight border border-border rounded-xl p-3 text-white font-medium text-base]"
                                             placeholder="Note Title"
                                             placeholderTextColor={Colors.text.tertiary}
                                         />
@@ -495,7 +494,7 @@ export function PreviewScreen({
                                 {/* Rich Task Items */}
                                 {tasks.length > 0 && (
                                     <View className="mb-2">
-                                        <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Tasks</Text>
+                                        <Text className="text-text-secondary mb-2 ml-1 text-sm font-semibold">Tasks</Text>
                                         {tasks.map((task, index) => (
                                             <View key={`${task.title}-${index}`} className="mb-1">
                                                 <RichTaskItem
@@ -513,9 +512,10 @@ export function PreviewScreen({
                                 {/* Pending Reminders */}
                                 {data?.frontmatter?.reminder_datetime && (
                                     <View className="mb-2">
-                                        <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Reminder</Text>
+                                        <Text className="text-text-secondary mb-2 ml-1 text-sm font-semibold">Reminder</Text>
                                         <ReminderItem
                                             reminder={{
+                                                id: 'preview-reminder',
                                                 fileUri: '',
                                                 fileName: 'New Reminder',
                                                 reminderTime: data.frontmatter.reminder_datetime,
@@ -544,7 +544,7 @@ export function PreviewScreen({
                                                 onCopyEventsToReminder={handleCopyEventsToReminder}
                                             />
                                         ) : (
-                                            <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Pending Events (Calendar)</Text>
+                                            <Text className="text-text-secondary mb-2 ml-1 text-sm font-semibold">Pending Events (Calendar)</Text>
                                         )}
 
                                         <View className="flex-col gap-2">
@@ -566,7 +566,7 @@ export function PreviewScreen({
 
                         {/* Body Content */}
                         <View className={`mb-4 ${isFocused ? 'flex-1 mt-4' : ''}`}>
-                            {!isFocused && <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Content</Text>}
+                            {!isFocused && <Text className="text-text-secondary mb-2 ml-1 text-sm font-semibold">Content</Text>}
                             {editorType === 'simple' ? (
                                 <SimpleTextEditor
                                     value={body}
@@ -617,7 +617,7 @@ export function PreviewScreen({
                                 setIsFocused(false);
                                 Keyboard.dismiss();
                             }}
-                            className="w-14 h-14 rounded-full bg-slate-700 items-center justify-center shadow-lg"
+                            className="w-14 h-14 rounded-full bg-surface-highlight items-center justify-center shadow-lg"
                             style={{ elevation: 8 }}
                         >
                             <Ionicons name="arrow-back" size={28} color="white" />

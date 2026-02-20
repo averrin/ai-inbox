@@ -26,11 +26,11 @@ export function ErrorScreen({ onRetry, onClose, errorMessage }: ErrorScreenProps
     return (
         <Layout>
             <View className="flex-1 justify-center items-center px-6">
-                <Text className="text-red-400 text-lg font-bold mb-4">Analysis Failed</Text>
+                <Text className="text-error text-lg font-bold mb-4">Analysis Failed</Text>
 
                 {errorMessage && (
-                    <View className="bg-slate-800 p-4 rounded-xl border border-slate-700 w-full mb-6">
-                         <Text className="text-slate-300 font-mono text-xs" numberOfLines={6}>
+                    <View className="bg-surface p-4 rounded-xl border border-border w-full mb-6">
+                         <Text className="text-text-secondary font-mono text-xs" numberOfLines={6}>
                              {errorMessage}
                          </Text>
                     </View>

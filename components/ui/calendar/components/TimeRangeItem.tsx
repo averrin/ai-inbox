@@ -30,7 +30,7 @@ export const TimeRangeItem = ({
             <TouchableOpacity onPress={onEdit} className="flex-1">
                 <View className="flex-row items-baseline gap-2 mb-1">
                     <Text className="text-white font-bold text-base">{range.title}</Text>
-                    <Text className="text-slate-400 text-xs">
+                    <Text className="text-text-tertiary text-xs">
                         {startTime.format('HH:mm')} - {endTime.format('HH:mm')}
                     </Text>
                 </View>
@@ -53,7 +53,7 @@ export const TimeRangeItem = ({
                                 className="px-2 py-0.5 rounded border"
                             >
                                 <Text
-                                    className={`text-[10px] font-bold ${isActive ? 'text-white' : 'text-slate-500'}`}
+                                    className={`text-[10px] font-bold ${isActive ? 'text-white' : 'text-secondary'}`}
                                 >
                                     {day}
                                 </Text>

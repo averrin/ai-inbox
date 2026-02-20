@@ -192,7 +192,7 @@ export function InputScreen({
                     {/* Rich Task Items */}
                     {tasks.length > 0 && (
                         <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 ml-1 text-sm font-semibold">Tasks</Text>
+                            <Text className="text-text-secondary mb-2 ml-1 text-sm font-semibold">Tasks</Text>
                             {tasks.map((task, index) => (
                                 <View key={`${task.title}-${index}`} className="mb-1">
                                     <RichTaskItem 
@@ -212,6 +212,7 @@ export function InputScreen({
                         <View className="mb-4">
                             <ReminderItem 
                                 reminder={{
+                                    id: 'new-reminder',
                                     fileUri: '',
                                     fileName: 'Reminder',
                                     reminderTime: reminderData.date.toISOString(),
@@ -235,9 +236,9 @@ export function InputScreen({
                                     <TouchableOpacity
                                         key={tag}
                                         onPress={() => onToggleTag(tag)}
-                                        className={`px-3 py-1.5 rounded-full border ${isSelected ? 'bg-indigo-600 border-indigo-500' : 'bg-slate-800/50 border-slate-700'}`}
+                                        className={`px-3 py-1.5 rounded-full border ${isSelected ? 'bg-primary border-primary' : 'bg-surface/50 border-border'}`}
                                     >
-                                        <Text className={`text-xs font-medium ${isSelected ? 'text-white' : 'text-slate-400'}`}>#{tag}</Text>
+                                        <Text className={`text-xs font-medium ${isSelected ? 'text-white' : 'text-text-tertiary'}`}>#{tag}</Text>
                                     </TouchableOpacity>
                                 );
                             })}
@@ -247,22 +248,22 @@ export function InputScreen({
                     {/* Settings Toggles Row */}
                     <View className="flex-row items-center justify-between mb-4 px-1 gap-2">
                         {/* Skip Analyze Toggle */}
-                        <View className="flex-1 flex-row items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                            <Text className="text-indigo-200 text-xs font-semibold mr-2">Skip AI</Text>
+                        <View className="flex-1 flex-row items-center justify-between bg-surface/50 p-3 rounded-xl border border-border">
+                            <Text className="text-text-secondary text-xs font-semibold mr-2">Skip AI</Text>
                             <TouchableOpacity
                                 onPress={onToggleSkipAnalyze}
-                                className={`w-10 h-6 rounded-full p-0.5 ${skipAnalyze ? 'bg-indigo-600' : 'bg-slate-600'}`}
+                                className={`w-10 h-6 rounded-full p-0.5 ${skipAnalyze ? 'bg-primary' : 'bg-surface-highlight'}`}
                             >
                                 <View className={`w-5 h-5 rounded-full bg-white ${skipAnalyze ? 'ml-auto' : ''}`} />
                             </TouchableOpacity>
                         </View>
 
                         {/* Open in Obsidian Toggle */}
-                        <View className="flex-1 flex-row items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                            <Text className="text-indigo-200 text-xs font-semibold mr-2">Obsidian</Text>
+                        <View className="flex-1 flex-row items-center justify-between bg-surface/50 p-3 rounded-xl border border-border">
+                            <Text className="text-text-secondary text-xs font-semibold mr-2">Obsidian</Text>
                             <TouchableOpacity
                                 onPress={onToggleObsidian}
-                                className={`w-10 h-6 rounded-full p-0.5 ${openInObsidian ? 'bg-indigo-600' : 'bg-slate-600'}`}
+                                className={`w-10 h-6 rounded-full p-0.5 ${openInObsidian ? 'bg-primary' : 'bg-surface-highlight'}`}
                             >
                                 <View className={`w-5 h-5 rounded-full bg-white ${openInObsidian ? 'ml-auto' : ''}`} />
                             </TouchableOpacity>

@@ -25,7 +25,7 @@ export const ColorPicker = ({
     return (
         <View style={style}>
             {label && (
-                <Text className="text-slate-400 text-xs uppercase font-bold mb-2">
+                <Text className="text-text-tertiary text-xs uppercase font-bold mb-2">
                     {label}
                 </Text>
             )}
@@ -45,7 +45,7 @@ export const ColorPicker = ({
 
                 <TouchableOpacity
                     onPress={() => setShowCustomPicker(true)}
-                    className={`w-8 h-8 rounded-full border-2 ${!colors.includes(value) ? 'border-white' : 'border-slate-600'} items-center justify-center`}
+                    className={`w-8 h-8 rounded-full border-2 ${!colors.includes(value) ? 'border-white' : 'border-border'} items-center justify-center`}
                     style={{ backgroundColor: !colors.includes(value) ? value : Colors.surface }}
                     accessibilityLabel="Custom color"
                     accessibilityRole="button"

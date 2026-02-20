@@ -34,15 +34,15 @@ export function WeatherForecastModal({ visible, onClose, weatherData, currentDat
                 onPress={onClose}
             >
                 <View
-                    className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden max-h-[70%]"
+                    className="bg-background rounded-2xl border border-border overflow-hidden max-h-[70%]"
                     onStartShouldSetResponder={() => true}
                 >
-                    <View className="p-4 border-b border-slate-800 flex-row items-center justify-between">
+                    <View className="p-4 border-b border-border flex-row items-center justify-between">
                         <View>
                             <Text className="text-white text-lg font-bold">Weather Forecast</Text>
-                            <Text className="text-slate-400 text-xs">{startDate.format('MMM D')} - {startDate.add(6, 'day').format('MMM D, YYYY')}</Text>
+                            <Text className="text-text-tertiary text-xs">{startDate.format('MMM D')} - {startDate.add(6, 'day').format('MMM D, YYYY')}</Text>
                         </View>
-                        <TouchableOpacity onPress={onClose} className="p-2 bg-slate-800 rounded-full">
+                        <TouchableOpacity onPress={onClose} className="p-2 bg-surface rounded-full">
                             <Ionicons name="close" size={20} color={Colors.text.tertiary} />
                         </TouchableOpacity>
                     </View>
@@ -56,14 +56,14 @@ export function WeatherForecastModal({ visible, onClose, weatherData, currentDat
                             return (
                                 <View
                                     key={day.dateStr}
-                                    className={`flex-row items-center justify-between py-3 border-b border-slate-800/50 ${isToday ? 'bg-indigo-500/10 -mx-4 px-4' : ''}`}
+                                    className={`flex-row items-center justify-between py-3 border-b border-border ${isToday ? 'bg-primary -mx-4 px-4' : ''}`}
                                 >
                                     <View className="flex-row items-center gap-4 flex-1">
                                         <View className="w-12">
-                                            <Text className={`text-sm font-bold ${isToday ? 'text-indigo-400' : 'text-slate-300'}`}>
+                                            <Text className={`text-sm font-bold ${isToday ? 'text-primary' : 'text-text-secondary'}`}>
                                                 {day.date.format('ddd')}
                                             </Text>
-                                            <Text className="text-xs text-slate-500">
+                                            <Text className="text-xs text-secondary">
                                                 {day.date.format('MMM D')}
                                             </Text>
                                         </View>
@@ -72,11 +72,11 @@ export function WeatherForecastModal({ visible, onClose, weatherData, currentDat
                                             <View className="flex-row items-center gap-3">
                                                 <Ionicons name={weather.icon as any} size={24} color={isToday ? '#818cf8' : Colors.text.tertiary} />
                                                 <View>
-                                                    <Text className="text-slate-200 text-sm font-medium">{weather.label}</Text>
+                                                    <Text className="text-text-primary text-sm font-medium">{weather.label}</Text>
                                                 </View>
                                             </View>
                                         ) : (
-                                            <Text className="text-slate-600 italic text-xs">No data</Text>
+                                            <Text className="text-text-tertiary italic text-xs">No data</Text>
                                         )}
                                     </View>
 
@@ -86,16 +86,16 @@ export function WeatherForecastModal({ visible, onClose, weatherData, currentDat
                                                 <Text className="text-white font-bold text-sm">
                                                     {Math.round(weather.maxTemp)}°C
                                                 </Text>
-                                                <Text className="text-slate-500 text-xs">
+                                                <Text className="text-secondary text-xs">
                                                     High
                                                 </Text>
                                             </View>
-                                            <View className="w-[1px] h-6 bg-slate-800" />
+                                            <View className="w-[1px] h-6 bg-surface" />
                                             <View className="items-end">
-                                                <Text className="text-slate-300 font-bold text-sm">
+                                                <Text className="text-text-secondary font-bold text-sm">
                                                     {Math.round(weather.minTemp)}°C
                                                 </Text>
-                                                <Text className="text-slate-500 text-xs">
+                                                <Text className="text-secondary text-xs">
                                                     Low
                                                 </Text>
                                             </View>

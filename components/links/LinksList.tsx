@@ -27,8 +27,8 @@ export function LinksList({ links, isLoading, isRefreshing, onRefresh, onDelete,
     if (!isLoading && links.length === 0) {
         return (
             <View className="flex-1 justify-center items-center p-8">
-                <Text className="text-slate-400 text-center text-lg mb-2">No Links Found</Text>
-                <Text className="text-slate-500 text-center">
+                <Text className="text-text-tertiary text-center text-lg mb-2">No Links Found</Text>
+                <Text className="text-secondary text-center">
                     Add links to this folder by sharing them to the app.
                 </Text>
             </View>

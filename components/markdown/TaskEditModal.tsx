@@ -338,12 +338,12 @@ export function TaskEditModal({
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 className="flex-1 justify-center items-center bg-black/50 px-4"
             >
-                <View className="bg-slate-900 w-full max-w-md p-6 rounded-3xl border border-slate-700 max-h-[80%]">
+                <View className="bg-background w-full max-w-md p-6 rounded-3xl border border-border max-h-[80%]">
                     <View className="flex-row justify-between items-center mb-4">
                         <Text className="text-white text-xl font-bold">{(task && task.fileUri) ? 'Edit Task' : 'New Task'}</Text>
                         <View className="flex-row gap-2">
                              {task && task.fileUri && (
-                                <TouchableOpacity onPress={handleOpenNote} className="p-2 bg-slate-800 rounded-lg">
+                                <TouchableOpacity onPress={handleOpenNote} className="p-2 bg-surface rounded-lg">
                                     <Ionicons name="document-text-outline" size={20} color={Colors.text.tertiary} />
                                 </TouchableOpacity>
                             )}
@@ -355,9 +355,9 @@ export function TaskEditModal({
 
                     <ScrollView showsVerticalScrollIndicator={false}>
                         <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Title</Text>
+                            <Text className="text-text-secondary mb-2 font-medium text-xs uppercase tracking-wider">Title</Text>
                             <TextInput
-                                className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700 font-medium"
+                                className="bg-surface text-white p-4 rounded-xl border border-border font-medium"
                                 value={title}
                                 onChangeText={setTitle}
                                 placeholder="Task title..."
@@ -380,18 +380,18 @@ export function TaskEditModal({
 
                         {linkedEvents.length > 0 && (
                             <View className="mb-4">
-                                <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Linked Events</Text>
+                                <Text className="text-text-secondary mb-2 font-medium text-xs uppercase tracking-wider">Linked Events</Text>
                                 <View className="gap-2">
                                     {linkedEvents.map((evt, i) => (
                                         <TouchableOpacity 
                                             key={i} 
                                             onPress={() => onOpenEvent && onOpenEvent(evt.id)}
-                                            className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex-row items-center gap-2"
+                                            className="bg-surface p-3 rounded-xl border border-border flex-row items-center gap-2"
                                         >
                                             <Ionicons name="calendar-outline" size={16} color="#818cf8" />
                                             <View className="flex-1">
                                                 <Text className="text-white font-medium" numberOfLines={1}>{evt.title}</Text>
-                                                <Text className="text-slate-500 text-xs">{dayjs(evt.date).format('dddd, MMM D, h:mm A')}</Text>
+                                                <Text className="text-secondary text-xs">{dayjs(evt.date).format('dddd, MMM D, h:mm A')}</Text>
                                             </View>
                                             {onOpenEvent && (
                                                 <Ionicons name="chevron-forward" size={16} color="#475569" />
@@ -403,7 +403,7 @@ export function TaskEditModal({
                         )}
 
                         <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Status</Text>
+                            <Text className="text-text-secondary mb-2 font-medium text-xs uppercase tracking-wider">Status</Text>
                             <View className="flex-row flex-wrap gap-2">
                                 {[' ', 'x', '/', '?', '>', '-'].map((id) => {
                                     const s = getStatusConfig(id);
@@ -412,11 +412,11 @@ export function TaskEditModal({
                                         <TouchableOpacity
                                             key={id}
                                             onPress={() => setStatus(id)}
-                                            className={`flex-row items-center justify-center py-2 px-3 rounded-xl border ${isSelected ? 'bg-indigo-600/20 border-indigo-500' : 'bg-slate-800 border-slate-700'}`}
+                                            className={`flex-row items-center justify-center py-2 px-3 rounded-xl border ${isSelected ? 'bg-primary border-primary' : 'bg-surface border-border'}`}
                                             style={{ minWidth: '30%' }}
                                         >
                                             <TaskStatusIcon status={id} size={16} />
-                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-indigo-300' : 'text-slate-400'}`}>
+                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-text-secondary' : 'text-text-tertiary'}`}>
                                                 {s.label}
                                             </Text>
                                         </TouchableOpacity>
@@ -426,7 +426,7 @@ export function TaskEditModal({
                         </View>
 
                         <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Priority</Text>
+                            <Text className="text-text-secondary mb-2 font-medium text-xs uppercase tracking-wider">Priority</Text>
                             <View className="flex-row gap-2">
                                 {[
                                     { id: 'high', icon: 'arrow-up-circle', label: 'High', color: Colors.error },
@@ -447,14 +447,14 @@ export function TaskEditModal({
                                                 }
                                                 setProperties(newProps);
                                             }}
-                                            className={`flex-1 flex-row items-center justify-center py-2.5 rounded-xl border ${isSelected ? 'bg-indigo-600/20 border-indigo-500' : 'bg-slate-800 border-slate-700'}`}
+                                            className={`flex-1 flex-row items-center justify-center py-2.5 rounded-xl border ${isSelected ? 'bg-primary border-primary' : 'bg-surface border-border'}`}
                                         >
                                             <Ionicons 
                                                 name={p.icon as any} 
                                                 size={16} 
                                                 color={isSelected ? '#818cf8' : p.color} 
                                             />
-                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-indigo-300' : 'text-slate-400'}`}>
+                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-text-secondary' : 'text-text-tertiary'}`}>
                                                 {p.label}
                                             </Text>
                                         </TouchableOpacity>
@@ -464,11 +464,12 @@ export function TaskEditModal({
                         </View>
 
                         <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Reminder</Text>
+                            <Text className="text-text-secondary mb-2 font-medium text-xs uppercase tracking-wider">Reminder</Text>
                             {reminderDate ? (
                                 <View>
                                     <ReminderItem
                                         reminder={{
+                                            id: task?.fileUri || '',
                                             fileUri: task?.fileUri || '',
                                             fileName: title,
                                             title: title,
@@ -487,10 +488,10 @@ export function TaskEditModal({
                             ) : (
                                 <TouchableOpacity
                                     onPress={() => setShowReminderModal(true)}
-                                    className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex-row items-center justify-center border-dashed"
+                                    className="bg-surface p-3 rounded-xl border border-border flex-row items-center justify-center border-dashed"
                                 >
                                     <Ionicons name="alarm-outline" size={20} color={Colors.text.tertiary} />
-                                    <Text className="text-slate-400 ml-2 font-medium">Add Reminder</Text>
+                                    <Text className="text-text-tertiary ml-2 font-medium">Add Reminder</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
@@ -520,14 +521,14 @@ export function TaskEditModal({
                     <View className="flex-row gap-3 mt-4">
                         <TouchableOpacity
                             onPress={onCancel}
-                            className="flex-1 bg-slate-800 p-3 rounded-xl items-center"
+                            className="flex-1 bg-surface p-3 rounded-xl items-center"
                         >
                             <Text className="text-white font-semibold">Cancel</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             onPress={handleSave}
-                            className="flex-1 bg-indigo-600 p-3 rounded-xl items-center"
+                            className="flex-1 bg-primary p-3 rounded-xl items-center"
                         >
                             <Text className="text-white font-semibold">Save Changes</Text>
                         </TouchableOpacity>

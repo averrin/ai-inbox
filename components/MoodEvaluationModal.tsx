@@ -76,19 +76,19 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 className="flex-1 justify-center items-center bg-black/50 px-4"
             >
-                <View className="bg-slate-900 w-full max-w-md p-6 rounded-3xl border border-slate-700">
+                <View className="bg-background w-full max-w-md p-6 rounded-3xl border border-border">
                     <View className="flex-row justify-between items-center mb-6">
                         <View>
                             <Text className="text-white text-xl font-bold">
                                 Evaluate Day
                             </Text>
-                            <Text className="text-slate-400 text-sm">
+                            <Text className="text-text-tertiary text-sm">
                                 {dayjs(date).format('dddd, MMMM D, YYYY')}
                             </Text>
                         </View>
                         <TouchableOpacity
                             onPress={onClose}
-                            className="bg-slate-800 p-2 rounded-full"
+                            className="bg-surface p-2 rounded-full"
                         >
                             <Ionicons name="close" size={20} color={Colors.text.tertiary} />
                         </TouchableOpacity>
@@ -96,7 +96,7 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
 
                     <ForecastSection date={date} />
 
-                    <Text className="text-indigo-200 mb-3 font-medium">How was your day?</Text>
+                    <Text className="text-text-secondary mb-3 font-medium">How was your day?</Text>
 
                     <View className="flex-row justify-between mb-6">
                         {MOOD_OPTIONS.map((option) => {
@@ -125,9 +125,9 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
                         </Text>
                     )}
 
-                    <Text className="text-indigo-200 mb-2 font-medium">Day Note</Text>
+                    <Text className="text-text-secondary mb-2 font-medium">Day Note</Text>
                     <TextInput
-                        className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700 font-medium min-h-[100px] mb-6"
+                        className="bg-surface text-white p-4 rounded-xl border border-border font-medium min-h-[100px] mb-6"
                         value={note}
                         onChangeText={setNote}
                         placeholder="What happened today? Any reflections?"
@@ -138,7 +138,7 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
 
                     {activeHabits.length > 0 && (
                         <View className="mb-6">
-                            <Text className="text-indigo-200 mb-2 font-medium">Daily Checks</Text>
+                            <Text className="text-text-secondary mb-2 font-medium">Daily Checks</Text>
                             <View className="flex-row flex-wrap gap-2">
                                 {activeHabits.map(habit => {
                                     const isChecked = checkedHabits[habit.id];
@@ -146,8 +146,8 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
                                         <TouchableOpacity
                                             key={habit.id}
                                             onPress={() => setCheckedHabits(prev => ({ ...prev, [habit.id]: !prev[habit.id] }))}
-                                            className={`flex-row items-center px-3 py-2 rounded-xl border border-slate-700 ${
-                                                isChecked ? 'bg-indigo-900/50 border-indigo-500' : 'bg-slate-800'
+                                            className={`flex-row items-center px-3 py-2 rounded-xl border border-border ${
+                                                isChecked ? 'bg-surface-highlight border-primary' : 'bg-surface'
                                             }`}
                                         >
                                             <Ionicons 
@@ -155,11 +155,11 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
                                                 size={18} 
                                                 color={isChecked ? habit.color : Colors.secondary} 
                                             />
-                                            <Text className={`ml-2 font-medium ${isChecked ? 'text-white' : 'text-slate-400'}`}>
+                                            <Text className={`ml-2 font-medium ${isChecked ? 'text-white' : 'text-text-tertiary'}`}>
                                                 {habit.title}
                                             </Text>
                                             {isChecked && (
-                                                <View className="ml-2 bg-indigo-500 rounded-full p-0.5">
+                                                <View className="ml-2 bg-primary rounded-full p-0.5">
                                                     <Ionicons name="checkmark" size={10} color="white" />
                                                 </View>
                                             )}
@@ -173,7 +173,7 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
                     <View className="flex-row gap-3">
                         <TouchableOpacity
                             onPress={onClose}
-                            className="flex-1 bg-slate-800 p-3 rounded-xl items-center"
+                            className="flex-1 bg-surface p-3 rounded-xl items-center"
                         >
                             <Text className="text-white font-semibold">Cancel</Text>
                         </TouchableOpacity>
@@ -182,7 +182,7 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
                             onPress={handleSave}
                             disabled={selectedMood === null}
                             className={`flex-1 p-3 rounded-xl items-center ${
-                                selectedMood !== null ? 'bg-indigo-600' : 'bg-slate-700 opacity-50'
+                                selectedMood !== null ? 'bg-primary' : 'bg-surface-highlight opacity-50'
                             }`}
                         >
                             <Text className="text-white font-semibold">Save</Text>

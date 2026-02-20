@@ -102,13 +102,13 @@ const JsonTreeItem: React.FC<JsonTreeItemProps> = ({
   const getColor = () => {
     if (parsedValue) return 'text-purple-400'; // Special color for parsed JSON strings
     switch (type) {
-      case 'string': return 'text-green-400';
-      case 'number': return 'text-blue-400';
-      case 'boolean': return 'text-yellow-400';
-      case 'null': return 'text-gray-500';
-      case 'undefined': return 'text-gray-500';
-      case 'object': return 'text-slate-300';
-      case 'array': return 'text-slate-300';
+      case 'string': return 'text-success';
+      case 'number': return 'text-primary';
+      case 'boolean': return 'text-warning';
+      case 'null': return 'text-text-tertiary';
+      case 'undefined': return 'text-text-tertiary';
+      case 'object': return 'text-text-secondary';
+      case 'array': return 'text-text-secondary';
       default: return 'text-white';
     }
   };
@@ -132,8 +132,8 @@ const JsonTreeItem: React.FC<JsonTreeItemProps> = ({
             )}
             </View>
 
-            <Text className="text-xs font-mono flex-wrap flex-1 text-slate-300 pr-2">
-            {label && <Text className="font-bold text-indigo-300">{label}: </Text>}
+            <Text className="text-xs font-mono flex-wrap flex-1 text-text-secondary pr-2">
+            {label && <Text className="font-bold text-text-secondary">{label}: </Text>}
             <Text className={getColor()}>{String(displayValue)}</Text>
             </Text>
         </TouchableOpacity>
@@ -169,7 +169,7 @@ export const JsonTreeView: React.FC<{
     onDelete?: (path: string[]) => void;
 }> = ({ data, onEdit, onDelete }) => {
   return (
-    <View className="p-2 bg-slate-900 rounded-lg border border-slate-700 min-h-[200px]">
+    <View className="p-2 bg-background rounded-lg border border-border min-h-[200px]">
       <JsonTreeItem value={data} onEdit={onEdit} onDelete={onDelete} />
     </View>
   );

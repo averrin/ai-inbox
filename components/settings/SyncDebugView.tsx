@@ -209,26 +209,26 @@ export const SyncDebugView = () => {
                     </TouchableOpacity>
                 </View>
                 <View className="flex-row items-center mb-2">
-                    <View className={`w-3 h-3 rounded-full mr-2 ${status.isSyncing ? 'bg-green-500' : 'bg-slate-500'}`} />
-                    <Text className="text-slate-300">
+                    <View className={`w-3 h-3 rounded-full mr-2 ${status.isSyncing ? 'bg-success' : 'bg-secondary'}`} />
+                    <Text className="text-text-secondary">
                         {status.isSyncing ? 'Syncing Active' : 'Syncing Inactive'}
                     </Text>
                 </View>
-                <Text className="text-slate-400 text-xs">
+                <Text className="text-text-tertiary text-xs">
                     User ID: {status.userId || 'Not Logged In'}
                 </Text>
             </Card>
 
             <View className="mt-6 mb-4">
-                <Text className="text-indigo-200 font-semibold mb-2 ml-1">Select Target</Text>
+                <Text className="text-text-secondary font-semibold mb-2 ml-1">Select Target</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row pb-2">
                     {targets.map(t => (
                         <TouchableOpacity
                             key={t}
                             onPress={() => handleTargetSelect(t)}
-                            className={`mr-3 px-4 py-2 rounded-full border ${selectedTarget === t ? 'bg-indigo-600 border-indigo-500' : 'bg-slate-800 border-slate-700'}`}
+                            className={`mr-3 px-4 py-2 rounded-full border ${selectedTarget === t ? 'bg-primary border-primary' : 'bg-surface border-border'}`}
                         >
-                            <Text className={`font-medium capitalize ${selectedTarget === t ? 'text-white' : 'text-slate-400'}`}>{t}</Text>
+                            <Text className={`font-medium capitalize ${selectedTarget === t ? 'text-white' : 'text-text-tertiary'}`}>{t}</Text>
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
@@ -237,19 +237,19 @@ export const SyncDebugView = () => {
             {selectedTarget && (
                 <View className="flex-1">
                     <View className="flex-row justify-between items-center mb-2 px-1">
-                        <Text className="text-indigo-200 font-semibold">Remote Data</Text>
-                        <View className="flex-row bg-slate-800 rounded-lg p-1 border border-slate-700">
+                        <Text className="text-text-secondary font-semibold">Remote Data</Text>
+                        <View className="flex-row bg-surface rounded-lg p-1 border border-border">
                             <TouchableOpacity
                                 onPress={() => setViewMode('tree')}
-                                className={`px-3 py-1 rounded ${viewMode === 'tree' ? 'bg-indigo-600' : ''}`}
+                                className={`px-3 py-1 rounded ${viewMode === 'tree' ? 'bg-primary' : ''}`}
                             >
-                                <Text className={`text-xs font-bold ${viewMode === 'tree' ? 'text-white' : 'text-slate-400'}`}>Tree</Text>
+                                <Text className={`text-xs font-bold ${viewMode === 'tree' ? 'text-white' : 'text-text-tertiary'}`}>Tree</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={() => setViewMode('raw')}
-                                className={`px-3 py-1 rounded ${viewMode === 'raw' ? 'bg-indigo-600' : ''}`}
+                                className={`px-3 py-1 rounded ${viewMode === 'raw' ? 'bg-primary' : ''}`}
                             >
-                                <Text className={`text-xs font-bold ${viewMode === 'raw' ? 'text-white' : 'text-slate-400'}`}>Raw</Text>
+                                <Text className={`text-xs font-bold ${viewMode === 'raw' ? 'text-white' : 'text-text-tertiary'}`}>Raw</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -265,12 +265,12 @@ export const SyncDebugView = () => {
                                     onDelete={onTreeDelete}
                                 />
                             ) : (
-                                <View className="p-4 bg-slate-900 rounded-lg border border-slate-700 items-center">
-                                    <Text className="text-red-400">Invalid JSON data. Switch to Raw mode to fix.</Text>
+                                <View className="p-4 bg-background rounded-lg border border-border items-center">
+                                    <Text className="text-error">Invalid JSON data. Switch to Raw mode to fix.</Text>
                                 </View>
                             )
                         ) : (
-                            <View className="min-h-[300px] bg-slate-900 rounded-xl border border-slate-700 p-2 overflow-hidden">
+                            <View className="min-h-[300px] bg-background rounded-xl border border-border p-2 overflow-hidden">
                                 <TextInput
                                     multiline
                                     numberOfLines={15}
@@ -310,11 +310,11 @@ export const SyncDebugView = () => {
                 onRequestClose={() => setEditModalVisible(false)}
             >
                 <View className="flex-1 bg-black/80 justify-center items-center px-4">
-                    <View className="bg-slate-800 w-full max-w-md p-4 rounded-xl border border-slate-700">
+                    <View className="bg-surface w-full max-w-md p-4 rounded-xl border border-border">
                         <Text className="text-white font-bold text-lg mb-4">Edit Value</Text>
-                        <Text className="text-slate-400 text-xs mb-2 font-mono">{editPath.join(' > ')}</Text>
+                        <Text className="text-text-tertiary text-xs mb-2 font-mono">{editPath.join(' > ')}</Text>
 
-                        <View className="bg-slate-900 rounded-lg p-2 mb-4 border border-slate-700 max-h-60">
+                        <View className="bg-background rounded-lg p-2 mb-4 border border-border max-h-60">
                             <TextInput
                                 multiline
                                 value={editValue}
@@ -334,13 +334,13 @@ export const SyncDebugView = () => {
                         <View className="flex-row justify-end space-x-3">
                             <TouchableOpacity
                                 onPress={() => setEditModalVisible(false)}
-                                className="px-4 py-2 rounded-lg bg-slate-700"
+                                className="px-4 py-2 rounded-lg bg-surface-highlight"
                             >
                                 <Text className="text-white font-semibold">Cancel</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={saveEdit}
-                                className="px-4 py-2 rounded-lg bg-indigo-600"
+                                className="px-4 py-2 rounded-lg bg-primary"
                             >
                                 <Text className="text-white font-semibold">Update</Text>
                             </TouchableOpacity>

@@ -347,7 +347,7 @@ export function EventFormModal({
     return (
         <Modal visible={visible} transparent animationType="fade">
             <View className="flex-1 justify-center items-center bg-black/50 px-4">
-                <View className="bg-slate-900 w-full max-w-md p-6 rounded-3xl border border-slate-700 max-h-[90%]">
+                <View className="bg-background w-full max-w-md p-6 rounded-3xl border border-border max-h-[90%]">
 
                     {/* Header */}
                     <View className="flex-row justify-between items-center mb-4">
@@ -355,21 +355,21 @@ export function EventFormModal({
                             {initialEvent ? 'Edit' : 'New'} {type === 'alarm' ? 'Alarm' : type === 'reminder' ? 'Reminder' : type === 'zone' ? 'Zone' : 'Event'}
                         </Text>
                         {initialEvent && onDelete && (
-                            <TouchableOpacity onPress={handlePreDelete} className="bg-red-500/10 p-2 rounded-full">
+                            <TouchableOpacity onPress={handlePreDelete} className="bg-error/10 p-2 rounded-full">
                                 <Ionicons name="trash-outline" size={20} color={Colors.error} />
                             </TouchableOpacity>
                         )}
                     </View>
 
                     {/* Type Selector */}
-                    <View className="flex-row bg-slate-800 p-1 rounded-xl mb-4 border border-slate-700">
+                    <View className="flex-row bg-surface p-1 rounded-xl mb-4 border border-border">
                         {(['event', 'reminder', 'alarm', 'zone'] as const).map((t) => (
                             <TouchableOpacity
                                 key={t}
                                 onPress={() => setType(t)}
-                                className={`flex-1 py-2 rounded-lg items-center ${type === t ? 'bg-indigo-600' : 'bg-transparent'}`}
+                                className={`flex-1 py-2 rounded-lg items-center ${type === t ? 'bg-primary' : 'bg-transparent'}`}
                             >
-                                <Text className={`font-semibold capitalize ${type === t ? 'text-white' : 'text-slate-400'}`}>
+                                <Text className={`font-semibold capitalize ${type === t ? 'text-white' : 'text-text-tertiary'}`}>
                                     {t}
                                 </Text>
                             </TouchableOpacity>
@@ -381,9 +381,9 @@ export function EventFormModal({
                             <ScrollView showsVerticalScrollIndicator={false}>
                                 {/* Title */}
                                 <View className="mb-4">
-                                    <Text className="text-indigo-200 mb-2 font-medium">Title</Text>
+                                    <Text className="text-text-secondary mb-2 font-medium">Title</Text>
                                     <TextInput
-                                        className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700 font-medium"
+                                        className="bg-surface text-white p-4 rounded-xl border border-border font-medium"
                                         value={title}
                                         onChangeText={setTitle}
                                         placeholder={type === 'event' ? "Event Title" : type === 'zone' ? "Zone Title" : "Reminder Title"}
@@ -405,9 +405,9 @@ export function EventFormModal({
 
                                 {(!isEvent && !isZone) && (
                                     <View className="mb-4">
-                                        <Text className="text-indigo-200 mb-2 font-medium">Content</Text>
+                                        <Text className="text-text-secondary mb-2 font-medium">Content</Text>
                                         <TextInput
-                                            className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700 min-h-[80px]"
+                                            className="bg-surface text-white p-4 rounded-xl border border-border min-h-[80px]"
                                             value={content}
                                             onChangeText={setContent}
                                             placeholder="Details..."
@@ -420,13 +420,13 @@ export function EventFormModal({
 
                                 {/* Time Section */}
                                 <View className="mb-6">
-                                    <Text className="text-indigo-200 mb-2 font-medium">Time</Text>
+                                    <Text className="text-text-secondary mb-2 font-medium">Time</Text>
 
                                     {/* Date Picker Row */}
                                     <View className="flex-row gap-3 mb-3">
                                         <TouchableOpacity
                                             onPress={() => setShowDatePicker(true)}
-                                            className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row justify-between items-center"
+                                            className="flex-1 bg-surface p-4 rounded-xl border border-border flex-row justify-between items-center"
                                         >
                                             <View className="flex-row items-center">
                                                 <Ionicons name="calendar-outline" size={20} color="#818cf8" />
@@ -443,9 +443,9 @@ export function EventFormModal({
                                                 nextDay.setDate(nextDay.getDate() + 1);
                                                 setStartDate(nextDay);
                                             }}
-                                            className="bg-slate-800 p-4 rounded-xl border border-slate-700 items-center justify-center"
+                                            className="bg-surface p-4 rounded-xl border border-border items-center justify-center"
                                         >
-                                            <Text className="text-indigo-400 font-bold text-lg">+1d</Text>
+                                            <Text className="text-primary font-bold text-lg">+1d</Text>
                                         </TouchableOpacity>
                                     </View>
 
@@ -454,7 +454,7 @@ export function EventFormModal({
                                         <View className="flex-row gap-3 mb-3">
                                             <TouchableOpacity
                                                 onPress={() => setShowTimePicker('start')}
-                                                className="flex-1 bg-slate-800 p-3 rounded-xl border border-slate-700 flex-row justify-between items-center"
+                                                className="flex-1 bg-surface p-3 rounded-xl border border-border flex-row justify-between items-center"
                                             >
                                                 <View className="flex-row items-center">
                                                     <Ionicons name="time-outline" size={20} color="#818cf8" />
@@ -470,14 +470,14 @@ export function EventFormModal({
 
                                             {/* Duration presets (Event/Zone only) */}
                                             {(isEvent || isZone) && (
-                                                <View className="flex-1 bg-slate-800 p-1.5 rounded-xl border border-slate-700 justify-center">
+                                                <View className="flex-1 bg-surface p-1.5 rounded-xl border border-border justify-center">
                                                     {!isCustomDuration ? (
                                                         <View className="flex-row justify-between items-center gap-x-1">
                                                             {[15, 30, 60, 90].map(mins => (
                                                                 <TouchableOpacity
                                                                     key={mins}
                                                                     onPress={() => setDurationMinutes(mins)}
-                                                                    className={`p-1.5 rounded-lg ${durationMinutes === mins ? 'bg-indigo-600' : 'bg-slate-700'}`}
+                                                                    className={`p-1.5 rounded-lg ${durationMinutes === mins ? 'bg-primary' : 'bg-surface-highlight'}`}
                                                                 >
                                                                     <Text className="text-white text-[10px] font-bold">{mins}m</Text>
                                                                 </TouchableOpacity>
@@ -488,7 +488,7 @@ export function EventFormModal({
                                                                     // Default custom end time: +60 min
                                                                     setDurationMinutes(60);
                                                                 }}
-                                                                className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 items-center justify-center"
+                                                                className="p-1.5 rounded-lg bg-primary border border-primary items-center justify-center"
                                                             >
                                                                 <Ionicons name="options-outline" size={14} color="#818cf8" />
                                                             </TouchableOpacity>
@@ -498,7 +498,7 @@ export function EventFormModal({
                                                             onPress={() => setIsCustomDuration(false)}
                                                             className="flex-row items-center justify-center gap-2"
                                                         >
-                                                            <Text className="text-indigo-400 text-[10px] font-bold uppercase tracking-wider">Presets</Text>
+                                                            <Text className="text-primary text-[10px] font-bold uppercase tracking-wider">Presets</Text>
                                                             <Ionicons name="apps-outline" size={14} color="#818cf8" />
                                                         </TouchableOpacity>
                                                     )}
@@ -512,12 +512,12 @@ export function EventFormModal({
                                         <View className="mb-3">
                                             <TouchableOpacity
                                                 onPress={() => setShowTimePicker('end')}
-                                                className="bg-slate-800 p-3 rounded-xl border border-indigo-500/30 flex-row justify-between items-center"
+                                                className="bg-surface p-3 rounded-xl border border-primary flex-row justify-between items-center"
                                             >
                                                 <View className="flex-row items-center">
                                                     <Ionicons name="flag-outline" size={20} color={Palette[1]} />
                                                     <View className="ml-3">
-                                                        <Text className="text-slate-400 text-[10px] uppercase font-bold">End Time</Text>
+                                                        <Text className="text-text-tertiary text-[10px] uppercase font-bold">End Time</Text>
                                                         <Text className="text-white font-bold text-lg">
                                                             {new Date(startDate.getTime() + durationMinutes * 60000).toLocaleTimeString([], {
                                                                 hour12: timeFormat === '12h',
@@ -538,23 +538,23 @@ export function EventFormModal({
                                             <TouchableOpacity
                                                 onPress={() => handleAIReschedule('later')}
                                                 disabled={!!isRescheduling}
-                                                className={`px-3 py-1.5 rounded-full border ${isRescheduling === 'later' ? 'bg-indigo-600 border-indigo-500' : 'bg-slate-800 border-indigo-500/30'}`}
+                                                className={`px-3 py-1.5 rounded-full border ${isRescheduling === 'later' ? 'bg-primary border-primary' : 'bg-surface border-primary'}`}
                                             >
                                                 {isRescheduling === 'later' ? (
                                                      <ActivityIndicator size="small" color="white" />
                                                 ) : (
-                                                    <Text className="text-xs text-indigo-300">✨ Later</Text>
+                                                    <Text className="text-xs text-text-secondary">✨ Later</Text>
                                                 )}
                                             </TouchableOpacity>
                                             <TouchableOpacity
                                                 onPress={() => handleAIReschedule('tomorrow')}
                                                 disabled={!!isRescheduling}
-                                                className={`px-3 py-1.5 rounded-full border ${isRescheduling === 'tomorrow' ? 'bg-indigo-600 border-indigo-500' : 'bg-slate-800 border-indigo-500/30'}`}
+                                                className={`px-3 py-1.5 rounded-full border ${isRescheduling === 'tomorrow' ? 'bg-primary border-primary' : 'bg-surface border-primary'}`}
                                             >
                                                 {isRescheduling === 'tomorrow' ? (
                                                      <ActivityIndicator size="small" color="white" />
                                                 ) : (
-                                                    <Text className="text-xs text-indigo-300">✨ Tomorrow</Text>
+                                                    <Text className="text-xs text-text-secondary">✨ Tomorrow</Text>
                                                 )}
                                             </TouchableOpacity>
                                         </View>
@@ -562,12 +562,12 @@ export function EventFormModal({
 
                                     {/* Zone Specific Switches */}
                                     {isZone && (
-                                        <View className="flex-row justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 mb-3">
+                                        <View className="flex-row justify-between items-center bg-surface p-4 rounded-xl border border-border mb-3">
                                             <View className="flex-row items-center gap-3">
                                                 <Ionicons name="hand-left-outline" size={20} color={Palette[1]} />
                                                 <View>
                                                     <Text className="text-white font-medium">Non-Free</Text>
-                                                    <Text className="text-slate-400 text-xs">Blocks free time generation</Text>
+                                                    <Text className="text-text-tertiary text-xs">Blocks free time generation</Text>
                                                 </View>
                                             </View>
                                             <Switch
@@ -581,7 +581,7 @@ export function EventFormModal({
 
                                     {/* Event Specific Switches */}
                                     {isEvent && (
-                                        <View className="flex-row justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 mb-3">
+                                        <View className="flex-row justify-between items-center bg-surface p-4 rounded-xl border border-border mb-3">
                                             <View className="flex-row items-center gap-3">
                                                 <Ionicons name="briefcase-outline" size={20} color="#818cf8" />
                                                 <Text className="text-white font-medium">Is Work</Text>
@@ -596,8 +596,8 @@ export function EventFormModal({
                                     )}
 
                                     {/* Recurrence Selector */}
-                                    <View className="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-3">
-                                        <Text className="text-indigo-200 mb-2 font-medium">Repeats</Text>
+                                    <View className="bg-surface p-4 rounded-xl border border-border mb-3">
+                                        <Text className="text-text-secondary mb-2 font-medium">Repeats</Text>
                                         <View className="flex-row flex-wrap gap-2 mb-3">
                                             {['none', 'daily', 'weekly', 'monthly', 'yearly'].map(freq => (
                                                 <TouchableOpacity
@@ -605,12 +605,12 @@ export function EventFormModal({
                                                     onPress={() => setRecurrenceFreq(freq)}
                                                     className={`px-3 py-2 rounded-lg border ${
                                                         recurrenceFreq === freq
-                                                        ? 'bg-indigo-600 border-indigo-500'
-                                                        : 'bg-slate-700 border-slate-600'
+                                                        ? 'bg-primary border-primary'
+                                                        : 'bg-surface-highlight border-border'
                                                     }`}
                                                 >
                                                     <Text className={`text-xs font-semibold capitalize ${
-                                                        recurrenceFreq === freq ? 'text-white' : 'text-slate-300'
+                                                        recurrenceFreq === freq ? 'text-white' : 'text-text-secondary'
                                                     }`}>
                                                         {freq}
                                                     </Text>
@@ -619,16 +619,16 @@ export function EventFormModal({
                                         </View>
 
                                         {recurrenceFreq !== 'none' && (
-                                            <View className="flex-row items-center gap-3 mt-2 border-t border-slate-700 pt-3">
-                                                <Text className="text-slate-400 text-sm">Every</Text>
+                                            <View className="flex-row items-center gap-3 mt-2 border-t border-border pt-3">
+                                                <Text className="text-text-tertiary text-sm">Every</Text>
                                                 <TextInput
-                                                    className="bg-slate-700 text-white px-4 py-2 rounded-lg w-20 text-center font-bold"
+                                                    className="bg-surface-highlight text-white px-4 py-2 rounded-lg w-20 text-center font-bold"
                                                     value={recurrenceInterval}
                                                     onChangeText={setRecurrenceInterval}
                                                     keyboardType="numeric"
                                                     maxLength={3}
                                                 />
-                                                <Text className="text-slate-400 text-sm capitalize">
+                                                <Text className="text-text-tertiary text-sm capitalize">
                                                     {recurrenceFreq === 'daily' ? 'Days' :
                                                      recurrenceFreq === 'weekly' ? 'Weeks' :
                                                      recurrenceFreq === 'monthly' ? 'Months' : 'Years'}
@@ -644,15 +644,15 @@ export function EventFormModal({
                                                 onPress={() => setIsAdvancedOpen(!isAdvancedOpen)}
                                                 className="flex-row items-center justify-between mb-2"
                                             >
-                                                <Text className="text-indigo-200 font-medium">Advanced</Text>
+                                                <Text className="text-text-secondary font-medium">Advanced</Text>
                                                 <Ionicons name={isAdvancedOpen ? "chevron-up" : "chevron-down"} size={20} color="#818cf8" />
                                             </TouchableOpacity>
 
                                             {isAdvancedOpen && (
-                                                <View className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                                                    <Text className="text-slate-400 text-xs mb-1">Persistent Nag (min)</Text>
+                                                <View className="bg-surface/50 p-4 rounded-xl border border-border">
+                                                    <Text className="text-text-tertiary text-xs mb-1">Persistent Nag (min)</Text>
                                                     <TextInput
-                                                        className="bg-slate-800 text-white p-3 rounded-lg border border-slate-600"
+                                                        className="bg-surface text-white p-3 rounded-lg border border-border"
                                                         placeholder="Nag interval (minutes)"
                                                         placeholderTextColor={Colors.secondary}
                                                         keyboardType="numeric"
@@ -715,17 +715,17 @@ export function EventFormModal({
 
                                 {linkedTasks.length > 0 && (
                                     <View className="mb-6">
-                                        <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">Linked Tasks</Text>
+                                        <Text className="text-text-secondary mb-2 font-medium text-xs uppercase tracking-wider">Linked Tasks</Text>
                                         <View className="gap-2">
                                             {linkedTasks.map((t, i) => (
                                                 <TouchableOpacity 
                                                     key={i} 
                                                     onPress={() => onOpenTask && onOpenTask(t)}
-                                                    className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex-row items-center gap-2"
+                                                    className="bg-surface p-3 rounded-xl border border-border flex-row items-center gap-2"
                                                 >
                                                     <TaskStatusIcon status={t.status} size={16} />
                                                     <View className="flex-1">
-                                                        <Text className={`text-white font-medium ${t.completed ? 'text-slate-500 line-through' : ''}`} numberOfLines={1}>
+                                                        <Text className={`text-white font-medium ${t.completed ? 'text-secondary line-through' : ''}`} numberOfLines={1}>
                                                             {t.title.replace(/^\[\[(.*)\]\]$/, '$1')}
                                                         </Text>
                                                     </View>
@@ -742,13 +742,13 @@ export function EventFormModal({
                             <View className="flex-row gap-3 mt-4">
                                 <TouchableOpacity
                                     onPress={onCancel}
-                                    className="flex-1 bg-slate-800 p-4 rounded-xl items-center"
+                                    className="flex-1 bg-surface p-4 rounded-xl items-center"
                                 >
                                     <Text className="text-white font-semibold">Cancel</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     onPress={handlePreSave}
-                                    className="flex-1 bg-indigo-600 p-4 rounded-xl items-center"
+                                    className="flex-1 bg-primary p-4 rounded-xl items-center"
                                 >
                                     <Text className="text-white font-semibold">
                                         {initialEvent ? 'Save' : 'Create'}

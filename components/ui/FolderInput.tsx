@@ -114,12 +114,12 @@ export function FolderInput({
 
     return (
         <View className={compact ? "mb-1" : "mb-4"} style={{ zIndex: 10 }}>
-             {!compact && <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">{label}</Text>}
+             {!compact && <Text className="text-text-secondary mb-1 ml-1 text-sm font-semibold">{label}</Text>}
             <View className="flex-row gap-2">
                 <View className="flex-1 relative">
-                    <View className={`flex-row items-center bg-slate-800/50 border border-slate-700 rounded-xl ${compact ? '' : ''}`}>
+                    <View className={`flex-row items-center bg-surface/50 border border-border rounded-xl ${compact ? '' : ''}`}>
                         {basePath ? (
-                            <Text className={`text-slate-500 ${compact ? 'pl-3 text-sm' : 'pl-4'} font-medium`}>{basePath}/</Text>
+                            <Text className={`text-secondary ${compact ? 'pl-3 text-sm' : 'pl-4'} font-medium`}>{basePath}/</Text>
                         ) : null}
                         <TextInput 
                             value={value} 
@@ -136,7 +136,7 @@ export function FolderInput({
                             onPress={onCheckFolder} 
                             className="absolute right-0 top-0 bottom-0 px-4 justify-center"
                         >
-                            <Text className={folderStatus === 'valid' ? "text-green-400 text-lg" : folderStatus === 'invalid' ? "text-orange-400 text-lg" : "text-slate-400 text-lg"}>
+                            <Text className={folderStatus === 'valid' ? "text-success text-lg" : folderStatus === 'invalid' ? "text-busy text-lg" : "text-text-tertiary text-lg"}>
                                 {folderStatus === 'valid' ? '✓' : folderStatus === 'invalid' ? '+' : '🔍'}
                             </Text>
                         </TouchableOpacity>
@@ -145,14 +145,14 @@ export function FolderInput({
                 <TouchableOpacity
                     onPress={handleBrowse}
                     disabled={!vaultUri || isSelecting}
-                    className={`px-4 ${compact ? 'py-3' : 'py-4'} rounded-xl ${!vaultUri || isSelecting ? 'bg-slate-700' : 'bg-indigo-600'}`}
+                    className={`px-4 ${compact ? 'py-3' : 'py-4'} rounded-xl ${!vaultUri || isSelecting ? 'bg-surface-highlight' : 'bg-primary'}`}
                 >
                     <Text className="text-white font-semibold">Browse</Text>
                 </TouchableOpacity>
             </View>
             {showSuggestions && suggestions.length > 0 && (
                 <ScrollView 
-                    className="bg-slate-800 border border-slate-600 rounded-xl mt-1"
+                    className="bg-surface border border-border rounded-xl mt-1"
                     style={{ maxHeight: 150 }}
                     keyboardShouldPersistTaps="always"
                     nestedScrollEnabled
@@ -161,9 +161,9 @@ export function FolderInput({
                         <TouchableOpacity
                             key={dir}
                             onPress={() => handleSelectSuggestion(dir)}
-                            className="px-3 py-2.5 border-b border-slate-700/50 flex-row items-center"
+                            className="px-3 py-2.5 border-b border-border/50 flex-row items-center"
                         >
-                            <Text className="text-indigo-400 mr-2">📁</Text>
+                            <Text className="text-primary mr-2">📁</Text>
                             <Text className="text-white text-sm font-medium">{dir}</Text>
                         </TouchableOpacity>
                     ))}

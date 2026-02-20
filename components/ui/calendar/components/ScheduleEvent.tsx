@@ -71,7 +71,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
                 <View className="flex-row items-center w-full">
                     {/* Text Label & Tags */}
                     <View
-                        className="bg-slate-900/90 rounded px-2 py-0.5 border shadow-sm flex-row items-center gap-1.5"
+                        className="bg-background/90 rounded px-2 py-0.5 border shadow-sm flex-row items-center gap-1.5"
                         style={{ borderColor: color, opacity: 0.9, backgroundColor: Colors.background }}
                     >
                         <Text
@@ -83,12 +83,12 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
                         </Text>
 
                         {(evt.originalEvent?.recurrenceRule) && (
-                            <View className="bg-slate-800 px-1 rounded flex-row items-center" style={{ paddingVertical: 1 }}>
+                            <View className="bg-surface px-1 rounded flex-row items-center" style={{ paddingVertical: 1 }}>
                                 <Ionicons name="repeat" size={8} color={color} />
                             </View>
                         )}
                         {(!!evt.originalEvent?.persistent) && (
-                            <View className="bg-slate-800 px-1 rounded flex-row items-center" style={{ paddingVertical: 1 }}>
+                            <View className="bg-surface px-1 rounded flex-row items-center" style={{ paddingVertical: 1 }}>
                                 <Ionicons name="alert-circle" size={8} color={color} />
                             </View>
                         )}
@@ -238,27 +238,27 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
             {!evt.hideBadges && !isUltraCompact && (
                 <View className="absolute top-1 right-1 flex-row gap-1 items-center">
                     {evt.movable && (
-                        <View className="bg-emerald-500/80 px-1 py-0.5 rounded">
+                        <View className="bg-success px-1 py-0.5 rounded">
                             <Ionicons name="move" size={10} color="white" />
                         </View>
                     )}
                     {evt.isSkippable && (
-                        <View className="bg-rose-500/80 px-1 py-0.5 rounded">
+                        <View className="bg-error px-1 py-0.5 rounded">
                             <Ionicons name="return-up-forward" size={10} color="white" />
                         </View>
                     )}
                     {evt.needPrep && (
-                        <View className="bg-amber-500/80 px-1 py-0.5 rounded">
+                        <View className="bg-warning px-1 py-0.5 rounded">
                             <Ionicons name="pricetag-outline" size={10} color="white" />
                         </View>
                     )}
                     {evt.isRecurrent === false && (
-                        <View className="bg-sky-500/80 px-1 py-0.5 rounded">
+                        <View className="bg-primary px-1 py-0.5 rounded">
                             <Ionicons name="calendar-outline" size={10} color="white" />
                         </View>
                     )}
                     {hasLinks && (
-                        <View className="bg-indigo-500/80 px-1 py-0.5 rounded">
+                        <View className="bg-primary px-1 py-0.5 rounded">
                             <Ionicons name="link" size={10} color="white" />
                         </View>
                     )}

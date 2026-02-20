@@ -114,10 +114,10 @@ export default function RemindersListScreen() {
       <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}>
 
         {reminders.length === 0 ? (
-          <View className="bg-slate-800/50 p-8 rounded-xl border border-slate-700 items-center mt-4">
+          <View className="bg-surface/50 p-8 rounded-xl border border-border items-center mt-4">
             <Ionicons name="alarm-outline" size={64} color={Colors.secondary} />
-            <Text className="text-slate-400 italic text-center mt-4 text-lg">No reminders found.</Text>
-            <Text className="text-slate-500 text-sm text-center mt-4">
+            <Text className="text-text-tertiary italic text-center mt-4 text-lg">No reminders found.</Text>
+            <Text className="text-secondary text-sm text-center mt-4">
               Tap the + button to create a reminder!
             </Text>
           </View>
@@ -125,7 +125,7 @@ export default function RemindersListScreen() {
           <View className="gap-6">
             {upcoming.length > 0 && (
               <View>
-                <Text className="text-emerald-400 font-bold mb-3 text-sm uppercase tracking-wider">Upcoming</Text>
+                <Text className="text-success font-bold mb-3 text-sm uppercase tracking-wider">Upcoming</Text>
                 <View className="gap-0">
                   {upcoming.map((reminder) => (
                     <ReminderItem
@@ -149,7 +149,7 @@ export default function RemindersListScreen() {
 
             {overdue.length > 0 && (
               <View>
-                <Text className="text-red-400 font-bold mb-3 text-sm uppercase tracking-wider">Overdue</Text>
+                <Text className="text-error font-bold mb-3 text-sm uppercase tracking-wider">Overdue</Text>
                 <View className="gap-0">
                   {overdue.map((reminder) => (
                     <ReminderItem

@@ -15,22 +15,22 @@ export function ActionButton({ onPress, icon, variant = 'neutral', size = 16 }: 
         switch (variant) {
             case 'danger':
                 return {
-                    container: 'bg-red-900/20',
+                    container: 'bg-surface-highlight',
                     color: '#f87171'
                 };
             case 'success':
                 return {
-                    container: 'bg-green-900/20',
+                    container: 'bg-surface-highlight',
                     color: '#4ade80'
                 };
             case 'warning':
                 return {
-                    container: 'bg-indigo-900/50', // Matching the recurrence tag style roughly or generic warning
+                    container: 'bg-surface-highlight', // Matching the recurrence tag style roughly or generic warning
                     color: '#fbbf24'
                 };
             default: // neutral
                 return {
-                    container: 'bg-slate-700/50',
+                    container: 'bg-surface-highlight/50',
                     color: Colors.text.tertiary
                 };
         }

@@ -13,9 +13,9 @@ interface ButtonProps {
 export function Button({ onPress, title, variant = 'primary', loading = false, disabled = false, className }: ButtonProps) {
     const baseStyle = "p-4 rounded-xl flex-row justify-center items-center shadow-lg active:opacity-80";
     const variants = {
-        primary: "bg-indigo-500 border border-indigo-400",
-        secondary: "bg-slate-700 border border-slate-600",
-        danger: "bg-red-500/80 border border-red-400",
+        primary: "bg-primary border border-primary",
+        secondary: "bg-surface-highlight border border-border",
+        danger: "bg-error/80 border border-error",
     };
 
     return (

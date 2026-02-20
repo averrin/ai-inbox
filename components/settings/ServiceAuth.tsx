@@ -42,18 +42,18 @@ export function ServiceAuth({
             <View className="mb-4">
                 <View className="flex-row items-center mb-2">
                     <Ionicons name={icon} size={24} color={iconColor} />
-                    <Text className="text-indigo-200 font-semibold ml-2 text-lg">{title}</Text>
+                    <Text className="text-text-secondary font-semibold ml-2 text-lg">{title}</Text>
                 </View>
-                <Text className="text-slate-400 text-sm mb-4">
+                <Text className="text-text-tertiary text-sm mb-4">
                     {description}
                 </Text>
 
                 {isConnected ? (
                     <View>
-                        <View className="flex-row items-center mb-4 bg-green-900/20 border border-green-500/30 p-3 rounded-xl">
+                        <View className="flex-row items-center mb-4 bg-surface-highlight border border-success/30 p-3 rounded-xl">
                              <Ionicons name="checkmark-circle" size={24} color="#4ade80" />
                              <View className="ml-3 flex-1">
-                                 <Text className="text-green-400 font-medium">{connectedText}</Text>
+                                 <Text className="text-success font-medium">{connectedText}</Text>
                              </View>
                         </View>
                         {onDisconnect && (

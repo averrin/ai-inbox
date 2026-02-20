@@ -62,9 +62,9 @@ export function UnifiedSuggestionModal({
     const themeColor = isWalk ? 'emerald' : 'blue'; // tailwind colors need specific mapping or manual hex
     const iconName = isWalk ? 'walk' : 'restaurant';
     const themeColorHex = isWalk ? Palette[9] : Colors.primary;
-    const bgColorClass = isWalk ? 'bg-emerald-600/20' : 'bg-blue-600/20';
-    const iconBgClass = isWalk ? 'bg-emerald-500' : 'bg-blue-500';
-    const confirmBtnClass = isWalk ? 'bg-emerald-500' : 'bg-blue-500';
+    const bgColorClass = isWalk ? 'bg-success' : 'bg-primary';
+    const iconBgClass = isWalk ? 'bg-success' : 'bg-primary';
+    const confirmBtnClass = isWalk ? 'bg-success' : 'bg-primary';
 
     const handleConfirm = async () => {
         setLoading(true);
@@ -118,10 +118,10 @@ export function UnifiedSuggestionModal({
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
             <View className="flex-1 justify-center items-center bg-black/60 px-4">
                 <BlurView intensity={20} className="absolute inset-0" />
-                <View className="bg-slate-900 w-full max-w-sm rounded-3xl overflow-hidden border border-slate-700 shadow-xl">
+                <View className="bg-background w-full max-w-sm rounded-3xl overflow-hidden border border-border shadow-xl">
                     
                     {/* Header */}
-                    <View className={`${bgColorClass} p-6 items-center border-b border-slate-700 relative`}>
+                    <View className={`${bgColorClass} p-6 items-center border-b border-border relative`}>
                         <TouchableOpacity 
                             onPress={onClose}
                             className="absolute top-4 right-4 z-10 p-1"
@@ -134,7 +134,7 @@ export function UnifiedSuggestionModal({
                         </View>
                         <Text className="text-white text-xl font-bold">{title}</Text>
                         {suggestion.reason && (
-                            <Text className="text-emerald-200 text-center mt-1 text-sm font-medium">
+                            <Text className="text-success text-center mt-1 text-sm font-medium">
                                 {suggestion.reason}
                             </Text>
                         )}
@@ -142,14 +142,14 @@ export function UnifiedSuggestionModal({
 
                     {/* Time Selection */}
                     <View className="p-6 space-y-4">
-                        <View className="flex-row justify-between items-center bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                        <View className="flex-row justify-between items-center bg-surface/50 p-4 rounded-xl border border-border/50">
                             <View>
-                                <Text className="text-slate-400 text-xs uppercase tracking-wider font-bold mb-1">Suggested Time</Text>
+                                <Text className="text-text-tertiary text-xs uppercase tracking-wider font-bold mb-1">Suggested Time</Text>
                                 <View className="flex-row items-baseline">
                                     <Text className="text-white text-lg font-semibold">
                                         {dayjs(startDate).format(timeFormatStr)}
                                     </Text>
-                                    <Text className="text-slate-500 text-sm ml-1">
+                                    <Text className="text-secondary text-sm ml-1">
                                         - {dayjs(endDate).format(timeFormatStr)}
                                     </Text>
                                 </View>
@@ -158,7 +158,7 @@ export function UnifiedSuggestionModal({
                             {/* Button to trigger picker */}
                             <TouchableOpacity 
                                 onPress={() => setShowPicker(true)}
-                                className="bg-slate-700 px-4 py-2 rounded-lg"
+                                className="bg-surface-highlight px-4 py-2 rounded-lg"
                             >
                                 <Text className="text-white font-medium">Change</Text>
                             </TouchableOpacity>
@@ -202,10 +202,10 @@ export function UnifiedSuggestionModal({
                                     if (onDismiss) onDismiss();
                                     onClose();
                                 }}
-                                className="bg-slate-800 py-3 rounded-xl flex-row justify-center items-center border border-slate-700"
+                                className="bg-surface py-3 rounded-xl flex-row justify-center items-center border border-border"
                             >
                                 <Ionicons name="close-circle-outline" size={20} color={Colors.text.tertiary} className="mr-2" />
-                                <Text className="text-slate-400 font-semibold">
+                                <Text className="text-text-tertiary font-semibold">
                                     {isWalk ? 'Dismiss for Today' : 'Skip Lunch'}
                                 </Text>
                             </TouchableOpacity>

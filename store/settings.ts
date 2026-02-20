@@ -148,6 +148,7 @@ interface SettingsState {
     setContacts: (contacts: Contact[]) => void;
     addContact: (contact: Omit<Contact, 'id'>) => void;
     updateContact: (contact: Contact) => void;
+    deleteContact: (id: string) => void;
     daySummaryPrompt: string | null;
     setDaySummaryPrompt: (prompt: string | null) => void;
     forecastPrompt: string | null;

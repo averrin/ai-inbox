@@ -7,7 +7,7 @@ export function Layout({ children, scrollable = false, fullBleed = false, noPadd
   // Simple layout, scrollable handling handled by children using ScrollView if needed or add prop
   return (
     <LinearGradient
-      colors={Gradients.appBackground}
+      colors={[...Gradients.appBackground] as any}
       className="flex-1"
     >
       <SafeAreaView className={`flex-1 ${fullBleed || noPadding ? '' : 'px-4'} bg-transparent`} edges={['top', 'left', 'right']}>

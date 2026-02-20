@@ -17,9 +17,9 @@ export function TimeSyncPanel({
     onCopyEventsToReminder
 }: TimeSyncPanelProps) {
     return (
-        <View className="bg-slate-800/50 rounded-xl p-2 mb-2 border border-slate-700 flex-row items-center justify-between">
+        <View className="bg-surface/50 rounded-xl p-2 mb-2 border border-border flex-row items-center justify-between">
             <View className="flex-row items-center gap-2 mr-2">
-                <Text className="text-indigo-200 text-xs font-semibold">Time Sync</Text>
+                <Text className="text-text-secondary text-xs font-semibold">Time Sync</Text>
                 <Switch
                     value={isSynced}
                     onValueChange={onToggleSync}
@@ -33,22 +33,22 @@ export function TimeSyncPanel({
                 <View className="flex-row gap-2 flex-1 justify-end">
                     <TouchableOpacity 
                         onPress={onCopyReminderToEvents}
-                        className="bg-slate-700 px-3 py-1.5 rounded-lg flex-row items-center gap-1 border border-slate-600"
+                        className="bg-surface-highlight px-3 py-1.5 rounded-lg flex-row items-center gap-1 border border-border"
                     >
                         <Ionicons name="arrow-down" size={12} color="#fbbf24" />
-                        <Text className="text-slate-200 text-[10px] font-medium">To Events</Text>
+                        <Text className="text-text-primary text-[10px] font-medium">To Events</Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
                         onPress={onCopyEventsToReminder}
-                        className="bg-slate-700 px-3 py-1.5 rounded-lg flex-row items-center gap-1 border border-slate-600"
+                        className="bg-surface-highlight px-3 py-1.5 rounded-lg flex-row items-center gap-1 border border-border"
                     >
                         <Ionicons name="arrow-up" size={12} color="#4ade80" />
-                        <Text className="text-slate-200 text-[10px] font-medium">To Reminder</Text>
+                        <Text className="text-text-primary text-[10px] font-medium">To Reminder</Text>
                     </TouchableOpacity>
                 </View>
             ) : (
-                 <Text className="text-slate-400 text-[10px] italic flex-1 text-right">
+                 <Text className="text-text-tertiary text-[10px] italic flex-1 text-right">
                     Synced
                 </Text>
             )}

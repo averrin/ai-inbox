@@ -95,7 +95,7 @@ export function EventTypesSettings() {
                 keyExtractor={item => item.id}
                 scrollEnabled={false}
                 ListEmptyComponent={
-                    <Text className="text-slate-500 text-center mt-10">
+                    <Text className="text-secondary text-center mt-10">
                         No event types defined yet.
                     </Text>
                 }
@@ -104,7 +104,7 @@ export function EventTypesSettings() {
             <View className="mt-4">
                 <TouchableOpacity
                     onPress={handleCreate}
-                    className="bg-indigo-600 p-4 rounded-lg flex-row justify-center items-center gap-2"
+                    className="bg-primary p-4 rounded-lg flex-row justify-center items-center gap-2"
                 >
                     <Ionicons name="add" size={24} color="white" />
                     <Text className="text-white font-semibold">Create New Type</Text>
@@ -114,15 +114,15 @@ export function EventTypesSettings() {
             {/* Edit/Create Form Modal */}
             <Modal visible={isFormVisible} transparent animationType="fade">
                 <View className="flex-1 bg-black/80 justify-center p-4">
-                    <View className="bg-slate-900 rounded-xl p-6 max-h-[90%]">
+                    <View className="bg-background rounded-xl p-6 max-h-[90%]">
                         <ScrollView showsVerticalScrollIndicator={false}>
                             <Text className="text-white text-lg font-bold mb-4">
                                 {editingType ? 'Edit Type' : 'New Type'}
                             </Text>
 
-                            <Text className="text-slate-400 mb-2 text-sm">Title</Text>
+                            <Text className="text-text-tertiary mb-2 text-sm">Title</Text>
                             <TextInput
-                                className="bg-slate-800 text-white p-3 rounded-lg mb-6"
+                                className="bg-surface text-white p-3 rounded-lg mb-6"
                                 placeholder="e.g. Work, Gym"
                                 placeholderTextColor={Colors.secondary}
                                 value={title}
@@ -137,10 +137,10 @@ export function EventTypesSettings() {
                                 style={{ marginBottom: 24 }}
                             />
 
-                            <View className="bg-slate-800 rounded-lg p-3 flex-row justify-between items-center mb-4">
+                            <View className="bg-surface rounded-lg p-3 flex-row justify-between items-center mb-4">
                                 <View className="flex-1 mr-3">
                                     <Text className="text-white font-medium">Inverted Mode</Text>
-                                    <Text className="text-slate-500 text-xs">Dark background with colored text/border</Text>
+                                    <Text className="text-secondary text-xs">Dark background with colored text/border</Text>
                                 </View>
                                 <Switch
                                     value={isInverted}
@@ -150,10 +150,10 @@ export function EventTypesSettings() {
                                 />
                             </View>
 
-                            <View className="bg-slate-800 rounded-lg p-3 flex-row justify-between items-center mb-4">
+                            <View className="bg-surface rounded-lg p-3 flex-row justify-between items-center mb-4">
                                 <View className="flex-1 mr-3">
                                     <Text className="text-white font-medium">Hide Badges</Text>
-                                    <Text className="text-slate-500 text-xs">Hide corner badges for events of this type</Text>
+                                    <Text className="text-secondary text-xs">Hide corner badges for events of this type</Text>
                                 </View>
                                 <Switch
                                     value={hideBadges}
@@ -173,13 +173,13 @@ export function EventTypesSettings() {
 
                             <View className="flex-row gap-3">
                                 <TouchableOpacity
-                                    className="flex-1 bg-slate-800 p-3 rounded-lg items-center"
+                                    className="flex-1 bg-surface p-3 rounded-lg items-center"
                                     onPress={() => setIsFormVisible(false)}
                                 >
-                                    <Text className="text-slate-300 font-semibold">Cancel</Text>
+                                    <Text className="text-text-secondary font-semibold">Cancel</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    className="flex-1 bg-indigo-600 p-3 rounded-lg items-center"
+                                    className="flex-1 bg-primary p-3 rounded-lg items-center"
                                     onPress={handleSave}
                                 >
                                     <Text className="text-white font-semibold">Save</Text>

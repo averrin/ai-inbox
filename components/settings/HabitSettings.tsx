@@ -44,10 +44,10 @@ export function HabitSettings() {
         <View>
             <Card>
                 <View className="flex-row justify-between items-center mb-4">
-                    <Text className="text-indigo-200 font-semibold">Checks</Text>
+                    <Text className="text-text-secondary font-semibold">Checks</Text>
                     <TouchableOpacity
                         onPress={handleCreate}
-                        className="bg-indigo-600 px-3 py-1.5 rounded-lg flex-row items-center"
+                        className="bg-primary px-3 py-1.5 rounded-lg flex-row items-center"
                     >
                         <Ionicons name="add" size={16} color="white" />
                         <Text className="text-white font-bold ml-1">New Check</Text>
@@ -57,7 +57,7 @@ export function HabitSettings() {
                 {habits.length === 0 ? (
                     <View className="items-center py-8">
                         <Ionicons name="checkmark-circle-outline" size={48} color="#475569" />
-                        <Text className="text-slate-500 mt-2 text-center">
+                        <Text className="text-secondary mt-2 text-center">
                             No checks defined yet.{'\n'}Add daily habits to track.
                         </Text>
                     </View>

@@ -49,7 +49,7 @@ export function JulesLoader({ size = 'medium', message, innerColor = Colors.surf
       <View style={{ width: sizeValue, height: sizeValue, justifyContent: 'center', alignItems: 'center' }}>
         <Animated.View style={[animatedStyle, { width: sizeValue, height: sizeValue, borderRadius: sizeValue / 2, overflow: 'hidden' }]}>
             <LinearGradient
-                colors={Gradients.loader}
+                colors={[...Gradients.loader] as any}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={{ width: '100%', height: '100%', padding: borderWidth }}

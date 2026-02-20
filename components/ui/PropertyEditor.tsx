@@ -93,10 +93,10 @@ export function PropertyEditor({
     };
 
     const renderItem = ([key, value]: [string, any], index: number) => (
-        <View key={key} className="bg-slate-700/80 px-2.5 py-1 rounded-md flex-row items-center border border-slate-600/50">
+        <View key={key} className="bg-surface-highlight/80 px-2.5 py-1 rounded-md flex-row items-center border border-border">
             <TouchableOpacity onPress={() => handleEdit(key, value)} className="flex-row items-center">
-                <Text className="text-slate-400 text-xs mr-1">{key}:</Text>
-                <Text className="text-slate-200 text-xs mr-2" numberOfLines={1}>
+                <Text className="text-text-tertiary text-xs mr-1">{key}:</Text>
+                <Text className="text-text-primary text-xs mr-2" numberOfLines={1}>
                     {typeof value === 'string' ? value : JSON.stringify(value)}
                 </Text>
             </TouchableOpacity>
@@ -123,14 +123,14 @@ export function PropertyEditor({
         >
             <View className="gap-3">
                 <View>
-                    <Text className="text-slate-400 text-[10px] uppercase font-bold mb-1 ml-1">Key</Text>
+                    <Text className="text-text-tertiary text-[10px] uppercase font-bold mb-1 ml-1">Key</Text>
                     <TextInput
                         value={tempKey}
                         onChangeText={setTempKey}
                         onFocus={() => setActiveInput('key')}
                         placeholder="e.g., status, priority"
                         placeholderTextColor={Colors.secondary}
-                        className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white text-sm mb-2"
+                        className="bg-surface/50 border border-border rounded-xl p-3 text-white text-sm mb-2"
                         autoCapitalize="none"
                     />
                     {activeInput === 'key' && filteredKeySuggestions.length > 0 && (
@@ -142,16 +142,16 @@ export function PropertyEditor({
                                         setTempKey(suggestion);
                                         setActiveInput('value');
                                     }}
-                                    className="bg-slate-800 border border-slate-700 px-2 py-1 rounded-md"
+                                    className="bg-surface border border-border px-2 py-1 rounded-md"
                                 >
-                                    <Text className="text-slate-300 text-xs">{suggestion}</Text>
+                                    <Text className="text-text-secondary text-xs">{suggestion}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
                     )}
                 </View>
                 <View>
-                    <Text className="text-slate-400 text-[10px] uppercase font-bold mb-1 ml-1">Value</Text>
+                    <Text className="text-text-tertiary text-[10px] uppercase font-bold mb-1 ml-1">Value</Text>
 
                     {(() => {
                         const type = propertyConfig?.[tempKey]?.type || 'text';
@@ -161,9 +161,9 @@ export function PropertyEditor({
                                 <View>
                                      <TouchableOpacity
                                         onPress={() => setShowDatePicker(true)}
-                                        className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 mb-2"
+                                        className="bg-surface/50 border border-border rounded-xl p-3 mb-2"
                                      >
-                                        <Text className={`text-sm ${tempValue ? "text-white" : "text-slate-500"}`}>
+                                        <Text className={`text-sm ${tempValue ? "text-white" : "text-secondary"}`}>
                                             {tempValue || 'YYYY-MM-DD'}
                                         </Text>
                                      </TouchableOpacity>
@@ -186,7 +186,7 @@ export function PropertyEditor({
 
                         if (type === 'boolean') {
                              return (
-                                 <View className="flex-row items-center justify-between bg-slate-800/50 border border-slate-700 rounded-xl p-3 mb-2">
+                                 <View className="flex-row items-center justify-between bg-surface/50 border border-border rounded-xl p-3 mb-2">
                                      <Text className="text-white text-sm">{tempValue === 'true' ? 'True' : 'False'}</Text>
                                      <Switch
                                          value={tempValue === 'true'}
@@ -205,7 +205,7 @@ export function PropertyEditor({
                                 onFocus={() => setActiveInput('value')}
                                 placeholder="Value..."
                                 placeholderTextColor={Colors.secondary}
-                                className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white text-sm mb-2"
+                                className="bg-surface/50 border border-border rounded-xl p-3 text-white text-sm mb-2"
                                 keyboardType={type === 'number' ? 'numeric' : 'default'}
                             />
                         );
@@ -217,9 +217,9 @@ export function PropertyEditor({
                                 <TouchableOpacity
                                     key={suggestion}
                                     onPress={() => setTempValue(suggestion)}
-                                    className="bg-slate-900 border border-indigo-500/30 px-2 py-1 rounded-md"
+                                    className="bg-background border border-primary px-2 py-1 rounded-md"
                                 >
-                                    <Text className="text-indigo-300 text-xs">{suggestion}</Text>
+                                    <Text className="text-text-secondary text-xs">{suggestion}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>

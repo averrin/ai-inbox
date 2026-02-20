@@ -46,7 +46,7 @@ export function IslandHeader({
                     {title}
                 </Text>
                 {subtitle && (
-                    <Text className="text-slate-400 text-xs font-medium" numberOfLines={1}>
+                    <Text className="text-text-tertiary text-xs font-medium" numberOfLines={1}>
                         {subtitle}
                     </Text>
                 )}

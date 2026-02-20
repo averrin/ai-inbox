@@ -80,9 +80,9 @@ export function WeatherSettings() {
         <Card>
             <View className="mb-6">
                 <View className="flex-row items-center justify-between mb-4">
-                    <Text className="text-indigo-200 font-semibold">Location Source</Text>
+                    <Text className="text-text-secondary font-semibold">Location Source</Text>
                     <View className="flex-row items-center gap-2">
-                        <Text className="text-slate-400 text-xs">
+                        <Text className="text-text-tertiary text-xs">
                             {useCurrentLocation ? 'Using GPS' : 'Manual Selection'}
                         </Text>
                         <Switch
@@ -94,16 +94,16 @@ export function WeatherSettings() {
                     </View>
                 </View>
 
-                <Text className="text-indigo-200 mb-2 font-semibold">Current Selection</Text>
-                <View className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 flex-row items-center gap-3">
-                    <View className="bg-indigo-500/20 p-2 rounded-full">
+                <Text className="text-text-secondary mb-2 font-semibold">Current Selection</Text>
+                <View className="bg-surface/50 border border-border rounded-xl p-4 flex-row items-center gap-3">
+                    <View className="bg-primary p-2 rounded-full">
                         <Ionicons name="location" size={20} color="#818cf8" />
                     </View>
                     <View>
                         <Text className="text-white font-medium">
                             {weatherLocation.city || 'Unknown Location'}
                         </Text>
-                        <Text className="text-slate-400 text-xs">
+                        <Text className="text-text-tertiary text-xs">
                             {weatherLocation.lat.toFixed(4)}, {weatherLocation.lon.toFixed(4)}
                         </Text>
                     </View>
@@ -112,7 +112,7 @@ export function WeatherSettings() {
 
             {!useCurrentLocation && (
                 <View className="mb-4">
-                    <Text className="text-indigo-200 mb-2 font-semibold">Search City</Text>
+                    <Text className="text-text-secondary mb-2 font-semibold">Search City</Text>
                     <Input
                         label=""
                         value={searchQuery}
@@ -129,22 +129,22 @@ export function WeatherSettings() {
             )}
 
             {error && (
-                <Text className="text-red-400 text-sm mb-4">{error}</Text>
+                <Text className="text-error text-sm mb-4">{error}</Text>
             )}
 
             {!useCurrentLocation && results.length > 0 && (
-                <View className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+                <View className="bg-surface border border-border rounded-xl overflow-hidden">
                     {results.map((item, index) => (
                         <TouchableOpacity
                             key={item.id}
                             onPress={() => handleSelect(item)}
                             className={`p-3 flex-row items-center justify-between ${
-                                index < results.length - 1 ? 'border-b border-slate-700' : ''
+                                index < results.length - 1 ? 'border-b border-border' : ''
                             }`}
                         >
                             <View className="flex-1">
                                 <Text className="text-white font-medium">{item.name}</Text>
-                                <Text className="text-slate-400 text-xs">
+                                <Text className="text-text-tertiary text-xs">
                                     {[item.admin1, item.country].filter(Boolean).join(', ')}
                                 </Text>
                             </View>

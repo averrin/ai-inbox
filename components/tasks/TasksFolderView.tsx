@@ -421,9 +421,9 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     className="flex-1 justify-center items-center bg-black/50 p-6"
                 >
-                    <View className="w-full bg-slate-900 rounded-xl border border-slate-700 p-4">
+                    <View className="w-full bg-background rounded-xl border border-border p-4">
                         <Text className="text-lg font-bold text-white mb-2">Merge Tasks to File</Text>
-                        <Text className="text-slate-400 mb-4">
+                        <Text className="text-text-tertiary mb-4">
                             {mergeScope === 'all' ? `All ${tasks.length} tasks` : `${filteredTasks.length} visible tasks`} will be moved to this new file.
                         </Text>
 
@@ -432,22 +432,22 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                             <View className="flex-row gap-2 mb-4">
                                 <TouchableOpacity
                                     onPress={() => setMergeScope('all')}
-                                    className={`flex-1 py-2 rounded-lg border ${mergeScope === 'all' ? 'border-indigo-500 bg-indigo-900/30' : 'border-slate-700 bg-slate-800'}`}
+                                    className={`flex-1 py-2 rounded-lg border ${mergeScope === 'all' ? 'border-primary bg-surface-highlight' : 'border-border bg-surface'}`}
                                 >
-                                    <Text className={`text-center font-medium ${mergeScope === 'all' ? 'text-indigo-300' : 'text-slate-400'}`}>All ({tasks.length})</Text>
+                                    <Text className={`text-center font-medium ${mergeScope === 'all' ? 'text-text-secondary' : 'text-text-tertiary'}`}>All ({tasks.length})</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     onPress={() => setMergeScope('filtered')}
-                                    className={`flex-1 py-2 rounded-lg border ${mergeScope === 'filtered' ? 'border-indigo-500 bg-indigo-900/30' : 'border-slate-700 bg-slate-800'}`}
+                                    className={`flex-1 py-2 rounded-lg border ${mergeScope === 'filtered' ? 'border-primary bg-surface-highlight' : 'border-border bg-surface'}`}
                                 >
-                                    <Text className={`text-center font-medium ${mergeScope === 'filtered' ? 'text-indigo-300' : 'text-slate-400'}`}>Visible ({filteredTasks.length})</Text>
+                                    <Text className={`text-center font-medium ${mergeScope === 'filtered' ? 'text-text-secondary' : 'text-text-tertiary'}`}>Visible ({filteredTasks.length})</Text>
                                 </TouchableOpacity>
                             </View>
                         )}
                         
-                        <Text className="text-slate-300 text-sm mb-1 ml-1">New Filename</Text>
+                        <Text className="text-text-secondary text-sm mb-1 ml-1">New Filename</Text>
                         <TextInput
-                            className="bg-slate-800 text-white p-3 rounded-lg border border-slate-700 mb-6"
+                            className="bg-surface text-white p-3 rounded-lg border border-border mb-6"
                             placeholder="e.g. MyProject"
                             placeholderTextColor={Colors.secondary}
                             value={mergeFileName}
@@ -460,11 +460,11 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                                 onPress={() => setIsMergeModalVisible(false)}
                                 className="px-4 py-2"
                             >
-                                <Text className="text-slate-400 font-medium">Cancel</Text>
+                                <Text className="text-text-tertiary font-medium">Cancel</Text>
                             </TouchableOpacity>
                             <TouchableOpacity 
                                 onPress={executeMerge}
-                                className="bg-indigo-600 px-4 py-2 rounded-lg"
+                                className="bg-primary px-4 py-2 rounded-lg"
                             >
                                 <Text className="text-white font-medium">Merge Tasks</Text>
                             </TouchableOpacity>

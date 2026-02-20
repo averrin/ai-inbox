@@ -94,7 +94,7 @@ export function WorkSettings() {
                             <Text className="text-white font-medium" numberOfLines={1}>
                                 {cal.title}
                             </Text>
-                            <Text className="text-slate-500 text-xs">{cal.source.name}</Text>
+                            <Text className="text-secondary text-xs">{cal.source.name}</Text>
                         </View>
                     </View>
                     <Switch
@@ -106,24 +106,24 @@ export function WorkSettings() {
                 </SettingsListItem>
 
                 {isWork && (
-                    <View className="ml-4 pl-4 border-l-2 border-slate-700/50 mt-1">
+                    <View className="ml-4 pl-4 border-l-2 border-border/50 mt-1">
                         <View className="flex-row items-center gap-2 mb-2">
                             <TouchableOpacity
                                 onPress={() => setDefaultCreateCalendarId(cal.id)}
-                                className={`flex-row items-center gap-1 px-2 py-1 rounded-md border ${isCreateDefault ? 'bg-emerald-500/10 border-emerald-500/50' : 'bg-slate-800 border-slate-700'}`}
+                                className={`flex-row items-center gap-1 px-2 py-1 rounded-md border ${isCreateDefault ? 'bg-success border-success' : 'bg-surface border-border'}`}
                             >
                                 <Ionicons name="add-circle" size={14} color={isCreateDefault ? Palette[9] : Colors.secondary} />
-                                <Text className={`text-xs ${isCreateDefault ? 'text-emerald-500 font-bold' : 'text-slate-400'}`}>
+                                <Text className={`text-xs ${isCreateDefault ? 'text-success font-bold' : 'text-text-tertiary'}`}>
                                     Default Create
                                 </Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 onPress={() => setDefaultOpenCalendarId(cal.id)}
-                                className={`flex-row items-center gap-1 px-2 py-1 rounded-md border ${isOpenDefault ? 'bg-amber-500/10 border-amber-500/50' : 'bg-slate-800 border-slate-700'}`}
+                                className={`flex-row items-center gap-1 px-2 py-1 rounded-md border ${isOpenDefault ? 'bg-warning border-warning' : 'bg-surface border-border'}`}
                             >
                                 <Ionicons name="eye" size={14} color={isOpenDefault ? Palette[5] : Colors.secondary} />
-                                <Text className={`text-xs ${isOpenDefault ? 'text-amber-500 font-bold' : 'text-slate-400'}`}>
+                                <Text className={`text-xs ${isOpenDefault ? 'text-warning font-bold' : 'text-text-tertiary'}`}>
                                     Default Open
                                 </Text>
                             </TouchableOpacity>
@@ -131,17 +131,17 @@ export function WorkSettings() {
 
                         <TouchableOpacity
                             onPress={() => setShowTypePicker(cal.id)}
-                            className="flex-row items-center justify-between bg-slate-800/50 px-3 py-2 rounded-lg border border-slate-700"
+                            className="flex-row items-center justify-between bg-surface/50 px-3 py-2 rounded-lg border border-border"
                         >
-                            <Text className="text-slate-400 text-xs">Default Event Type:</Text>
+                            <Text className="text-text-tertiary text-xs">Default Event Type:</Text>
                             <View className="flex-row items-center gap-1">
                                 {defaultType ? (
-                                    <View className="flex-row items-center gap-1 bg-slate-700 px-1.5 py-0.5 rounded">
+                                    <View className="flex-row items-center gap-1 bg-surface-highlight px-1.5 py-0.5 rounded">
                                         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: defaultType.color }} />
                                         <Text className="text-white text-xs">{defaultType.title}</Text>
                                     </View>
                                 ) : (
-                                    <Text className="text-slate-500 text-xs italic">None</Text>
+                                    <Text className="text-secondary text-xs italic">None</Text>
                                 )}
                                 <Ionicons name="chevron-down" size={12} color={Colors.secondary} />
                             </View>
@@ -158,9 +158,9 @@ export function WorkSettings() {
 
     return (
         <View className="flex-1">
-            <View className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700 mb-6">
-                <Text className="text-indigo-200 font-semibold mb-2">Work Account</Text>
-                <Text className="text-slate-400 text-sm mb-4">
+            <View className="bg-surface/50 p-4 rounded-2xl border border-border mb-6">
+                <Text className="text-text-secondary font-semibold mb-2">Work Account</Text>
+                <Text className="text-text-tertiary text-sm mb-4">
                     Enter your work email. Events tagged as "Work" will automatically invite this address.
                 </Text>
                 <Input
@@ -172,8 +172,8 @@ export function WorkSettings() {
             </View>
 
             <View className="mb-4">
-                <Text className="text-indigo-200 font-semibold mb-2">Work Calendars</Text>
-                <Text className="text-slate-400 text-sm">
+                <Text className="text-text-secondary font-semibold mb-2">Work Calendars</Text>
+                <Text className="text-text-tertiary text-sm">
                     Select calendars that belong to your work.
                 </Text>
             </View>
@@ -189,14 +189,14 @@ export function WorkSettings() {
 
             <Modal visible={!!showTypePicker} transparent animationType="fade">
                 <View className="flex-1 justify-center items-center bg-black/70 p-4">
-                    <View className="bg-slate-900 w-full max-w-sm rounded-2xl p-4 border border-slate-700">
+                    <View className="bg-background w-full max-w-sm rounded-2xl p-4 border border-border">
                         <Text className="text-white text-lg font-bold mb-4">Select Default Event Type</Text>
 
                         <TouchableOpacity
                             onPress={() => handleSetDefaultType(showTypePicker!, null)}
-                            className="p-3 border-b border-slate-800"
+                            className="p-3 border-b border-border"
                         >
-                            <Text className="text-slate-400 italic">None (Auto-detect)</Text>
+                            <Text className="text-text-tertiary italic">None (Auto-detect)</Text>
                         </TouchableOpacity>
 
                         <FlatList
@@ -206,7 +206,7 @@ export function WorkSettings() {
                             renderItem={({ item }) => (
                                 <TouchableOpacity
                                     onPress={() => handleSetDefaultType(showTypePicker!, item.id)}
-                                    className="flex-row items-center gap-3 p-3 border-b border-slate-800"
+                                    className="flex-row items-center gap-3 p-3 border-b border-border"
                                 >
                                     <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: item.color }} />
                                     <Text className="text-white font-medium">{item.title}</Text>

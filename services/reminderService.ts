@@ -24,6 +24,11 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 import Toast from 'react-native-toast-message';
 
+export const REMINDER_PROPERTY_KEY = 'reminder';
+export const ALARM_PROPERTY_KEY = 'alarm';
+export const PERSISTENT_PROPERTY_KEY = 'persistent';
+export const RECURRENT_PROPERTY_KEY = 'recurrent';
+
 export function getHash(str: string): number {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {

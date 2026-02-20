@@ -53,14 +53,14 @@ export function MoodSettings() {
     return (
         <Card>
             <View className="mb-6">
-                <Text className="text-indigo-200 mb-2 font-semibold">Daily Evaluation Reminder</Text>
+                <Text className="text-text-secondary mb-2 font-semibold">Daily Evaluation Reminder</Text>
 
-                <View className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between mb-4">
+                <View className="bg-surface/50 p-4 rounded-xl border border-border flex-row items-center justify-between mb-4">
                     <View className="flex-row items-center flex-1">
                         <Ionicons name="notifications-outline" size={20} color="#818cf8" />
                         <View className="ml-3 flex-1">
                             <Text className="text-white font-medium">Enable Reminder</Text>
-                            <Text className="text-slate-400 text-xs">Receive a notification to track your mood</Text>
+                            <Text className="text-text-tertiary text-xs">Receive a notification to track your mood</Text>
                         </View>
                     </View>
                     <Switch
@@ -73,10 +73,10 @@ export function MoodSettings() {
 
                 {moodReminderEnabled && (
                     <View>
-                         <Text className="text-slate-400 text-xs mb-2 ml-1">Reminder Time</Text>
+                         <Text className="text-text-tertiary text-xs mb-2 ml-1">Reminder Time</Text>
                         <TouchableOpacity
                             onPress={() => setShowTimePicker(true)}
-                            className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row justify-between items-center"
+                            className="bg-surface p-4 rounded-xl border border-border flex-row justify-between items-center"
                         >
                             <View className="flex-row items-center">
                                 <Ionicons name="time-outline" size={20} color="#818cf8" />
@@ -105,12 +105,12 @@ export function MoodSettings() {
             </View>
 
             {permissionStatus !== 'granted' && moodReminderEnabled && (
-                <View className="mt-2 bg-red-500/10 border border-red-500/20 p-3 rounded-xl flex-row items-center">
+                <View className="mt-2 bg-error/10 border border-error/20 p-3 rounded-xl flex-row items-center">
                     <Ionicons name="warning-outline" size={20} color={Colors.error} />
-                    <Text className="text-red-200 text-sm ml-2 flex-1">
+                    <Text className="text-error text-sm ml-2 flex-1">
                         Notifications are not enabled. Tap here to fix.
                     </Text>
-                    <TouchableOpacity onPress={requestPermissions} className="bg-red-500 px-3 py-1 rounded-lg">
+                    <TouchableOpacity onPress={requestPermissions} className="bg-error px-3 py-1 rounded-lg">
                         <Text className="text-white text-xs font-bold">Fix</Text>
                     </TouchableOpacity>
                 </View>

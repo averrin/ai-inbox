@@ -20,7 +20,7 @@ export function FloatingActionButton({
         <TouchableOpacity
             onPress={onPress}
             activeOpacity={0.8}
-            className="absolute bottom-6 right-6 w-14 h-14 rounded-full items-center justify-center shadow-lg shadow-black/40 z-50 bg-indigo-500"
+            className="absolute bottom-6 right-6 w-14 h-14 rounded-full items-center justify-center shadow-lg shadow-black/40 z-50 bg-primary"
             style={[{ backgroundColor: color }, style]}
         >
             <Ionicons name={icon} size={30} color="white" />

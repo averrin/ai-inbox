@@ -357,31 +357,31 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const renderGeneralSettings = () => (
         <Card>
             <View className="mb-4">
-                <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">AI Model</Text>
+                <Text className="text-text-secondary mb-1 ml-1 text-sm font-semibold">AI Model</Text>
                 <TouchableOpacity
                     onPress={() => setShowModelPicker(true)}
-                    className="bg-slate-800/50 border border-slate-700 rounded-xl p-4"
+                    className="bg-surface/50 border border-border rounded-xl p-4"
                 >
                     <Text className="text-white font-medium">{modelInput}</Text>
                 </TouchableOpacity>
             </View>
 
             <View className="mb-4">
-                <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">Image Generation Model</Text>
+                <Text className="text-text-secondary mb-1 ml-1 text-sm font-semibold">Image Generation Model</Text>
                 <TouchableOpacity
                     onPress={() => setShowImageModelPicker(true)}
-                    className="bg-slate-800/50 border border-slate-700 rounded-xl p-4"
+                    className="bg-surface/50 border border-border rounded-xl p-4"
                 >
                     <Text className="text-white font-medium">{imageModelInput}</Text>
                 </TouchableOpacity>
             </View>
 
             <View className="mb-4">
-                <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">Obsidian Vault</Text>
+                <Text className="text-text-secondary mb-1 ml-1 text-sm font-semibold">Obsidian Vault</Text>
                 <View className="flex-row gap-2">
                     <View className="flex-1">
                         {vaultUri ? (
-                            <Text className="text-green-400 bg-green-900/20 p-4 rounded-xl overflow-hidden border border-slate-700" numberOfLines={1}>
+                            <Text className="text-success bg-surface-highlight p-4 rounded-xl overflow-hidden border border-border" numberOfLines={1}>
                                 {(() => {
                                     // Extract human-readable path from SAF URI
                                     const decoded = decodeURIComponent(vaultUri);
@@ -398,12 +398,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                 })()}
                             </Text>
                         ) : (
-                            <Text className="text-slate-500 italic p-4 bg-slate-800/50 border border-slate-700 rounded-xl">No vault selected</Text>
+                            <Text className="text-secondary italic p-4 bg-surface/50 border border-border rounded-xl">No vault selected</Text>
                         )}
                     </View>
                     <TouchableOpacity
                         onPress={handlePickVault}
-                        className="px-4 py-4 rounded-xl bg-indigo-600"
+                        className="px-4 py-4 rounded-xl bg-primary"
                     >
                         <Text className="text-white font-semibold">{vaultUri ? "Change" : "Select"}</Text>
                     </TouchableOpacity>
@@ -482,24 +482,24 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 </View>
             )}
 
-            <View className="mt-2 mb-2 pt-4 border-t border-slate-700">
-                <Text className="text-indigo-200 mb-2 font-semibold">Preferences</Text>
+            <View className="mt-2 mb-2 pt-4 border-t border-border">
+                <Text className="text-text-secondary mb-2 font-semibold">Preferences</Text>
                 <TouchableOpacity
                     onPress={() => setTimeFormat(timeFormat === '24h' ? '12h' : '24h')}
-                    className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
+                    className="bg-surface/50 p-4 rounded-xl border border-border flex-row items-center justify-between"
                 >
                     <View className="flex-row items-center flex-1">
                         <Ionicons name="time-outline" size={20} color="#818cf8" />
                         <View className="ml-3 flex-1">
                             <Text className="text-white font-medium">Time Format</Text>
-                            <Text className="text-slate-400 text-xs text-uppercase">{timeFormat} Format</Text>
+                            <Text className="text-text-tertiary text-xs text-uppercase">{timeFormat} Format</Text>
                         </View>
                     </View>
-                    <View className="bg-slate-700 rounded-lg flex-row p-1">
-                        <View className={`px-2 py-1 rounded-md ${timeFormat === '12h' ? 'bg-indigo-600' : ''}`}>
+                    <View className="bg-surface-highlight rounded-lg flex-row p-1">
+                        <View className={`px-2 py-1 rounded-md ${timeFormat === '12h' ? 'bg-primary' : ''}`}>
                             <Text className="text-white text-xs font-bold">12H</Text>
                         </View>
-                        <View className={`px-2 py-1 rounded-md ${timeFormat === '24h' ? 'bg-indigo-600' : ''}`}>
+                        <View className={`px-2 py-1 rounded-md ${timeFormat === '24h' ? 'bg-primary' : ''}`}>
                             <Text className="text-white text-xs font-bold">24H</Text>
                         </View>
                     </View>
@@ -507,20 +507,20 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
 
                 <TouchableOpacity
                     onPress={() => setEditorType(editorType === 'rich' ? 'simple' : 'rich')}
-                    className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between mt-2"
+                    className="bg-surface/50 p-4 rounded-xl border border-border flex-row items-center justify-between mt-2"
                 >
                     <View className="flex-row items-center flex-1">
                         <Ionicons name="text-outline" size={20} color="#818cf8" />
                         <View className="ml-3 flex-1">
                             <Text className="text-white font-medium">Text Editor</Text>
-                            <Text className="text-slate-400 text-xs">Use classic editor if experiencing issues</Text>
+                            <Text className="text-text-tertiary text-xs">Use classic editor if experiencing issues</Text>
                         </View>
                     </View>
-                    <View className="bg-slate-700 rounded-lg flex-row p-1">
-                        <View className={`px-2 py-1 rounded-md ${editorType === 'rich' ? 'bg-indigo-600' : ''}`}>
+                    <View className="bg-surface-highlight rounded-lg flex-row p-1">
+                        <View className={`px-2 py-1 rounded-md ${editorType === 'rich' ? 'bg-primary' : ''}`}>
                             <Text className="text-white text-xs font-bold">Rich</Text>
                         </View>
-                        <View className={`px-2 py-1 rounded-md ${editorType === 'simple' ? 'bg-indigo-600' : ''}`}>
+                        <View className={`px-2 py-1 rounded-md ${editorType === 'simple' ? 'bg-primary' : ''}`}>
                             <Text className="text-white text-xs font-bold">Simple</Text>
                         </View>
                     </View>
@@ -560,8 +560,8 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const renderAdvancedSettings = () => (
         <Card>
             <View className="mb-4">
-                <Text className="text-indigo-200 mb-2 font-semibold">Data Management</Text>
-                <Text className="text-slate-400 text-sm mb-4">
+                <Text className="text-text-secondary mb-2 font-semibold">Data Management</Text>
+                <Text className="text-text-tertiary text-sm mb-4">
                     Clear locally cached data (reminders, event types). This does not delete any files from your vault, but forces a reload from disk.
                 </Text>
                 <Button
@@ -594,9 +594,9 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     variant="secondary"
                 />
 
-                <View className="mt-6 mb-2 pt-4 border-t border-slate-700">
-                    <Text className="text-indigo-200 mb-2 font-semibold">Debug Tools</Text>
-                    <Text className="text-slate-400 text-sm mb-4">
+                <View className="mt-6 mb-2 pt-4 border-t border-border">
+                    <Text className="text-text-secondary mb-2 font-semibold">Debug Tools</Text>
+                    <Text className="text-text-tertiary text-sm mb-4">
                         Export a snapshot of all internal application state (settings, event types, moods, habits, etc.) to a JSON file for debugging.
                     </Text>
                     <Button
@@ -641,15 +641,15 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const renderMenuButton = (title: string, icon: keyof typeof Ionicons.glyphMap, onPress: () => void, subtitle?: string) => (
         <TouchableOpacity
             onPress={onPress}
-            className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-2 flex-row items-center justify-between"
+            className="bg-surface border border-border rounded-xl p-4 mb-2 flex-row items-center justify-between"
         >
             <View className="flex-row items-center flex-1">
-                <View className="w-10 h-10 rounded-full bg-slate-700 items-center justify-center mr-3">
+                <View className="w-10 h-10 rounded-full bg-surface-highlight items-center justify-center mr-3">
                     <Ionicons name={icon} size={20} color="#818cf8" />
                 </View>
                 <View>
                     <Text className="text-white font-semibold text-lg">{title}</Text>
-                    {subtitle && <Text className="text-slate-400 text-sm">{subtitle}</Text>}
+                    {subtitle && <Text className="text-text-tertiary text-sm">{subtitle}</Text>}
                 </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.secondary} />
@@ -751,10 +751,10 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             )}
 
             <View className="mt-8 mb-4 items-center">
-                <Text className="text-slate-600 text-xs">
+                <Text className="text-text-tertiary text-xs">
                     Branch: {gitInfo.branch}
                 </Text>
-                <Text className="text-slate-700 text-[10px]">
+                <Text className="text-text-tertiary text-[10px]">
                     {gitInfo.commit.substring(0, 7)}
                 </Text>
             </View>
@@ -766,7 +766,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         <View>
             <View className="justify-center mt-10 mb-8">
                 <Text className="text-3xl font-bold text-white mb-2 text-center">Welcome</Text>
-                <Text className="text-indigo-200 text-center">Setup your AI Inbox</Text>
+                <Text className="text-text-secondary text-center">Setup your AI Inbox</Text>
             </View>
             <Text className="text-xl font-bold text-white px-4 mt-6 mb-2">General</Text>
             {renderGeneralSettings()}
@@ -828,7 +828,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 {/* Modals ... */}
                 <Modal visible={showModelPicker} transparent animationType="slide">
                     <View className="flex-1 justify-end bg-black/50">
-                        <View className="bg-slate-900 rounded-t-3xl p-6 max-h-[70%]">
+                        <View className="bg-background rounded-t-3xl p-6 max-h-[70%]">
                             <View className="flex-row justify-between items-center mb-4">
                                 <Text className="text-white text-xl font-bold">Select AI Model</Text>
                                 <TouchableOpacity onPress={() => setShowModelPicker(false)}>
@@ -843,7 +843,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                             setModelInput(model);
                                             setShowModelPicker(false);
                                         }}
-                                        className={`p-4 rounded-xl mb-2 ${modelInput === model ? 'bg-indigo-600' : 'bg-slate-800'}`}
+                                        className={`p-4 rounded-xl mb-2 ${modelInput === model ? 'bg-primary' : 'bg-surface'}`}
                                     >
                                         <Text className="text-white font-medium">{model}</Text>
                                     </TouchableOpacity>
@@ -1005,7 +1005,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             {/* Model Selection Modal */}
             <Modal visible={showModelPicker} transparent animationType="slide">
                 <View className="flex-1 justify-end bg-black/50">
-                    <View className="bg-slate-900 rounded-t-3xl p-6 max-h-[70%]">
+                    <View className="bg-background rounded-t-3xl p-6 max-h-[70%]">
                         <View className="flex-row justify-between items-center mb-4">
                             <Text className="text-white text-xl font-bold">Select AI Model</Text>
                             <TouchableOpacity onPress={() => setShowModelPicker(false)}>
@@ -1020,7 +1020,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                         setModelInput(model);
                                         setShowModelPicker(false);
                                     }}
-                                    className={`p-4 rounded-xl mb-2 ${modelInput === model ? 'bg-indigo-600' : 'bg-slate-800'}`}
+                                    className={`p-4 rounded-xl mb-2 ${modelInput === model ? 'bg-primary' : 'bg-surface'}`}
                                 >
                                     <Text className="text-white font-medium">{model}</Text>
                                 </TouchableOpacity>
@@ -1033,7 +1033,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
             {/* Image Model Selection Modal */}
             <Modal visible={showImageModelPicker} transparent animationType="slide">
                 <View className="flex-1 justify-end bg-black/50">
-                    <View className="bg-slate-900 rounded-t-3xl p-6 max-h-[70%]">
+                    <View className="bg-background rounded-t-3xl p-6 max-h-[70%]">
                         <View className="flex-row justify-between items-center mb-4">
                             <Text className="text-white text-xl font-bold">Select Image Model</Text>
                             <TouchableOpacity onPress={() => setShowImageModelPicker(false)}>
@@ -1048,7 +1048,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                         setImageModelInput(model);
                                         setShowImageModelPicker(false);
                                     }}
-                                    className={`p-4 rounded-xl mb-2 ${imageModelInput === model ? 'bg-indigo-600' : 'bg-slate-800'}`}
+                                    className={`p-4 rounded-xl mb-2 ${imageModelInput === model ? 'bg-primary' : 'bg-surface'}`}
                                 >
                                     <Text className="text-white font-medium">{model}</Text>
                                 </TouchableOpacity>

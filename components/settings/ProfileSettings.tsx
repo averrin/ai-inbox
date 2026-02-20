@@ -40,23 +40,23 @@ export function ProfileSettings() {
         <Card>
             <View className="space-y-4">
                 <View>
-                    <Text className="text-indigo-200 mb-2 font-semibold">Target Topic (Optional)</Text>
+                    <Text className="text-text-secondary mb-2 font-semibold">Target Topic (Optional)</Text>
                     <TextInput
-                        className="bg-slate-800 text-slate-100 p-3 rounded-lg border border-slate-700"
+                        className="bg-surface text-text-primary p-3 rounded-lg border border-border"
                         placeholder="e.g., Childhood, Career"
                         placeholderTextColor="#475569"
                         value={targetTopic}
                         onChangeText={setTargetTopic}
                     />
-                    <Text className="text-slate-500 text-xs mt-1">
+                    <Text className="text-secondary text-xs mt-1">
                         Leave empty to let the Architect decide based on gaps.
                     </Text>
                 </View>
 
                 <View>
-                    <Text className="text-indigo-200 mb-2 font-semibold">Daily Questions</Text>
+                    <Text className="text-text-secondary mb-2 font-semibold">Daily Questions</Text>
                     <TextInput
-                        className="bg-slate-800 text-slate-100 p-3 rounded-lg border border-slate-700"
+                        className="bg-surface text-text-primary p-3 rounded-lg border border-border"
                         placeholder="3"
                         placeholderTextColor="#475569"
                         keyboardType="numeric"
@@ -66,9 +66,9 @@ export function ProfileSettings() {
                 </View>
 
                 <View>
-                    <Text className="text-indigo-200 mb-2 font-semibold">Forbidden Topics</Text>
+                    <Text className="text-text-secondary mb-2 font-semibold">Forbidden Topics</Text>
                     <TextInput
-                        className="bg-slate-800 text-slate-100 p-3 rounded-lg border border-slate-700 h-24"
+                        className="bg-surface text-text-primary p-3 rounded-lg border border-border h-24"
                         placeholder="Politics, Religion..."
                         placeholderTextColor="#475569"
                         multiline
@@ -76,15 +76,15 @@ export function ProfileSettings() {
                         value={forbiddenTopics}
                         onChangeText={setForbiddenTopics}
                     />
-                    <Text className="text-slate-500 text-xs mt-1">
+                    <Text className="text-secondary text-xs mt-1">
                         Comma separated list of topics to avoid.
                     </Text>
                 </View>
 
-                <View className="pt-4 border-t border-slate-700">
-                    <Text className="text-indigo-200 mb-2 font-semibold">Visualization Prompt</Text>
+                <View className="pt-4 border-t border-border">
+                    <Text className="text-text-secondary mb-2 font-semibold">Visualization Prompt</Text>
                     <TextInput
-                        className="bg-slate-800 text-slate-100 p-3 rounded-lg border border-slate-700 h-32"
+                        className="bg-surface text-text-primary p-3 rounded-lg border border-border h-32"
                         placeholder={DEFAULT_VIZ_PROMPT}
                         placeholderTextColor="#475569"
                         multiline
@@ -92,7 +92,7 @@ export function ProfileSettings() {
                         value={vizPrompt}
                         onChangeText={setVizPrompt}
                     />
-                    <Text className="text-slate-500 text-[10px] mt-1 italic">
+                    <Text className="text-secondary text-[10px] mt-1 italic">
                         Use {"{{facts}}"} and {"{{traits}}"} as placeholders for profile data.
                     </Text>
                     {visualizationPrompt && (
@@ -103,12 +103,12 @@ export function ProfileSettings() {
 
                             className="mt-2"
                         >
-                            <Text className="text-indigo-400 text-xs font-medium">Reset to Default</Text>
+                            <Text className="text-primary text-xs font-medium">Reset to Default</Text>
                         </TouchableOpacity>
                     )}
                 </View>
 
-                <View className="pt-4 border-t border-slate-700">
+                <View className="pt-4 border-t border-border">
                     <Button title="Save Changes" onPress={handleSave} />
                 </View>
             </View>

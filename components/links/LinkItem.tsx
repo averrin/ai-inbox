@@ -50,7 +50,7 @@ export function LinkItem({ link, onDelete, onTagPress }: LinkItemProps) {
     const visibleTags = (link.tags || []).filter(tag => !tagConfig[tag]?.hidden);
 
     return (
-        <View className="flex-row bg-slate-800/50 border border-slate-700 rounded-xl mb-3 overflow-hidden h-28">
+        <View className="flex-row bg-surface/50 border border-border rounded-xl mb-3 overflow-hidden h-28">
             <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={handleOpen}
@@ -58,7 +58,7 @@ export function LinkItem({ link, onDelete, onTagPress }: LinkItemProps) {
             >
                 {/* Image Preview */}
                 {link.image ? (
-                    <View className="w-24 bg-slate-900 h-full">
+                    <View className="w-24 bg-background h-full">
                         <Image
                             source={{ uri: link.image }}
                             className="w-full h-full"
@@ -66,7 +66,7 @@ export function LinkItem({ link, onDelete, onTagPress }: LinkItemProps) {
                         />
                     </View>
                 ) : (
-                    <View className="w-24 bg-slate-900 h-full items-center justify-center border-r border-slate-800">
+                    <View className="w-24 bg-background h-full items-center justify-center border-r border-border">
                         <Ionicons name="link-outline" size={32} color="#475569" />
                     </View>
                 )}
@@ -77,7 +77,7 @@ export function LinkItem({ link, onDelete, onTagPress }: LinkItemProps) {
                         <Text className="text-white font-semibold text-sm leading-5 mb-1" numberOfLines={2}>
                             {link.title || 'Untitled Link'}
                         </Text>
-                        <Text className="text-slate-400 text-xs" numberOfLines={1}>
+                        <Text className="text-text-tertiary text-xs" numberOfLines={1}>
                             {getHostname(link.url)}
                         </Text>
                     </View>
@@ -97,15 +97,15 @@ export function LinkItem({ link, onDelete, onTagPress }: LinkItemProps) {
                                     <TouchableOpacity
                                         key={tag}
                                         onPress={() => onTagPress(tag)}
-                                        className="bg-indigo-900/50 px-1.5 py-0.5 rounded text-xs border border-indigo-500/30"
+                                        className="bg-surface-highlight px-1.5 py-0.5 rounded text-xs border border-primary"
                                         style={customStyle}
                                     >
-                                        <Text className="text-indigo-300 text-[10px]" style={textStyle} numberOfLines={1}>#{tag}</Text>
+                                        <Text className="text-text-secondary text-[10px]" style={textStyle} numberOfLines={1}>#{tag}</Text>
                                     </TouchableOpacity>
                                 );
                             })}
                             {visibleTags.length > 3 && (
-                                <Text className="text-slate-500 text-[10px] self-center">+{visibleTags.length - 3}</Text>
+                                <Text className="text-secondary text-[10px] self-center">+{visibleTags.length - 3}</Text>
                             )}
                         </View>
                     )}
@@ -113,7 +113,7 @@ export function LinkItem({ link, onDelete, onTagPress }: LinkItemProps) {
             </TouchableOpacity>
 
             {/* Actions */}
-            <View className="justify-between items-center border-l border-slate-700/50 bg-slate-800/30 py-2 w-10">
+            <View className="justify-between items-center border-l border-border/50 bg-surface/30 py-2 w-10">
                  <TouchableOpacity onPress={handleOpen} className="flex-1 justify-center items-center w-full">
                     <Ionicons name="open-outline" size={18} color="#818cf8" />
                  </TouchableOpacity>

@@ -61,10 +61,10 @@ export function LogsSettings() {
     };
 
     const renderItem = ({ item }: { item: LogEntry }) => {
-        let color = 'text-slate-300';
-        if (item.level === 'warn') color = 'text-yellow-400';
-        if (item.level === 'error') color = 'text-red-400';
-        if (item.level === 'debug') color = 'text-slate-500';
+        let color = 'text-text-secondary';
+        if (item.level === 'warn') color = 'text-warning';
+        if (item.level === 'error') color = 'text-error';
+        if (item.level === 'debug') color = 'text-secondary';
 
         const time = item.timestamp.split('T')[1]?.replace('Z', '') || item.timestamp;
         const key = getLogKey(item);
@@ -73,7 +73,7 @@ export function LogsSettings() {
         return (
             <TouchableOpacity
                 onPress={() => toggleSelection(key)}
-                className={`flex-row mb-2 border-b border-slate-800 pb-1 ${isSelected ? 'bg-slate-800/50' : ''}`}
+                className={`flex-row mb-2 border-b border-border pb-1 ${isSelected ? 'bg-surface/50' : ''}`}
             >
                 <View className="mr-2 justify-center">
                     <Ionicons
@@ -83,7 +83,7 @@ export function LogsSettings() {
                     />
                 </View>
                 <View className="flex-1">
-                    <Text className="text-slate-500 text-[10px] font-mono">{time}</Text>
+                    <Text className="text-secondary text-[10px] font-mono">{time}</Text>
                     <Text className={`${color} font-mono text-xs`}>{item.message}</Text>
                 </View>
             </TouchableOpacity>
@@ -91,13 +91,13 @@ export function LogsSettings() {
     };
 
     return (
-        <View className="flex-1 bg-slate-900 p-4">
+        <View className="flex-1 bg-background p-4">
             <View className="flex-row justify-end gap-2 mb-4">
-                 <TouchableOpacity onPress={handleCopy} className="bg-slate-700 px-3 py-2 rounded flex-row items-center">
+                 <TouchableOpacity onPress={handleCopy} className="bg-surface-highlight px-3 py-2 rounded flex-row items-center">
                     <Ionicons name="copy-outline" size={16} color="white" />
                     <Text className="text-white ml-2 text-xs font-bold">{selectedKeys.size > 0 ? `Copy (${selectedKeys.size})` : 'Copy All'}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleClear} className="bg-red-900/50 px-3 py-2 rounded flex-row items-center">
+                <TouchableOpacity onPress={handleClear} className="bg-surface-highlight px-3 py-2 rounded flex-row items-center">
                     <Ionicons name="trash-outline" size={16} color="white" />
                     <Text className="text-white ml-2 text-xs font-bold">Clear</Text>
                 </TouchableOpacity>

@@ -40,8 +40,8 @@ export function IntegrationsSettings({
         <View>
             <Card>
                 <View className="mb-4">
-                    <Text className="text-indigo-200 mb-2 font-semibold text-lg">Gemini AI</Text>
-                    <Text className="text-slate-400 text-sm mb-4">
+                    <Text className="text-text-secondary mb-2 font-semibold text-lg">Gemini AI</Text>
+                    <Text className="text-text-tertiary text-sm mb-4">
                         Configure your Google Gemini API key for AI features.
                     </Text>
                     <Input
@@ -85,8 +85,8 @@ export function IntegrationsSettings({
 
             <Card>
                 <View className="mb-4">
-                    <Text className="text-indigo-200 mb-2 font-semibold text-lg">Google Jules API</Text>
-                    <Text className="text-slate-400 text-sm mb-4">
+                    <Text className="text-text-secondary mb-2 font-semibold text-lg">Google Jules API</Text>
+                    <Text className="text-text-tertiary text-sm mb-4">
                         Direct integration with the Google Jules REST API.
                     </Text>
                     <Input

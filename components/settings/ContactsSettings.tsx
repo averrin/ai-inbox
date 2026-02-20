@@ -93,10 +93,10 @@ export function ContactsSettings() {
 
             <Card>
                 <View className="flex-row items-center justify-between mb-4">
-                    <Text className="text-indigo-200 font-semibold">Contacts</Text>
+                    <Text className="text-text-secondary font-semibold">Contacts</Text>
                     <TouchableOpacity
                         onPress={() => openContactModal()}
-                        className="bg-indigo-600 px-3 py-1.5 rounded-full flex-row items-center"
+                        className="bg-primary px-3 py-1.5 rounded-full flex-row items-center"
                     >
                         <Ionicons name="add" size={16} color="white" />
                         <Text className="text-white text-xs font-bold ml-1">Add</Text>
@@ -104,7 +104,7 @@ export function ContactsSettings() {
                 </View>
 
                 {contacts.length === 0 ? (
-                    <Text className="text-slate-500 text-center py-4 italic">No contacts added yet.</Text>
+                    <Text className="text-secondary text-center py-4 italic">No contacts added yet.</Text>
                 ) : (
                     contacts.map(contact => (
                         <SettingsListItem
@@ -113,20 +113,20 @@ export function ContactsSettings() {
                             color={contact.color}
                         >
                             <View className="flex-row items-center flex-1">
-                                <View className="w-10 h-10 rounded-full bg-slate-700 items-center justify-center mr-3">
+                                <View className="w-10 h-10 rounded-full bg-surface-highlight items-center justify-center mr-3">
                                     <UniversalIcon name={contact.icon || 'person'} size={20} color={contact.color || Colors.text.tertiary} />
                                 </View>
                                 <View className="flex-1">
                                     <View className="flex-row items-center gap-2">
                                         <Text className="text-white font-semibold">{contact.name}</Text>
                                         {contact.isWife && (
-                                            <View className="bg-pink-500/20 px-1.5 py-0.5 rounded flex-row items-center gap-1 border border-pink-500/50">
+                                            <View className="bg-pink-500 px-1.5 py-0.5 rounded flex-row items-center gap-1 border border-pink-500/50">
                                                 <Ionicons name="heart" size={10} color={Palette[2]} />
                                                 <Text className="text-pink-400 text-[10px] font-bold">WIFE</Text>
                                             </View>
                                         )}
                                     </View>
-                                    <Text className="text-slate-400 text-xs" numberOfLines={1}>{contact.email}</Text>
+                                    <Text className="text-text-tertiary text-xs" numberOfLines={1}>{contact.email}</Text>
                                 </View>
                                 <Ionicons name="chevron-forward" size={18} color="#475569" />
                             </View>
@@ -137,7 +137,7 @@ export function ContactsSettings() {
 
             <Modal visible={modalVisible} animationType="slide" transparent>
                 <View className="flex-1 justify-end bg-black/50">
-                    <View className="bg-slate-900 rounded-t-3xl p-6 h-[85%]">
+                    <View className="bg-background rounded-t-3xl p-6 h-[85%]">
                         <View className="flex-row justify-between items-center mb-6">
                             <Text className="text-white text-xl font-bold">
                                 {editingId ? 'Edit Contact' : 'New Contact'}
@@ -164,7 +164,7 @@ export function ContactsSettings() {
                             />
 
                             <View className="mb-6">
-                                <Text className="text-indigo-200 mb-2 text-sm font-semibold ml-1">Color</Text>
+                                <Text className="text-text-secondary mb-2 text-sm font-semibold ml-1">Color</Text>
                                 <ColorPicker
                                     value={cColor}
                                     onChange={setCColor}
@@ -172,7 +172,7 @@ export function ContactsSettings() {
                             </View>
 
                             <View className="mb-6">
-                                <Text className="text-indigo-200 mb-2 text-sm font-semibold ml-1">Icon</Text>
+                                <Text className="text-text-secondary mb-2 text-sm font-semibold ml-1">Icon</Text>
                                 <IconPicker
                                     value={cIcon}
                                     onChange={setCIcon}
@@ -181,18 +181,18 @@ export function ContactsSettings() {
 
                             <TouchableOpacity
                                 onPress={() => setCIsWife(!cIsWife)}
-                                className={`flex-row items-center justify-between p-4 rounded-xl border mb-6 ${cIsWife ? 'bg-pink-500/10 border-pink-500' : 'bg-slate-800 border-slate-700'}`}
+                                className={`flex-row items-center justify-between p-4 rounded-xl border mb-6 ${cIsWife ? 'bg-pink-500 border-pink-500' : 'bg-surface border-border'}`}
                             >
                                 <View className="flex-row items-center gap-3">
-                                    <View className={`w-8 h-8 rounded-full items-center justify-center ${cIsWife ? 'bg-pink-500' : 'bg-slate-700'}`}>
+                                    <View className={`w-8 h-8 rounded-full items-center justify-center ${cIsWife ? 'bg-pink-500' : 'bg-surface-highlight'}`}>
                                         <Ionicons name="heart" size={16} color="white" />
                                     </View>
                                     <View>
-                                        <Text className={`font-bold ${cIsWife ? 'text-pink-400' : 'text-slate-300'}`}>Spouse / Partner</Text>
-                                        <Text className="text-slate-500 text-xs">Used for "Personal" event logic</Text>
+                                        <Text className={`font-bold ${cIsWife ? 'text-pink-400' : 'text-text-secondary'}`}>Spouse / Partner</Text>
+                                        <Text className="text-secondary text-xs">Used for "Personal" event logic</Text>
                                     </View>
                                 </View>
-                                <View className={`w-6 h-6 rounded-full border items-center justify-center ${cIsWife ? 'bg-pink-500 border-pink-500' : 'border-slate-500'}`}>
+                                <View className={`w-6 h-6 rounded-full border items-center justify-center ${cIsWife ? 'bg-pink-500 border-pink-500' : 'border-secondary'}`}>
                                     {cIsWife && <Ionicons name="checkmark" size={14} color="white" />}
                                 </View>
                             </TouchableOpacity>

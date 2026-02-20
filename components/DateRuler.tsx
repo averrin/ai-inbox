@@ -54,7 +54,7 @@ interface DateRulerItemProps {
 
 const DateRulerItem = React.memo(({ item, isSelected, isToday, onPress, status }: DateRulerItemProps) => {
     const { isWeekend, dayName, dayNum, month } = item;
-    const backgroundColor = isSelected ? 'bg-indigo-600' : isWeekend ? 'bg-slate-700' : 'bg-slate-800';
+    const backgroundColor = isSelected ? 'bg-primary' : isWeekend ? 'bg-surface-highlight' : 'bg-surface';
     const markerColor = status ? getStatusColor(status) : null;
 
     const handlePress = useCallback(() => {
@@ -66,14 +66,14 @@ const DateRulerItem = React.memo(({ item, isSelected, isToday, onPress, status }
             onPress={handlePress}
             className={`items-center justify-center w-12 h-14 rounded-xl ${backgroundColor} mx-1`}
         >
-            <Text className={`text-xs ${isSelected ? 'text-white' : 'text-slate-400'}`}>
+            <Text className={`text-xs ${isSelected ? 'text-white' : 'text-text-tertiary'}`}>
                 {dayName}
             </Text>
-            <Text className={`text-lg font-bold ${isSelected ? 'text-white' : isToday ? 'text-indigo-400' : 'text-slate-200'
+            <Text className={`text-lg font-bold ${isSelected ? 'text-white' : isToday ? 'text-primary' : 'text-text-primary'
                 }`}>
                 {dayNum}
             </Text>
-            <Text className={`text-xs ${isSelected ? 'text-white' : 'text-slate-400'}`}>
+            <Text className={`text-xs ${isSelected ? 'text-white' : 'text-text-tertiary'}`}>
                 {month}
             </Text>
             {markerColor && (
@@ -201,7 +201,7 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
     const isTodaySelected = dayjs(date).isSame(dayjs(), 'day');
 
     return (
-        <View className="border-b border-slate-800 pb-4" style={{ backgroundColor: Colors.transparent }}>
+        <View className="border-b border-border pb-4" style={{ backgroundColor: Colors.transparent }}>
             <IslandHeader
                 title="Schedule"
                 subtitle={dayjs(date).format('MMMM YYYY')}

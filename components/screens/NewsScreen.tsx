@@ -132,7 +132,7 @@ export default function NewsScreen() {
         const isViewed = viewedArticles.includes(item.url);
 
         return (
-            <View className={`mb-4 bg-slate-800 rounded-xl overflow-hidden border ${isViewed ? 'border-slate-700/50 opacity-75' : 'border-slate-700'}`}>
+            <View className={`mb-4 bg-surface rounded-xl overflow-hidden border ${isViewed ? 'border-border/50 opacity-75' : 'border-border'}`}>
                 <TouchableOpacity onPress={() => handleOpenArticle(item.url)}>
                     {item.urlToImage && (
                         <Image
@@ -145,18 +145,18 @@ export default function NewsScreen() {
                     <View className="p-4">
                         <View className="flex-row justify-between items-start mb-2">
                             <View className="flex-row items-center gap-2">
-                                <Text className="text-xs text-indigo-400 font-bold uppercase" numberOfLines={1} ellipsizeMode="tail" style={{ maxWidth: 150 }}>{item.source.name}</Text>
+                                <Text className="text-xs text-primary font-bold uppercase" numberOfLines={1} ellipsizeMode="tail" style={{ maxWidth: 150 }}>{item.source.name}</Text>
                                 {item.matchedTopic && (
-                                    <View className="bg-indigo-900/50 px-2 py-0.5 rounded-md border border-indigo-500/30">
-                                        <Text className="text-[10px] text-indigo-300 font-medium" numberOfLines={1} style={{ maxWidth: 100 }}>{item.matchedTopic}</Text>
+                                    <View className="bg-surface-highlight px-2 py-0.5 rounded-md border border-primary">
+                                        <Text className="text-[10px] text-text-secondary font-medium" numberOfLines={1} style={{ maxWidth: 100 }}>{item.matchedTopic}</Text>
                                     </View>
                                 )}
                             </View>
-                            <Text className="text-xs text-slate-500">{dayjs(item.publishedAt).fromNow()}</Text>
+                            <Text className="text-xs text-secondary">{dayjs(item.publishedAt).fromNow()}</Text>
                         </View>
-                        <Text className={`text-lg font-bold mb-2 leading-6 ${isViewed ? 'text-slate-400' : 'text-white'}`}>{item.title}</Text>
+                        <Text className={`text-lg font-bold mb-2 leading-6 ${isViewed ? 'text-text-tertiary' : 'text-white'}`}>{item.title}</Text>
                         {item.description && (
-                            <Text className="text-slate-400 text-sm leading-5" numberOfLines={3}>
+                            <Text className="text-text-tertiary text-sm leading-5" numberOfLines={3}>
                                 {item.description}
                             </Text>
                         )}
@@ -164,13 +164,13 @@ export default function NewsScreen() {
                 </TouchableOpacity>
 
                 {/* Action Buttons */}
-                <View className="flex-row border-t border-slate-700">
+                <View className="flex-row border-t border-border">
                     <TouchableOpacity
-                        className="flex-1 p-3 flex-row justify-center items-center border-r border-slate-700"
+                        className="flex-1 p-3 flex-row justify-center items-center border-r border-border"
                         onPress={() => hideArticle(item.url)}
                     >
                         <Ionicons name="eye-off-outline" size={20} color={Colors.text.tertiary} />
-                        <Text className="text-slate-400 ml-2 font-medium">Hide</Text>
+                        <Text className="text-text-tertiary ml-2 font-medium">Hide</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         className="flex-1 p-3 flex-row justify-center items-center"
@@ -184,7 +184,7 @@ export default function NewsScreen() {
                         })}
                     >
                         <Ionicons name="bookmark-outline" size={20} color="#818cf8" />
-                        <Text className="text-indigo-400 ml-2 font-medium">Read</Text>
+                        <Text className="text-primary ml-2 font-medium">Read</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -197,19 +197,19 @@ export default function NewsScreen() {
 
         if (isRss) {
              if (active) {
-                 containerClass = 'bg-amber-700 border-amber-600';
+                 containerClass = 'bg-warning border-warning';
                  textClass = 'text-white';
              } else {
-                 containerClass = 'bg-slate-800 border-amber-900/50';
-                 textClass = 'text-amber-500/80';
+                 containerClass = 'bg-surface border-border';
+                 textClass = 'text-warning';
              }
         } else {
              if (active) {
-                 containerClass = 'bg-indigo-600 border-indigo-500';
+                 containerClass = 'bg-primary border-primary';
                  textClass = 'text-white';
              } else {
-                 containerClass = 'bg-slate-800 border-slate-700';
-                 textClass = 'text-slate-400';
+                 containerClass = 'bg-surface border-border';
+                 textClass = 'text-text-tertiary';
              }
         }
 
@@ -236,10 +236,10 @@ export default function NewsScreen() {
                             render: () => (
                                 <TouchableOpacity
                                     onPress={handleReadAll}
-                                    className="flex-row items-center bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700"
+                                    className="flex-row items-center bg-surface px-3 py-1.5 rounded-lg border border-border"
                                 >
                                     <Ionicons name="checkmark-done-outline" size={16} color={Colors.text.tertiary} />
-                                    <Text className="text-slate-300 text-xs font-bold ml-1">Read All</Text>
+                                    <Text className="text-text-secondary text-xs font-bold ml-1">Read All</Text>
                                 </TouchableOpacity>
                             ),
                         }]
@@ -251,8 +251,8 @@ export default function NewsScreen() {
                 {((!newsApiKey && !process.env.NEWSAPI_KEY) && rssFeeds.length === 0) ? (
                     <View className="flex-1 justify-center items-center">
                         <Ionicons name="newspaper-outline" size={64} color="#475569" />
-                        <Text className="text-slate-400 mt-4 text-center">News Configuration Missing.</Text>
-                        <Text className="text-slate-500 text-sm mt-1 text-center">Please configure a News API Key or add RSS feeds in Settings.</Text>
+                        <Text className="text-text-tertiary mt-4 text-center">News Configuration Missing.</Text>
+                        <Text className="text-secondary text-sm mt-1 text-center">Please configure a News API Key or add RSS feeds in Settings.</Text>
                     </View>
                 ) : (
                     <>
@@ -306,7 +306,7 @@ export default function NewsScreen() {
                             {showCustomInput && (
                                 <View className="flex-row items-center gap-2 mb-2">
                                     <TextInput
-                                        className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3"
+                                        className="flex-1 bg-background border border-border text-white rounded-xl px-4 py-3"
                                         placeholder="Enter custom query..."
                                         placeholderTextColor={Colors.secondary}
                                         value={customQuery}
@@ -315,7 +315,7 @@ export default function NewsScreen() {
                                         returnKeyType="search"
                                     />
                                     <TouchableOpacity
-                                        className="bg-indigo-600 p-3 rounded-xl"
+                                        className="bg-primary p-3 rounded-xl"
                                         onPress={handleCustomSubmit}
                                     >
                                         <Ionicons name="search" size={24} color="white" />
@@ -327,8 +327,8 @@ export default function NewsScreen() {
                         {newsTopics.length === 0 && rssFeeds.length === 0 && !showCustomInput ? (
                             <View className="flex-1 justify-center items-center">
                                 <Ionicons name="newspaper-outline" size={64} color="#475569" />
-                                <Text className="text-slate-400 mt-4 text-center">No topics or feeds configured.</Text>
-                                <Text className="text-slate-500 text-sm mt-1 text-center">Go to Settings to add topics or RSS feeds.</Text>
+                                <Text className="text-text-tertiary mt-4 text-center">No topics or feeds configured.</Text>
+                                <Text className="text-secondary text-sm mt-1 text-center">Go to Settings to add topics or RSS feeds.</Text>
                             </View>
                         ) : (
                             <FlatList
@@ -349,10 +349,10 @@ export default function NewsScreen() {
                                         <View className="p-4 items-center">
                                             <TouchableOpacity
                                                 onPress={() => loadNews(false)}
-                                                className="bg-slate-800 px-6 py-3 rounded-full border border-slate-700 active:bg-slate-700"
+                                                className="bg-surface px-6 py-3 rounded-full border border-border active:bg-surface-highlight"
                                                 disabled={loading}
                                             >
-                                                <Text className="text-slate-300 font-medium">
+                                                <Text className="text-text-secondary font-medium">
                                                     {loading ? 'Loading...' : 'Load More'}
                                                 </Text>
                                             </TouchableOpacity>
@@ -362,7 +362,7 @@ export default function NewsScreen() {
                                 ListEmptyComponent={
                                     !loading ? (
                                         <View className="mt-10 items-center">
-                                            <Text className="text-slate-500">No articles found.</Text>
+                                            <Text className="text-secondary">No articles found.</Text>
                                         </View>
                                     ) : null
                                 }
