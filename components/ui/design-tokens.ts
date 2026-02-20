@@ -1,54 +1,121 @@
 // Consolidated design tokens extracted from the codebase
 
+// -----------------------------------------------------------------------------
+// Primitives
+// -----------------------------------------------------------------------------
+
+const PrimitiveColors = {
+    white: '#ffffff',
+    black: '#000000',
+    transparent: 'transparent',
+
+    slate: {
+        50: '#f8fafc',
+        100: '#f1f5f9',
+        200: '#e2e8f0',
+        300: '#cbd5e1',
+        400: '#94a3b8',
+        500: '#64748b',
+        600: '#475569',
+        700: '#334155',
+        800: '#1e293b',
+        900: '#0f172a',
+        950: '#020617',
+    },
+
+    // Brand Blue/Indigo
+    brand: {
+        DEFAULT: '#9f6efa', // Custom brand color (was #9f6efaff)
+        subtle: 'rgba(159, 110, 250, 0.2)', // 20% opacity
+        light: '#c4b5fd', // violet-300 approx
+    },
+
+    red: {
+        500: '#ef4444',
+    },
+    green: {
+        500: '#22c55e',
+    },
+    yellow: {
+        500: '#eab308',
+    },
+    orange: {
+        500: '#f97316',
+    },
+    blue: {
+        500: '#3b82f6',
+    },
+    cyan: {
+        500: '#06b6d4',
+    },
+    pink: {
+        500: '#ec4899',
+    },
+    amber: {
+        500: '#f59e0b',
+    },
+};
+
+// -----------------------------------------------------------------------------
+// Semantics
+// -----------------------------------------------------------------------------
+
 export const Colors = {
     // Brand / Semantic
-    primary: '#9f6efaff', // blue-500
-    secondary: '#64748b', // slate-500
-    success: '#22c55e', // green-500
-    warning: '#eab308', // yellow-500
-    busy: '#f97316', // orange-500
-    error: '#ef4444', // red-500
-    info: '#3b82f6', // blue-500
+    primary: PrimitiveColors.brand.DEFAULT,
+    primarySubtle: PrimitiveColors.brand.subtle, // New
+    secondary: PrimitiveColors.slate[500],
+    success: PrimitiveColors.green[500],
+    warning: PrimitiveColors.yellow[500],
+    busy: PrimitiveColors.orange[500],
+    error: PrimitiveColors.red[500],
+    info: PrimitiveColors.blue[500],
 
     status: {
-        healthy: '#22c55e',
-        moderate: '#eab308',
-        busy: '#f97316',
-        overloaded: '#ef4444',
+        healthy: PrimitiveColors.green[500],
+        moderate: PrimitiveColors.yellow[500],
+        busy: PrimitiveColors.orange[500],
+        overloaded: PrimitiveColors.red[500],
     },
 
     // Neutrals / Surface
-    background: '#0f172a', // slate-900 (inferred)
-    surface: '#1e293b', // slate-800
-    surfaceHighlight: '#334155', // slate-700
+    background: PrimitiveColors.slate[900],
+    surface: PrimitiveColors.slate[800],
+    surfaceHighlight: PrimitiveColors.slate[700],
+    surfaceHighlightSubtle: 'rgba(51, 65, 85, 0.5)', // New
 
     // Text
     text: {
-        primary: '#f8fafc', // slate-50
-        secondary: '#cbd5e1', // slate-300
-        tertiary: '#94a3b8', // slate-400
+        primary: PrimitiveColors.slate[50],
+        secondary: PrimitiveColors.slate[300],
+        tertiary: PrimitiveColors.slate[400],
+        inverse: PrimitiveColors.slate[900], // New
     },
 
     // Specifics
     loader: {
-        cyan: '#06b6d4',
-        pink: '#ec4899',
-        amber: '#f59e0b',
+        cyan: PrimitiveColors.cyan[500],
+        pink: PrimitiveColors.pink[500],
+        amber: PrimitiveColors.amber[500],
     },
 
     debug: 'rgba(220, 38, 38, 0.6)',
-    transparent: 'transparent',
-    white: '#ffffff',
-    black: '#000000',
-    border: '#334155', // slate-700 (often used as border)
+    transparent: PrimitiveColors.transparent,
+    white: PrimitiveColors.white,
+    black: PrimitiveColors.black,
+    border: PrimitiveColors.slate[700],
 };
+
+// -----------------------------------------------------------------------------
+// Others
+// -----------------------------------------------------------------------------
 
 export const Gradients = {
     appBackground: ['#0f172a', '#1e1b4b', '#312e81'] as readonly string[],
     loader: ['#06b6d4', '#ec4899', '#f59e0b'] as readonly string[],
 };
 
-// Extracted from ColorPicker.tsx
+// Legacy Palette export for backward compatibility
 export const Palette = [
     '#ef4444', // red-500
     '#f43f5e', // rose-500
@@ -89,6 +156,16 @@ export const Spacing = {
     screenPadding: 15,
 };
 
+export const Radii = {
+    xs: 2,
+    sm: 4,
+    md: 6,
+    lg: 8,
+    xl: 12,
+    xxl: 16,
+    full: 9999,
+};
+
 export const Shadows = {
     default: {
         shadowColor: '#000',
@@ -113,6 +190,13 @@ export const Typography = {
         medium: '500',
         bold: 'bold',
     }
+};
+
+export const IconSizes = {
+    sm: 16,
+    md: 20,
+    lg: 24,
+    xl: 32,
 };
 
 export const Sizes = {

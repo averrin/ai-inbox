@@ -455,9 +455,9 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                         {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
                             <TouchableOpacity
                                 onPress={toggleWatch}
-                                className={`p-1.5 ml-1 rounded-lg ${isWatched ? 'bg-primary' : ''}`}
+                                className={`p-1.5 ml-1 rounded-lg ${isWatched ? 'bg-primary/15' : ''}`}
                             >
-                                <Ionicons name={isWatched ? "eye" : "eye-outline"} size={16} color={isWatched ? "#818cf8" : Colors.text.tertiary} />
+                                <Ionicons name={isWatched ? "eye" : "eye-outline"} size={16} color={isWatched ? Colors.primary : Colors.text.tertiary} />
                             </TouchableOpacity>
                         )}
 
@@ -554,9 +554,9 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                     {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
                         <TouchableOpacity
                             onPress={toggleWatch}
-                            className={`p-1.5 ml-1 rounded-lg ${isWatched ? 'bg-primary' : ''}`}
+                            className={`p-1.5 ml-1 rounded-lg ${isWatched ? 'bg-primary/15' : ''}`}
                         >
-                            <Ionicons name={isWatched ? "eye" : "eye-outline"} size={20} color={isWatched ? "#818cf8" : Colors.text.tertiary} />
+                            <Ionicons name={isWatched ? "eye" : "eye-outline"} size={20} color={isWatched ? Colors.primary : Colors.text.tertiary} />
                         </TouchableOpacity>
                     )}
 
@@ -903,7 +903,7 @@ function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { run
                     <Ionicons name="git-branch" size={20} color={Colors.text.tertiary} />
                     <Text className="text-white font-bold text-base ml-2">Master Branch</Text>
                     {runningCount > 0 && (
-                        <View className="bg-primary px-2 py-0.5 rounded ml-2 border border-primary/50">
+                        <View className="bg-primary/20 px-2 py-0.5 rounded ml-2 border border-primary/50">
                             <Text className="text-primary text-xs font-bold">{runningCount} RUNNING</Text>
                         </View>
                     )}
