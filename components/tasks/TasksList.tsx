@@ -141,7 +141,7 @@ export function TasksList({
                 contentContainerStyle={{ padding: 12, paddingBottom: insets.bottom + 80 }}
                 ListEmptyComponent={
                     <View className="items-center justify-center py-20">
-                        <Text className="text-secondary italic">No tasks found matching criteria.</Text>
+                        <Text className="text-secondary italic mb-4">No tasks found matching criteria.</Text>
                     </View>
                 }
                 refreshControl={

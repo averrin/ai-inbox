@@ -369,7 +369,7 @@ export function EventFormModal({
                                 onPress={() => setType(t)}
                                 className={`flex-1 py-2 rounded-lg items-center ${type === t ? 'bg-primary' : 'bg-transparent'}`}
                             >
-                                <Text className={`font-semibold capitalize ${type === t ? 'text-white' : 'text-text-tertiary'}`}>
+                                <Text className={`font-semibold capitalize ${type === t ? 'text-white' : 'text-text-secondary'}`}>
                                     {t}
                                 </Text>
                             </TouchableOpacity>
@@ -387,7 +387,7 @@ export function EventFormModal({
                                         value={title}
                                         onChangeText={setTitle}
                                         placeholder={type === 'event' ? "Event Title" : type === 'zone' ? "Zone Title" : "Reminder Title"}
-                                        placeholderTextColor={Colors.secondary}
+                                        placeholderTextColor={Colors.text.tertiary}
                                         autoFocus={!initialEvent}
                                     />
                                 </View>
@@ -411,7 +411,7 @@ export function EventFormModal({
                                             value={content}
                                             onChangeText={setContent}
                                             placeholder="Details..."
-                                            placeholderTextColor={Colors.secondary}
+                                            placeholderTextColor={Colors.text.tertiary}
                                             multiline
                                             textAlignVertical="top"
                                         />
@@ -654,7 +654,7 @@ export function EventFormModal({
                                                     <TextInput
                                                         className="bg-surface text-white p-3 rounded-lg border border-border"
                                                         placeholder="Nag interval (minutes)"
-                                                        placeholderTextColor={Colors.secondary}
+                                                        placeholderTextColor={Colors.text.tertiary}
                                                         keyboardType="numeric"
                                                         value={persistent}
                                                         onChangeText={setPersistent}

@@ -14,7 +14,7 @@ export default function CanvasScreen() {
   const bottomPadding = insets.bottom + 60;
 
   return (
-    <Layout fullBleed={true}>
+    <View style={{ flex: 1, backgroundColor: Colors.white }}>
       <View style={[styles.container, { paddingBottom: bottomPadding }]}>
         <WebView
           source={{ uri: 'https://www.tldraw.com/' }}
@@ -35,7 +35,7 @@ export default function CanvasScreen() {
           </View>
         )}
       </View>
-    </Layout>
+    </View>
   );
 }
 

@@ -204,7 +204,7 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
         <View className="border-b border-border pb-4" style={{ backgroundColor: Colors.transparent }}>
             <IslandHeader
                 title="Schedule"
-                subtitle={dayjs(date).format('MMMM YYYY')}
+                subtitle={dayjs(date).isSame(dayjs(), 'day') ? `Today, ${dayjs(date).format('MMM D')}` : dayjs(date).format('MMMM YYYY')}
                 rightActions={[
                     ...(onSync ? [{
                         render: () => (
