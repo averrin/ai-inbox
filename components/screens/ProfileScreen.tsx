@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
-import { ScreenHeader } from '../ui/ScreenHeader';
-import { TopTabBar } from '../ui/TopTabBar';
+import { IslandHeader } from '../ui/IslandHeader';
 import { MessageDialog } from '../ui/MessageDialog';
 import { JulesLoader } from '../ui/JulesLoader';
 import Animated, {
@@ -22,10 +21,11 @@ import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import Toast from 'react-native-toast-message';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { useProfileStore } from '../../store/profileStore';
-
 import { useSettingsStore } from '../../store/settings';
+import { useUIStore } from '../../store/ui';
 
 export default function ProfileScreen() {
     const insets = useSafeAreaInsets();
@@ -35,6 +35,33 @@ export default function ProfileScreen() {
     const [activeTab, setActiveTab] = useState<'home' | 'details'>('home');
     const [showDepthModal, setShowDepthModal] = useState(false);
     const [isAddingFact, setIsAddingFact] = useState(false);
+
+    const { setFab, clearFab } = useUIStore();
+
+    // Configure FAB based on active tab
+    useFocusEffect(
+        useCallback(() => {
+            if (activeTab === 'home') {
+                setFab({
+                    visible: true,
+                    icon: 'add',
+                    onPress: () => setShowDepthModal(true),
+                    color: '#4f46e5',
+                    iconColor: 'white'
+                });
+            } else {
+                setFab({
+                    visible: true,
+                    icon: 'add',
+                    onPress: () => setIsAddingFact(true),
+                    color: '#4f46e5',
+                    iconColor: 'white'
+                });
+            }
+
+            return () => clearFab();
+        }, [activeTab, setFab, clearFab])
+    );
 
     // Gesture shared values
     const scale = useSharedValue(1);
@@ -228,16 +255,47 @@ export default function ProfileScreen() {
         return { label: 'Value', color: 'text-amber-400', bg: 'bg-amber-500/10' };
     };
 
+    // Custom Tab Component for IslandHeader
+    const TabToggle = () => (
+        <View className="flex-row items-center bg-slate-800 rounded-full p-0.5">
+            <TouchableOpacity
+                onPress={() => setActiveTab('home')}
+                className={`flex-row items-center px-3 py-1.5 rounded-full ${activeTab === 'home' ? 'bg-slate-700' : 'bg-transparent'}`}
+            >
+                <Ionicons
+                    name={activeTab === 'home' ? "home" : "home-outline"}
+                    size={16}
+                    color={activeTab === 'home' ? "white" : "#94a3b8"}
+                />
+                <Text className={`ml-1.5 text-xs font-bold ${activeTab === 'home' ? 'text-white' : 'text-slate-400'}`}>
+                    Home
+                </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                onPress={() => setActiveTab('details')}
+                className={`flex-row items-center px-3 py-1.5 rounded-full ${activeTab === 'details' ? 'bg-slate-700' : 'bg-transparent'}`}
+            >
+                <Ionicons
+                    name={activeTab === 'details' ? "list" : "list-outline"}
+                    size={16}
+                    color={activeTab === 'details' ? "white" : "#94a3b8"}
+                />
+                <Text className={`ml-1.5 text-xs font-bold ${activeTab === 'details' ? 'text-white' : 'text-slate-400'}`}>
+                    Details
+                </Text>
+            </TouchableOpacity>
+        </View>
+    );
+
     return (
-        <Layout noPadding>
-            <ScreenHeader title="Profile" noBorder />
-            <TopTabBar
-                tabs={[
-                    { key: 'home', label: 'Home', icon: 'home-outline' },
-                    { key: 'details', label: 'Details', icon: 'list-outline' },
+        <Layout>
+            <IslandHeader
+                title="Profile"
+                leftContent={<TabToggle />}
+                rightActions={[
+                    { icon: 'share-outline', onPress: handleCopyContext }
                 ]}
-                activeTab={activeTab}
-                onTabChange={(key) => setActiveTab(key as 'home' | 'details')}
             />
 
             <KeyboardAvoidingView
@@ -373,17 +431,6 @@ export default function ProfileScreen() {
                                                 </View>
                                             )}
                                         </View>
-
-                                        {/* More Questions Button */}
-                                        <TouchableOpacity
-                                            className="bg-slate-800 py-3 rounded-xl items-center flex-row justify-center gap-2 border border-slate-700 mt-2"
-                                            onPress={() => setShowDepthModal(true)}
-                                        >
-                                            <Ionicons name="refresh-outline" size={18} color="#94a3b8" />
-                                            <Text className="text-slate-300 font-medium">
-                                                Ask More Questions
-                                            </Text>
-                                        </TouchableOpacity>
                                     </>
                                 ) : (
                                     <>
@@ -427,9 +474,6 @@ export default function ProfileScreen() {
                                                     <Ionicons name="document-text-outline" size={16} color="#94a3b8" />
                                                     <Text className="text-slate-300 font-semibold">Current Profile Context</Text>
                                                 </View>
-                                                <TouchableOpacity onPress={() => setIsAddingFact(true)} className="p-1">
-                                                    <Ionicons name="add-circle" size={20} color="#818cf8" />
-                                                </TouchableOpacity>
                                             </View>
 
                                             {/* Search Bar */}
@@ -504,17 +548,6 @@ export default function ProfileScreen() {
                                                 </Text>
                                             </View>
                                         </View>
-
-                                        {/* Copy Context Button */}
-                                        <TouchableOpacity
-                                            className="bg-slate-800 py-3 rounded-xl items-center flex-row justify-center gap-2 border border-slate-700 mt-2"
-                                            onPress={handleCopyContext}
-                                        >
-                                            <Ionicons name="copy-outline" size={18} color="#94a3b8" />
-                                            <Text className="text-slate-300 font-medium">
-                                                Copy Context (JSON)
-                                            </Text>
-                                        </TouchableOpacity>
                                     </>
                                 )}
                             </View>
