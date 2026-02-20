@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { ImageAttachmentButton } from './ImageAttachmentButton';
 
 interface MessageDialogProps {
     visible: boolean;
@@ -9,6 +10,8 @@ interface MessageDialogProps {
     title?: string;
     placeholder?: string;
     sendLabel?: string;
+    enableImageAttachment?: boolean;
+    imagePrompt?: string;
 }
 
 export function MessageDialog({
@@ -18,7 +21,9 @@ export function MessageDialog({
     sending,
     title = "Send Message",
     placeholder = "Type your message...",
-    sendLabel = "Send"
+    sendLabel = "Send",
+    enableImageAttachment = false,
+    imagePrompt
 }: MessageDialogProps) {
     const [message, setMessage] = useState('');
 
@@ -45,6 +50,14 @@ export function MessageDialog({
                         autoFocus
                     />
                     <View className="flex-row gap-2">
+                         {enableImageAttachment && (
+                            <ImageAttachmentButton
+                                prompt={imagePrompt}
+                                onAnalysisComplete={(text) => setMessage(prev => prev + (prev ? '\n\n' : '') + `[Image Analysis]: ${text}`)}
+                                className="bg-slate-800 w-12 items-center justify-center rounded-xl"
+                                disabled={sending}
+                            />
+                        )}
                         <TouchableOpacity onPress={onClose} className="flex-1 bg-slate-800 py-3 rounded-xl items-center" disabled={sending}>
                             <Text className="text-white font-bold">Cancel</Text>
                         </TouchableOpacity>

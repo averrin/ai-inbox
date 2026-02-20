@@ -6,6 +6,7 @@ import { Layout } from '../ui/Layout';
 import { ScreenHeader } from '../ui/ScreenHeader';
 import { TopTabBar } from '../ui/TopTabBar';
 import { MessageDialog } from '../ui/MessageDialog';
+import { ImageAttachmentButton } from '../ui/ImageAttachmentButton';
 import { JulesLoader } from '../ui/JulesLoader';
 import Animated, {
     useSharedValue,
@@ -296,15 +297,27 @@ export default function ProfileScreen() {
                                                                     </Text>
                                                                 </View>
                                                             </View>
-                                                            <TextInput
-                                                                className="bg-slate-950 text-slate-100 p-3 rounded-lg border border-slate-800 min-h-[80px]"
-                                                                placeholder="Your answer..."
-                                                                placeholderTextColor="#475569"
-                                                                multiline
-                                                                textAlignVertical="top"
-                                                                value={answers[qText] || ''}
-                                                                onChangeText={(text) => setAnswer(qText, text)}
-                                                            />
+                                                            <View className="relative">
+                                                                <TextInput
+                                                                    className="bg-slate-950 text-slate-100 p-3 rounded-lg border border-slate-800 min-h-[80px] pb-10"
+                                                                    placeholder="Your answer..."
+                                                                    placeholderTextColor="#475569"
+                                                                    multiline
+                                                                    textAlignVertical="top"
+                                                                    value={answers[qText] || ''}
+                                                                    onChangeText={(text) => setAnswer(qText, text)}
+                                                                />
+                                                                <View className="absolute bottom-2 right-2">
+                                                                    <ImageAttachmentButton
+                                                                        prompt={`Analyze this image to answer the question: "${qText}". Extract relevant details about the user's life, preferences, or environment.`}
+                                                                        onAnalysisComplete={(text) => {
+                                                                            const current = answers[qText] || '';
+                                                                            setAnswer(qText, current + (current ? '\n\n' : '') + `[Image Analysis]: ${text}`);
+                                                                        }}
+                                                                        className="bg-slate-800/80"
+                                                                    />
+                                                                </View>
+                                                            </View>
                                                         </View>
                                                     );
                                                 })}
@@ -658,6 +671,8 @@ export default function ProfileScreen() {
                 title="Add New Fact"
                 placeholder="Describe a new fact, preference, or trait..."
                 sendLabel="Add Fact"
+                enableImageAttachment={true}
+                imagePrompt="Analyze this image to extract facts, habits, or preferences about the user."
             />
 
             {/* Full Screen Image Modal - closing tag for Layout below */}
