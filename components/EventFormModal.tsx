@@ -329,22 +329,7 @@ export function EventFormModal({
             }
         } else {
             // Reminder / Alarm Deletion
-            Alert.alert(
-                "Delete Reminder",
-                "Do you also want to delete the source note file?",
-                [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                        text: "Delete Reminder Only",
-                        onPress: () => onDelete({ deleteFile: false })
-                    },
-                    {
-                        text: "Delete Note & Reminder",
-                        style: "destructive",
-                        onPress: () => onDelete({ deleteFile: true })
-                    }
-                ]
-            );
+            if (onDelete) onDelete({ deleteFile: false });
         }
     };
 

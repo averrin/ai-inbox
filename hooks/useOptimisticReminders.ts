@@ -111,7 +111,7 @@ export function useOptimisticReminders() {
         }
     }, [cachedReminders, setCachedReminders]);
 
-    const deleteReminder = useCallback(async (reminder: Reminder, deleteFileArg: boolean) => {
+    const deleteReminder = useCallback(async (reminder: Reminder) => {
         const previousReminders = [...(cachedReminders || [])];
 
         // 1. Optimistic Update
