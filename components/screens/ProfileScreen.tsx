@@ -25,7 +25,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import Toast from 'react-native-toast-message';
 
 import { useProfileStore } from '../../store/profileStore';
-
+import { analyzeImage } from '../../services/gemini';
 import { useSettingsStore } from '../../store/settings';
 
 export default function ProfileScreen() {
@@ -36,6 +36,9 @@ export default function ProfileScreen() {
     const [activeTab, setActiveTab] = useState<'home' | 'details'>('home');
     const [showDepthModal, setShowDepthModal] = useState(false);
     const [isAddingFact, setIsAddingFact] = useState(false);
+    const [questionImages, setQuestionImages] = useState<Record<string, { base64: string, mimeType?: string }>>({});
+    const [isAnalyzingImages, setIsAnalyzingImages] = useState(false);
+    const { apiKey, selectedModel } = useSettingsStore();
 
     // Gesture shared values
     const scale = useSharedValue(1);
@@ -122,8 +125,56 @@ export default function ProfileScreen() {
 
     const isAllAnswered = dailyQuestions.length > 0 && dailyQuestions.every(q => {
         const text = typeof q === 'string' ? q : q?.text;
-        return answers[text] && answers[text].trim().length > 0;
+        // Allow image-only answers or text answers
+        return (answers[text] && answers[text].trim().length > 0) || questionImages[text];
     });
+
+    const handleSubmitAnswers = async () => {
+        setIsAnalyzingImages(true);
+        try {
+            // Process images first
+            for (const qText of Object.keys(questionImages)) {
+                const img = questionImages[qText];
+                if (img) {
+                    try {
+                        const analysis = await analyzeImage(
+                            apiKey!,
+                            img.base64,
+                            `Question: "${qText}"\nUser Answer Context: "${answers[qText] || ''}"\n\nAnalyze this image to extract relevant details to answer the question about the user.`,
+                            img.mimeType,
+                            selectedModel || 'gemini-1.5-flash'
+                        );
+
+                        if (analysis) {
+                            const current = answers[qText] || '';
+                            const combined = current + (current ? '\n\n' : '') + `[Image Analysis]: ${analysis}`;
+                            setAnswer(qText, combined);
+                        }
+                    } catch (e) {
+                        console.error('Failed to analyze image for', qText, e);
+                        Toast.show({
+                            type: 'error',
+                            text1: 'Image Analysis Failed',
+                            text2: `Could not analyze image for "${qText.substring(0, 20)}..."`
+                        });
+                    }
+                }
+            }
+
+            // Wait a tick for state updates to propagate if needed (though setAnswer is sync in Zustand usually,
+            // but effectively we are batching updates. Zustand updates are immediate).
+            // However, since we are inside an async function, the state `answers` from `useProfileStore` hook
+            // might not reflect the immediate `setAnswer` calls if we read it again.
+            // BUT `submitAnswers` inside the store reads `get().answers`, so it will see the updates!
+
+            await submitAnswers();
+            setQuestionImages({});
+        } catch (e) {
+             console.error('Submit failed', e);
+        } finally {
+            setIsAnalyzingImages(false);
+        }
+    };
 
     const handleEditFact = (key: string, value: any) => {
         setEditingFact({ key, value: typeof value === 'string' ? value : JSON.stringify(value) });
@@ -298,6 +349,25 @@ export default function ProfileScreen() {
                                                                 </View>
                                                             </View>
                                                             <View className="relative">
+                                                                {questionImages[qText] && (
+                                                                    <View className="mb-2 relative rounded-lg overflow-hidden h-32 bg-slate-950 items-center justify-center border border-slate-800 mx-3 mt-3">
+                                                                        <Image
+                                                                            source={{ uri: `data:${questionImages[qText].mimeType || 'image/jpeg'};base64,${questionImages[qText].base64}` }}
+                                                                            style={{ width: '100%', height: '100%' }}
+                                                                            resizeMode="contain"
+                                                                        />
+                                                                        <TouchableOpacity
+                                                                            onPress={() => {
+                                                                                const newImages = {...questionImages};
+                                                                                delete newImages[qText];
+                                                                                setQuestionImages(newImages);
+                                                                            }}
+                                                                            className="absolute top-2 right-2 bg-black/50 p-1 rounded-full"
+                                                                        >
+                                                                            <Ionicons name="close" size={16} color="white" />
+                                                                        </TouchableOpacity>
+                                                                    </View>
+                                                                )}
                                                                 <TextInput
                                                                     className="bg-slate-950 text-slate-100 p-3 rounded-lg border border-slate-800 min-h-[80px] pb-10"
                                                                     placeholder="Your answer..."
@@ -309,12 +379,8 @@ export default function ProfileScreen() {
                                                                 />
                                                                 <View className="absolute bottom-2 right-2">
                                                                     <ImageAttachmentButton
-                                                                        prompt={`Analyze this image to answer the question: "${qText}". Extract relevant details about the user's life, preferences, or environment.`}
-                                                                        onAnalysisComplete={(text) => {
-                                                                            const current = answers[qText] || '';
-                                                                            setAnswer(qText, current + (current ? '\n\n' : '') + `[Image Analysis]: ${text}`);
-                                                                        }}
-                                                                        className="bg-slate-800/80"
+                                                                        onImageSelected={(base64, mimeType) => setQuestionImages(prev => ({ ...prev, [qText]: { base64, mimeType } }))}
+                                                                        className={`bg-slate-800/80 ${questionImages[qText] ? 'border-indigo-500 bg-indigo-500/20' : ''}`}
                                                                     />
                                                                 </View>
                                                             </View>
@@ -324,13 +390,19 @@ export default function ProfileScreen() {
 
                                                 <TouchableOpacity
                                                     className={`py-4 rounded-xl items-center flex-row justify-center gap-2 mt-2 ${isAllAnswered ? 'bg-indigo-600' : 'bg-slate-800 opacity-50'}`}
-                                                    disabled={!isAllAnswered}
-                                                    onPress={submitAnswers}
+                                                    disabled={!isAllAnswered || isAnalyzingImages}
+                                                    onPress={handleSubmitAnswers}
                                                 >
-                                                    <Text className={`font-bold text-lg ${isAllAnswered ? 'text-white' : 'text-slate-400'}`}>
-                                                        Submit Updates
-                                                    </Text>
-                                                    <Ionicons name="arrow-forward" size={20} color={isAllAnswered ? 'white' : '#94a3b8'} />
+                                                    {isAnalyzingImages ? (
+                                                        <ActivityIndicator color="white" />
+                                                    ) : (
+                                                        <>
+                                                            <Text className={`font-bold text-lg ${isAllAnswered ? 'text-white' : 'text-slate-400'}`}>
+                                                                Submit Updates
+                                                            </Text>
+                                                            <Ionicons name="arrow-forward" size={20} color={isAllAnswered ? 'white' : '#94a3b8'} />
+                                                        </>
+                                                    )}
                                                 </TouchableOpacity>
                                             </View>
                                         )}
