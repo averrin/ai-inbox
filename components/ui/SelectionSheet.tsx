@@ -28,7 +28,7 @@ export function SelectionSheet({ visible, title, options, onSelect, onClose }: S
                 className="flex-1 justify-end bg-black/50"
             >
                 <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-                    <View className="bg-slate-900 rounded-t-3xl border-t border-slate-700 p-4 pb-8">
+                    <View className="bg-background rounded-t-3xl border-t border-border p-4 pb-8">
                         <View className="flex-row justify-between items-center mb-4">
                             <Text className="text-white text-lg font-bold">{title}</Text>
                             <TouchableOpacity onPress={onClose} className="p-2">

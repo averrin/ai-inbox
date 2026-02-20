@@ -83,7 +83,7 @@ export function FileInput({
     return (
         <>
             <View className="mb-4">
-                <Text className="text-indigo-200 mb-1 ml-1 text-sm font-semibold">{label}</Text>
+                <Text className="text-text-secondary mb-1 ml-1 text-sm font-semibold">{label}</Text>
                 <View className="flex-row gap-2">
                     <View className="flex-1 relative">
                         <TextInput 
@@ -91,11 +91,11 @@ export function FileInput({
                             onChangeText={onChangeText} 
                             placeholder={placeholder || `Enter ${fileExtension} file path...`}
                             placeholderTextColor={Colors.text.tertiary}
-                            className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 pr-12 text-white font-medium"
+                            className="bg-surface/50 border border-border rounded-xl p-4 pr-12 text-white font-medium"
                         />
                         {fileStatus !== 'neutral' && (
                             <View className="absolute right-0 top-0 bottom-0 px-4 justify-center">
-                                <Text className={fileStatus === 'valid' ? "text-green-400 text-lg" : "text-red-400 text-lg"}>
+                                <Text className={fileStatus === 'valid' ? "text-success text-lg" : "text-error text-lg"}>
                                     {fileStatus === 'valid' ? '✓' : '✕'}
                                 </Text>
                             </View>
@@ -104,7 +104,7 @@ export function FileInput({
                     <TouchableOpacity
                         onPress={handleBrowse}
                         disabled={!vaultUri || isSelecting}
-                        className={`px-4 py-4 rounded-xl ${!vaultUri || isSelecting ? 'bg-slate-700' : 'bg-indigo-600'}`}
+                        className={`px-4 py-4 rounded-xl ${!vaultUri || isSelecting ? 'bg-surface-highlight' : 'bg-primary'}`}
                     >
                         <Text className="text-white font-semibold">Browse</Text>
                     </TouchableOpacity>
@@ -114,7 +114,7 @@ export function FileInput({
             {/* File Picker Modal */}
             <Modal visible={showFilePicker} transparent animationType="slide">
                 <View className="flex-1 justify-end bg-black/50">
-                    <View className="bg-slate-900 rounded-t-3xl p-6 max-h-[70%]">
+                    <View className="bg-background rounded-t-3xl p-6 max-h-[70%]">
                         <View className="flex-row justify-between items-center mb-4">
                             <Text className="text-white text-xl font-bold">Select a File</Text>
                             <TouchableOpacity onPress={() => setShowFilePicker(false)}>
@@ -126,7 +126,7 @@ export function FileInput({
                                 <TouchableOpacity
                                     key={file}
                                     onPress={() => handleSelectFile(file)}
-                                    className={`p-4 rounded-xl mb-2 ${value === file ? 'bg-indigo-600' : 'bg-slate-800'}`}
+                                    className={`p-4 rounded-xl mb-2 ${value === file ? 'bg-primary' : 'bg-surface'}`}
                                 >
                                     <Text className="text-white font-medium">{file}</Text>
                                 </TouchableOpacity>

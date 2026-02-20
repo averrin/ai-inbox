@@ -84,11 +84,11 @@ export function FileAttachment({ file, onRemove, showRemove = true }: FileAttach
     );
 
     const subtitle = isAudio && duration ? (
-        <Text className="text-indigo-300 text-xs">
+        <Text className="text-text-secondary text-xs">
             {formatTime(position || 0)} / {formatTime(duration)}
         </Text>
     ) : (
-        <Text className="text-slate-400 text-xs">
+        <Text className="text-text-tertiary text-xs">
             {(file.size / 1024).toFixed(1)} KB • {file.mimeType.split('/')[1] || 'file'}
         </Text>
     );

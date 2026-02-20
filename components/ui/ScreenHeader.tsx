@@ -37,7 +37,7 @@ export function ScreenHeader({
 }: ScreenHeaderProps) {
     return (
         <View
-            className={`px-4 pt-3 pb-2 ${noBorder ? '' : 'border-b border-slate-800'}`}
+            className={`px-4 pt-3 pb-2 ${noBorder ? '' : 'border-b border-border'}`}
             style={{ backgroundColor: Colors.transparent }}
         >
             <View className="flex-row items-center justify-between">
@@ -53,7 +53,7 @@ export function ScreenHeader({
                             {title}
                         </Text>
                         {subtitle ? (
-                            <Text className="text-slate-500 text-xs font-medium" numberOfLines={1}>
+                            <Text className="text-secondary text-xs font-medium" numberOfLines={1}>
                                 {subtitle}
                             </Text>
                         ) : null}

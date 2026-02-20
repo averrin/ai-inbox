@@ -66,15 +66,15 @@ export function EventEditModal({
     return (
         <Modal visible={visible} transparent animationType="fade">
             <View className="flex-1 justify-center items-center bg-black/50 px-4">
-                <View className="bg-slate-900 w-full max-w-lg p-6 rounded-2xl border border-slate-700 max-h-[90%]">
+                <View className="bg-background w-full max-w-lg p-6 rounded-2xl border border-border max-h-[90%]">
                     <Text className="text-white text-xl font-bold mb-4">Edit Event</Text>
 
                     <ScrollView showsVerticalScrollIndicator={false}>
                         {/* Title */}
                         <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 font-medium">Title</Text>
+                            <Text className="text-text-secondary mb-2 font-medium">Title</Text>
                             <TextInput
-                                className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700 font-medium"
+                                className="bg-surface text-white p-4 rounded-xl border border-border font-medium"
                                 value={title}
                                 onChangeText={setTitle}
                                 placeholder="Event title"
@@ -85,11 +85,11 @@ export function EventEditModal({
                         {/* Valid Date/Time */}
                         {/* Unlike Reminder, Events usually have specific times. */}
                         <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 font-medium">Start Time</Text>
+                            <Text className="text-text-secondary mb-2 font-medium">Start Time</Text>
                             <View className="flex-row gap-2">
                                 <TouchableOpacity
                                     onPress={() => setShowDatePicker(true)}
-                                    className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700"
+                                    className="flex-1 bg-surface p-4 rounded-xl border border-border"
                                 >
                                     <Text className="text-white text-center font-bold">
                                         {startTime.toLocaleDateString()}
@@ -97,7 +97,7 @@ export function EventEditModal({
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     onPress={() => setShowTimePicker(true)}
-                                    className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700"
+                                    className="flex-1 bg-surface p-4 rounded-xl border border-border"
                                 >
                                     <Text className="text-white text-center font-bold">
                                         {startTime.toLocaleTimeString([], {
@@ -145,9 +145,9 @@ export function EventEditModal({
 
                         {/* Duration */}
                         <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 font-medium">Duration (minutes)</Text>
+                            <Text className="text-text-secondary mb-2 font-medium">Duration (minutes)</Text>
                             <TextInput
-                                className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700"
+                                className="bg-surface text-white p-4 rounded-xl border border-border"
                                 value={duration}
                                 onChangeText={setDuration}
                                 keyboardType="numeric"
@@ -158,9 +158,9 @@ export function EventEditModal({
 
                          {/* Description */}
                          <View className="mb-4">
-                            <Text className="text-indigo-200 mb-2 font-medium">Description</Text>
+                            <Text className="text-text-secondary mb-2 font-medium">Description</Text>
                             <TextInput
-                                className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700 min-h-[80px]"
+                                className="bg-surface text-white p-4 rounded-xl border border-border min-h-[80px]"
                                 value={description}
                                 onChangeText={setDescription}
                                 multiline
@@ -172,16 +172,16 @@ export function EventEditModal({
 
                         {/* Recurrence Rule */}
                         <View className="mb-6">
-                            <Text className="text-indigo-200 mb-2 font-medium">Recurrence (RRULE)</Text>
+                            <Text className="text-text-secondary mb-2 font-medium">Recurrence (RRULE)</Text>
                             <TextInput
-                                className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700"
+                                className="bg-surface text-white p-4 rounded-xl border border-border"
                                 value={recurrence}
                                 onChangeText={setRecurrence}
                                 placeholder="e.g. RRULE:FREQ=WEEKLY;BYDAY=FR"
                                 placeholderTextColor={Colors.secondary}
                                 autoCapitalize="none"
                             />
-                            <Text className="text-slate-500 text-xs mt-1">
+                            <Text className="text-secondary text-xs mt-1">
                                 Enter a valid iCalendar RRULE string.
                             </Text>
                         </View>
@@ -190,13 +190,13 @@ export function EventEditModal({
                     <View className="flex-row gap-3 mt-auto">
                         <TouchableOpacity
                             onPress={onCancel}
-                            className="flex-1 bg-slate-800 p-4 rounded-xl items-center"
+                            className="flex-1 bg-surface p-4 rounded-xl items-center"
                         >
                             <Text className="text-white font-semibold">Cancel</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             onPress={handleSave}
-                            className="flex-1 bg-indigo-600 p-4 rounded-xl items-center"
+                            className="flex-1 bg-primary p-4 rounded-xl items-center"
                         >
                             <Text className="text-white font-semibold">Save</Text>
                         </TouchableOpacity>

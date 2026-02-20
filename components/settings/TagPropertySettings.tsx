@@ -132,7 +132,7 @@ export function TagPropertySettings() {
                 <View className="flex-1 flex-row items-center justify-between">
                     <View>
                         <Text className="text-white font-medium text-lg">{prefix}{item}</Text>
-                        <Text className="text-slate-500 text-xs">
+                        <Text className="text-secondary text-xs">
                             {config.hidden ? 'Hidden' : 'Visible'}
                             {config.color ? ' • Custom Color' : ''}
                         </Text>
@@ -151,18 +151,18 @@ export function TagPropertySettings() {
 
     return (
         <View className="px-4">
-             <View className="flex-row mb-4 bg-slate-800 rounded-lg p-1">
+             <View className="flex-row mb-4 bg-surface rounded-lg p-1">
                 <TouchableOpacity 
                     onPress={() => setActiveTab('tags')}
-                    className={`flex-1 py-2 rounded-md items-center ${activeTab === 'tags' ? 'bg-indigo-600' : 'bg-transparent'}`}
+                    className={`flex-1 py-2 rounded-md items-center ${activeTab === 'tags' ? 'bg-primary' : 'bg-transparent'}`}
                 >
-                    <Text className={`${activeTab === 'tags' ? 'text-white' : 'text-slate-400'} font-medium`}>Tags</Text>
+                    <Text className={`${activeTab === 'tags' ? 'text-white' : 'text-text-tertiary'} font-medium`}>Tags</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                     onPress={() => setActiveTab('properties')}
-                    className={`flex-1 py-2 rounded-md items-center ${activeTab === 'properties' ? 'bg-indigo-600' : 'bg-transparent'}`}
+                    className={`flex-1 py-2 rounded-md items-center ${activeTab === 'properties' ? 'bg-primary' : 'bg-transparent'}`}
                 >
-                    <Text className={`${activeTab === 'properties' ? 'text-white' : 'text-slate-400'} font-medium`}>Properties</Text>
+                    <Text className={`${activeTab === 'properties' ? 'text-white' : 'text-text-tertiary'} font-medium`}>Properties</Text>
                 </TouchableOpacity>
             </View>
 
@@ -172,7 +172,7 @@ export function TagPropertySettings() {
                     <TouchableOpacity 
                         onPress={handleSync}
                         disabled={isSyncing}
-                        className="flex-row items-center bg-indigo-600 px-4 py-2 rounded-lg flex-1 justify-center"
+                        className="flex-row items-center bg-primary px-4 py-2 rounded-lg flex-1 justify-center"
                     >
                         {isSyncing ? (
                             <ActivityIndicator size="small" color="white" />
@@ -187,7 +187,7 @@ export function TagPropertySettings() {
 
                 <View className="flex-row items-center gap-2">
                     <TextInput 
-                        className="flex-1 bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-white"
+                        className="flex-1 bg-surface/50 border border-border rounded-lg px-4 py-2 text-white"
                         placeholder={`Add new ${activeTab === 'tags' ? 'tag' : 'property'}...`}
                         placeholderTextColor={Colors.secondary}
                         value={newItemName}
@@ -195,7 +195,7 @@ export function TagPropertySettings() {
                     />
                     <TouchableOpacity 
                         onPress={handleAddItem}
-                        className="bg-slate-700 px-4 py-2 rounded-lg"
+                        className="bg-surface-highlight px-4 py-2 rounded-lg"
                     >
                         <Ionicons name="add" size={24} color="white" />
                     </TouchableOpacity>
@@ -208,7 +208,7 @@ export function TagPropertySettings() {
                 renderItem={renderItem}
                 scrollEnabled={false}
                 ListEmptyComponent={
-                    <Text className="text-slate-500 text-center py-8">
+                    <Text className="text-secondary text-center py-8">
                         No {activeTab} found in your tasks. Try syncing.
                     </Text>
                 }

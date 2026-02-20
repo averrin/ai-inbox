@@ -37,8 +37,8 @@ export function TasksSettings() {
     return (
         <Card>
             <View className="mb-4">
-                <Text className="text-indigo-200 mb-2 font-semibold">Configuration</Text>
-                <Text className="text-slate-400 text-sm mb-4">
+                <Text className="text-text-secondary mb-2 font-semibold">Configuration</Text>
+                <Text className="text-text-tertiary text-sm mb-4">
                     Select the folder in your vault where your project tasks are stored. 
                     The dashboard will recursively scan this folder for sub-folders to create tabs.
                 </Text>
@@ -55,15 +55,15 @@ export function TasksSettings() {
             </View>
 
             {folderStatus === 'invalid' && (
-                <View className="bg-orange-900/20 border border-orange-800/30 p-4 rounded-xl mb-4">
-                    <Text className="text-orange-400 text-sm font-medium">
+                <View className="bg-surface-highlight border border-border p-4 rounded-xl mb-4">
+                    <Text className="text-busy text-sm font-medium">
                         ⚠️ Folder not found. Make sure the path is relative to your vault root.
                     </Text>
                 </View>
             )}
 
-            <View className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                <Text className="text-slate-300 text-xs italic">
+            <View className="bg-surface/50 p-4 rounded-xl border border-border">
+                <Text className="text-text-secondary text-xs italic">
                     Tip: Sub-folders of this path (e.g. {tasksRootInput || 'Root'}/Work) will appear as separate tabs in the Tasks screen.
                 </Text>
             </View>

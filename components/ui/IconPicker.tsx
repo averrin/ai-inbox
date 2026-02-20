@@ -37,8 +37,8 @@ export const IconPicker = ({
             onPress={() => onChange(item)}
             className={`flex-1 m-1 aspect-square items-center justify-center rounded-xl border-2 ${
                 value === item
-                    ? 'bg-slate-800 border-indigo-500'
-                    : 'bg-slate-800/50 border-transparent'
+                    ? 'bg-surface border-primary'
+                    : 'bg-surface/50 border-transparent'
             }`}
         >
             <UniversalIcon
@@ -52,12 +52,12 @@ export const IconPicker = ({
     return (
         <View className="flex-1">
             {label && (
-                <Text className="text-indigo-200 mb-2 font-medium">{label}</Text>
+                <Text className="text-text-secondary mb-2 font-medium">{label}</Text>
             )}
             
             {/* Search Input */}
             <TextInput
-                className="bg-slate-800 text-white p-3 rounded-xl border border-slate-700 mb-3"
+                className="bg-surface text-white p-3 rounded-xl border border-border mb-3"
                 placeholder="Search icons..."
                 placeholderTextColor={Colors.secondary}
                 value={searchQuery}
@@ -78,7 +78,7 @@ export const IconPicker = ({
                 windowSize={5}
                 columnWrapperStyle={{ gap: 4 }}
                 ListEmptyComponent={
-                    <Text className="text-slate-500 text-center py-4">
+                    <Text className="text-secondary text-center py-4">
                         No icons match "{searchQuery}"
                     </Text>
                 }

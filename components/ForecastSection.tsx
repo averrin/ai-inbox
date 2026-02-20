@@ -63,7 +63,7 @@ export function ForecastSection({ date }: ForecastSectionProps) {
 
     if (loading) {
         return (
-            <View className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 mb-6 items-center justify-center py-8">
+            <View className="bg-surface/50 p-4 rounded-2xl border border-border/50 mb-6 items-center justify-center py-8">
                 <JulesLoader size="medium" message="Generating AI Forecast..." />
             </View>
         );
@@ -71,14 +71,14 @@ export function ForecastSection({ date }: ForecastSectionProps) {
 
     if (error) {
         return (
-            <View className="bg-red-900/10 p-4 rounded-2xl border border-red-900/20 mb-6">
+            <View className="bg-surface-highlight p-4 rounded-2xl border border-border mb-6">
                 <View className="flex-row items-center mb-1">
                     <Ionicons name="warning-outline" size={16} color={Colors.error} />
-                    <Text className="text-red-400 ml-2 font-bold text-xs uppercase tracking-wider">Forecast Error</Text>
+                    <Text className="text-error ml-2 font-bold text-xs uppercase tracking-wider">Forecast Error</Text>
                 </View>
-                <Text className="text-red-200/80 text-sm mb-2">{error}</Text>
-                <TouchableOpacity onPress={() => handleGenerate(true)} className="bg-red-900/30 self-start px-3 py-1.5 rounded-lg border border-red-900/40">
-                    <Text className="text-red-200 font-bold text-xs">Retry</Text>
+                <Text className="text-error text-sm mb-2">{error}</Text>
+                <TouchableOpacity onPress={() => handleGenerate(true)} className="bg-surface-highlight self-start px-3 py-1.5 rounded-lg border border-border">
+                    <Text className="text-error font-bold text-xs">Retry</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -87,13 +87,13 @@ export function ForecastSection({ date }: ForecastSectionProps) {
     if (!forecastData) return null;
 
     return (
-        <View className="bg-indigo-900/20 p-4 rounded-2xl border border-indigo-500/20 mb-6">
+        <View className="bg-surface-highlight p-4 rounded-2xl border border-primary mb-6">
             <View className="flex-row justify-between items-start mb-2">
                 <View className="flex-row items-center">
-                    <View className="bg-indigo-500 p-1 rounded-md mr-2">
+                    <View className="bg-primary p-1 rounded-md mr-2">
                         <Ionicons name="sparkles" size={12} color="white" />
                     </View>
-                    <Text className="text-indigo-300 font-bold text-xs uppercase tracking-wider">Day Forecast</Text>
+                    <Text className="text-text-secondary font-bold text-xs uppercase tracking-wider">Day Forecast</Text>
                 </View>
                 <View className="flex-row items-center gap-1">
                     <TouchableOpacity

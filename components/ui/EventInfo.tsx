@@ -20,7 +20,7 @@ interface EventInfoProps {
 
 export function EventInfo({ action, onRemove, showRemove = true, onEdit, timeFormat }: EventInfoProps) {
     const leftIcon = (
-        <Text className="text-green-400 text-lg text-center">⦿</Text>
+        <Text className="text-success text-lg text-center">⦿</Text>
     );
 
     const formattedTime = action.startTime 
@@ -43,12 +43,12 @@ export function EventInfo({ action, onRemove, showRemove = true, onEdit, timeFor
     const subtitle = (
         <View>
              {action.startTime && (
-                <Text className="text-green-400 text-xs font-medium">
-                    {formattedTime} <Text className="text-indigo-300 font-normal">{durationText} {recurrenceText}</Text>
+                <Text className="text-success text-xs font-medium">
+                    {formattedTime} <Text className="text-text-secondary font-normal">{durationText} {recurrenceText}</Text>
                 </Text>
              )}
              {action.description && (
-                <Text className="text-slate-400 text-xs mt-1" numberOfLines={2}>
+                <Text className="text-text-tertiary text-xs mt-1" numberOfLines={2}>
                     {action.description}
                 </Text>
              )}
@@ -74,7 +74,7 @@ export function EventInfo({ action, onRemove, showRemove = true, onEdit, timeFor
             rightActions={actions}
             // BaseListItem styling override for the icon container to look like original? 
             // Original didn't have a background for the dot, it was just text.
-            // BaseListItem wraps icon in: w-10 h-10 bg-slate-700 rounded-lg overflow-hidden
+            // BaseListItem wraps icon in: w-10 h-10 bg-surface-highlight rounded-lg overflow-hidden
             // It might look a bit different. Let's try standard BaseListItem look.
         />
     );

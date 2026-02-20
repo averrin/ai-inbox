@@ -68,27 +68,27 @@ export function ForecastSettings() {
         <ScrollView>
             <Card>
                 <View className="mb-4">
-                    <Text className="text-indigo-200 mb-2 font-semibold">AI Forecast Prompt</Text>
-                    <Text className="text-slate-400 text-sm mb-4">
+                    <Text className="text-text-secondary mb-2 font-semibold">AI Forecast Prompt</Text>
+                    <Text className="text-text-tertiary text-sm mb-4">
                         Customize how the AI generates your daily forecast.
                     </Text>
 
-                    <View className="bg-slate-800 border border-slate-700 rounded-xl p-3 mb-4">
-                        <Text className="text-slate-500 text-xs mb-2 uppercase font-bold tracking-wider">Available Placeholders</Text>
+                    <View className="bg-surface border border-border rounded-xl p-3 mb-4">
+                        <Text className="text-secondary text-xs mb-2 uppercase font-bold tracking-wider">Available Placeholders</Text>
                         <View className="flex-row flex-wrap gap-2">
-                            <View className="bg-indigo-900/40 px-2 py-1 rounded border border-indigo-500/20">
-                                <Text className="text-indigo-300 text-xs font-mono">{`{{context}}`}</Text>
+                            <View className="bg-surface-highlight px-2 py-1 rounded border border-primary">
+                                <Text className="text-text-secondary text-xs font-mono">{`{{context}}`}</Text>
                             </View>
-                            <View className="bg-indigo-900/40 px-2 py-1 rounded border border-indigo-500/20">
-                                <Text className="text-indigo-300 text-xs font-mono">{`{{schedule}}`}</Text>
+                            <View className="bg-surface-highlight px-2 py-1 rounded border border-primary">
+                                <Text className="text-text-secondary text-xs font-mono">{`{{schedule}}`}</Text>
                             </View>
                         </View>
-                        <Text className="text-slate-500 text-xs mt-2 italic">
+                        <Text className="text-secondary text-xs mt-2 italic">
                             These will be replaced with your actual data before sending to the AI.
                         </Text>
                     </View>
 
-                    <View className="bg-slate-800 border border-slate-700 rounded-xl p-0 overflow-hidden mb-4">
+                    <View className="bg-surface border border-border rounded-xl p-0 overflow-hidden mb-4">
                         <TextInput
                             className="text-white p-4 text-sm font-mono leading-5 min-h-[200px]"
                             value={prompt}
@@ -114,7 +114,7 @@ export function ForecastSettings() {
                         </View>
                         <TouchableOpacity
                             onPress={handleReset}
-                            className="bg-red-500/10 border border-red-500/20 px-4 rounded-xl items-center justify-center"
+                            className="bg-error/10 border border-error/20 px-4 rounded-xl items-center justify-center"
                         >
                             <Ionicons name="refresh-outline" size={20} color={Colors.error} />
                         </TouchableOpacity>

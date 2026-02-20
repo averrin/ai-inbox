@@ -61,8 +61,8 @@ export const TimeRangesModal = ({ visible, onClose }: TimeRangesModalProps) => {
             <View>
                 {ranges.length === 0 ? (
                     <View className="items-center py-8">
-                        <Text className="text-slate-500 mb-2">No time ranges defined</Text>
-                        <Text className="text-slate-600 text-xs text-center px-8">
+                        <Text className="text-secondary mb-2">No time ranges defined</Text>
+                        <Text className="text-text-tertiary text-xs text-center px-8">
                             Create a time range to visualize recurring blocks like working hours or gym
                             time on your calendar.
                         </Text>
@@ -81,9 +81,9 @@ export const TimeRangesModal = ({ visible, onClose }: TimeRangesModalProps) => {
 
                 <TouchableOpacity
                     onPress={() => setIsCreating(true)}
-                    className="bg-slate-800 border-2 border-dashed border-slate-700 rounded-lg p-4 items-center mt-4"
+                    className="bg-surface border-2 border-dashed border-border rounded-lg p-4 items-center mt-4"
                 >
-                    <Text className="text-slate-400 font-bold">+ Add New Time Range</Text>
+                    <Text className="text-text-tertiary font-bold">+ Add New Time Range</Text>
                 </TouchableOpacity>
             </View>
         )
@@ -98,15 +98,15 @@ export const TimeRangesModal = ({ visible, onClose }: TimeRangesModalProps) => {
         >
             <View className="flex-1 bg-slate-950">
                 <SafeAreaView className="flex-1">
-                    <View className="px-4 py-3 border-b border-slate-800 flex-row justify-between items-center">
+                    <View className="px-4 py-3 border-b border-border flex-row justify-between items-center">
                         <Text className="text-white font-bold text-lg">Time Ranges</Text>
                         <TouchableOpacity onPress={onClose} className="p-2">
-                            <Text className="text-blue-500 font-bold text-base">Done</Text>
+                            <Text className="text-primary font-bold text-base">Done</Text>
                         </TouchableOpacity>
                     </View>
 
                     <ScrollView className="flex-1 px-4 py-4">
-                        <Text className="text-slate-400 text-sm mb-4">
+                        <Text className="text-text-tertiary text-sm mb-4">
                             Manage recurring time blocks that appear on your calendar.
                         </Text>
                         {renderContent()}

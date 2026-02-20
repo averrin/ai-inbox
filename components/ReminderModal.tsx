@@ -177,7 +177,7 @@ export function ReminderModal({ reminder, onClose }: ReminderModalProps) {
                 // IMAGE
                 const imageUrl = match[5];
                 parts.push(
-                    <View key={`img-${key++}`} className="my-2 rounded-lg overflow-hidden border border-slate-700">
+                    <View key={`img-${key++}`} className="my-2 rounded-lg overflow-hidden border border-border">
                         <Image 
                             source={{ uri: imageUrl }} 
                             style={{ width: '100%', aspectRatio: 16/9 }} 
@@ -240,15 +240,15 @@ export function ReminderModal({ reminder, onClose }: ReminderModalProps) {
             onRequestClose={onClose}
         >
             <View className="flex-1 bg-black/90 justify-center items-center px-4">
-                <View className="bg-slate-900 w-full max-w-lg rounded-2xl border-2 border-indigo-500 overflow-hidden">
+                <View className="bg-background w-full max-w-lg rounded-2xl border-2 border-primary overflow-hidden">
                     {/* Header */}
-                    <View className="bg-indigo-600 p-4 flex-row items-center">
-                        <View className="w-10 h-10 rounded-full bg-indigo-500 items-center justify-center mr-3">
+                    <View className="bg-primary p-4 flex-row items-center">
+                        <View className="w-10 h-10 rounded-full bg-primary items-center justify-center mr-3">
                             <Ionicons name="alarm" size={24} color="white" />
                         </View>
                         <View className="flex-1">
                             <Text className="text-white font-bold text-lg">Reminder</Text>
-                            <Text className="text-indigo-100 text-xs">
+                            <Text className="text-text-secondary text-xs">
                                 {new Date(reminder.reminderTime).toLocaleString(undefined, {
                                     hour12: timeFormat === '12h',
                                     hour: '2-digit', 
@@ -272,7 +272,7 @@ export function ReminderModal({ reminder, onClose }: ReminderModalProps) {
 
                     {/* Actions */}
                     {/* Actions */}
-                    <View className="p-4 border-t border-slate-700">
+                    <View className="p-4 border-t border-border">
                         
                         {!showPostponeMenu ? (
                             /* Default View */
@@ -280,7 +280,7 @@ export function ReminderModal({ reminder, onClose }: ReminderModalProps) {
                                 <View className="flex-row gap-3">
                                      <TouchableOpacity
                                         onPress={() => setShowPostponeMenu(true)}
-                                        className="flex-1 bg-slate-800 p-4 rounded-xl items-center flex-row justify-center border border-slate-700"
+                                        className="flex-1 bg-surface p-4 rounded-xl items-center flex-row justify-center border border-border"
                                     >
                                         <Ionicons name="time-outline" size={20} color="#fbbf24" style={{ marginRight: 8 }} />
                                         <Text className="text-white font-semibold">Postpone</Text>
@@ -309,10 +309,10 @@ export function ReminderModal({ reminder, onClose }: ReminderModalProps) {
                         ) : (
                             /* Postpone View */
                             <View>
-                                <View className="flex-row justify-between items-center mb-4 border-b border-slate-800 pb-2">
+                                <View className="flex-row justify-between items-center mb-4 border-b border-border pb-2">
                                     <Text className="text-white font-bold text-lg">Snooze for...</Text>
                                     <TouchableOpacity onPress={() => setShowPostponeMenu(false)}>
-                                        <Text className="text-indigo-400 font-medium">Cancel</Text>
+                                        <Text className="text-primary font-medium">Cancel</Text>
                                     </TouchableOpacity>
                                 </View>
                                 
@@ -321,7 +321,7 @@ export function ReminderModal({ reminder, onClose }: ReminderModalProps) {
                                         <TouchableOpacity
                                             key={preset.minutes}
                                             onPress={() => handlePostpone(preset.minutes)}
-                                            className="bg-slate-700 flex-grow px-4 py-3 rounded-xl items-center border border-slate-600"
+                                            className="bg-surface-highlight flex-grow px-4 py-3 rounded-xl items-center border border-border"
                                             style={{ minWidth: '30%' }}
                                         >
                                             <Text className="text-white font-medium">{preset.label}</Text>
@@ -334,25 +334,25 @@ export function ReminderModal({ reminder, onClose }: ReminderModalProps) {
                                         setCustomDate(new Date());
                                         setShowCustomPicker(true);
                                     }}
-                                    className="bg-indigo-600/20 border border-indigo-500/50 p-4 rounded-xl items-center flex-row justify-center"
+                                    className="bg-primary border border-primary p-4 rounded-xl items-center flex-row justify-center"
                                 >
                                     <Ionicons name="calendar-outline" size={20} color="#818cf8" style={{ marginRight: 8 }} />
-                                    <Text className="text-indigo-200 font-semibold">Pick Date & Time</Text>
+                                    <Text className="text-text-secondary font-semibold">Pick Date & Time</Text>
                                 </TouchableOpacity>
                             </View>
                         )}
                         
                         {/* Custom Date/Time Picker Overlay (hidden by logic if !showCustomPicker) */}
                         {showCustomPicker && (
-                            <View className="bg-slate-800 absolute bottom-0 left-0 right-0 p-4 rounded-t-2xl border-t border-slate-700 shadow-2xl z-50">
-                                <Text className="text-indigo-200 font-semibold mb-4 text-center">Set Custom Time</Text>
+                            <View className="bg-surface absolute bottom-0 left-0 right-0 p-4 rounded-t-2xl border-t border-border shadow-2xl z-50">
+                                <Text className="text-text-secondary font-semibold mb-4 text-center">Set Custom Time</Text>
                                 
                                 <View className="flex-row gap-3 mb-4">
                                     <TouchableOpacity
                                         onPress={() => setShowDatePicker(true)}
-                                        className="flex-1 bg-slate-700 p-3 rounded-xl items-center"
+                                        className="flex-1 bg-surface-highlight p-3 rounded-xl items-center"
                                     >
-                                        <Text className="text-slate-400 text-xs mb-1">Date</Text>
+                                        <Text className="text-text-tertiary text-xs mb-1">Date</Text>
                                         <Text className="text-white text-lg font-bold">
                                             {customDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric'})}
                                         </Text>
@@ -360,9 +360,9 @@ export function ReminderModal({ reminder, onClose }: ReminderModalProps) {
 
                                     <TouchableOpacity
                                         onPress={() => setShowTimePicker(true)}
-                                        className="flex-1 bg-slate-700 p-3 rounded-xl items-center"
+                                        className="flex-1 bg-surface-highlight p-3 rounded-xl items-center"
                                     >
-                                        <Text className="text-slate-400 text-xs mb-1">Time</Text>
+                                        <Text className="text-text-tertiary text-xs mb-1">Time</Text>
                                         <Text className="text-white text-lg font-bold">
                                             {customDate.toLocaleTimeString([], {
                                                 hour12: timeFormat === '12h',
@@ -411,13 +411,13 @@ export function ReminderModal({ reminder, onClose }: ReminderModalProps) {
                                 <View className="flex-row gap-3">
                                     <TouchableOpacity
                                         onPress={() => setShowCustomPicker(false)}
-                                        className="flex-1 bg-slate-700 p-4 rounded-xl items-center"
+                                        className="flex-1 bg-surface-highlight p-4 rounded-xl items-center"
                                     >
                                         <Text className="text-white font-semibold">Cancel</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         onPress={handleCustomPostpone}
-                                        className="flex-1 bg-indigo-600 p-4 rounded-xl items-center"
+                                        className="flex-1 bg-primary p-4 rounded-xl items-center"
                                     >
                                         <Text className="text-white font-semibold">Set Reminder</Text>
                                     </TouchableOpacity>

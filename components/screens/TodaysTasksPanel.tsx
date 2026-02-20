@@ -345,16 +345,16 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
         <View className="mt-2">
             <TouchableOpacity
                 onPress={toggleExpanded}
-                className="flex-row items-center justify-between p-3 bg-slate-800/50 mx-4 rounded-xl border border-slate-700"
+                className="flex-row items-center justify-between p-3 bg-surface/50 mx-4 rounded-xl border border-border"
             >
                 <View className="flex-row items-center gap-2">
                     <Ionicons name="checkbox-outline" size={18} color="#818cf8" />
-                    <Text className="text-slate-200 font-semibold text-sm">
+                    <Text className="text-text-primary font-semibold text-sm">
                         Focus for {dayjs(date).format('MMM D')}
                     </Text>
                     {displayItems.length > 0 && (
-                        <View className="bg-indigo-500/20 px-1.5 py-0.5 rounded">
-                            <Text className="text-indigo-400 text-[10px] font-bold">{displayItems.length}</Text>
+                        <View className="bg-primary px-1.5 py-0.5 rounded">
+                            <Text className="text-white text-[10px] font-bold">{displayItems.length}</Text>
                         </View>
                     )}
                 </View>
@@ -369,10 +369,10 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
             {expanded && (
                 <View className="mx-4 mt-2 gap-1">
                     {displayItems.length === 0 ? (
-                        <View className="p-4 items-center justify-center border border-dashed border-slate-700 rounded-lg">
-                            <Text className="text-slate-500 text-xs italic">Nothing for today</Text>
+                        <View className="p-4 items-center justify-center border border-dashed border-border rounded-lg">
+                            <Text className="text-secondary text-xs italic">Nothing for today</Text>
                             <TouchableOpacity onPress={onAdd} className="mt-2">
-                                <Text className="text-indigo-400 text-xs font-medium">Add a task</Text>
+                                <Text className="text-primary text-xs font-medium">Add a task</Text>
                             </TouchableOpacity>
                         </View>
                     ) : (
@@ -460,23 +460,23 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                                     <View key={`event-wrap-${index}`}>
                                         <TouchableOpacity
                                             key={`event-${index}`}
-                                            className={`mb-2 flex-row items-center p-3 bg-slate-800/30 rounded-xl border border-slate-800/50 ${isCompleted ? 'opacity-40' : ''}`}
+                                            className={`mb-2 flex-row items-center p-3 bg-surface/30 rounded-xl border border-border ${isCompleted ? 'opacity-40' : ''}`}
                                             style={highlightStyle}
                                             onPress={() => handleToggleEvent(item.data)}
                                         >
-                                            <View className={`w-5 h-5 rounded border items-center justify-center mr-3 ${isCompleted ? 'bg-indigo-600 border-indigo-600' : 'border-slate-600'}`}>
+                                            <View className={`w-5 h-5 rounded border items-center justify-center mr-3 ${isCompleted ? 'bg-primary border-primary' : 'border-border'}`}>
                                                 {isCompleted && <Ionicons name="checkmark" size={14} color="white" />}
                                             </View>
                                             <View className="flex-1">
-                                                <Text className={`text-sm font-medium ${isCompleted ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                                                <Text className={`text-sm font-medium ${isCompleted ? 'text-secondary line-through' : 'text-text-primary'}`}>
                                                     {item.data.title}
                                                 </Text>
                                                 <View className="flex-row items-center gap-2 mt-0.5">
-                                                    <Text className="text-[10px] text-slate-500">
+                                                    <Text className="text-[10px] text-secondary">
                                                         {dayjs(item.data.start).format('HH:mm')} - {dayjs(item.data.end).format('HH:mm')}
                                                     </Text>
-                                                    <View className="w-1 h-1 rounded-full bg-slate-700" />
-                                                    <Text className="text-[10px] text-indigo-400/80 font-bold uppercase tracking-tighter">Event</Text>
+                                                    <View className="w-1 h-1 rounded-full bg-surface-highlight" />
+                                                    <Text className="text-[10px] text-primary font-bold uppercase tracking-tighter">Event</Text>
                                                 </View>
                                             </View>
                                             <Ionicons name="calendar-outline" size={14} color="#475569" />

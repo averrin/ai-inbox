@@ -30,7 +30,7 @@ export function NavIconPicker({ visible, currentIcon, onSelect, onClose }: NavIc
                 onSelect(item);
                 onClose();
             }}
-            className={`flex-1 m-1 p-4 items-center justify-center rounded-xl border ${item === currentIcon ? 'bg-indigo-600 border-indigo-400' : 'bg-slate-800 border-slate-700'}`}
+            className={`flex-1 m-1 p-4 items-center justify-center rounded-xl border ${item === currentIcon ? 'bg-primary border-primary' : 'bg-surface border-border'}`}
             style={{ aspectRatio: 1 }}
         >
             <Ionicons name={item as any} size={24} color="white" />
@@ -44,14 +44,14 @@ export function NavIconPicker({ visible, currentIcon, onSelect, onClose }: NavIc
             transparent={true}
             onRequestClose={onClose}
         >
-            <View className="flex-1 bg-slate-900">
+            <View className="flex-1 bg-background">
                 <View
                     style={{ paddingTop: insets.top + 10 }}
                     className="flex-1 px-4"
                 >
                     <View className="flex-row items-center justify-between mb-4">
                         <Text className="text-white text-xl font-bold">Select Icon</Text>
-                        <TouchableOpacity onPress={onClose} className="p-2 bg-slate-800 rounded-full">
+                        <TouchableOpacity onPress={onClose} className="p-2 bg-surface rounded-full">
                             <Ionicons name="close" size={24} color="white" />
                         </TouchableOpacity>
                     </View>
@@ -61,7 +61,7 @@ export function NavIconPicker({ visible, currentIcon, onSelect, onClose }: NavIc
                         onChangeText={setSearch}
                         placeholder="Search icons..."
                         placeholderTextColor={Colors.text.tertiary}
-                        className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700 mb-4"
+                        className="bg-surface text-white p-4 rounded-xl border border-border mb-4"
                         autoCapitalize="none"
                         autoCorrect={false}
                     />

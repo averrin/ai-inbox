@@ -34,7 +34,7 @@ export function BaseEditor<T>({
     return (
         <View className="mt-2 mb-1">
             {label && (
-                <Text className="text-indigo-200 mb-2 font-medium text-xs uppercase tracking-wider">{label}</Text>
+                <Text className="text-text-secondary mb-2 font-medium text-xs uppercase tracking-wider">{label}</Text>
             )}
             
             <View className="flex-row flex-wrap gap-2">
@@ -42,7 +42,7 @@ export function BaseEditor<T>({
                 
                 <TouchableOpacity
                     onPress={onAdd}
-                    className="bg-slate-700 px-2.5 py-1 rounded-md flex-row items-center border border-slate-600"
+                    className="bg-surface-highlight px-2.5 py-1 rounded-md flex-row items-center border border-border"
                 >
                     <Ionicons name={addIcon as any} size={12} color="white" />
                     <Text className="text-white text-xs font-medium ml-1">{addLabel}</Text>
@@ -59,7 +59,7 @@ export function BaseEditor<T>({
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     className="flex-1 justify-center items-center bg-black/50"
                 >
-                    <View className="bg-slate-900 rounded-3xl p-6 w-[85%] max-w-md border border-slate-700">
+                    <View className="bg-background rounded-3xl p-6 w-[85%] max-w-md border border-border">
                         <View className="flex-row justify-between items-center mb-4">
                             <Text className="text-white text-xl font-bold">{modalTitle}</Text>
                             <TouchableOpacity onPress={onCloseModal}>
@@ -72,13 +72,13 @@ export function BaseEditor<T>({
                         <View className="flex-row gap-3 mt-4">
                             <TouchableOpacity
                                 onPress={onCloseModal}
-                                className="flex-1 bg-slate-800 p-4 rounded-xl items-center"
+                                className="flex-1 bg-surface p-4 rounded-xl items-center"
                             >
                                 <Text className="text-white font-semibold">Cancel</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={onConfirm}
-                                className="flex-1 bg-indigo-600 p-4 rounded-xl items-center"
+                                className="flex-1 bg-primary p-4 rounded-xl items-center"
                             >
                                 <Text className="text-white font-semibold">Confirm</Text>
                             </TouchableOpacity>

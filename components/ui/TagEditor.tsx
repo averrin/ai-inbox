@@ -41,7 +41,7 @@ export function TagEditor({ tags, onAddTag, onRemoveTag, label }: TagEditorProps
     };
 
     const renderItem = (tag: string, index: number) => (
-        <View key={`${tag}-${index}`} className="bg-indigo-600/80 px-2.5 py-1 rounded-md flex-row items-center border border-indigo-500/50">
+        <View key={`${tag}-${index}`} className="bg-primary px-2.5 py-1 rounded-md flex-row items-center border border-primary">
             <Text className="text-white mr-1 text-xs font-medium">{tag}</Text>
             <TouchableOpacity 
                 onPress={() => onRemoveTag(index)} 
@@ -54,16 +54,16 @@ export function TagEditor({ tags, onAddTag, onRemoveTag, label }: TagEditorProps
 
     const suggestionsUI = suggestions.length > 0 ? (
         <View className="max-h-40">
-            <Text className="text-slate-400 text-xs font-bold mb-2 uppercase">Suggestions</Text>
+            <Text className="text-text-tertiary text-xs font-bold mb-2 uppercase">Suggestions</Text>
             <ScrollView style={{ maxHeight: 150 }} keyboardShouldPersistTaps="handled">
                 <View className="flex-row flex-wrap gap-2">
                     {suggestions.map(tag => (
                         <TouchableOpacity
                             key={tag}
                             onPress={() => setInputValue(tag)}
-                            className="bg-slate-800 border border-slate-700 px-3 py-2 rounded-lg"
+                            className="bg-surface border border-border px-3 py-2 rounded-lg"
                         >
-                            <Text className="text-slate-300 text-sm">#{tag}</Text>
+                            <Text className="text-text-secondary text-sm">#{tag}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -89,7 +89,7 @@ export function TagEditor({ tags, onAddTag, onRemoveTag, label }: TagEditorProps
                 onChangeText={setInputValue}
                 placeholder="Enter tag name..."
                 placeholderTextColor={Colors.text.tertiary}
-                className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-white font-medium"
+                className="bg-surface/50 border border-border rounded-xl p-4 text-white font-medium"
                 onSubmitEditing={handleConfirm}
                 returnKeyType="done"
                 autoFocus

@@ -49,8 +49,8 @@ export function LinksFolderView({ folderUri, folderPath }: LinksFolderViewProps)
     return (
         <View className="flex-1 bg-transparent">
              {/* Search Bar */}
-             <View className="px-4 py-2 bg-slate-900/50 border-b border-slate-800">
-                <View className="flex-row items-center bg-slate-800 rounded-lg px-3 py-2 border border-slate-700">
+             <View className="px-4 py-2 bg-background/50 border-b border-border">
+                <View className="flex-row items-center bg-surface rounded-lg px-3 py-2 border border-border">
                     <Ionicons name="search" size={18} color={Colors.text.tertiary} />
                     <TextInput
                         className="flex-1 ml-2 text-white text-sm"

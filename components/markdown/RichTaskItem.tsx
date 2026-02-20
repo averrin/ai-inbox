@@ -141,11 +141,11 @@ export function RichTaskItem({
             )}
             {task.properties.event_id && (
                 <View
-                    className="bg-indigo-900/30 px-1.5 py-0.5 rounded border border-indigo-500/30 flex-row items-center"
+                    className="bg-surface-highlight px-1.5 py-0.5 rounded border border-primary flex-row items-center"
                     style={{ backgroundColor: '#818cf833', borderColor: '#818cf866' }}
                 >
                     <Ionicons name="calendar-outline" size={10} color="#818cf8" style={{ marginRight: 4 }} />
-                    <Text className="text-indigo-300 text-[10px] font-medium" style={{ color: '#818cf8' }} numberOfLines={1}>
+                    <Text className="text-text-secondary text-[10px] font-medium" style={{ color: '#818cf8' }} numberOfLines={1}>
                         {task.properties.event_title || 'Event'}
                     </Text>
                 </View>
@@ -169,15 +169,15 @@ export function RichTaskItem({
                 return (
                     <View
                         key={`prop-${key}`}
-                        className="bg-slate-700/50 px-1.5 py-0.5 rounded border border-slate-600/50 flex-row items-center"
+                        className="bg-surface-highlight/50 px-1.5 py-0.5 rounded border border-border flex-row items-center"
                         style={customStyle}
                     >
                         {key === 'context' ? (
-                            <Text className="text-slate-200 text-[10px]" style={textStyle}>@{value}</Text>
+                            <Text className="text-text-primary text-[10px]" style={textStyle}>@{value}</Text>
                         ) : (
                             <>
-                                <Text className="text-slate-400 text-[10px] mr-1" style={textStyle}>{key}:</Text>
-                                <Text className="text-slate-200 text-[10px]" style={textStyle}>
+                                <Text className="text-text-tertiary text-[10px] mr-1" style={textStyle}>{key}:</Text>
+                                <Text className="text-text-primary text-[10px]" style={textStyle}>
                                     {key === 'date' && String(value) === dayjs().format('YYYY-MM-DD') ? 'Today' : String(value)}
                                 </Text>
                             </>
@@ -199,10 +199,10 @@ export function RichTaskItem({
                     <TouchableOpacity
                         key={`tag-${tag}`}
                         onPress={() => onTagPress?.(tag)}
-                        className="bg-indigo-900/30 px-1.5 py-0.5 rounded border border-indigo-500/30"
+                        className="bg-surface-highlight px-1.5 py-0.5 rounded border border-primary"
                         style={customStyle}
                     >
-                        <Text className="text-indigo-300 text-[10px]" style={textStyle}>#{tag}</Text>
+                        <Text className="text-text-secondary text-[10px]" style={textStyle}>#{tag}</Text>
                     </TouchableOpacity>
                 );
             })}
@@ -237,7 +237,7 @@ export function RichTaskItem({
             title={
                 <View className="flex-row items-center">
                     <Text
-                        className={`text-sm font-medium ${task.status === 'x' || task.status === '-' ? 'text-slate-500 line-through' : 'text-white'} flex-shrink`}
+                        className={`text-sm font-medium ${task.status === 'x' || task.status === '-' ? 'text-secondary line-through' : 'text-white'} flex-shrink`}
                         numberOfLines={1}
                     >
                         {task.title}

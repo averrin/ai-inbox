@@ -12,8 +12,8 @@ function PulsingIcon() {
     const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
     return (
         <View className="items-center justify-center p-10">
-            <Animated.View style={style} className="w-24 h-24 bg-indigo-500 rounded-full opacity-30 absolute" />
-            <View className="w-16 h-16 bg-indigo-400 rounded-full items-center justify-center shadow-lg shadow-indigo-500/50">
+            <Animated.View style={style} className="w-24 h-24 bg-primary rounded-full opacity-30 absolute" />
+            <View className="w-16 h-16 bg-primary rounded-full items-center justify-center shadow-lg shadow-indigo-500/50">
                 <Ionicons name="sparkles" size={32} color="white" />
             </View>
         </View>

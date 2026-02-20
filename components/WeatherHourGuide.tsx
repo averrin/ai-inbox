@@ -25,13 +25,13 @@ export function WeatherHourGuide({ hour, ampm, date }: Props) {
 
     return (
         <View className="flex-1 items-center justify-center py-1">
-            <Text className="text-slate-500 font-bold" style={{ fontSize: Typography.sizes.xs }}>
+            <Text className="text-secondary font-bold" style={{ fontSize: Typography.sizes.xs }}>
                 {formatHour(hour, ampm)}
             </Text>
             {hourlyWeather && (
                 <View className="mt-1 items-center">
                     <Ionicons name={hourlyWeather.icon as any} size={14} color={Colors.text.tertiary} />
-                    <Text className="text-slate-600" style={{ fontSize: Typography.sizes.xxs }}>
+                    <Text className="text-text-tertiary" style={{ fontSize: Typography.sizes.xxs }}>
                         {Math.round(hourlyWeather.temp)}°
                     </Text>
                 </View>

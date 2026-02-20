@@ -202,15 +202,15 @@ export function NavigationSettings() {
 
         return (
             <Modal visible={!!editingGroup} animationType="slide" transparent>
-                <View className="flex-1 bg-slate-900 pt-12 px-4">
+                <View className="flex-1 bg-background pt-12 px-4">
                     <View className="flex-row justify-between items-center mb-6">
                         <Text className="text-white text-xl font-bold">Edit Group: {editingGroup.title}</Text>
-                        <TouchableOpacity onPress={() => setEditingGroup(null)} className="p-2 bg-slate-800 rounded-full">
+                        <TouchableOpacity onPress={() => setEditingGroup(null)} className="p-2 bg-surface rounded-full">
                             <Ionicons name="close" size={24} color="white" />
                         </TouchableOpacity>
                     </View>
 
-                    <Text className="text-slate-400 mb-4">Select screens to include in this group menu.</Text>
+                    <Text className="text-text-tertiary mb-4">Select screens to include in this group menu.</Text>
 
                     <ScrollView>
                         {DEFAULT_NAV_ITEMS.map(screen => {
@@ -222,7 +222,7 @@ export function NavigationSettings() {
                                 <TouchableOpacity
                                     key={screen.id}
                                     onPress={() => !isLocked && toggleScreenInGroup(screen.id)}
-                                    className={`p-4 rounded-xl mb-2 border flex-row items-center justify-between ${isSelected ? 'bg-indigo-900/40 border-indigo-500' : 'bg-slate-800 border-slate-700'} ${isLocked ? 'opacity-50' : ''}`}
+                                    className={`p-4 rounded-xl mb-2 border flex-row items-center justify-between ${isSelected ? 'bg-surface-highlight border-primary' : 'bg-surface border-border'} ${isLocked ? 'opacity-50' : ''}`}
                                     disabled={!!isLocked}
                                 >
                                     <View className="flex-row items-center gap-3">
@@ -232,11 +232,11 @@ export function NavigationSettings() {
                                             size={20}
                                             color={isSelected ? '#818cf8' : Colors.text.tertiary}
                                         />
-                                        <Text className={`font-medium ${isSelected ? 'text-white' : 'text-slate-400'}`}>
+                                        <Text className={`font-medium ${isSelected ? 'text-white' : 'text-text-tertiary'}`}>
                                             {screen.title}
                                         </Text>
                                     </View>
-                                    {!!isLocked && <Text className="text-xs text-slate-500 italic">In another group</Text>}
+                                    {!!isLocked && <Text className="text-xs text-secondary italic">In another group</Text>}
                                     {isSelected && <Ionicons name="checkmark-circle" size={20} color="#818cf8" />}
                                 </TouchableOpacity>
                             );
@@ -252,27 +252,27 @@ export function NavigationSettings() {
         const isRight = item.segment === 'right';
 
         return (
-            <View key={item.id} className={`border rounded-xl p-3 mb-3 ${isGroup ? 'bg-indigo-900/20 border-indigo-500/30' : 'bg-slate-800 border-slate-700'}`}>
+            <View key={item.id} className={`border rounded-xl p-3 mb-3 ${isGroup ? 'bg-surface-highlight border-primary' : 'bg-surface border-border'}`}>
                 <View className="flex-row items-center justify-between mb-2">
                     <View className="flex-row items-center gap-2">
                         <TouchableOpacity
                             onPress={() => handleMove(item.id, 'up')}
                             disabled={index === 0}
-                            className={`p-1 rounded ${index === 0 ? 'opacity-30' : 'bg-slate-700'}`}
+                            className={`p-1 rounded ${index === 0 ? 'opacity-30' : 'bg-surface-highlight'}`}
                         >
                             <Ionicons name="arrow-up" size={16} color="white" />
                         </TouchableOpacity>
                         <TouchableOpacity
                             onPress={() => handleMove(item.id, 'down')}
                             disabled={index === listLength - 1}
-                            className={`p-1 rounded ${index === listLength - 1 ? 'opacity-30' : 'bg-slate-700'}`}
+                            className={`p-1 rounded ${index === listLength - 1 ? 'opacity-30' : 'bg-surface-highlight'}`}
                         >
                             <Ionicons name="arrow-down" size={16} color="white" />
                         </TouchableOpacity>
 
                         <View className="flex-row items-center">
                             {isGroup && <Ionicons name="folder-outline" size={14} color="#818cf8" style={{ marginRight: 4 }} />}
-                            <Text className="text-slate-500 text-xs font-mono ml-1" numberOfLines={1} style={{ maxWidth: 100 }}>
+                            <Text className="text-secondary text-xs font-mono ml-1" numberOfLines={1} style={{ maxWidth: 100 }}>
                                 {isGroup ? 'Group' : item.id}
                             </Text>
                         </View>
@@ -280,7 +280,7 @@ export function NavigationSettings() {
                     <View className="flex-row items-center gap-2">
                         <TouchableOpacity
                              onPress={() => handleSwitchSegment(item.id)}
-                             className="bg-slate-700 px-2 py-1 rounded"
+                             className="bg-surface-highlight px-2 py-1 rounded"
                         >
                              <Text className="text-xs text-white">Move to {isRight ? 'Left' : 'Right'}</Text>
                         </TouchableOpacity>
@@ -289,7 +289,7 @@ export function NavigationSettings() {
                             <View className="flex-row gap-2 items-center">
                                     <TouchableOpacity
                                     onPress={() => setEditingGroup(item)}
-                                    className="bg-indigo-600 px-3 py-1 rounded-full h-6 justify-center"
+                                    className="bg-primary px-3 py-1 rounded-full h-6 justify-center"
                                 >
                                     <Text className="text-white text-xs font-bold">Edit</Text>
                                 </TouchableOpacity>
@@ -298,7 +298,7 @@ export function NavigationSettings() {
 
                         <TouchableOpacity
                             onPress={() => handleDelete(item.id)}
-                            className="bg-red-500/20 w-8 h-8 items-center justify-center rounded-full ml-1"
+                            className="bg-error/20 w-8 h-8 items-center justify-center rounded-full ml-1"
                         >
                             <Ionicons name="trash-outline" size={18} color={Colors.error} />
                         </TouchableOpacity>
@@ -307,18 +307,18 @@ export function NavigationSettings() {
 
                 <View className="flex-row gap-2">
                     <View className="flex-1">
-                        <Text className="text-slate-500 text-[10px] mb-1 uppercase">Title</Text>
+                        <Text className="text-secondary text-[10px] mb-1 uppercase">Title</Text>
                         <TextInput
                             value={item.title}
                             onChangeText={(text) => handleUpdate(item.id, 'title', text)}
-                            className="bg-slate-900/50 text-white px-3 py-2 h-10 rounded-lg border border-slate-700 text-sm"
+                            className="bg-background/50 text-white px-3 py-2 h-10 rounded-lg border border-border text-sm"
                         />
                     </View>
                     <View className="flex-1">
-                        <Text className="text-slate-500 text-[10px] mb-1 uppercase">Icon</Text>
+                        <Text className="text-secondary text-[10px] mb-1 uppercase">Icon</Text>
                         <TouchableOpacity
                             onPress={() => setIconPickerTarget({ id: item.id })}
-                            className="flex-row items-center bg-slate-900/50 rounded-lg border border-slate-700 px-3 py-2 h-10"
+                            className="flex-row items-center bg-background/50 rounded-lg border border-border px-3 py-2 h-10"
                         >
                             <Ionicons
                                 // @ts-ignore
@@ -327,7 +327,7 @@ export function NavigationSettings() {
                                 color="#818cf8"
                                 style={{ marginRight: 8 }}
                             />
-                            <Text className="text-slate-400 text-sm flex-1" numberOfLines={1}>{item.icon}</Text>
+                            <Text className="text-text-tertiary text-sm flex-1" numberOfLines={1}>{item.icon}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -339,7 +339,7 @@ export function NavigationSettings() {
         <ScrollView>
             <Card>
                 <View className="mb-6">
-                    <Text className="text-indigo-200 mb-2 font-semibold">Left Segment</Text>
+                    <Text className="text-text-secondary mb-2 font-semibold">Left Segment</Text>
                     {leftItems.map((item, index) => renderItem(item, index, leftItems.length))}
 
                     <Button
@@ -350,8 +350,8 @@ export function NavigationSettings() {
                     />
                 </View>
 
-                <View className="mb-4 pt-4 border-t border-slate-700">
-                    <Text className="text-indigo-200 mb-2 font-semibold">Right Segment</Text>
+                <View className="mb-4 pt-4 border-t border-border">
+                    <Text className="text-text-secondary mb-2 font-semibold">Right Segment</Text>
                     {rightItems.map((item, index) => renderItem(item, index, rightItems.length))}
 
                      <Button
@@ -363,24 +363,24 @@ export function NavigationSettings() {
                 </View>
 
                 {missingItems.length > 0 && (
-                    <View className="mb-4 pt-4 border-t border-slate-700">
-                        <Text className="text-indigo-200 mb-2 font-semibold">Available Screens</Text>
+                    <View className="mb-4 pt-4 border-t border-border">
+                        <Text className="text-text-secondary mb-2 font-semibold">Available Screens</Text>
                         <View className="flex-row flex-wrap gap-2">
                             {missingItems.map(screen => (
                                 <TouchableOpacity
                                     key={screen.id}
                                     onPress={() => handleAddScreen(screen)}
-                                    className="flex-row items-center bg-slate-800 border border-slate-700 rounded-lg px-3 py-2"
+                                    className="flex-row items-center bg-surface border border-border rounded-lg px-3 py-2"
                                 >
                                     <Ionicons name="add" size={16} color="#818cf8" style={{ marginRight: 4 }} />
-                                    <Text className="text-slate-300 text-sm">{screen.title}</Text>
+                                    <Text className="text-text-secondary text-sm">{screen.title}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
                     </View>
                 )}
 
-                <View className="mt-4 pt-4 border-t border-slate-700 flex-row gap-2">
+                <View className="mt-4 pt-4 border-t border-border flex-row gap-2">
                      <View className="flex-1">
                         <Button
                             title="Reset..."

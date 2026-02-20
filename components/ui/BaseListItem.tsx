@@ -30,7 +30,7 @@ export function BaseListItem({
 
     return (
         <Container 
-            className="flex-row items-center bg-slate-800/50 p-3 rounded-xl border border-slate-700 mb-2"
+            className="flex-row items-center bg-surface/50 p-3 rounded-xl border border-border mb-2"
             onPress={onPress}
             onLongPress={onLongPress}
             activeOpacity={onPress ? activeOpacity : 1}
@@ -45,7 +45,7 @@ export function BaseListItem({
 
             {/* Left Icon - Hidden in selection mode to avoid redundancy */}
             {leftIcon && !selectionComponent && (
-                <View className={`${hideIconBackground ? 'mr-3' : 'mr-3 items-center justify-center w-10 h-10 bg-slate-700 rounded-lg overflow-hidden'}`}>
+                <View className={`${hideIconBackground ? 'mr-3' : 'mr-3 items-center justify-center w-10 h-10 bg-surface-highlight rounded-lg overflow-hidden'}`}>
                     {leftIcon}
                 </View>
             )}
@@ -61,7 +61,7 @@ export function BaseListItem({
                 {subtitle && (
                     <View className="mt-0.5">
                         {typeof subtitle === 'string' ? (
-                            <Text className="text-slate-400 text-xs" numberOfLines={1}>{subtitle}</Text>
+                            <Text className="text-text-tertiary text-xs" numberOfLines={1}>{subtitle}</Text>
                         ) : (
                             subtitle
                         )}

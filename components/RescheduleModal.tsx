@@ -19,10 +19,10 @@ export function RescheduleModal({
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
             <View className="flex-1 justify-center items-center bg-black/50 px-4">
-                <View className="bg-slate-900 w-full max-w-md p-6 rounded-3xl border border-slate-700">
+                <View className="bg-background w-full max-w-md p-6 rounded-3xl border border-border">
                     <Text className="text-white text-xl font-bold mb-4 text-center">Quick Reschedule</Text>
 
-                    <Text className="text-slate-300 text-center mb-6">
+                    <Text className="text-text-secondary text-center mb-6">
                         Choose when to move this task.
                     </Text>
 
@@ -30,11 +30,11 @@ export function RescheduleModal({
                         {showLater && (
                             <TouchableOpacity
                                 onPress={() => onSelect('later')}
-                                className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
+                                className="bg-surface p-4 rounded-xl border border-border flex-row items-center justify-between"
                             >
                                 <View>
                                     <Text className="text-white font-semibold">Later Today</Text>
-                                    <Text className="text-slate-400 text-xs">Find a free slot +30m from now</Text>
+                                    <Text className="text-text-tertiary text-xs">Find a free slot +30m from now</Text>
                                 </View>
                                 <Ionicons name="time-outline" size={20} color={Colors.text.tertiary} />
                             </TouchableOpacity>
@@ -42,11 +42,11 @@ export function RescheduleModal({
 
                         <TouchableOpacity
                             onPress={() => onSelect('tomorrow')}
-                            className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-row items-center justify-between"
+                            className="bg-surface p-4 rounded-xl border border-border flex-row items-center justify-between"
                         >
                             <View>
                                 <Text className="text-white font-semibold">Tomorrow</Text>
-                                <Text className="text-slate-400 text-xs">Find a free slot tomorrow morning</Text>
+                                <Text className="text-text-tertiary text-xs">Find a free slot tomorrow morning</Text>
                             </View>
                             <Ionicons name="sunny-outline" size={20} color={Colors.text.tertiary} />
                         </TouchableOpacity>
@@ -55,7 +55,7 @@ export function RescheduleModal({
                             onPress={onClose}
                             className="mt-2 p-4 rounded-xl items-center"
                         >
-                            <Text className="text-slate-500 font-semibold">Cancel</Text>
+                            <Text className="text-secondary font-semibold">Cancel</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

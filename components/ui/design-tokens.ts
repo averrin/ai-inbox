@@ -2,7 +2,7 @@
 
 export const Colors = {
     // Brand / Semantic
-    primary: '#3b82f6', // blue-500
+    primary: '#9f6efaff', // blue-500
     secondary: '#64748b', // slate-500
     success: '#22c55e', // green-500
     warning: '#eab308', // yellow-500
@@ -44,8 +44,8 @@ export const Colors = {
 };
 
 export const Gradients = {
-    appBackground: ['#0f172a', '#1e1b4b', '#312e81'],
-    loader: ['#06b6d4', '#ec4899', '#f59e0b'],
+    appBackground: ['#0f172a', '#1e1b4b', '#312e81'] as readonly string[],
+    loader: ['#06b6d4', '#ec4899', '#f59e0b'] as readonly string[],
 };
 
 // Extracted from ColorPicker.tsx

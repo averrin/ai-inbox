@@ -48,8 +48,8 @@ export function TimeRangesSettings() {
             <View>
                 {ranges.length === 0 ? (
                     <View className="items-center py-8">
-                        <Text className="text-slate-500 mb-2">No time ranges defined</Text>
-                        <Text className="text-slate-600 text-xs text-center px-8">
+                        <Text className="text-secondary mb-2">No time ranges defined</Text>
+                        <Text className="text-text-tertiary text-xs text-center px-8">
                             Create a time range to visualize recurring blocks like working hours or gym
                             time on your calendar.
                         </Text>
@@ -68,9 +68,9 @@ export function TimeRangesSettings() {
 
                 <TouchableOpacity
                     onPress={() => setIsCreating(true)}
-                    className="bg-slate-800 border-2 border-dashed border-slate-700 rounded-lg p-4 items-center mt-4"
+                    className="bg-surface border-2 border-dashed border-border rounded-lg p-4 items-center mt-4"
                 >
-                    <Text className="text-slate-400 font-bold">+ Add New Time Range</Text>
+                    <Text className="text-text-tertiary font-bold">+ Add New Time Range</Text>
                 </TouchableOpacity>
             </View>
         )
@@ -78,7 +78,7 @@ export function TimeRangesSettings() {
 
     return (
         <View className="flex-1 px-4">
-            <Text className="text-slate-400 text-sm mb-4">
+            <Text className="text-text-tertiary text-sm mb-4">
                 Manage recurring time blocks that appear on your calendar.
             </Text>
             <ScrollView className="flex-1">

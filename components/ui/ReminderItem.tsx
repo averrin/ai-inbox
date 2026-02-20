@@ -34,17 +34,17 @@ export function ReminderItem({ reminder, relativeTime, onEdit, onDelete, onShow,
         <View className="flex-row items-center gap-2">
             <Text className="text-white font-bold text-sm" numberOfLines={1}>{title || reminder.fileName.replace('.md', '')}</Text>
             {reminder.recurrenceRule && (
-                 <View className="flex-row items-center bg-indigo-900/50 px-1.5 py-0.5 rounded">
+                 <View className="flex-row items-center bg-surface-highlight px-1.5 py-0.5 rounded">
                     <Ionicons name="repeat" size={10} color="#818cf8" />
                 </View>
             )}
             {reminder.alarm && (
-                <View className="flex-row items-center bg-red-900/50 px-1.5 py-0.5 rounded">
+                <View className="flex-row items-center bg-surface-highlight px-1.5 py-0.5 rounded">
                      <Ionicons name="notifications" size={10} color="#f87171" />
                 </View>
             )}
             {reminder.persistent && (
-                <View className="flex-row items-center bg-yellow-900/50 px-1.5 py-0.5 rounded">
+                <View className="flex-row items-center bg-surface-highlight px-1.5 py-0.5 rounded">
                     <Ionicons name="alert-circle" size={10} color="#facc15" />
                </View>
            )}
@@ -54,13 +54,13 @@ export function ReminderItem({ reminder, relativeTime, onEdit, onDelete, onShow,
     const subtitle = (
         <View>
             <View className="flex-row items-center flex-wrap">
-                 <Text className="text-yellow-400 text-xs font-medium mr-2">{formattedTime}</Text>
+                 <Text className="text-warning text-xs font-medium mr-2">{formattedTime}</Text>
                  {relativeTime && (
-                    <Text className="text-indigo-300 text-xs">({relativeTime})</Text>
+                    <Text className="text-text-secondary text-xs">({relativeTime})</Text>
                  )}
             </View>
             {reminder.content ? (
-                <Text className="text-slate-400 text-xs mt-0.5" numberOfLines={1}>{reminder.content}</Text>
+                <Text className="text-text-tertiary text-xs mt-0.5" numberOfLines={1}>{reminder.content}</Text>
             ) : null}
         </View>
     );

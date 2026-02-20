@@ -47,9 +47,9 @@ function SessionActionMenu({ visible, onClose, actions }: { visible: boolean, on
     return (
         <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
             <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={onClose}>
-                <View className="bg-slate-900 rounded-t-2xl p-4 pb-10 border-t border-slate-700">
+                <View className="bg-background rounded-t-2xl p-4 pb-10 border-t border-border">
                     <View className="items-center mb-4">
-                        <View className="w-10 h-1 bg-slate-700 rounded-full" />
+                        <View className="w-10 h-1 bg-surface-highlight rounded-full" />
                     </View>
                     {actions.map((action, index) => (
                         <TouchableOpacity
@@ -60,14 +60,14 @@ function SessionActionMenu({ visible, onClose, actions }: { visible: boolean, on
                                     onClose();
                                 }
                             }}
-                            className={`flex-row items-center py-4 border-b border-slate-800 ${action.disabled ? 'opacity-50' : ''}`}
+                            className={`flex-row items-center py-4 border-b border-border ${action.disabled ? 'opacity-50' : ''}`}
                             disabled={action.disabled}
                         >
                             <Ionicons name={action.icon as any} size={20} color={action.color || "white"} style={{ marginRight: 16 }} />
                             <Text className={`text-base font-medium ${action.color ? '' : 'text-white'}`} style={action.color ? { color: action.color } : {}}>{action.label}</Text>
                         </TouchableOpacity>
                     ))}
-                    <TouchableOpacity onPress={onClose} className="mt-4 py-3 bg-slate-800 rounded-xl items-center">
+                    <TouchableOpacity onPress={onClose} className="mt-4 py-3 bg-surface rounded-xl items-center">
                         <Text className="text-white font-bold">Cancel</Text>
                     </TouchableOpacity>
                 </View>
@@ -97,15 +97,15 @@ function RepoSelector({ visible, onClose, onSelect, token }: { visible: boolean,
     return (
         <Modal visible={visible} animationType="slide" transparent>
             <View className="flex-1 bg-black/80 justify-center px-4">
-                <View className="bg-slate-900 rounded-2xl max-h-[80%] overflow-hidden w-full border border-slate-700">
-                    <View className="p-4 border-b border-slate-700 flex-row justify-between items-center bg-slate-800">
+                <View className="bg-background rounded-2xl max-h-[80%] overflow-hidden w-full border border-border">
+                    <View className="p-4 border-b border-border flex-row justify-between items-center bg-surface">
                         <Text className="text-white font-bold text-lg">Select Repository</Text>
                         <TouchableOpacity onPress={onClose}>
                             <Ionicons name="close" size={24} color="white" />
                         </TouchableOpacity>
                     </View>
-                    <View className="p-4 bg-slate-900">
-                        <View className="bg-slate-800 rounded-lg flex-row items-center px-3 mb-2 border border-slate-700">
+                    <View className="p-4 bg-background">
+                        <View className="bg-surface rounded-lg flex-row items-center px-3 mb-2 border border-border">
                             <Ionicons name="search" size={20} color={Colors.text.tertiary} />
                             <TextInput
                                 className="flex-1 text-white p-3"
@@ -123,16 +123,16 @@ function RepoSelector({ visible, onClose, onSelect, token }: { visible: boolean,
                         <FlatList
                             data={filtered}
                             keyExtractor={item => item.id.toString()}
-                            className="bg-slate-900"
+                            className="bg-background"
                             contentContainerStyle={{ paddingBottom: 20 }}
                             renderItem={({ item }) => (
                                 <TouchableOpacity
-                                    className="p-4 border-b border-slate-800 flex-row items-center justify-between"
+                                    className="p-4 border-b border-border flex-row items-center justify-between"
                                     onPress={() => onSelect(item)}
                                 >
                                     <View className="flex-1 mr-2">
                                         <Text className="text-white font-medium text-base">{item.full_name}</Text>
-                                        {item.description && <Text className="text-slate-500 text-xs" numberOfLines={1}>{item.description}</Text>}
+                                        {item.description && <Text className="text-secondary text-xs" numberOfLines={1}>{item.description}</Text>}
                                     </View>
                                     {item.private && <Ionicons name="lock-closed" size={14} color={Colors.text.tertiary} />}
                                 </TouchableOpacity>
@@ -204,9 +204,9 @@ function CheckStatusItem({ check, compact = false }: { check: CheckRun, compact?
                         color={getColor()}
                     />
                 </Animated.View>
-                <Text className="text-slate-300 text-xs ml-2 flex-1" numberOfLines={1}>{check.name}</Text>
+                <Text className="text-text-secondary text-xs ml-2 flex-1" numberOfLines={1}>{check.name}</Text>
             </View>
-            <Text className="text-slate-500 text-xs">{check.status}</Text>
+            <Text className="text-secondary text-xs">{check.status}</Text>
         </TouchableOpacity>
     );
 }
@@ -404,7 +404,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
 
     if (embedded) {
         return (
-            <View className={`mt-3 pt-3 border-t border-slate-700/60 ${prInactive ? 'opacity-50' : ''}`}>
+            <View className={`mt-3 pt-3 border-t border-border/60 ${prInactive ? 'opacity-50' : ''}`}>
                 <View className="flex-row items-center justify-between mb-1">
                     <TouchableOpacity
                         onPress={() => Linking.openURL(run.html_url)}
@@ -417,7 +417,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                             <View className="flex-row items-center">
                                 <Text className="text-white font-bold text-sm flex-1" numberOfLines={1}>{run.name}</Text>
                             </View>
-                            <Text className="text-slate-500 text-[10px]">
+                            <Text className="text-secondary text-[10px]">
                                 {dayjs(run.created_at).fromNow()} • {run.head_branch}
                             </Text>
                         </View>
@@ -428,7 +428,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                             <TouchableOpacity
                                 onPress={handleDownloadArtifact}
                                 disabled={isDownloading}
-                                className={`px-2 py-1 ${isDownloading ? 'bg-slate-600' : 'bg-slate-700/50'} rounded-lg flex-row items-center overflow-hidden`}
+                                className={`px-2 py-1 ${isDownloading ? 'bg-surface-highlight' : 'bg-surface-highlight/50'} rounded-lg flex-row items-center overflow-hidden`}
                             >
                                 {isDownloading && (
                                     <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
@@ -445,17 +445,17 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                         ) : (
                             <TouchableOpacity
                                 onPress={fetchArtifactsData}
-                                className="px-2 py-1 bg-slate-800/30 border border-slate-700/50 rounded-lg flex-row items-center"
+                                className="px-2 py-1 bg-surface/30 border border-border/50 rounded-lg flex-row items-center"
                             >
                                 <Ionicons name="alert-circle-outline" size={12} color={Colors.secondary} />
-                                <Text className="text-slate-500 text-[10px] font-medium ml-1">No Artifact</Text>
+                                <Text className="text-secondary text-[10px] font-medium ml-1">No Artifact</Text>
                             </TouchableOpacity>
                         )}
 
                         {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
                             <TouchableOpacity
                                 onPress={toggleWatch}
-                                className={`p-1.5 ml-1 rounded-lg ${isWatched ? 'bg-indigo-500/20' : ''}`}
+                                className={`p-1.5 ml-1 rounded-lg ${isWatched ? 'bg-primary' : ''}`}
                             >
                                 <Ionicons name={isWatched ? "eye" : "eye-outline"} size={16} color={isWatched ? "#818cf8" : Colors.text.tertiary} />
                             </TouchableOpacity>
@@ -468,8 +468,8 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                 </View>
 
                 {expanded && (
-                    <View className="mt-2 border-t border-slate-800 pt-2">
-                        <Text className="text-slate-500 text-[10px] font-bold mb-2 uppercase">Checks Status</Text>
+                    <View className="mt-2 border-t border-border pt-2">
+                        <Text className="text-secondary text-[10px] font-bold mb-2 uppercase">Checks Status</Text>
                         {checksLoading ? (
                             <ActivityIndicator size="small" color={Colors.text.tertiary} />
                         ) : checks && checks.length > 0 ? (
@@ -479,7 +479,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                                 ))}
                             </View>
                         ) : (
-                            <Text className="text-slate-500 text-[10px] italic">No checks found</Text>
+                            <Text className="text-secondary text-[10px] italic">No checks found</Text>
                         )}
                     </View>
                 )}
@@ -516,7 +516,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                         <View className="flex-row items-center">
                             <Text className="text-white font-bold text-base flex-1" numberOfLines={1}>{run.name}</Text>
                         </View>
-                        <Text className="text-slate-400 text-xs">
+                        <Text className="text-text-tertiary text-xs">
                             {dayjs(run.created_at).fromNow()} • {run.head_branch}
                         </Text>
                     </View>
@@ -527,7 +527,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                         <TouchableOpacity
                             onPress={handleDownloadArtifact}
                             disabled={isDownloading}
-                            className={`px-3 py-1.5 ${isDownloading ? 'bg-slate-600' : 'bg-slate-700'} rounded-lg flex-row items-center overflow-hidden`}
+                            className={`px-3 py-1.5 ${isDownloading ? 'bg-surface-highlight' : 'bg-surface-highlight'} rounded-lg flex-row items-center overflow-hidden`}
                         >
                             {isDownloading && (
                                 <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
@@ -544,17 +544,17 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                     ) : (
                         <TouchableOpacity
                             onPress={fetchArtifactsData}
-                            className="px-3 py-1.5 bg-slate-800/50 border border-slate-700 rounded-lg flex-row items-center"
+                            className="px-3 py-1.5 bg-surface/50 border border-border rounded-lg flex-row items-center"
                         >
                             <Ionicons name="alert-circle-outline" size={14} color={Colors.secondary} />
-                            <Text className="text-slate-500 text-xs font-medium ml-1">No Artifact</Text>
+                            <Text className="text-secondary text-xs font-medium ml-1">No Artifact</Text>
                         </TouchableOpacity>
                     )}
 
                     {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
                         <TouchableOpacity
                             onPress={toggleWatch}
-                            className={`p-1.5 ml-1 rounded-lg ${isWatched ? 'bg-indigo-500/20' : ''}`}
+                            className={`p-1.5 ml-1 rounded-lg ${isWatched ? 'bg-primary' : ''}`}
                         >
                             <Ionicons name={isWatched ? "eye" : "eye-outline"} size={20} color={isWatched ? "#818cf8" : Colors.text.tertiary} />
                         </TouchableOpacity>
@@ -567,12 +567,12 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
             </View>
 
             {expanded && (
-                <View className="mt-2 border-t border-slate-700 pt-2">
+                <View className="mt-2 border-t border-border pt-2">
                     <View className="flex-row gap-1 mb-3">
                         {showPrButton && (
                             <TouchableOpacity
                                 onPress={() => Linking.openURL(prUrl!)}
-                                className="flex-1 bg-indigo-600 py-2 rounded-lg flex-row items-center justify-center"
+                                className="flex-1 bg-primary py-2 rounded-lg flex-row items-center justify-center"
                             >
                                 <Ionicons name="git-pull-request" size={16} color="white" />
                                 <Text className="text-white font-semibold ml-2">Open PR #{pr?.number}</Text>
@@ -580,7 +580,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                         )}
                     </View>
 
-                    <Text className="text-slate-400 text-xs font-bold mb-2 uppercase">Checks Status</Text>
+                    <Text className="text-text-tertiary text-xs font-bold mb-2 uppercase">Checks Status</Text>
                     {checksLoading ? (
                         <ActivityIndicator size="small" color={Colors.text.tertiary} />
                     ) : checks && checks.length > 0 ? (
@@ -590,7 +590,7 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                             ))}
                         </View>
                     ) : (
-                        <Text className="text-slate-500 text-xs italic">No checks found or loading...</Text>
+                        <Text className="text-secondary text-xs italic">No checks found or loading...</Text>
                     )}
                 </View>
             )}
@@ -776,20 +776,20 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
                         <View className="flex-row items-center">
                             <Text className="text-white font-bold text-base flex-1" numberOfLines={1}>{session.title || session.id}</Text>
                         </View>
-                        <Text className="text-slate-400 text-xs" numberOfLines={1}>
+                        <Text className="text-text-tertiary text-xs" numberOfLines={1}>
                             {dayjs(session.createTime).fromNow()} • {session.state}
                         </Text>
                     </View>
                 </View>
                 <View className="flex-col items-center gap-1">
                     {ghRun && (
-                        <View className="flex-row items-center bg-slate-800/50 px-2 py-0.5 rounded">
+                        <View className="flex-row items-center bg-surface/50 px-2 py-0.5 rounded">
                             <Ionicons
                                 name={ghRun.conclusion === 'success' ? "logo-github" : "alert-circle"}
                                 size={12}
                                 color={getGhStatusColor(ghRun)}
                             />
-                            <Text className="text-[10px] text-slate-400 uppercase ml-1.5 font-medium">{ghRun.status}</Text>
+                            <Text className="text-[10px] text-text-tertiary uppercase ml-1.5 font-medium">{ghRun.status}</Text>
                         </View>
                     )}
                 </View>
@@ -798,7 +798,7 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
             <View className="flex-row gap-1">
                 <TouchableOpacity
                     onPress={() => Linking.openURL(webUrl)}
-                    className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
+                    className="flex-1 bg-surface-highlight py-2 rounded-lg flex-row items-center justify-center"
                 >
                     <Ionicons name="globe-outline" size={14} color="white" />
                     <Text className="text-white text-xs font-semibold ml-2">Web</Text>
@@ -807,7 +807,7 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
                 {prUrl && (
                     <TouchableOpacity
                         onPress={() => Linking.openURL(prUrl)}
-                        className="flex-1 bg-indigo-600 py-2 rounded-lg flex-row items-center justify-center"
+                        className="flex-1 bg-surface-highlight py-2 rounded-lg flex-row items-center justify-center"
                     >
                         <Ionicons name="git-pull-request-outline" size={14} color="white" />
                         <Text className="text-white text-xs font-semibold ml-2">PR #{prNumber}</Text>
@@ -818,10 +818,10 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
                     <TouchableOpacity
                         onPress={(!isMerged && !isClosed && mergeable !== false) ? handleMerge : undefined}
                         disabled={isMerging || isMerged || isClosed || mergeable === false}
-                        className={`flex-1 py-2 rounded-lg flex-row items-center justify-center ${isMerged ? 'bg-purple-600/50' :
-                            isClosed ? 'bg-slate-600/50' :
-                                mergeable === false ? 'bg-red-900/50 border border-red-500/50' :
-                                    'bg-green-600'
+                        className={`flex-1 py-2 rounded-lg flex-row items-center justify-center ${isMerged ? 'bg-purple-500' :
+                            isClosed ? 'bg-surface-highlight' :
+                                mergeable === false ? 'bg-surface-highlight border border-error/50' :
+                                    'bg-success'
                             }`}
                     >
                         {isMerging ? (
@@ -833,7 +833,7 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
                                     size={14}
                                     color={mergeable === false ? "#f87171" : "white"}
                                 />
-                                <Text className={`text-xs font-semibold ml-2 ${mergeable === false ? 'text-red-400' : 'text-white'}`}>
+                                <Text className={`text-xs font-semibold ml-2 ${mergeable === false ? 'text-error' : 'text-white'}`}>
                                     {isMerged ? "Merged" : isClosed ? "Closed" : mergeable === false ? "Conflict" : "Merge"}
                                 </Text>
                             </>
@@ -843,7 +843,7 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
 
                 <TouchableOpacity
                     onPress={() => setMessageVisible(true)}
-                    className="flex-1 bg-slate-700 py-2 rounded-lg flex-row items-center justify-center"
+                    className="flex-1 bg-surface-highlight py-2 rounded-lg flex-row items-center justify-center"
                 >
                     <Ionicons name="chatbox-outline" size={14} color="white" />
                     <Text className="text-white text-xs font-semibold ml-2">Msg</Text>
@@ -851,7 +851,7 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
 
                 <TouchableOpacity
                     onPress={() => setMenuVisible(true)}
-                    className="bg-slate-700 py-2 px-3 rounded-lg flex-row items-center justify-center"
+                    className="bg-surface-highlight py-2 px-3 rounded-lg flex-row items-center justify-center"
                 >
                     <Ionicons name="ellipsis-horizontal" size={16} color="white" />
                 </TouchableOpacity>
@@ -903,8 +903,8 @@ function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { run
                     <Ionicons name="git-branch" size={20} color={Colors.text.tertiary} />
                     <Text className="text-white font-bold text-base ml-2">Master Branch</Text>
                     {runningCount > 0 && (
-                        <View className="bg-blue-600/30 px-2 py-0.5 rounded ml-2 border border-blue-500/50">
-                            <Text className="text-blue-400 text-xs font-bold">{runningCount} RUNNING</Text>
+                        <View className="bg-primary px-2 py-0.5 rounded ml-2 border border-primary/50">
+                            <Text className="text-primary text-xs font-bold">{runningCount} RUNNING</Text>
                         </View>
                     )}
                 </View>
@@ -1206,14 +1206,14 @@ export default function JulesScreen() {
                 <View className="flex-1 justify-center items-center px-6">
                     <Ionicons name="options-outline" size={64} color="#475569" />
                     <Text className="text-white text-xl font-bold mt-4 text-center">Configuration Required</Text>
-                    <Text className="text-slate-400 text-center mt-2 mb-6">
+                    <Text className="text-text-tertiary text-center mt-2 mb-6">
                         Please configure GitHub or Jules API in Settings.
                     </Text>
                     {!hasGithubConfig && (
                         <TouchableOpacity
                             onPress={loginWithGithub}
                             disabled={!request}
-                            className="bg-indigo-600 px-8 py-3 rounded-xl flex-row items-center mb-4"
+                            className="bg-primary px-8 py-3 rounded-xl flex-row items-center mb-4"
                         >
                             <Ionicons name="logo-github" size={24} color="white" />
                             <Text className="text-white font-bold ml-2">Login with GitHub</Text>
@@ -1235,9 +1235,9 @@ export default function JulesScreen() {
             return (
                 <View className="flex-1 justify-center items-center px-6">
                     <Ionicons name="alert-circle-outline" size={64} color="#f87171" />
-                    <Text className="text-red-400 text-xl font-bold mt-4 text-center">Error</Text>
-                    <Text className="text-slate-400 text-center mt-2">{error}</Text>
-                    <TouchableOpacity onPress={loadData} className="mt-6 bg-indigo-600 px-6 py-3 rounded-xl">
+                    <Text className="text-error text-xl font-bold mt-4 text-center">Error</Text>
+                    <Text className="text-text-tertiary text-center mt-2">{error}</Text>
+                    <TouchableOpacity onPress={loadData} className="mt-6 bg-primary px-6 py-3 rounded-xl">
                         <Text className="text-white font-bold">Retry</Text>
                     </TouchableOpacity>
                 </View>
@@ -1249,7 +1249,7 @@ export default function JulesScreen() {
                 <View className="flex-1 justify-center items-center px-6">
                     <Ionicons name="file-tray-outline" size={64} color="#475569" />
                     <Text className="text-white text-xl font-bold mt-4 text-center">No Activity Found</Text>
-                    <TouchableOpacity onPress={loadData} className="mt-6 bg-indigo-600 px-6 py-3 rounded-xl">
+                    <TouchableOpacity onPress={loadData} className="mt-6 bg-primary px-6 py-3 rounded-xl">
                         <Text className="text-white font-bold">Refresh</Text>
                     </TouchableOpacity>
                 </View>

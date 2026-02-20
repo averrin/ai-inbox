@@ -50,7 +50,7 @@ export function HabitModal({ visible, onClose, onSave, initialData }: HabitModal
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 className="flex-1 justify-end bg-black/50"
             >
-                <View className="bg-slate-900 rounded-t-3xl p-6 max-h-[90%]">
+                <View className="bg-background rounded-t-3xl p-6 max-h-[90%]">
                     <View className="flex-row justify-between items-center mb-6">
                         <Text className="text-white text-xl font-bold">
                             {initialData ? 'Edit Check' : 'New Check'}
@@ -62,9 +62,9 @@ export function HabitModal({ visible, onClose, onSave, initialData }: HabitModal
 
                     <ScrollView>
                         <View className="mb-6">
-                            <Text className="text-indigo-200 mb-2 font-medium">Title</Text>
+                            <Text className="text-text-secondary mb-2 font-medium">Title</Text>
                             <TextInput
-                                className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700 font-medium"
+                                className="bg-surface text-white p-4 rounded-xl border border-border font-medium"
                                 value={title}
                                 onChangeText={setTitle}
                                 placeholder="e.g. Exercise, Read, Meditate"

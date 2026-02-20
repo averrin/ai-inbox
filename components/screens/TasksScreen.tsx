@@ -57,7 +57,7 @@ export default function TasksScreen() {
             <View className="flex-1 justify-center items-center p-8">
                 <Ionicons name="list-outline" size={64} color="#475569" />
                 <Text className="text-white text-xl font-bold mt-4 text-center">No Task Folders Found</Text>
-                <Text className="text-slate-400 mt-2 text-center">
+                <Text className="text-text-tertiary mt-2 text-center">
                     {!tasksRoot 
                         ? "Please configure your Tasks Root folder in Settings." 
                         : `No sub-folders found in "${tasksRoot}". Add folders to your vault to organize tasks.`}

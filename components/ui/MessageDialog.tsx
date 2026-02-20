@@ -82,11 +82,11 @@ export function MessageDialog({
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={close}>
             <View className="flex-1 bg-black/80 justify-center px-4">
-                <View className="bg-slate-900 rounded-2xl p-4 border border-slate-700">
+                <View className="bg-background rounded-2xl p-4 border border-border">
                     <Text className="text-white font-bold text-lg mb-4">{title}</Text>
 
                     {selectedImage && (
-                        <View className="mb-4 relative rounded-lg overflow-hidden h-40 bg-slate-950 items-center justify-center border border-slate-800">
+                        <View className="mb-4 relative rounded-lg overflow-hidden h-40 bg-slate-950 items-center justify-center border border-border">
                             <Image
                                 source={{ uri: `data:${selectedImage.mimeType || 'image/jpeg'};base64,${selectedImage.base64}` }}
                                 style={{ width: '100%', height: '100%' }}
@@ -102,7 +102,7 @@ export function MessageDialog({
                     )}
 
                     <TextInput
-                        className="bg-slate-800 text-white p-3 rounded-lg min-h-[100px] mb-4"
+                        className="bg-surface text-white p-3 rounded-lg min-h-[100px] mb-4"
                         placeholder={placeholder}
                         placeholderTextColor={Colors.text.tertiary}
                         multiline
@@ -115,14 +115,14 @@ export function MessageDialog({
                          {enableImageAttachment && (
                             <ImageAttachmentButton
                                 onImageSelected={(base64, mimeType) => setSelectedImage({ base64, mimeType })}
-                                className={`bg-slate-800 w-12 items-center justify-center rounded-xl ${selectedImage ? 'bg-indigo-500/20 border-indigo-500' : ''}`}
+                                className={`bg-surface w-12 items-center justify-center rounded-xl ${selectedImage ? 'bg-primary border-primary' : ''}`}
                                 disabled={sending || analyzing}
                             />
                         )}
-                        <TouchableOpacity onPress={close} className="flex-1 bg-slate-800 py-3 rounded-xl items-center" disabled={sending || analyzing}>
+                        <TouchableOpacity onPress={close} className="flex-1 bg-surface py-3 rounded-xl items-center" disabled={sending || analyzing}>
                             <Text className="text-white font-bold">Cancel</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={handleSend} className="flex-1 bg-indigo-600 py-3 rounded-xl items-center" disabled={sending || analyzing || (!message.trim() && !selectedImage)}>
+                        <TouchableOpacity onPress={handleSend} className="flex-1 bg-primary py-3 rounded-xl items-center" disabled={sending || analyzing || (!message.trim() && !selectedImage)}>
                             {sending || analyzing ? <ActivityIndicator size="small" color="white" /> : <Text className="text-white font-bold">{sendLabel}</Text>}
                         </TouchableOpacity>
                     </View>

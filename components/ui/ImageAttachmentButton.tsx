@@ -33,7 +33,7 @@ export function ImageAttachmentButton({ onImageSelected, style, className, disab
         <TouchableOpacity
             onPress={pickImage}
             disabled={disabled}
-            className={`p-2 bg-slate-800 rounded-full border border-slate-700 items-center justify-center ${className || ''}`}
+            className={`p-2 bg-surface rounded-full border border-border items-center justify-center ${className || ''}`}
             style={style}
         >
             <Ionicons name="camera-outline" size={20} color={Colors.text.tertiary} />
