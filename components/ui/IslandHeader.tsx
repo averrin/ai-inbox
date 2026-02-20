@@ -5,8 +5,8 @@ import { Shadows } from './design-tokens';
 import { IslandBar } from './IslandBar';
 
 export interface HeaderAction {
-    icon: string;
-    onPress: () => void;
+    icon?: string;
+    onPress?: () => void;
     color?: string;
     disabled?: boolean;
     /** Render a custom element instead of an icon button */
