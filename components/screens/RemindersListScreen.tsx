@@ -56,7 +56,7 @@ export default function RemindersListScreen() {
 
   const handleDeleteReminder = async (options: DeleteOptions) => {
       if (!editingReminder) return;
-      await deleteReminder(editingReminder, !!options.deleteFile);
+      await deleteReminder(editingReminder);
       setIsEditModalVisible(false);
       setEditingReminder(null);
   };
@@ -132,7 +132,7 @@ export default function RemindersListScreen() {
                       reminder={reminder}
                       relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
                       onEdit={() => handleEditReminder(reminder)}
-                      onDelete={() => handleDeleteReminder( { deleteFile: true })} // Default to full delete for list view item swipe/press? Wait, ReminderItem calls onDelete.
+                      onDelete={() => handleDeleteReminder({})}
                       // Actually ReminderItem usually has an edit button which opens the modal. The onDelete prop on ReminderItem might be for direct deletion.
                       // Let's check ReminderItem. But here I passed `handleDeleteReminderWithNote` before.
                       // I should pass a function that calls `deleteReminder(reminder, true)`.
@@ -158,7 +158,7 @@ export default function RemindersListScreen() {
                       onEdit={() => handleEditReminder(reminder)}
                       onDelete={() => {
                           // Direct delete from list item (trash icon)
-                          deleteReminder(reminder, true);
+                          deleteReminder(reminder);
                       }}
                       onShow={() => showReminder(reminder)}
                       timeFormat={timeFormat}

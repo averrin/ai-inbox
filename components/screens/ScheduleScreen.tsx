@@ -14,7 +14,7 @@ import { UnifiedSuggestionModal } from '../UnifiedSuggestionModal';
 import { DateRuler } from '../DateRuler';
 import * as Calendar from 'expo-calendar';
 import * as FileSystem from 'expo-file-system/legacy';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useReminderModal } from '../../utils/reminderModalContext';
 import { ScheduleEvent } from '../ui/calendar/components/ScheduleEvent';
 import { useTimeRangeEvents } from '../ui/calendar/hooks/useTimeRangeEvents';
@@ -53,6 +53,7 @@ export default function ScheduleScreen() {
     const { assignments, difficulties, eventTypes, eventFlags, eventIcons, ranges, loadConfig, completedEvents, toggleCompleted } = useEventTypesStore();
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
+    const navigation = useNavigation();
     const { height: windowHeight } = useWindowDimensions();
     const insets = useSafeAreaInsets();
     const tabBarHeight = 62 + insets.bottom; // Tab bar height including safe area
@@ -112,6 +113,17 @@ export default function ScheduleScreen() {
         };
         init();
     }, []);
+
+    // Listen for tab press to reset to today
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('tabPress' as any, (e: any) => {
+            const now = new Date();
+            setDate(now);
+            calendarRef.current?.goToDate(now);
+        });
+
+        return unsubscribe;
+    }, [navigation]);
 
     // Calculate initial scroll position to center the current time
     const initialScrollOffset = useMemo(() => {
@@ -423,24 +435,13 @@ export default function ScheduleScreen() {
             setCachedReminders(cachedReminders.filter((r: any) => r.fileUri !== targetUri));
             setEvents(prev => prev.filter(e => e.originalEvent?.fileUri !== targetUri));
 
-            if (options.deleteFile) {
-                // Delete note file
-                try {
-                    await FileSystem.deleteAsync(targetUri, { idempotent: true });
-                } catch (e) {
-                    console.error("Failed to delete note file:", e);
-                    alert("Failed to delete note");
-                    fetchEvents();
-                }
-            } else {
-                // Delete reminder only
-                try {
-                    await updateReminder(targetUri, null);
-                } catch (e) {
-                    console.error("Failed to delete reminder:", e);
-                    alert("Failed to delete reminder");
-                    fetchEvents();
-                }
+            // Delete reminder only
+            try {
+                await updateReminder(targetUri, null);
+            } catch (e) {
+                console.error("Failed to delete reminder:", e);
+                alert("Failed to delete reminder");
+                fetchEvents();
             }
             return;
         }
