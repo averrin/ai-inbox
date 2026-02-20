@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
-import { ScreenHeader } from '../ui/ScreenHeader';
+import { IslandHeader } from '../ui/IslandHeader';
 import { TopTabBarNavigatorAdapter } from '../ui/TopTabBar';
 import { useTasksStore } from '../../store/tasks';
 import { useSettingsStore } from '../../store/settings';
@@ -82,7 +82,7 @@ export default function TasksScreen() {
 
     return (
         <Layout fullBleed={true}>
-            <ScreenHeader title="Tasks" noBorder />
+            <IslandHeader title="Tasks" />
             <View className="flex-1 bg-transparent">
                 <TopTab.Navigator
                     style={{ backgroundColor: Colors.transparent }}

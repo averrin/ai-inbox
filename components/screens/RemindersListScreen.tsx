@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
-import { ScreenHeader } from '../ui/ScreenHeader';
+import { IslandHeader } from '../ui/IslandHeader';
 import { useState, useEffect } from 'react';
 import { scanForReminders, Reminder, formatRecurrenceForReminder } from '../../services/reminderService';
 import { useSettingsStore } from '../../store/settings';
@@ -104,7 +104,7 @@ export default function RemindersListScreen() {
 
   return (
     <Layout>
-      <ScreenHeader
+      <IslandHeader
         title="Reminders"
         rightActions={[
           ...(isSyncing ? [{ icon: 'sync', onPress: () => {}, render: () => <ActivityIndicator size="small" color="#818cf8" /> }] : []),
