@@ -1,0 +1,23 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="expo.modules.calendar" >
+4
+5    <uses-sdk android:minSdkVersion="24" />
+6
+7    <queries>
+7-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\expo-calendar\android\src\main\AndroidManifest.xml:2:3-8:13
+8        <intent>
+8-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\expo-calendar\android\src\main\AndroidManifest.xml:3:5-7:14
+9
+10            <!-- Required for opening event in calendar if targeting API 30 -->
+11            <action android:name="android.intent.action.VIEW" />
+11-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\expo-calendar\android\src\main\AndroidManifest.xml:5:7-59
+11-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\expo-calendar\android\src\main\AndroidManifest.xml:5:15-56
+12
+13            <data android:scheme="content" />
+13-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\expo-calendar\android\src\main\AndroidManifest.xml:6:7-40
+13-->C:\Users\o\Documents\GitHub\ai-inbox\mobile\local-modules\expo-calendar\android\src\main\AndroidManifest.xml:6:13-37
+14        </intent>
+15    </queries>
+16
+17</manifest>

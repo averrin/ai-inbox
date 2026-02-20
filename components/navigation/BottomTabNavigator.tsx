@@ -19,6 +19,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { useSettingsStore, NavItemConfig, DEFAULT_NAV_ITEMS } from '../../store/settings';
 import { GroupMenuOverlay } from './GroupMenuOverlay';
 import { useUIStore } from '../../store/ui';
+import { IslandBar } from '../ui/IslandBar';
 
 const TransparentTheme = {
   ...DefaultTheme,
@@ -198,54 +199,18 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup, 
   };
 
   return (
-    <View style={{
-      position: 'absolute',
-      bottom: insets.bottom + 4,
-      left: 0,
-      right: 0,
-      flexDirection: 'row',
-      justifyContent: 'space-between', // Push islands to edges
-      paddingHorizontal: 24, // Gap from screen edge
-      pointerEvents: 'box-none', // Allow clicks to pass through empty space
-    }}>
-      {/* Left Island */}
-      {leftItems.length > 0 && (
-        <View style={{
-          flexDirection: 'row',
-          backgroundColor: '#1e293b', // slate-800
-          borderRadius: 30,
-          padding: 4,
-          alignItems: 'center',
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 4.65,
-          elevation: 8,
-          opacity: 0.95
-        }}>
-          {leftItems.map(renderItem)}
-        </View>
-      )}
-
-      {/* Right Island */}
-      {rightItems.length > 0 && (
-        <View style={{
-          flexDirection: 'row',
-          backgroundColor: '#1e293b', // slate-800
-          borderRadius: 30,
-          padding: 4,
-          alignItems: 'center',
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 4.65,
-          elevation: 8,
-          opacity: 0.95
-        }}>
-          {rightItems.map(renderItem)}
-        </View>
-      )}
-    </View>
+    <IslandBar 
+      leftContent={leftItems.length > 0 ? leftItems.map(renderItem) : undefined}
+      rightContent={rightItems.length > 0 ? rightItems.map(renderItem) : undefined}
+      containerStyle={{
+        position: 'absolute',
+        bottom: insets.bottom + 4,
+        left: 0,
+        right: 0,
+        paddingHorizontal: 24, // Gap from screen edge
+        pointerEvents: 'box-none',
+      }}
+    />
   );
 }
 

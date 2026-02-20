@@ -1,0 +1,47 @@
+import React from 'react';
+import { View, ViewStyle, StyleProp } from 'react-native';
+import { Shadows } from './design-tokens';
+
+export interface IslandBarProps {
+    /** Content for the left island */
+    leftContent?: React.ReactNode;
+    /** Content for the right island */
+    rightContent?: React.ReactNode;
+    /** Props to apply to the container view */
+    containerStyle?: StyleProp<ViewStyle>;
+    /** Props to apply to each individual island */
+    islandStyle?: StyleProp<ViewStyle>;
+}
+
+export const islandBaseStyle: ViewStyle = {
+    flexDirection: 'row',
+    backgroundColor: '#1e293b', // slate-800
+    borderRadius: 30, // match bottom navbar
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    ...Shadows.default,
+    opacity: 0.95
+};
+
+/**
+ * A shared component for rendering separated left and right floating horizontal islands.
+ * This is used for both the top headers and the bottom navigation bar.
+ */
+export function IslandBar({ leftContent, rightContent, containerStyle, islandStyle }: IslandBarProps) {
+    return (
+        <View style={[{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, containerStyle]} pointerEvents="box-none">
+            {leftContent ? (
+                <View style={[islandBaseStyle, islandStyle]}>
+                    {leftContent}
+                </View>
+            ) : <View />}
+            {rightContent ? (
+                <View style={[islandBaseStyle, islandStyle]}>
+                    {rightContent}
+                </View>
+            ) : <View />}
+        </View>
+    );
+}
