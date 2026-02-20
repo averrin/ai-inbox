@@ -4,7 +4,7 @@ import { useSettingsStore } from '../../store/settings';
 import { useEffect, useState } from 'react';
 import { Article, fetchNews } from '../../services/newsService';
 import { Layout } from '../ui/Layout';
-import { ScreenHeader } from '../ui/ScreenHeader';
+import { IslandHeader } from '../ui/IslandHeader';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -12,6 +12,27 @@ import * as WebBrowser from 'expo-web-browser';
 import { Colors } from '../ui/design-tokens';
 
 dayjs.extend(relativeTime);
+
+const FilterChip = ({ label, active, onPress, isRss }: { label: string, active: boolean, onPress: () => void, isRss?: boolean }) => {
+    // Island Header Tabs style
+    const isActive = active;
+    const activeBg = isRss ? 'bg-surface border-warning' : 'bg-surface-highlight';
+
+    return (
+            <TouchableOpacity
+            onPress={onPress}
+            className={`flex-row items-center px-3 py-1.5 rounded-full mr-1 ${isActive ? activeBg : 'bg-transparent'}`}
+            style={isRss && isActive ? { borderColor: Colors.warning, borderWidth: 1 } : {}}
+        >
+            {isRss && (
+                    <Ionicons name="logo-rss" size={12} color={isActive ? Colors.warning : Colors.text.tertiary} style={{ marginRight: 4 }} />
+            )}
+            <Text className={`text-xs font-bold ${isActive ? 'text-white' : 'text-text-tertiary'}`} style={isActive && isRss ? { color: Colors.warning } : {}}>
+                {label}
+            </Text>
+        </TouchableOpacity>
+    );
+};
 
 export default function NewsScreen() {
     const insets = useSafeAreaInsets();
@@ -191,43 +212,71 @@ export default function NewsScreen() {
         );
     };
 
-    const FilterChip = ({ label, active, onPress, isRss }: { label: string, active: boolean, onPress: () => void, isRss?: boolean }) => {
-        let containerClass = '';
-        let textClass = '';
-
-        if (isRss) {
-             if (active) {
-                 containerClass = 'bg-warning border-warning';
-                 textClass = 'text-white';
-             } else {
-                 containerClass = 'bg-surface border-border';
-                 textClass = 'text-warning';
-             }
-        } else {
-             if (active) {
-                 containerClass = 'bg-primary border-primary';
-                 textClass = 'text-white';
-             } else {
-                 containerClass = 'bg-surface border-border';
-                 textClass = 'text-text-tertiary';
-             }
-        }
-
-        return (
-            <TouchableOpacity
-                onPress={onPress}
-                className={`px-4 py-2 rounded-full mr-2 mb-2 border ${containerClass}`}
-            >
-                <Text className={`font-medium ${textClass}`}>{label}</Text>
-            </TouchableOpacity>
-        );
-    };
+    const HeaderContent = (
+        <View className="flex-row items-center pl-2 pr-1">
+            <Text className="text-white font-bold text-lg leading-tight mr-3">
+                News Feed
+            </Text>
+            <View className="flex-1" style={{ maxWidth: '75%' }}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingRight: 4 }}
+                >
+                    <View className="flex-row items-center bg-surface/50 rounded-full p-0.5">
+                        <FilterChip
+                            label="All"
+                            active={selectedFilter === null && !showCustomInput}
+                            onPress={() => {
+                                setSelectedFilter(null);
+                                setShowCustomInput(false);
+                            }}
+                        />
+                        {newsTopics.map(topic => (
+                            <FilterChip
+                                key={topic}
+                                label={topic}
+                                active={selectedFilter === topic && !showCustomInput}
+                                onPress={() => {
+                                    setSelectedFilter(topic);
+                                    setShowCustomInput(false);
+                                }}
+                            />
+                        ))}
+                        {rssFeeds.map(feed => (
+                            <FilterChip
+                                key={feed}
+                                isRss={true}
+                                label={(() => {
+                                    try {
+                                        return new URL(feed).hostname.replace('www.', '');
+                                    } catch {
+                                        return feed;
+                                    }
+                                })()}
+                                active={selectedFilter === feed && !showCustomInput}
+                                onPress={() => {
+                                    setSelectedFilter(feed);
+                                    setShowCustomInput(false);
+                                }}
+                            />
+                        ))}
+                         <FilterChip
+                            label="Search"
+                            active={showCustomInput}
+                            onPress={() => setShowCustomInput(!showCustomInput)}
+                        />
+                    </View>
+                </ScrollView>
+            </View>
+        </View>
+    );
 
     return (
         <Layout>
-            <ScreenHeader
+            <IslandHeader
                 title="News Feed"
-                noBorder
+                leftContent={HeaderContent}
                 rightActions={
                     selectedFilter && rssFeeds.includes(selectedFilter) && visibleArticles.length > 0
                         ? [{
@@ -247,6 +296,25 @@ export default function NewsScreen() {
                 }
             />
             <View className="flex-1 px-4">
+                {showCustomInput && (
+                    <View className="flex-row items-center gap-2 mb-4 mt-2">
+                        <TextInput
+                            className="flex-1 bg-background border border-border text-white rounded-xl px-4 py-3"
+                            placeholder="Enter custom query..."
+                            placeholderTextColor={Colors.secondary}
+                            value={customQuery}
+                            onChangeText={setCustomQuery}
+                            onSubmitEditing={handleCustomSubmit}
+                            returnKeyType="search"
+                        />
+                        <TouchableOpacity
+                            className="bg-primary p-3 rounded-xl"
+                            onPress={handleCustomSubmit}
+                        >
+                            <Ionicons name="search" size={24} color="white" />
+                        </TouchableOpacity>
+                    </View>
+                )}
 
                 {((!newsApiKey && !process.env.NEWSAPI_KEY) && rssFeeds.length === 0) ? (
                     <View className="flex-1 justify-center items-center">
@@ -256,73 +324,6 @@ export default function NewsScreen() {
                     </View>
                 ) : (
                     <>
-                        {/* Filters Bar */}
-                        <View className="mb-4">
-                            <View className="flex-row flex-wrap">
-                                <FilterChip
-                                    label="All"
-                                    active={selectedFilter === null && !showCustomInput}
-                                    onPress={() => {
-                                        setSelectedFilter(null);
-                                        setShowCustomInput(false);
-                                    }}
-                                />
-                                {newsTopics.map(topic => (
-                                    <FilterChip
-                                        key={topic}
-                                        label={topic}
-                                        active={selectedFilter === topic && !showCustomInput}
-                                        onPress={() => {
-                                            setSelectedFilter(topic);
-                                            setShowCustomInput(false);
-                                        }}
-                                    />
-                                ))}
-                                {rssFeeds.map(feed => (
-                                    <FilterChip
-                                        key={feed}
-                                        isRss={true}
-                                        label={(() => {
-                                            try {
-                                                return new URL(feed).hostname.replace('www.', '');
-                                            } catch {
-                                                return feed;
-                                            }
-                                        })()}
-                                        active={selectedFilter === feed && !showCustomInput}
-                                        onPress={() => {
-                                            setSelectedFilter(feed);
-                                            setShowCustomInput(false);
-                                        }}
-                                    />
-                                ))}
-                                <FilterChip
-                                    label="Custom"
-                                    active={showCustomInput}
-                                    onPress={() => setShowCustomInput(!showCustomInput)}
-                                />
-                            </View>
-
-                            {showCustomInput && (
-                                <View className="flex-row items-center gap-2 mb-2">
-                                    <TextInput
-                                        className="flex-1 bg-background border border-border text-white rounded-xl px-4 py-3"
-                                        placeholder="Enter custom query..."
-                                        placeholderTextColor={Colors.secondary}
-                                        value={customQuery}
-                                        onChangeText={setCustomQuery}
-                                        onSubmitEditing={handleCustomSubmit}
-                                        returnKeyType="search"
-                                    />
-                                    <TouchableOpacity
-                                        className="bg-primary p-3 rounded-xl"
-                                        onPress={handleCustomSubmit}
-                                    >
-                                        <Ionicons name="search" size={24} color="white" />
-                                    </TouchableOpacity>
-                                </View>
-                            )}
-                        </View>
 
                         {newsTopics.length === 0 && rssFeeds.length === 0 && !showCustomInput ? (
                             <View className="flex-1 justify-center items-center">

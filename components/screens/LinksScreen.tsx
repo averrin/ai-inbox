@@ -3,8 +3,7 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
-import { IslandHeader } from '../ui/IslandHeader';
-import { TopTabBarNavigatorAdapter } from '../ui/TopTabBar';
+import { IslandHeaderTabBar } from '../ui/IslandHeaderTabBar';
 import { useSettingsStore } from '../../store/settings';
 import { LinkService, FolderGroup } from '../../services/linkService';
 import { LinksFolderView } from '../links/LinksFolderView';
@@ -75,13 +74,12 @@ export default function LinksScreen() {
 
     return (
         <Layout fullBleed={true}>
-            <IslandHeader title="Links" />
             <View className="flex-1 bg-transparent">
                 <TopTab.Navigator
                     style={{ backgroundColor: Colors.transparent }}
                     // @ts-ignore
                     sceneContainerStyle={{ backgroundColor: Colors.transparent }}
-                    tabBar={(props) => <TopTabBarNavigatorAdapter {...props} />}
+                    tabBar={(props) => <IslandHeaderTabBar title="Links" {...props} />}
                     screenOptions={{
                         swipeEnabled: true,
                         animationEnabled: true,
