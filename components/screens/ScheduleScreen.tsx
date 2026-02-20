@@ -1174,6 +1174,74 @@ export default function ScheduleScreen() {
 
     const handleEventDrop = async (event: any, newDate: Date) => {
         console.log('[ScheduleScreen] handleEventDrop initiated', { title: event.title, newDate });
+
+        if (event.typeTag === 'WALK_SUGGESTION' || event.typeTag === 'LUNCH_SUGGESTION') {
+            const isWalk = event.typeTag === 'WALK_SUGGESTION';
+            const title = isWalk ? 'Walk' : 'Lunch';
+            // Use existing duration or default to 60m
+            const duration = dayjs(event.end).diff(dayjs(event.start), 'millisecond') || (60 * 60 * 1000);
+
+            const newStart = newDate;
+            const newEnd = new Date(newStart.getTime() + duration);
+
+            // Optimistic Update
+            const tempEvent = {
+                title: title,
+                start: newStart,
+                end: newEnd,
+                color: isWalk ? '#10b981' : '#3b82f6', // emerald-500 or blue-500
+                type: undefined, // Real event
+                originalEvent: {
+                    title: title,
+                    startDate: newStart.toISOString(),
+                    endDate: newEnd.toISOString()
+                }
+            };
+
+            // Add to local state immediately (will suppress suggestion generation)
+            setEvents(prev => [...prev, tempEvent]);
+
+            // Async Creation
+            (async () => {
+                try {
+                     const calendars = await getWritableCalendars();
+                     let targetCalendar;
+                     if (defaultCreateCalendarId) {
+                         targetCalendar = calendars.find(c => c.id === defaultCreateCalendarId && c.allowsModifications);
+                     }
+                     if (!targetCalendar && visibleCalendarIds.length > 0) {
+                         targetCalendar = calendars.find(c => c.id === visibleCalendarIds[0] && c.allowsModifications);
+                     }
+                     if (!targetCalendar && calendars.length > 0) {
+                         targetCalendar = calendars[0];
+                     }
+
+                     if (!targetCalendar) {
+                         alert('No suitable calendar found to schedule suggestion.');
+                         fetchEvents(); // Revert
+                         return;
+                     }
+
+                     await createCalendarEvent(targetCalendar.id, {
+                         title: title,
+                         startDate: newStart,
+                         endDate: newEnd,
+                         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                         notes: isWalk ? 'Scheduled Walk' : 'Scheduled Lunch'
+                     });
+
+                     // Re-sync
+                     setTimeout(() => fetchEvents(), 500);
+
+                } catch (e) {
+                    console.error("Failed to schedule suggestion drop", e);
+                    alert("Failed to schedule suggestion.");
+                    fetchEvents(); // Revert
+                }
+            })();
+            return;
+        }
+
         // Only allow dropping reminders or personal events
         const isReminder = event.typeTag === 'REMINDER' || !!event.originalEvent?.fileUri;
         const isPersonalEvent = event.isPersonal && event.originalEvent?.id;

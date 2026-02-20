@@ -295,7 +295,7 @@ export function EventFormModal({
     };
 
     const handlePreSave = () => {
-        const isRecurrent = initialEvent?.originalEvent?.recurrenceRule || initialEvent?.recurrenceRule || initialEvent?.isRecurrent;
+        const isRecurrent = initialEvent?.originalEvent?.recurrenceRule || initialEvent?.recurrenceRule || initialEvent?.isRecurrent || !!initialEvent?.originalEvent?.originalId || !!initialEvent?.originalEvent?.instanceStartDate;
 
         // Use scope selector only for Calendar Events that are recurring
         // Reminders handle recurrence differently (editing the file usually updates the rule for future too)
@@ -699,9 +699,12 @@ export function EventFormModal({
                                                          setStartDate(newDate);
                                                     } else {
                                                          // Selecting End Time
-                                                         const end = new Date(selectedDate);
+                                                         const newEnd = new Date(startDate);
+                                                         newEnd.setHours(selectedDate.getHours());
+                                                         newEnd.setMinutes(selectedDate.getMinutes());
+
                                                          // Calculate duration in minutes
-                                                         const diff = Math.round((end.getTime() - startDate.getTime()) / 60000);
+                                                         const diff = Math.round((newEnd.getTime() - startDate.getTime()) / 60000);
                                                          setDurationMinutes(diff > 0 ? diff : durationMinutes);
                                                     }
                                                 }
