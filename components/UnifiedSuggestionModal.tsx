@@ -57,7 +57,7 @@ export function UnifiedSuggestionModal({
 
     const isWalk = type === 'walk';
     const title = isWalk ? 'Time for a Walk?' : (suggestion.title || 'Lunch (Suggested)');
-    const eventTitle = isWalk ? '🚶 Walk' : 'Lunch';
+    const eventTitle = isWalk ? 'Walk' : 'Lunch';
     const themeColor = isWalk ? 'emerald' : 'blue'; // tailwind colors need specific mapping or manual hex
     const iconName = isWalk ? 'walk' : 'restaurant';
     const themeColorHex = isWalk ? '#10b981' : '#3b82f6';
