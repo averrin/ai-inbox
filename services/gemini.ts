@@ -309,6 +309,34 @@ export async function transcribeAudio(apiKey: string, base64Audio: string, mimeT
     }
 }
 
+export async function analyzeImage(
+    apiKey: string,
+    base64Image: string,
+    prompt: string,
+    mimeType: string = 'image/jpeg',
+    model: string = 'gemini-1.5-flash'
+): Promise<string | null> {
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const genModel = genAI.getGenerativeModel({ model });
+
+        const result = await genModel.generateContent([
+            prompt,
+            {
+                inlineData: {
+                    data: base64Image,
+                    mimeType: mimeType
+                }
+            }
+        ]);
+
+        return result.response.text();
+    } catch (e) {
+        console.error("[Gemini] Image analysis failed:", e);
+        return null;
+    }
+}
+
 export async function generateImage(apiKey: string, prompt: string, model: string): Promise<string | null> {
     try {
         // Use correct endpoint based on model type
