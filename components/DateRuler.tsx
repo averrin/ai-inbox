@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { DayStatusLevel } from '../utils/difficultyUtils';
 import { Colors, Shadows, Sizes, Spacing } from './ui/design-tokens';
+import { IslandHeader } from './ui/IslandHeader';
 
 interface DateRulerProps {
     date: Date;
@@ -201,30 +202,14 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
 
     return (
         <View className="border-b border-slate-800 pb-4" style={{ backgroundColor: 'transparent' }}>
-            {/* Header matching ScreenHeader style */}
-            <View className="px-4 pt-3 pb-2">
-                <View className="flex-row items-center justify-between">
-                    <View className="flex-1 mr-2">
-                        <Text className="text-2xl font-bold text-white">
-                            Schedule
-                        </Text>
-                        <Text className="text-slate-500 text-xs font-medium">
-                            {dayjs(date).format('MMMM YYYY')}
-                        </Text>
-                    </View>
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            backgroundColor: Colors.surface,
-                            borderRadius: 30,
-                            padding: Spacing.xs,
-                            ...Shadows.default,
-                            opacity: 0.95,
-                        }}
-                    >
-                        {onSync && (
+            <IslandHeader
+                title="Schedule"
+                subtitle={dayjs(date).format('MMMM YYYY')}
+                rightActions={[
+                    ...(onSync ? [{
+                        render: () => (
                             <TouchableOpacity
+                                key="sync"
                                 onPress={onSync}
                                 disabled={isSyncing}
                                 style={{
@@ -234,69 +219,49 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
                                     justifyContent: 'center',
                                     alignItems: 'center',
                                     opacity: isSyncing ? 0.5 : 1,
+                                    marginHorizontal: 2
                                 }}
                             >
                                 <Ionicons name="sync-outline" size={22} color={Colors.text.tertiary} />
                             </TouchableOpacity>
-                        )}
-
-                        <TouchableOpacity
-                            onPress={handlePrevDay}
-                            style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 22,
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                            }}
-                        >
-                            <Ionicons name="chevron-back" size={22} color={Colors.text.tertiary} />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            onPress={handleTodayPress}
-                            style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 22,
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                backgroundColor: isTodaySelected ? Colors.surfaceHighlight : Colors.transparent,
-                            }}
-                        >
-                            <Ionicons name="today" size={22} color={isTodaySelected ? Colors.primary : Colors.text.tertiary} />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            onPress={handleNextDay}
-                            style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 22,
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                            }}
-                        >
-                            <Ionicons name="chevron-forward" size={22} color={Colors.text.tertiary} />
-                        </TouchableOpacity>
-
-                        {onSettingsPress && (
+                        )
+                    }] : []),
+                    {
+                        icon: 'chevron-back',
+                        onPress: handlePrevDay,
+                        color: Colors.text.tertiary,
+                    },
+                    {
+                        render: () => (
                             <TouchableOpacity
-                                onPress={onSettingsPress}
+                                key="today"
+                                onPress={handleTodayPress}
                                 style={{
                                     width: 44,
                                     height: 44,
                                     borderRadius: 22,
                                     justifyContent: 'center',
                                     alignItems: 'center',
+                                    backgroundColor: isTodaySelected ? Colors.surfaceHighlight : Colors.transparent,
+                                    marginHorizontal: 2
                                 }}
                             >
-                                <Ionicons name="options-outline" size={22} color={Colors.text.tertiary} />
+                                <Ionicons name="today" size={22} color={isTodaySelected ? Colors.primary : Colors.text.tertiary} />
                             </TouchableOpacity>
-                        )}
-                    </View>
-                </View>
-            </View>
+                        )
+                    },
+                    {
+                        icon: 'chevron-forward',
+                        onPress: handleNextDay,
+                        color: Colors.text.tertiary,
+                    },
+                    ...(onSettingsPress ? [{
+                        icon: 'options-outline',
+                        onPress: onSettingsPress,
+                        color: Colors.text.tertiary,
+                    }] : [])
+                ]}
+            />
 
             {/* Scrollable Date Strip */}
             <View className="mt-2" onLayout={(e) => setScreenWidth(e.nativeEvent.layout.width)}>
