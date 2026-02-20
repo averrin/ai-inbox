@@ -59,6 +59,7 @@ export const DEFAULT_NAV_ITEMS: NavItemConfig[] = [
 
     // Others default to left usually, but let's put them explicitly
     { id: 'Links', visible: true, title: 'Links', icon: 'link-outline', type: 'screen', segment: 'left' },
+    { id: 'Canvas', visible: true, title: 'Canvas', icon: 'brush-outline', type: 'screen', segment: 'left' },
     { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline', type: 'screen', segment: 'left' },
     { id: 'Profile', visible: true, title: 'Profile', icon: 'person-outline', type: 'screen', segment: 'left' },
     { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline', type: 'screen', segment: 'left' },
@@ -379,8 +380,26 @@ export const useSettingsStore = create<SettingsState>()(
                 const { cachedReminders, ...rest } = state;
                 return rest;
             },
-            version: 11,
+            version: 12,
             migrate: (persistedState: any, version: number) => {
+                if (version < 12) {
+                    if (persistedState.navConfig && !persistedState.navConfig.some((item: any) => item.id === 'Canvas')) {
+                        const settingsIndex = persistedState.navConfig.findIndex((item: any) => item.id === 'Settings');
+                        const newItem = {
+                            id: 'Canvas',
+                            visible: true,
+                            title: 'Canvas',
+                            icon: 'brush-outline',
+                            type: 'screen',
+                            segment: 'left'
+                        };
+                        if (settingsIndex !== -1) {
+                            persistedState.navConfig.splice(settingsIndex, 0, newItem);
+                        } else {
+                            persistedState.navConfig.push(newItem);
+                        }
+                    }
+                }
                 // Migration logic for segments (v11)
                 if (version < 11) {
                     if (persistedState.navConfig) {

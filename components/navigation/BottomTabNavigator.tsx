@@ -8,6 +8,7 @@ import LinksScreen from '../screens/LinksScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SetupScreen from '../screens/SetupScreen';
 import NewsScreen from '../screens/NewsScreen';
+import CanvasScreen from '../screens/CanvasScreen';
 import JulesScreen from '../screens/JulesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { ShareIntent } from 'expo-share-intent';
@@ -265,6 +266,7 @@ function InnerTabNavigator({
     Tasks: { component: TasksScreen },
     Links: { component: LinksScreen },
     Reminders: { component: RemindersListScreen },
+    Canvas: { component: CanvasScreen, options: { swipeEnabled: false } },
     Jules: { component: JulesScreen },
     News: { component: NewsScreen },
     Profile: { component: ProfileScreen },
