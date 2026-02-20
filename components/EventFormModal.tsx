@@ -10,14 +10,24 @@ import { rescheduleReminderWithAI, AIRescheduleContext } from '../services/gemin
 import dayjs from 'dayjs';
 import { RecurrenceScopeModal } from './RecurrenceScopeModal';
 import { useTasksStore, TaskWithSource } from '../store/tasks';
-import { TaskStatusIcon } from './ui/TaskStatusIcon';
+import { TaskStatusIcon, getStatusConfig } from './ui/TaskStatusIcon';
 import { ColorPicker } from './ui/ColorPicker';
 import { Palette } from './ui/design-tokens';
+import { RichTask } from '../utils/taskParser';
+import { PropertyEditor } from './ui/PropertyEditor';
+import { TagEditor } from './ui/TagEditor';
+import { FolderInput } from './ui/FolderInput';
+import { ReminderItem } from './ui/ReminderItem';
+import { createStandaloneReminder, updateReminder, formatRecurrenceForReminder, REMINDER_PROPERTY_KEY, RECURRENT_PROPERTY_KEY, ALARM_PROPERTY_KEY, PERSISTENT_PROPERTY_KEY } from '../services/reminderService';
+import { useVaultStore } from '../services/vaultService';
+import { getParentFolderUri, findFile } from '../utils/saf';
+import { openInObsidian } from '../utils/obsidian';
+import * as Calendar from 'expo-calendar';
 
 
 
 export interface EventSaveData {
-    type: 'event' | 'reminder' | 'alarm' | 'zone';
+    type: 'event' | 'reminder' | 'alarm' | 'zone' | 'task';
     title: string;
     startDate: Date;
     endDate: Date;
@@ -35,6 +45,8 @@ export interface EventSaveData {
     persistent?: number;
     content?: string;
     color?: string;
+    task?: RichTask;
+    folderPath?: string;
 }
 
 export interface DeleteOptions {
@@ -46,12 +58,15 @@ interface EventFormModalProps {
     visible: boolean;
     initialDate?: Date;
     initialEvent?: any; // Calendar event object for editing
-    initialType?: 'event' | 'reminder' | 'alarm' | 'zone';
+    initialType?: 'event' | 'reminder' | 'alarm' | 'zone' | 'task';
     initialTitle?: string;
+    initialTask?: RichTask & { fileUri?: string; filePath?: string };
+    enableFolderSelection?: boolean;
     onSave: (data: EventSaveData) => void;
     onDelete?: (options: DeleteOptions) => void;
     onCancel: () => void;
     onOpenTask?: (task: TaskWithSource) => void;
+    onOpenEvent?: (id: string) => void;
     timeFormat: '12h' | '24h';
 }
 
@@ -68,9 +83,10 @@ export function EventFormModal({
     timeFormat
 }: EventFormModalProps) {
     // Stores
-    const { apiKey, visibleCalendarIds } = useSettingsStore();
+    const { apiKey, visibleCalendarIds, propertyConfig, vaultUri } = useSettingsStore();
     const { ranges } = useEventTypesStore();
-    const { tasks } = useTasksStore();
+    const { tasks, tasksRoot } = useTasksStore();
+    const { metadataCache } = useVaultStore();
 
     // State
     const [type, setType] = useState<'event' | 'reminder' | 'alarm' | 'zone'>('event');
@@ -100,6 +116,14 @@ export function EventFormModal({
     // Linked Items State
     const [linkedTasks, setLinkedTasks] = useState<TaskWithSource[]>([]);
 
+    // Task State
+    const [taskStatus, setTaskStatus] = useState(' ');
+    const [taskProperties, setTaskProperties] = useState<Record<string, any>>({});
+    const [taskTags, setTaskTags] = useState<string[]>([]);
+    const [taskFolder, setTaskFolder] = useState('');
+    const [linkedCalendarEvents, setLinkedCalendarEvents] = useState<{ id: string, title: string, date: Date }[]>([]);
+    const [showNestedReminderForm, setShowNestedReminderForm] = useState(false);
+
     useEffect(() => {
         if (visible) {
             setShowScopeSelector(false);
@@ -107,7 +131,7 @@ export function EventFormModal({
             setIsAdvancedOpen(false);
 
             // Determine Type
-            let defaultType: 'event' | 'reminder' | 'alarm' | 'zone' = initialType || 'event';
+            let defaultType: 'event' | 'reminder' | 'alarm' | 'zone' | 'task' = initialType || 'event';
 
             if (initialEvent) {
                 if (initialEvent.typeTag === 'REMINDER' || initialEvent.originalEvent?.fileUri) {
@@ -115,6 +139,8 @@ export function EventFormModal({
                 } else if (initialEvent.typeTag === 'ZONE') {
                     defaultType = 'zone';
                 }
+            } else if (initialTask) {
+                defaultType = 'task';
             }
             setType(defaultType);
 
@@ -177,6 +203,31 @@ export function EventFormModal({
                 const p = initialEvent.originalEvent?.persistent;
                 setPersistent(p ? p.toString() : '');
 
+            } else if (initialTask) {
+                // Task Edit Mode
+                setTitle(initialTask.title);
+                setTaskStatus(initialTask.status);
+                setTaskProperties({ ...initialTask.properties });
+                setTaskTags([...initialTask.tags]);
+
+                // Initialize folder
+                if (initialTask.filePath) {
+                    const fp = initialTask.filePath;
+                    const parts = fp.split('/');
+                    if (parts.length > 1) {
+                        parts.pop(); // Remove filename
+                        let fullPath = parts.join('/');
+                        if (tasksRoot && fullPath.startsWith(tasksRoot)) {
+                            fullPath = fullPath.substring(tasksRoot.length).replace(/^\//, '');
+                        }
+                        setTaskFolder(fullPath);
+                    } else {
+                        setTaskFolder('');
+                    }
+                } else {
+                    setTaskFolder('');
+                }
+
             } else {
                 // Create Mode
                 setStartDate(initialDate ? new Date(initialDate) : new Date());
@@ -191,9 +242,51 @@ export function EventFormModal({
                 setContent('');
                 setColor(Palette[0]);
                 setIsNonFree(false);
+
+                // Task Defaults
+                setTaskStatus(' ');
+                setTaskProperties({});
+                setTaskTags([]);
+                setTaskFolder('');
             }
         }
-    }, [visible, initialDate, initialEvent, initialType, initialTitle]);
+    }, [visible, initialDate, initialEvent, initialType, initialTitle, initialTask, tasksRoot]);
+
+    // Load Linked Events for Task
+    useEffect(() => {
+        const loadLinkedEvents = async () => {
+            if (type === 'task' && visible) {
+                const targetProps = initialTask?.properties || taskProperties;
+                if (targetProps['event_id']) {
+                    const ids = targetProps['event_id'].split(',').map((s: string) => s.trim());
+                    const events: any[] = [];
+                    for (const id of ids) {
+                        if (!id) continue;
+                        try {
+                            const evt = await Calendar.getEventAsync(id);
+                            if (evt) {
+                                events.push({
+                                    id: evt.id,
+                                    title: targetProps.event_title || evt.title,
+                                    date: new Date(evt.startDate)
+                                });
+                            }
+                        } catch (e) {
+                            events.push({
+                                id,
+                                title: targetProps.event_title || 'Unknown Event',
+                                date: new Date()
+                            });
+                        }
+                    }
+                    setLinkedCalendarEvents(events);
+                } else {
+                    setLinkedCalendarEvents([]);
+                }
+            }
+        };
+        loadLinkedEvents();
+    }, [visible, type, initialTask, taskProperties]);
 
     useEffect(() => {
         if (visible && initialEvent) {
@@ -260,7 +353,154 @@ export function EventFormModal({
         }
     };
 
+    const handleTaskReminderSave = (data: EventSaveData) => {
+        const newProps = { ...taskProperties };
+        newProps[REMINDER_PROPERTY_KEY] = data.startDate.toISOString();
+
+        const recurrence = formatRecurrenceForReminder(data.recurrenceRule);
+        if (recurrence) {
+            newProps[RECURRENT_PROPERTY_KEY] = recurrence;
+        } else {
+            delete newProps[RECURRENT_PROPERTY_KEY];
+        }
+
+        if (data.alarm) {
+            newProps[ALARM_PROPERTY_KEY] = 'true';
+        } else {
+            delete newProps[ALARM_PROPERTY_KEY];
+        }
+
+        if (data.persistent) {
+            newProps[PERSISTENT_PROPERTY_KEY] = data.persistent.toString();
+        } else {
+            delete newProps[PERSISTENT_PROPERTY_KEY];
+        }
+
+        setTaskProperties(newProps);
+        setShowNestedReminderForm(false);
+    };
+
+    const handleTaskSave = async () => {
+        if (!title.trim()) {
+            Alert.alert('Validation', 'Task title cannot be empty.');
+            return;
+        }
+
+        const hasReminder = !!taskProperties[REMINDER_PROPERTY_KEY];
+        const isWikiLink = /^\[\[.*\]\]$/.test(title.trim());
+        let finalTask: RichTask;
+
+        if (hasReminder && !isWikiLink) {
+             // Create Standalone Reminder logic
+             const reminderDate = taskProperties[REMINDER_PROPERTY_KEY];
+             const recurrence = taskProperties[RECURRENT_PROPERTY_KEY];
+             const alarm = taskProperties[ALARM_PROPERTY_KEY] === 'true';
+             const persistent = taskProperties[PERSISTENT_PROPERTY_KEY] ? parseInt(taskProperties[PERSISTENT_PROPERTY_KEY]) : undefined;
+
+             const extraProps: Record<string, any> = {};
+             Object.entries(taskProperties).forEach(([k, v]) => {
+                if (![REMINDER_PROPERTY_KEY, RECURRENT_PROPERTY_KEY, ALARM_PROPERTY_KEY, PERSISTENT_PROPERTY_KEY].includes(k)) {
+                    extraProps[k] = v;
+                }
+             });
+
+             const result = await createStandaloneReminder(
+                reminderDate,
+                title,
+                recurrence,
+                alarm,
+                persistent,
+                extraProps,
+                taskTags,
+                initialTask?.fileUri
+             );
+
+             if (result) {
+                 const linkName = result.fileName.replace(/\.md$/i, '');
+                 const newProps = { ...taskProperties };
+                 delete newProps[RECURRENT_PROPERTY_KEY];
+                 delete newProps[ALARM_PROPERTY_KEY];
+                 delete newProps[PERSISTENT_PROPERTY_KEY];
+
+                 finalTask = {
+                    title: `[[${linkName}]]`,
+                    bullet: initialTask?.bullet || '-',
+                    status: taskStatus,
+                    completed: taskStatus === 'x',
+                    properties: newProps,
+                    tags: taskTags,
+                    indentation: initialTask?.indentation || '',
+                    originalLine: initialTask?.originalLine || '',
+                 };
+             } else {
+                 Alert.alert("Error", "Failed to create reminder file.");
+                 return;
+             }
+        } else {
+             if (isWikiLink && vaultUri && initialTask?.fileUri) {
+                const match = title.trim().match(/^\[\[(.*)\]\]$/);
+                const linkedFileName = match ? match[1] : null;
+
+                if (linkedFileName) {
+                    try {
+                        const parentUri = await getParentFolderUri(vaultUri, initialTask.fileUri);
+                        let linkedFileUri = null;
+                        if (parentUri) {
+                            linkedFileUri = await findFile(parentUri, linkedFileName + '.md');
+                        }
+                        if (!linkedFileUri) {
+                            linkedFileUri = await findFile(vaultUri, linkedFileName + '.md');
+                        }
+
+                        if (linkedFileUri) {
+                            if (hasReminder) {
+                                const reminderDate = taskProperties[REMINDER_PROPERTY_KEY];
+                                const recurrence = taskProperties[RECURRENT_PROPERTY_KEY];
+                                const alarm = taskProperties[ALARM_PROPERTY_KEY] === 'true';
+                                const persistent = taskProperties[PERSISTENT_PROPERTY_KEY] ? parseInt(taskProperties[PERSISTENT_PROPERTY_KEY]) : undefined;
+                                await updateReminder(linkedFileUri, reminderDate, recurrence, alarm, persistent);
+                            } else {
+                                await updateReminder(linkedFileUri, null);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Failed to sync reminder to linked file:', e);
+                    }
+                }
+             }
+
+             finalTask = {
+                title,
+                bullet: initialTask?.bullet || '-',
+                status: taskStatus,
+                completed: taskStatus === 'x',
+                properties: taskProperties,
+                tags: taskTags,
+                indentation: initialTask?.indentation || '',
+                originalLine: initialTask?.originalLine || '',
+             };
+        }
+
+        const fullFolder = tasksRoot ? (taskFolder ? `${tasksRoot}/${taskFolder}` : tasksRoot) : taskFolder;
+
+        onSave({
+            type: 'task',
+            title,
+            startDate: new Date(),
+            endDate: new Date(),
+            allDay: false,
+            isWork: false,
+            task: finalTask,
+            folderPath: fullFolder
+        });
+    };
+
     const triggerSave = (scope?: 'this' | 'future' | 'all') => {
+        if (type === 'task') {
+            handleTaskSave();
+            return;
+        }
+
         const trimmedTitle = title.trim() || (type === 'event' ? 'New Event' : type === 'zone' ? 'New Zone' : 'New Reminder');
 
         const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
@@ -358,6 +598,12 @@ export function EventFormModal({
 
     const isEvent = type === 'event';
     const isZone = type === 'zone';
+    const isTask = type === 'task';
+
+    const reminderDate = taskProperties[REMINDER_PROPERTY_KEY]
+        ? new Date(taskProperties[REMINDER_PROPERTY_KEY])
+        : undefined;
+    const isAlarm = taskProperties[ALARM_PROPERTY_KEY] === 'true';
 
     return (
         <Modal visible={visible} transparent animationType="fade">
@@ -367,18 +613,26 @@ export function EventFormModal({
                     {/* Header */}
                     <View className="flex-row justify-between items-center mb-4">
                         <Text className="text-white text-xl font-bold">
-                            {initialEvent ? 'Edit' : 'New'} {type === 'alarm' ? 'Alarm' : type === 'reminder' ? 'Reminder' : type === 'zone' ? 'Zone' : 'Event'}
+                            {initialEvent || initialTask ? 'Edit' : 'New'} {type === 'alarm' ? 'Alarm' : type === 'reminder' ? 'Reminder' : type === 'zone' ? 'Zone' : type === 'task' ? 'Task' : 'Event'}
                         </Text>
-                        {initialEvent && onDelete && (
-                            <TouchableOpacity onPress={handlePreDelete} className="bg-red-500/10 p-2 rounded-full">
-                                <Ionicons name="trash-outline" size={20} color="#ef4444" />
-                            </TouchableOpacity>
-                        )}
+
+                        <View className="flex-row gap-2">
+                             {initialTask && initialTask.fileUri && (
+                                <TouchableOpacity onPress={() => { onCancel(); openInObsidian(vaultUri, initialTask.fileUri!); }} className="p-2 bg-slate-800 rounded-lg">
+                                    <Ionicons name="document-text-outline" size={20} color="#94a3b8" />
+                                </TouchableOpacity>
+                            )}
+                            {((initialEvent || initialTask) && onDelete) && (
+                                <TouchableOpacity onPress={handlePreDelete} className="bg-red-500/10 p-2 rounded-full">
+                                    <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
                     </View>
 
                     {/* Type Selector */}
                     <View className="flex-row bg-slate-800 p-1 rounded-xl mb-4 border border-slate-700">
-                        {(['event', 'reminder', 'alarm', 'zone'] as const).map((t) => (
+                        {(['event', 'reminder', 'alarm', 'zone', 'task'] as const).map((t) => (
                             <TouchableOpacity
                                 key={t}
                                 onPress={() => setType(t)}
@@ -778,6 +1032,29 @@ export function EventFormModal({
                     )}
                 </View>
             </View>
+
+            {/* Nested Reminder Modal for Tasks */}
+            {showNestedReminderForm && (
+                <EventFormModal
+                    visible={showNestedReminderForm}
+                    initialType={isAlarm ? 'alarm' : 'reminder'}
+                    initialDate={reminderDate || new Date()}
+                    initialEvent={reminderDate ? {
+                        originalEvent: {
+                            title: title,
+                            recurrenceRule: taskProperties[RECURRENT_PROPERTY_KEY],
+                            alarm: isAlarm,
+                            persistent: taskProperties[PERSISTENT_PROPERTY_KEY] ? parseInt(taskProperties[PERSISTENT_PROPERTY_KEY]) : undefined
+                        },
+                        title: title,
+                        start: reminderDate,
+                        reminderTime: reminderDate.toISOString()
+                    } : undefined}
+                    onSave={handleTaskReminderSave}
+                    onCancel={() => setShowNestedReminderForm(false)}
+                    timeFormat={timeFormat}
+                />
+            )}
         </Modal>
     );
 }

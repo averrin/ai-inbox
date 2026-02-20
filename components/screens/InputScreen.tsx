@@ -14,7 +14,7 @@ import { useSettingsStore } from '../../store/settings';
 import { SimpleTextEditor } from '../SimpleTextEditor';
 import { ReminderItem } from '../ui/ReminderItem';
 import { RichTaskItem } from '../markdown/RichTaskItem';
-import { TaskEditModal } from '../markdown/TaskEditModal';
+import { EventFormModal } from '../EventFormModal';
 import { findTasks, updateTaskInText, RichTask, serializeTaskLine, removeTaskFromText } from '../../utils/taskParser';
 
 interface InputScreenProps {
@@ -292,13 +292,21 @@ export function InputScreen({
                 </ScrollView>
             </KeyboardAvoidingView>
 
-            <TaskEditModal 
-                visible={isTaskModalVisible}
-                task={editingTask}
-                enableFolderSelection={false}
-                onSave={handleSaveTask}
-                onCancel={() => setIsTaskModalVisible(false)}
-            />
+            {isTaskModalVisible && (
+                <EventFormModal
+                    visible={isTaskModalVisible}
+                    initialType="task"
+                    initialTask={editingTask || undefined}
+                    enableFolderSelection={false}
+                    onSave={(data) => {
+                        if (data.type === 'task' && data.task) {
+                            handleSaveTask(data.task);
+                        }
+                    }}
+                    onCancel={() => setIsTaskModalVisible(false)}
+                    timeFormat={timeFormat}
+                />
+            )}
         </Layout>
     );
 }

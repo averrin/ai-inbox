@@ -30,7 +30,6 @@ import { useSettingsStore } from '../../store/settings';
 import { useVaultStore } from '../../services/vaultService';
 import { getPropertyKeysFromCache } from '../../utils/propertyUtils';
 import { RichTaskItem } from '../markdown/RichTaskItem';
-import { TaskEditModal } from '../markdown/TaskEditModal';
 import { findTasks, updateTaskInText, RichTask, removeTaskFromText } from '../../utils/taskParser';
 import { useFab } from '../../hooks/useFab';
 
@@ -646,13 +645,21 @@ export function PreviewScreen({
                 timeFormat={timeFormat}
             />
 
-            <TaskEditModal
-                visible={isTaskModalVisible}
-                task={editingTask}
-                enableFolderSelection={false}
-                onSave={handleSaveTask}
-                onCancel={() => setIsTaskModalVisible(false)}
-            />
+            {isTaskModalVisible && (
+                <EventFormModal
+                    visible={isTaskModalVisible}
+                    initialType="task"
+                    initialTask={editingTask || undefined}
+                    enableFolderSelection={false}
+                    onSave={(data) => {
+                        if (data.type === 'task' && data.task) {
+                            handleSaveTask(data.task);
+                        }
+                    }}
+                    onCancel={() => setIsTaskModalVisible(false)}
+                    timeFormat={timeFormat}
+                />
+            )}
         </Layout>
     );
 }

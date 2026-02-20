@@ -3,7 +3,6 @@ import { View, ActivityIndicator, Text, Alert, Modal, TextInput, KeyboardAvoidin
 import { TaskWithSource } from '../../store/tasks';
 import { useSettingsStore } from '../../store/settings';
 import { TaskService } from '../../services/taskService';
-import { TaskEditModal } from '../markdown/TaskEditModal';
 import { TasksFilterPanel } from './TasksFilterPanel';
 import { RichTask, serializeTaskLine } from '../../utils/taskParser';
 import Toast from 'react-native-toast-message';
@@ -371,23 +370,39 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                 onTagPress={handleTagPress}
             />
 
-            {editingTask !== undefined && (
-                <TaskEditModal
+            {(editingTask !== undefined) && (
+                <EventFormModal
                     visible={isModalVisible}
-                    task={editingTask}
+                    initialType="task"
+                    initialTask={editingTask || {
+                        title: '',
+                        status: ' ',
+                        properties: {},
+                        tags: [],
+                        filePath: folderPath ? `${folderPath}/new_task` : undefined
+                    } as any}
                     enableFolderSelection={true}
-                    initialFolder={folderPath}
                     onCancel={() => {
                         setIsModalVisible(false);
                         setEditingTask(null);
                     }}
-                    onSave={editingTask ? (task, folder) => handleSaveEdit(task, folder) : (task, folder) => handleSaveNewTask(task, folder)}
+                    onSave={(data) => {
+                        if (data.type === 'task' && data.task) {
+                            if (editingTask) {
+                                handleSaveEdit(data.task, data.folderPath);
+                            } else {
+                                handleSaveNewTask(data.task, data.folderPath);
+                            }
+                        }
+                    }}
                     onOpenEvent={(id) => {
                         setIsModalVisible(false);
+                        setEditingTask(null);
                         Calendar.getEventAsync(id).then(evt => {
                             if (evt) setEditingEvent(evt);
                         });
                     }}
+                    timeFormat={useSettingsStore.getState().timeFormat}
                 />
             )}
 
