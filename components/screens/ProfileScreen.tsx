@@ -255,36 +255,41 @@ export default function ProfileScreen() {
         return { label: 'Value', color: 'text-amber-400', bg: 'bg-amber-500/10' };
     };
 
-    // Custom Tab Component for IslandHeader
+    // Custom Tab Component for IslandHeader containing Title and Tabs
     const TabToggle = () => (
-        <View className="flex-row items-center bg-slate-800 rounded-full p-0.5">
-            <TouchableOpacity
-                onPress={() => setActiveTab('home')}
-                className={`flex-row items-center px-3 py-1.5 rounded-full ${activeTab === 'home' ? 'bg-slate-700' : 'bg-transparent'}`}
-            >
-                <Ionicons
-                    name={activeTab === 'home' ? "home" : "home-outline"}
-                    size={16}
-                    color={activeTab === 'home' ? "white" : "#94a3b8"}
-                />
-                <Text className={`ml-1.5 text-xs font-bold ${activeTab === 'home' ? 'text-white' : 'text-slate-400'}`}>
-                    Home
-                </Text>
-            </TouchableOpacity>
+        <View className="flex-row items-center pl-2 pr-1">
+            <Text className="text-white font-bold text-lg leading-tight mr-3">
+                Profile
+            </Text>
+            <View className="flex-row items-center bg-slate-800 rounded-full p-0.5">
+                <TouchableOpacity
+                    onPress={() => setActiveTab('home')}
+                    className={`flex-row items-center px-3 py-1.5 rounded-full ${activeTab === 'home' ? 'bg-slate-700' : 'bg-transparent'}`}
+                >
+                    <Ionicons
+                        name={activeTab === 'home' ? "home" : "home-outline"}
+                        size={16}
+                        color={activeTab === 'home' ? "white" : "#94a3b8"}
+                    />
+                    <Text className={`ml-1.5 text-xs font-bold ${activeTab === 'home' ? 'text-white' : 'text-slate-400'}`}>
+                        Home
+                    </Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity
-                onPress={() => setActiveTab('details')}
-                className={`flex-row items-center px-3 py-1.5 rounded-full ${activeTab === 'details' ? 'bg-slate-700' : 'bg-transparent'}`}
-            >
-                <Ionicons
-                    name={activeTab === 'details' ? "list" : "list-outline"}
-                    size={16}
-                    color={activeTab === 'details' ? "white" : "#94a3b8"}
-                />
-                <Text className={`ml-1.5 text-xs font-bold ${activeTab === 'details' ? 'text-white' : 'text-slate-400'}`}>
-                    Details
-                </Text>
-            </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={() => setActiveTab('details')}
+                    className={`flex-row items-center px-3 py-1.5 rounded-full ${activeTab === 'details' ? 'bg-slate-700' : 'bg-transparent'}`}
+                >
+                    <Ionicons
+                        name={activeTab === 'details' ? "list" : "list-outline"}
+                        size={16}
+                        color={activeTab === 'details' ? "white" : "#94a3b8"}
+                    />
+                    <Text className={`ml-1.5 text-xs font-bold ${activeTab === 'details' ? 'text-white' : 'text-slate-400'}`}>
+                        Details
+                    </Text>
+                </TouchableOpacity>
+            </View>
         </View>
     );
 
