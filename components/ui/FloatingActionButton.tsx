@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Palette } from './design-tokens';
 
 interface FloatingActionButtonProps {
     onPress: () => void;
@@ -13,7 +14,7 @@ export function FloatingActionButton({
     onPress, 
     icon = "add", 
     style,
-    color = "#6366f1" // indigo-500
+    color = Palette[14] // indigo-500
 }: FloatingActionButtonProps) {
     return (
         <TouchableOpacity

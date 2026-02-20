@@ -8,16 +8,17 @@ import { useSettingsStore } from '../../store/settings';
 import { REMINDER_PROPERTY_KEY } from '../../services/reminderService';
 import { TaskStatusIcon } from '../ui/TaskStatusIcon';
 import dayjs from 'dayjs';
+import { Colors, Palette } from '../ui/design-tokens';
 
 const FILE_COLORS = [
-    '#ef4444', // red-500
-    '#f97316', // orange-500
-    '#eab308', // yellow-500
-    '#22c55e', // green-500
-    '#06b6d4', // cyan-500
-    '#3b82f6', // blue-500
-    '#8b5cf6', // violet-500
-    '#d946ef', // fuchsia-500
+    Colors.error, // red-500
+    Colors.busy, // orange-500
+    Colors.warning, // yellow-500
+    Colors.success, // green-500
+    Palette[11], // cyan-500
+    Colors.primary, // blue-500
+    Palette[15], // violet-500
+    Palette[3], // fuchsia-500
 ];
 
 function getColorForFilename(filename: string): string {
@@ -75,7 +76,7 @@ export function RichTaskItem({
     const highlightStyle = isHighlighted ? {
         borderWidth: 2,
         borderColor: highlightColor || '#818cf8',
-        // backgroundColor: 'transparent',
+        // backgroundColor: Colors.transparent,
         shadowColor: highlightColor || '#818cf8',
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.9,
@@ -221,7 +222,7 @@ export function RichTaskItem({
             <Ionicons
                 name={isSelected ? "checkbox" : "square-outline"}
                 size={22}
-                color={isSelected ? "#818cf8" : "#64748b"}
+                color={isSelected ? "#818cf8" : Colors.secondary}
             />
         </View>
     ) : null;

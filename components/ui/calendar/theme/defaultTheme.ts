@@ -1,4 +1,5 @@
 import type { ThemeInterface } from './ThemeInterface'
+import { Colors } from '../../design-tokens';
 
 export const defaultTheme: ThemeInterface = {
   isRTL: false,
@@ -20,7 +21,7 @@ export const defaultTheme: ThemeInterface = {
       800: '#424242',
       // 900: '#212121',
     },
-    moreLabel: '#000000',
+    moreLabel: Colors.black,
   },
   eventCellOverlappings: [
     { main: '#E26245', contrastText: '#fff' }, // orange

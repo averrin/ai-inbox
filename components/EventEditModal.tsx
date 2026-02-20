@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, TextInput, Platform, ScrollView } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Action } from '../services/gemini';
+import { Colors } from './ui/design-tokens';
 
 interface EventEditModalProps {
     visible: boolean;
@@ -77,7 +78,7 @@ export function EventEditModal({
                                 value={title}
                                 onChangeText={setTitle}
                                 placeholder="Event title"
-                                placeholderTextColor="#64748b"
+                                placeholderTextColor={Colors.secondary}
                             />
                         </View>
 
@@ -151,7 +152,7 @@ export function EventEditModal({
                                 onChangeText={setDuration}
                                 keyboardType="numeric"
                                 placeholder="30"
-                                placeholderTextColor="#64748b"
+                                placeholderTextColor={Colors.secondary}
                             />
                         </View>
 
@@ -165,7 +166,7 @@ export function EventEditModal({
                                 multiline
                                 textAlignVertical="top"
                                 placeholder="Notes, agenda, etc."
-                                placeholderTextColor="#64748b"
+                                placeholderTextColor={Colors.secondary}
                             />
                         </View>
 
@@ -177,7 +178,7 @@ export function EventEditModal({
                                 value={recurrence}
                                 onChangeText={setRecurrence}
                                 placeholder="e.g. RRULE:FREQ=WEEKLY;BYDAY=FR"
-                                placeholderTextColor="#64748b"
+                                placeholderTextColor={Colors.secondary}
                                 autoCapitalize="none"
                             />
                             <Text className="text-slate-500 text-xs mt-1">

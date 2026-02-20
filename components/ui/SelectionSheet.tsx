@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors } from './design-tokens';
 
 export interface SelectionOption {
     id: string;
@@ -31,7 +32,7 @@ export function SelectionSheet({ visible, title, options, onSelect, onClose }: S
                         <View className="flex-row justify-between items-center mb-4">
                             <Text className="text-white text-lg font-bold">{title}</Text>
                             <TouchableOpacity onPress={onClose} className="p-2">
-                                <Ionicons name="close" size={20} color="#94a3b8" />
+                                <Ionicons name="close" size={20} color={Colors.text.tertiary} />
                             </TouchableOpacity>
                         </View>
 
@@ -44,23 +45,23 @@ export function SelectionSheet({ visible, title, options, onSelect, onClose }: S
                                         onClose();
                                     }}
                                     className="flex-row items-center py-3 px-2 rounded-xl mb-1"
-                                    style={{ backgroundColor: option.destructive ? 'rgba(239, 68, 68, 0.1)' : 'transparent' }}
+                                    style={{ backgroundColor: option.destructive ? 'rgba(239, 68, 68, 0.1)' : Colors.transparent }}
                                 >
                                     {option.icon && (
                                         <View
                                             className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                                            style={{ backgroundColor: option.color ? `${option.color}20` : '#334155' }}
+                                            style={{ backgroundColor: option.color ? `${option.color}20` : Colors.surfaceHighlight }}
                                         >
                                             <Ionicons
                                                 name={option.icon as any}
                                                 size={22}
-                                                color={option.color || '#94a3b8'}
+                                                color={option.color || Colors.text.tertiary}
                                             />
                                         </View>
                                     )}
                                     <Text
                                         className="text-base font-medium"
-                                        style={{ color: option.destructive ? '#ef4444' : option.color || '#e2e8f0' }}
+                                        style={{ color: option.destructive ? Colors.error : option.color || '#e2e8f0' }}
                                     >
                                         {option.label}
                                     </Text>

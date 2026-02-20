@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, Switch } from 'react-native'
 import dayjs from 'dayjs'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { ColorPicker } from '../../ColorPicker'
+import { Colors } from '../../design-tokens';
 
 interface TimeRangeFormProps {
     initialValues?: {
@@ -48,7 +49,7 @@ export const TimeRangeForm = ({
     const [days, setDays] = React.useState<number[]>(
         initialValues?.days.map(d => (d + 6) % 7) || [0, 1, 2, 3, 4] // Mon-Fri by UI index
     )
-    const [color, setColor] = React.useState(initialValues?.color || '#3b82f6')
+    const [color, setColor] = React.useState(initialValues?.color || Colors.primary)
     const [isWork, setIsWork] = React.useState(initialValues?.isWork || false)
     const [isVisible, setIsVisible] = React.useState(initialValues?.isVisible ?? true)
 
@@ -88,7 +89,7 @@ export const TimeRangeForm = ({
                 <TextInput
                     className="bg-slate-800 text-white p-3 rounded-md border border-slate-700 font-medium"
                     placeholder="Works Hours, Gym, etc."
-                    placeholderTextColor="#64748b"
+                    placeholderTextColor={Colors.secondary}
                     value={title}
                     onChangeText={setTitle}
                 />
@@ -99,7 +100,7 @@ export const TimeRangeForm = ({
                 <Switch
                     value={isWork}
                     onValueChange={setIsWork}
-                    trackColor={{ false: '#334155', true: color }}
+                    trackColor={{ false: Colors.surfaceHighlight, true: color }}
                     thumbColor="#fff"
                 />
             </View>
@@ -112,7 +113,7 @@ export const TimeRangeForm = ({
                 <Switch
                     value={isVisible}
                     onValueChange={setIsVisible}
-                    trackColor={{ false: '#334155', true: color }}
+                    trackColor={{ false: Colors.surfaceHighlight, true: color }}
                     thumbColor="#fff"
                 />
             </View>
@@ -154,7 +155,7 @@ export const TimeRangeForm = ({
                                 key={index}
                                 onPress={() => toggleDay(index)}
                                 style={{
-                                    backgroundColor: isSelected ? color : '#1e293b',
+                                    backgroundColor: isSelected ? color : Colors.surface,
                                     borderColor: isSelected ? color : '#475569',
                                 }}
                                 className={`flex-1 h-10 rounded-lg items-center justify-center border-2`}

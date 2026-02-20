@@ -12,7 +12,7 @@ import { RecurrenceScopeModal } from './RecurrenceScopeModal';
 import { useTasksStore, TaskWithSource } from '../store/tasks';
 import { TaskStatusIcon } from './ui/TaskStatusIcon';
 import { ColorPicker } from './ui/ColorPicker';
-import { Palette } from './ui/design-tokens';
+import { Palette, Colors } from './ui/design-tokens';
 
 
 
@@ -356,7 +356,7 @@ export function EventFormModal({
                         </Text>
                         {initialEvent && onDelete && (
                             <TouchableOpacity onPress={handlePreDelete} className="bg-red-500/10 p-2 rounded-full">
-                                <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                                <Ionicons name="trash-outline" size={20} color={Colors.error} />
                             </TouchableOpacity>
                         )}
                     </View>
@@ -387,7 +387,7 @@ export function EventFormModal({
                                         value={title}
                                         onChangeText={setTitle}
                                         placeholder={type === 'event' ? "Event Title" : type === 'zone' ? "Zone Title" : "Reminder Title"}
-                                        placeholderTextColor="#64748b"
+                                        placeholderTextColor={Colors.secondary}
                                         autoFocus={!initialEvent}
                                     />
                                 </View>
@@ -411,7 +411,7 @@ export function EventFormModal({
                                             value={content}
                                             onChangeText={setContent}
                                             placeholder="Details..."
-                                            placeholderTextColor="#64748b"
+                                            placeholderTextColor={Colors.secondary}
                                             multiline
                                             textAlignVertical="top"
                                         />
@@ -434,7 +434,7 @@ export function EventFormModal({
                                                     {startDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                                                 </Text>
                                             </View>
-                                            <Ionicons name="chevron-forward" size={16} color="#64748b" />
+                                            <Ionicons name="chevron-forward" size={16} color={Colors.secondary} />
                                         </TouchableOpacity>
 
                                         <TouchableOpacity
@@ -515,7 +515,7 @@ export function EventFormModal({
                                                 className="bg-slate-800 p-3 rounded-xl border border-indigo-500/30 flex-row justify-between items-center"
                                             >
                                                 <View className="flex-row items-center">
-                                                    <Ionicons name="flag-outline" size={20} color="#f43f5e" />
+                                                    <Ionicons name="flag-outline" size={20} color={Palette[1]} />
                                                     <View className="ml-3">
                                                         <Text className="text-slate-400 text-[10px] uppercase font-bold">End Time</Text>
                                                         <Text className="text-white font-bold text-lg">
@@ -527,7 +527,7 @@ export function EventFormModal({
                                                         </Text>
                                                     </View>
                                                 </View>
-                                                <Ionicons name="chevron-forward" size={16} color="#64748b" />
+                                                <Ionicons name="chevron-forward" size={16} color={Colors.secondary} />
                                             </TouchableOpacity>
                                         </View>
                                     )}
@@ -564,7 +564,7 @@ export function EventFormModal({
                                     {isZone && (
                                         <View className="flex-row justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 mb-3">
                                             <View className="flex-row items-center gap-3">
-                                                <Ionicons name="hand-left-outline" size={20} color="#f43f5e" />
+                                                <Ionicons name="hand-left-outline" size={20} color={Palette[1]} />
                                                 <View>
                                                     <Text className="text-white font-medium">Non-Free</Text>
                                                     <Text className="text-slate-400 text-xs">Blocks free time generation</Text>
@@ -573,8 +573,8 @@ export function EventFormModal({
                                             <Switch
                                                 value={isNonFree}
                                                 onValueChange={setIsNonFree}
-                                                trackColor={{ false: '#334155', true: '#f43f5e' }}
-                                                thumbColor={isNonFree ? '#fb7185' : '#94a3b8'}
+                                                trackColor={{ false: Colors.surfaceHighlight, true: Palette[1] }}
+                                                thumbColor={isNonFree ? '#fb7185' : Colors.text.tertiary}
                                             />
                                         </View>
                                     )}
@@ -589,8 +589,8 @@ export function EventFormModal({
                                             <Switch
                                                 value={isWork}
                                                 onValueChange={setIsWork}
-                                                trackColor={{ false: '#334155', true: '#4f46e5' }}
-                                                thumbColor={isWork ? '#818cf8' : '#94a3b8'}
+                                                trackColor={{ false: Colors.surfaceHighlight, true: '#4f46e5' }}
+                                                thumbColor={isWork ? '#818cf8' : Colors.text.tertiary}
                                             />
                                         </View>
                                     )}
@@ -654,7 +654,7 @@ export function EventFormModal({
                                                     <TextInput
                                                         className="bg-slate-800 text-white p-3 rounded-lg border border-slate-600"
                                                         placeholder="Nag interval (minutes)"
-                                                        placeholderTextColor="#64748b"
+                                                        placeholderTextColor={Colors.secondary}
                                                         keyboardType="numeric"
                                                         value={persistent}
                                                         onChangeText={setPersistent}

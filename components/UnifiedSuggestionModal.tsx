@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { BlurView } from 'expo-blur';
 import { useSettingsStore } from '../store/settings';
 import { createCalendarEvent } from '../services/calendarService';
+import { Colors, Palette } from './ui/design-tokens';
 
 interface UnifiedSuggestionModalProps {
     visible: boolean;
@@ -60,7 +61,7 @@ export function UnifiedSuggestionModal({
     const eventTitle = isWalk ? 'Walk' : 'Lunch';
     const themeColor = isWalk ? 'emerald' : 'blue'; // tailwind colors need specific mapping or manual hex
     const iconName = isWalk ? 'walk' : 'restaurant';
-    const themeColorHex = isWalk ? '#10b981' : '#3b82f6';
+    const themeColorHex = isWalk ? Palette[9] : Colors.primary;
     const bgColorClass = isWalk ? 'bg-emerald-600/20' : 'bg-blue-600/20';
     const iconBgClass = isWalk ? 'bg-emerald-500' : 'bg-blue-500';
     const confirmBtnClass = isWalk ? 'bg-emerald-500' : 'bg-blue-500';
@@ -203,7 +204,7 @@ export function UnifiedSuggestionModal({
                                 }}
                                 className="bg-slate-800 py-3 rounded-xl flex-row justify-center items-center border border-slate-700"
                             >
-                                <Ionicons name="close-circle-outline" size={20} color="#94a3b8" className="mr-2" />
+                                <Ionicons name="close-circle-outline" size={20} color={Colors.text.tertiary} className="mr-2" />
                                 <Text className="text-slate-400 font-semibold">
                                     {isWalk ? 'Dismiss for Today' : 'Skip Lunch'}
                                 </Text>

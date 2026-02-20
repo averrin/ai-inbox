@@ -1,46 +1,46 @@
 // Consolidated design tokens extracted from the codebase
 
 export const Colors = {
-  // Brand / Semantic
-  primary: '#3b82f6', // blue-500
-  secondary: '#64748b', // slate-500
-  success: '#22c55e', // green-500
-  warning: '#eab308', // yellow-500
-  busy: '#f97316', // orange-500
-  error: '#ef4444', // red-500
-  info: '#3b82f6', // blue-500
+    // Brand / Semantic
+    primary: '#3b82f6', // blue-500
+    secondary: '#64748b', // slate-500
+    success: '#22c55e', // green-500
+    warning: '#eab308', // yellow-500
+    busy: '#f97316', // orange-500
+    error: '#ef4444', // red-500
+    info: '#3b82f6', // blue-500
 
-  status: {
-    healthy: '#22c55e',
-    moderate: '#eab308',
-    busy: '#f97316',
-    overloaded: '#ef4444',
-  },
+    status: {
+        healthy: '#22c55e',
+        moderate: '#eab308',
+        busy: '#f97316',
+        overloaded: '#ef4444',
+    },
 
-  // Neutrals / Surface
-  background: '#0f172a', // slate-900 (inferred)
-  surface: '#1e293b', // slate-800
-  surfaceHighlight: '#334155', // slate-700
+    // Neutrals / Surface
+    background: '#0f172a', // slate-900 (inferred)
+    surface: '#1e293b', // slate-800
+    surfaceHighlight: '#334155', // slate-700
 
-  // Text
-  text: {
-    primary: '#f8fafc', // slate-50
-    secondary: '#cbd5e1', // slate-300
-    tertiary: '#94a3b8', // slate-400
-  },
+    // Text
+    text: {
+        primary: '#f8fafc', // slate-50
+        secondary: '#cbd5e1', // slate-300
+        tertiary: '#94a3b8', // slate-400
+    },
 
-  // Specifics
-  loader: {
-      cyan: '#06b6d4',
-      pink: '#ec4899',
-      amber: '#f59e0b',
-  },
+    // Specifics
+    loader: {
+        cyan: '#06b6d4',
+        pink: '#ec4899',
+        amber: '#f59e0b',
+    },
 
-  debug: 'rgba(220, 38, 38, 0.6)',
-  transparent: 'transparent',
-  white: '#ffffff',
-  black: '#000000',
-  border: '#334155', // slate-700 (often used as border)
+    debug: 'rgba(220, 38, 38, 0.6)',
+    transparent: 'transparent',
+    white: '#ffffff',
+    black: '#000000',
+    border: '#334155', // slate-700 (often used as border)
 };
 
 export const Gradients = {

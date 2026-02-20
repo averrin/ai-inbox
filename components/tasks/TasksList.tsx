@@ -6,6 +6,7 @@ import { TaskWithSource } from '../../store/tasks';
 import { RichTaskItem } from '../markdown/RichTaskItem';
 import { SelectionSheet, SelectionOption } from '../ui/SelectionSheet';
 import { RichTask } from '../../utils/taskParser';
+import { Colors, Palette } from '../ui/design-tokens';
 
 interface TasksListProps {
     tasks: TaskWithSource[]; // Filtered and sorted tasks
@@ -28,18 +29,18 @@ interface TasksListProps {
 }
 
 const STATUS_OPTIONS: SelectionOption[] = [
-    { id: ' ', label: 'Pending', icon: 'square-outline', color: '#94a3b8' },
+    { id: ' ', label: 'Pending', icon: 'square-outline', color: Colors.text.tertiary },
     { id: '/', label: 'In Progress', icon: 'play-circle-outline', color: '#818cf8' },
-    { id: 'x', label: 'Done', icon: 'checkbox', color: '#22c55e' },
-    { id: '-', label: "Won't Do", icon: 'close-circle-outline', color: '#94a3b8' },
+    { id: 'x', label: 'Done', icon: 'checkbox', color: Colors.success },
+    { id: '-', label: "Won't Do", icon: 'close-circle-outline', color: Colors.text.tertiary },
     { id: '?', label: 'Planned', icon: 'help-circle-outline', color: '#fbbf24' },
-    { id: '>', label: 'Delayed', icon: 'arrow-forward-circle-outline', color: '#6366f1' },
+    { id: '>', label: 'Delayed', icon: 'arrow-forward-circle-outline', color: Palette[14] },
 ];
 
 const PRIORITY_OPTIONS: SelectionOption[] = [
-    { id: 'high', label: 'High Priority', icon: 'arrow-up-circle', color: '#ef4444' },
-    { id: 'medium', label: 'Medium Priority', icon: 'remove-circle', color: '#f59e0b' },
-    { id: 'low', label: 'Low Priority', icon: 'arrow-down-circle', color: '#22c55e' },
+    { id: 'high', label: 'High Priority', icon: 'arrow-up-circle', color: Colors.error },
+    { id: 'medium', label: 'Medium Priority', icon: 'remove-circle', color: Palette[5] },
+    { id: 'low', label: 'Low Priority', icon: 'arrow-down-circle', color: Colors.success },
     { id: 'clear', label: 'Clear Priority', icon: 'close-circle', destructive: true },
 ];
 

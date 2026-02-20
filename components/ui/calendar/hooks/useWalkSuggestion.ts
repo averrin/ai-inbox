@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import { HourlyWeatherData } from '../../../../services/weatherService';
 import { useEventTypesStore } from '../../../../store/eventTypes';
 import { findBestSlot } from '../../../../utils/slotFinder';
+import { Palette } from '../../design-tokens';
 
 interface UseWalkSuggestionProps {
     events: any[]; // Event[]
@@ -123,7 +124,7 @@ export function useWalkSuggestion({ events, extraEvents = [], selectedDate, weat
         endDate: dayjs(currentSuggestion.start).add(60, 'minute').toISOString(),
         start: new Date(currentSuggestion.start), // BigCalendar often needs Date objects too
         end: dayjs(currentSuggestion.start).add(60, 'minute').toDate(),
-        color: '#10b981', // Emerald 500
+        color: Palette[9], // Emerald 500
         isVirtual: true,
         type: 'walk-suggestion',
         typeTag: 'WALK_SUGGESTION',

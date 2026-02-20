@@ -40,6 +40,7 @@ import { generateDebugSnapshot } from '../../utils/debugUtils';
 import gitInfo from '../../git-info.json';
 import { WalkSettings } from '../settings/WalkSettings';
 import { SyncDebugView } from '../settings/SyncDebugView';
+import { Colors } from '../ui/design-tokens';
 
 type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile' | 'walk' | 'sync-debug';
 
@@ -651,7 +652,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     {subtitle && <Text className="text-slate-400 text-sm">{subtitle}</Text>}
                 </View>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#64748b" />
+            <Ionicons name="chevron-forward" size={20} color={Colors.secondary} />
         </TouchableOpacity>
     );
 

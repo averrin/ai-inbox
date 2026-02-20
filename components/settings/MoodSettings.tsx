@@ -7,6 +7,7 @@ import { Card } from '../ui/Card';
 import { useMoodStore } from '../../store/moodStore';
 import { useSettingsStore } from '../../store/settings';
 import { syncMoodReminders } from '../../services/reminderService';
+import { Colors } from '../ui/design-tokens';
 
 export function MoodSettings() {
     const { moodReminderEnabled, moodReminderTime, setMoodReminder } = useMoodStore();
@@ -65,8 +66,8 @@ export function MoodSettings() {
                     <Switch
                         value={moodReminderEnabled}
                         onValueChange={handleToggle}
-                        trackColor={{ false: "#334155", true: "#4f46e5" }}
-                        thumbColor={moodReminderEnabled ? "#ffffff" : "#94a3b8"}
+                        trackColor={{ false: Colors.surfaceHighlight, true: "#4f46e5" }}
+                        thumbColor={moodReminderEnabled ? Colors.white : Colors.text.tertiary}
                     />
                 </View>
 
@@ -87,7 +88,7 @@ export function MoodSettings() {
                                     })}
                                 </Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={16} color="#64748b" />
+                            <Ionicons name="chevron-forward" size={16} color={Colors.secondary} />
                         </TouchableOpacity>
                     </View>
                 )}
@@ -105,7 +106,7 @@ export function MoodSettings() {
 
             {permissionStatus !== 'granted' && moodReminderEnabled && (
                 <View className="mt-2 bg-red-500/10 border border-red-500/20 p-3 rounded-xl flex-row items-center">
-                    <Ionicons name="warning-outline" size={20} color="#ef4444" />
+                    <Ionicons name="warning-outline" size={20} color={Colors.error} />
                     <Text className="text-red-200 text-sm ml-2 flex-1">
                         Notifications are not enabled. Tap here to fix.
                     </Text>

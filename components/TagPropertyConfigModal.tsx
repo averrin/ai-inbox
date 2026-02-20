@@ -2,17 +2,18 @@ import React, { useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore, MetadataConfig } from '../store/settings';
+import { Colors, Palette } from './ui/design-tokens';
 
 const PALETTE = [
-    '#ef4444', // red-500
-    '#f97316', // orange-500
-    '#eab308', // yellow-500
-    '#22c55e', // green-500
-    '#06b6d4', // cyan-500
-    '#3b82f6', // blue-500
-    '#a855f7', // purple-500
-    '#ec4899', // pink-500
-    '#64748b', // slate-500
+    Colors.error, // red-500
+    Colors.busy, // orange-500
+    Colors.warning, // yellow-500
+    Colors.success, // green-500
+    Palette[11], // cyan-500
+    Colors.primary, // blue-500
+    Palette[16], // purple-500
+    Palette[2], // pink-500
+    Colors.secondary, // slate-500
 ];
 
 interface TagPropertyConfigModalProps {
@@ -87,7 +88,7 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
                     <View className="flex-row items-center justify-between p-4 border-b border-slate-800">
                         <Text className="text-white text-xl font-bold">{prefix}{item}</Text>
                         <TouchableOpacity onPress={onClose} className="p-2 bg-slate-800 rounded-full">
-                            <Ionicons name="close" size={24} color="#94a3b8" />
+                            <Ionicons name="close" size={24} color={Colors.text.tertiary} />
                         </TouchableOpacity>
                     </View>
 
@@ -102,8 +103,8 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
                                 <Switch
                                     value={!config.hidden}
                                     onValueChange={(val) => updateFn(item, { ...config, hidden: !val })}
-                                    trackColor={{ false: '#334155', true: '#6366f1' }}
-                                    thumbColor={!config.hidden ? '#e0e7ff' : '#94a3b8'}
+                                    trackColor={{ false: Colors.surfaceHighlight, true: Palette[14] }}
+                                    thumbColor={!config.hidden ? '#e0e7ff' : Colors.text.tertiary}
                                 />
                             </View>
                         </View>
@@ -152,7 +153,7 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
                                     return (
                                         <View key={val} className="mb-6 last:mb-0 border-t border-slate-700 pt-4 first:pt-0 first:border-t-0">
                                             <View className="flex-row items-center mb-2">
-                                                <Ionicons name="git-commit-outline" size={16} color="#94a3b8" className="mr-2"/>
+                                                <Ionicons name="git-commit-outline" size={16} color={Colors.text.tertiary} className="mr-2"/>
                                                 <Text className="text-slate-200 font-medium">{val}</Text>
                                             </View>
                                             {renderColorPicker(

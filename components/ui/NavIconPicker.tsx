@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors } from './design-tokens';
 
 interface NavIconPickerProps {
     visible: boolean;
@@ -59,7 +60,7 @@ export function NavIconPicker({ visible, currentIcon, onSelect, onClose }: NavIc
                         value={search}
                         onChangeText={setSearch}
                         placeholder="Search icons..."
-                        placeholderTextColor="#94a3b8"
+                        placeholderTextColor={Colors.text.tertiary}
                         className="bg-slate-800 text-white p-4 rounded-xl border border-slate-700 mb-4"
                         autoCapitalize="none"
                         autoCorrect={false}

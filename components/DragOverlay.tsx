@@ -4,6 +4,7 @@ import Animated, { useAnimatedStyle, useAnimatedReaction, runOnJS } from 'react-
 import { useDragDrop } from './DragDropContext';
 import { RichTaskItem } from './markdown/RichTaskItem';
 import { RichTask } from '../utils/taskParser';
+import { Colors } from './ui/design-tokens';
 
 export const DragOverlay = () => {
   const { isDragging, dragX, dragY, dragData } = useDragDrop();
@@ -53,7 +54,7 @@ export const DragOverlay = () => {
 
   return (
     <Animated.View style={style} pointerEvents="none">
-      <View style={{ backgroundColor: '#1e293b', borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#334155' }}>
+      <View style={{ backgroundColor: Colors.surface, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: Colors.surfaceHighlight }}>
         <RichTaskItem
             task={activeTask}
             onToggle={() => {}}

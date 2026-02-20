@@ -5,6 +5,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
 import { u } from '../commonStyles'
 import { useTheme } from '../theme/ThemeContext'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { Palette } from '../../design-tokens';
 
 interface QuickActionMenuProps {
     onAction: (action: 'event' | 'reminder' | 'zone') => void
@@ -55,7 +56,7 @@ export const QuickActionMenu = ({ onAction, top, left }: QuickActionMenuProps) =
                 style={styles.button}
                 onPress={() => onAction('zone')}
             >
-                <MaterialCommunityIcons name="shape-plus" size={20} color={'#10b981'} />
+                <MaterialCommunityIcons name="shape-plus" size={20} color={Palette[9]} />
                 <Text style={[styles.text, { color: theme.palette.gray['800'] }]}>Zone</Text>
             </TouchableOpacity>
         </Animated.View>

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from './ui/Button';
 import { HabitDefinition } from '../store/habitStore';
 import { ColorPicker } from './ui/ColorPicker';
-import { Palette } from './ui/design-tokens';
+import { Palette, Colors } from './ui/design-tokens';
 import { IconPicker } from './ui/IconPicker';
 
 interface HabitModalProps {
@@ -56,7 +56,7 @@ export function HabitModal({ visible, onClose, onSave, initialData }: HabitModal
                             {initialData ? 'Edit Check' : 'New Check'}
                         </Text>
                         <TouchableOpacity onPress={onClose}>
-                            <Ionicons name="close" size={24} color="#94a3b8" />
+                            <Ionicons name="close" size={24} color={Colors.text.tertiary} />
                         </TouchableOpacity>
                     </View>
 
@@ -68,7 +68,7 @@ export function HabitModal({ visible, onClose, onSave, initialData }: HabitModal
                                 value={title}
                                 onChangeText={setTitle}
                                 placeholder="e.g. Exercise, Read, Meditate"
-                                placeholderTextColor="#64748b"
+                                placeholderTextColor={Colors.secondary}
                                 autoFocus
                             />
                         </View>

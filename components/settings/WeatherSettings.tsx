@@ -5,6 +5,7 @@ import { Input } from '../ui/Input';
 import { useSettingsStore } from '../../store/settings';
 import { Ionicons } from '@expo/vector-icons';
 import { updateUserLocation } from '../../utils/locationUtils';
+import { Colors } from '../ui/design-tokens';
 
 interface SearchResult {
     id: number;
@@ -87,8 +88,8 @@ export function WeatherSettings() {
                         <Switch
                             value={useCurrentLocation}
                             onValueChange={toggleCurrentLocation}
-                            trackColor={{ false: '#334155', true: '#818cf8' }}
-                            thumbColor={'#f8fafc'}
+                            trackColor={{ false: Colors.surfaceHighlight, true: '#818cf8' }}
+                            thumbColor={Colors.text.primary}
                         />
                     </View>
                 </View>

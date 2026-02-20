@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import * as WebBrowser from 'expo-web-browser';
+import { Colors } from '../ui/design-tokens';
 
 dayjs.extend(relativeTime);
 
@@ -168,7 +169,7 @@ export default function NewsScreen() {
                         className="flex-1 p-3 flex-row justify-center items-center border-r border-slate-700"
                         onPress={() => hideArticle(item.url)}
                     >
-                        <Ionicons name="eye-off-outline" size={20} color="#94a3b8" />
+                        <Ionicons name="eye-off-outline" size={20} color={Colors.text.tertiary} />
                         <Text className="text-slate-400 ml-2 font-medium">Hide</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -237,7 +238,7 @@ export default function NewsScreen() {
                                     onPress={handleReadAll}
                                     className="flex-row items-center bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700"
                                 >
-                                    <Ionicons name="checkmark-done-outline" size={16} color="#94a3b8" />
+                                    <Ionicons name="checkmark-done-outline" size={16} color={Colors.text.tertiary} />
                                     <Text className="text-slate-300 text-xs font-bold ml-1">Read All</Text>
                                 </TouchableOpacity>
                             ),
@@ -307,7 +308,7 @@ export default function NewsScreen() {
                                     <TextInput
                                         className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3"
                                         placeholder="Enter custom query..."
-                                        placeholderTextColor="#64748b"
+                                        placeholderTextColor={Colors.secondary}
                                         value={customQuery}
                                         onChangeText={setCustomQuery}
                                         onSubmitEditing={handleCustomSubmit}

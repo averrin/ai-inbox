@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors } from './design-tokens';
 
 export interface TopTab {
     key: string;
@@ -25,7 +26,7 @@ export function TopTabBar({ tabs, activeTab, onTabChange, scrollable }: TopTabBa
         <View
             className="flex-row items-center"
             style={{
-                backgroundColor: '#1e293b',
+                backgroundColor: Colors.surface,
                 borderRadius: 24,
                 padding: 3,
                 shadowColor: '#000',
@@ -46,7 +47,7 @@ export function TopTabBar({ tabs, activeTab, onTabChange, scrollable }: TopTabBa
                             paddingHorizontal: 14,
                             paddingVertical: 8,
                             borderRadius: 20,
-                            backgroundColor: isActive ? '#334155' : 'transparent',
+                            backgroundColor: isActive ? Colors.surfaceHighlight : Colors.transparent,
                             marginHorizontal: 1,
                         }}
                     >
@@ -54,7 +55,7 @@ export function TopTabBar({ tabs, activeTab, onTabChange, scrollable }: TopTabBa
                             <Ionicons
                                 name={tab.icon as any}
                                 size={16}
-                                color={isActive ? '#3b82f6' : '#94a3b8'}
+                                color={isActive ? Colors.primary : Colors.text.tertiary}
                                 style={{ marginRight: tab.label ? 6 : 0 }}
                             />
                         )}
@@ -62,7 +63,7 @@ export function TopTabBar({ tabs, activeTab, onTabChange, scrollable }: TopTabBa
                             style={{
                                 fontSize: 13,
                                 fontWeight: '700',
-                                color: isActive ? '#ffffff' : '#94a3b8',
+                                color: isActive ? Colors.white : Colors.text.tertiary,
                             }}
                         >
                             {tab.label}

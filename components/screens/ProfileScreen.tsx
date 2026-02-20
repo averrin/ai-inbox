@@ -28,6 +28,7 @@ import { useProfileStore } from '../../store/profileStore';
 import { analyzeImage } from '../../services/gemini';
 import { useSettingsStore } from '../../store/settings';
 import { useUIStore } from '../../store/ui';
+import { Colors, Palette } from '../ui/design-tokens';
 
 export default function ProfileScreen() {
     const insets = useSafeAreaInsets();
@@ -322,7 +323,7 @@ export default function ProfileScreen() {
                     <Ionicons
                         name={activeTab === 'home' ? "home" : "home-outline"}
                         size={16}
-                        color={activeTab === 'home' ? "white" : "#94a3b8"}
+                        color={activeTab === 'home' ? "white" : Colors.text.tertiary}
                     />
                     <Text className={`ml-1.5 text-xs font-bold ${activeTab === 'home' ? 'text-white' : 'text-slate-400'}`}>
                         Home
@@ -336,7 +337,7 @@ export default function ProfileScreen() {
                     <Ionicons
                         name={activeTab === 'details' ? "list" : "list-outline"}
                         size={16}
-                        color={activeTab === 'details' ? "white" : "#94a3b8"}
+                        color={activeTab === 'details' ? "white" : Colors.text.tertiary}
                     />
                     <Text className={`ml-1.5 text-xs font-bold ${activeTab === 'details' ? 'text-white' : 'text-slate-400'}`}>
                         Details
@@ -464,7 +465,7 @@ export default function ProfileScreen() {
                                                             <Text className={`font-bold text-lg ${isAllAnswered ? 'text-white' : 'text-slate-400'}`}>
                                                                 Submit Updates
                                                             </Text>
-                                                            <Ionicons name="arrow-forward" size={20} color={isAllAnswered ? 'white' : '#94a3b8'} />
+                                                            <Ionicons name="arrow-forward" size={20} color={isAllAnswered ? 'white' : Colors.text.tertiary} />
                                                         </>
                                                     )}
                                                 </TouchableOpacity>
@@ -475,7 +476,7 @@ export default function ProfileScreen() {
                                         <View className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden mb-2">
                                             <View className="bg-slate-800/50 px-4 py-3 border-b border-slate-800 flex-row items-center justify-between">
                                                 <View className="flex-row items-center gap-2">
-                                                    <Ionicons name="image-outline" size={16} color="#94a3b8" />
+                                                    <Ionicons name="image-outline" size={16} color={Colors.text.tertiary} />
                                                     <Text className="text-slate-300 font-semibold">Inner World</Text>
                                                 </View>
                                                 <View className="flex-row items-center gap-4">
@@ -496,7 +497,7 @@ export default function ProfileScreen() {
                                                         {isGeneratingImage ? (
                                                             <ActivityIndicator size="small" color="#818cf8" />
                                                         ) : (
-                                                            <Ionicons name="refresh" size={16} color="#94a3b8" />
+                                                            <Ionicons name="refresh" size={16} color={Colors.text.tertiary} />
                                                         )}
                                                     </TouchableOpacity>
                                                 </View>
@@ -562,7 +563,7 @@ export default function ProfileScreen() {
                                         <View className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
                                             <View className="bg-slate-800/50 px-4 py-3 border-b border-slate-800 flex-row items-center justify-between">
                                                 <View className="flex-row items-center gap-2">
-                                                    <Ionicons name="document-text-outline" size={16} color="#94a3b8" />
+                                                    <Ionicons name="document-text-outline" size={16} color={Colors.text.tertiary} />
                                                     <Text className="text-slate-300 font-semibold">Current Profile Context</Text>
                                                 </View>
                                             </View>
@@ -616,13 +617,13 @@ export default function ProfileScreen() {
                                                                         className="p-2"
                                                                         onPress={() => handleEditFact(key, value)}
                                                                     >
-                                                                        <Ionicons name="pencil-outline" size={16} color="#6366f1" />
+                                                                        <Ionicons name="pencil-outline" size={16} color={Palette[14]} />
                                                                     </TouchableOpacity>
                                                                     <TouchableOpacity
                                                                         className="p-2"
                                                                         onPress={() => handleDeleteFact(key)}
                                                                     >
-                                                                        <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                                                                        <Ionicons name="trash-outline" size={16} color={Colors.error} />
                                                                     </TouchableOpacity>
                                                                 </View>
                                                             </View>

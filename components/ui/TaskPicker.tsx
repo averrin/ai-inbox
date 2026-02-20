@@ -12,6 +12,7 @@ import { useFilteredTasks } from '../../hooks/useFilteredTasks';
 import { TasksList } from '../tasks/TasksList';
 import { TasksFilterPanel } from '../tasks/TasksFilterPanel';
 import { SelectionSheet, SelectionOption } from './SelectionSheet';
+import { Colors } from './design-tokens';
 
 const TopTab = createMaterialTopTabNavigator();
 
@@ -20,7 +21,7 @@ const TransparentTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    background: 'transparent',
+    background: Colors.transparent,
   },
 };
 
@@ -81,9 +82,9 @@ export function TaskPicker({ visible, initialSelectedIds = [], initialSelectedTa
 
     const SORT_OPTIONS: SelectionOption[] = [
         { id: 'smart', label: 'Smart Sort (Status + Priority)', icon: 'flash-outline', color: '#818cf8' },
-        { id: 'file', label: 'File Order', icon: 'document-text-outline', color: '#94a3b8' },
-        { id: 'title', label: 'Alphabetical (Title)', icon: 'text-outline', color: '#94a3b8' },
-        { id: 'priority', label: 'Priority Only', icon: 'flag-outline', color: '#ef4444' },
+        { id: 'file', label: 'File Order', icon: 'document-text-outline', color: Colors.text.tertiary },
+        { id: 'title', label: 'Alphabetical (Title)', icon: 'text-outline', color: Colors.text.tertiary },
+        { id: 'priority', label: 'Priority Only', icon: 'flag-outline', color: Colors.error },
     ];
 
     // Initialize selection map
@@ -185,8 +186,8 @@ export function TaskPicker({ visible, initialSelectedIds = [], initialSelectedTa
                             <TopTab.Navigator
                                 screenOptions={{
                                     tabBarStyle: {
-                                        backgroundColor: '#0f172a',
-                                        borderBottomColor: '#334155',
+                                        backgroundColor: Colors.background,
+                                        borderBottomColor: Colors.surfaceHighlight,
                                         borderBottomWidth: 1,
                                     },
                                     tabBarIndicatorStyle: {
@@ -198,7 +199,7 @@ export function TaskPicker({ visible, initialSelectedIds = [], initialSelectedTa
                                         fontSize: 12,
                                     },
                                     tabBarActiveTintColor: '#fff',
-                                    tabBarInactiveTintColor: '#64748b',
+                                    tabBarInactiveTintColor: Colors.secondary,
                                     tabBarScrollEnabled: folders.length > 3,
                                 }}
                             >

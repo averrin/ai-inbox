@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { useSettingsStore } from '../../store/settings';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
+import { Colors } from '../ui/design-tokens';
 
 const DEFAULT_WALK_PROMPT = `
 You are an expert scheduler and wellness coach.
@@ -95,7 +96,7 @@ export function WalkSettings() {
                             }}
                             keyboardType="numeric"
                             placeholder="3"
-                            placeholderTextColor="#64748b"
+                            placeholderTextColor={Colors.secondary}
                         />
                         <Text className="text-slate-500 text-xs mt-1 ml-1">
                             How many days in advance to generate suggestons (1-7).
@@ -114,7 +115,7 @@ export function WalkSettings() {
                             multiline
                             textAlignVertical="top"
                             placeholder="Enter your custom prompt..."
-                            placeholderTextColor="#64748b"
+                            placeholderTextColor={Colors.secondary}
                         />
                     </View>
 
@@ -131,7 +132,7 @@ export function WalkSettings() {
                             onPress={handleReset}
                             className="bg-red-500/10 border border-red-500/20 px-4 rounded-xl items-center justify-center"
                         >
-                            <Ionicons name="refresh-outline" size={20} color="#ef4444" />
+                            <Ionicons name="refresh-outline" size={20} color={Colors.error} />
                         </TouchableOpacity>
                     </View>
                 </View>

@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { BaseEditor } from './BaseEditor';
 import { getPropertyKeysFromCache, getPropertyValuesFromCache } from '../../utils/propertyUtils';
 import { useSettingsStore } from '../../store/settings';
+import { Colors, Palette } from './design-tokens';
 
 interface PropertyEditorProps {
     properties: Record<string, any>;
@@ -103,7 +104,7 @@ export function PropertyEditor({
                 onPress={() => handleRemove(key)} 
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-                <Ionicons name="close" size={10} color="#94a3b8" />
+                <Ionicons name="close" size={10} color={Colors.text.tertiary} />
             </TouchableOpacity>
         </View>
     );
@@ -128,7 +129,7 @@ export function PropertyEditor({
                         onChangeText={setTempKey}
                         onFocus={() => setActiveInput('key')}
                         placeholder="e.g., status, priority"
-                        placeholderTextColor="#64748b"
+                        placeholderTextColor={Colors.secondary}
                         className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white text-sm mb-2"
                         autoCapitalize="none"
                     />
@@ -190,8 +191,8 @@ export function PropertyEditor({
                                      <Switch
                                          value={tempValue === 'true'}
                                          onValueChange={(val) => setTempValue(val ? 'true' : 'false')}
-                                         trackColor={{ false: '#334155', true: '#6366f1' }}
-                                         thumbColor={tempValue === 'true' ? '#e0e7ff' : '#94a3b8'}
+                                         trackColor={{ false: Colors.surfaceHighlight, true: Palette[14] }}
+                                         thumbColor={tempValue === 'true' ? '#e0e7ff' : Colors.text.tertiary}
                                      />
                                  </View>
                              );
@@ -203,7 +204,7 @@ export function PropertyEditor({
                                 onChangeText={setTempValue}
                                 onFocus={() => setActiveInput('value')}
                                 placeholder="Value..."
-                                placeholderTextColor="#64748b"
+                                placeholderTextColor={Colors.secondary}
                                 className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-white text-sm mb-2"
                                 keyboardType={type === 'number' ? 'numeric' : 'default'}
                             />

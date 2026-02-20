@@ -3,6 +3,7 @@ import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { UniversalIcon } from './UniversalIcon';
 import { EventType } from '../../services/eventTypeService';
+import { Colors } from './design-tokens';
 
 interface EventTypeBadgeProps {
     type: EventType;
@@ -11,7 +12,7 @@ interface EventTypeBadgeProps {
 export function EventTypeBadge({ type }: EventTypeBadgeProps) {
     const isInv = type.isInverted;
     const pillStyle = isInv
-        ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: type.color }
+        ? { backgroundColor: Colors.transparent, borderWidth: 1, borderColor: type.color }
         : { backgroundColor: type.color };
     const textColor = isInv ? type.color : 'white';
 

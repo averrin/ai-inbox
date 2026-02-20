@@ -6,6 +6,7 @@ import { UniversalIcon } from '../../UniversalIcon';
 import { useTheme } from '../theme/ThemeContext';
 import { useEventTypesStore } from '../../../../store/eventTypes';
 import { useRelationsStore } from '../../../../store/relations';
+import { Colors, Palette } from '../../design-tokens';
 
 
 interface ScheduleEventProps {
@@ -17,13 +18,13 @@ interface ScheduleEventProps {
 
 // Helper function to get difficulty color based on value (0-5+)
 const getDifficultyColor = (difficulty: number): string => {
-    if (difficulty === 0) return '#64748b'; // slate-500 for 0
+    if (difficulty === 0) return Colors.secondary; // slate-500 for 0
 
     // Map difficulty 1-5 to traffic-light style colors
     const difficultyColors = [
-        '#22c55e', // green-500 (difficulty 1)
-        '#eab308', // yellow-500 (difficulty 2)
-        '#f97316', // orange-500 (difficulty 3)
+        Colors.success, // green-500 (difficulty 1)
+        Colors.warning, // yellow-500 (difficulty 2)
+        Colors.busy, // orange-500 (difficulty 3)
         '#dc2626', // red-600 (difficulty 4)
         '#b91c1c', // red-700 (difficulty 5+)
     ];
@@ -45,7 +46,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
     const difficultyValue = (evt.difficulty && typeof evt.difficulty === 'object') ? (evt.difficulty.total || 0) : (evt.difficulty || 0);
 
     if (evt.type === 'marker') {
-        const color = evt.color || (evt.originalEvent?.alarm ? '#ef4444' : '#f59e0b');
+        const color = evt.color || (evt.originalEvent?.alarm ? Colors.error : Palette[5]);
 
         return (
             <TouchableOpacity
@@ -59,10 +60,10 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
                         marginTop: 18, // Center on time (this might need adjustment depending on base offset)
                         overflow: 'visible',
                         zIndex: 20, // Above events,
-                        backgroundColor: 'transparent',
+                        backgroundColor: Colors.transparent,
                         elevation: 0,
                         shadowOpacity: 0,
-                        shadowColor: 'transparent',
+                        shadowColor: Colors.transparent,
                         borderWidth: 0,
                     }
                 ]}
@@ -71,7 +72,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
                     {/* Text Label & Tags */}
                     <View
                         className="bg-slate-900/90 rounded px-2 py-0.5 border shadow-sm flex-row items-center gap-1.5"
-                        style={{ borderColor: color, opacity: 0.9, backgroundColor: "#0f172a" }}
+                        style={{ borderColor: color, opacity: 0.9, backgroundColor: Colors.background }}
                     >
                         <Text
                             className="text-[10px] font-bold"
@@ -130,7 +131,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
                 ]}
             >
                 <View className="flex-row items-center px-2">
-                    <Text className="font-bold text-[12px] uppercase tracking-wider" style={{ color: evt.borderColor || '#1e293b', opacity: 0.8 }}>
+                    <Text className="font-bold text-[12px] uppercase tracking-wider" style={{ color: evt.borderColor || Colors.surface, opacity: 0.8 }}>
                         {evt.title}
                     </Text>
                 </View>
@@ -149,9 +150,9 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
 
     const containerStyle: any = {};
     if (isSuggestion) {
-        containerStyle.backgroundColor = (evt.color || '#22c55e') + '66'; // Opacity 40% (hex 66)
+        containerStyle.backgroundColor = (evt.color || Colors.success) + '66'; // Opacity 40% (hex 66)
         containerStyle.borderWidth = 2;
-        containerStyle.borderColor = (evt.color || '#22c55e') + 'AA'; // Slightly higher border opacity
+        containerStyle.borderColor = (evt.color || Colors.success) + 'AA'; // Slightly higher border opacity
         containerStyle.borderStyle = 'dashed';
     }
 
@@ -163,7 +164,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
     const subTextColor = evt.isInverted ? evt.color : 'rgba(255, 255, 255, 0.8)';
 
     let glowColor = evt.color || theme.palette.primary.main;
-    // glowColor = '#22c55e';
+    // glowColor = Colors.success;
     const nowStyle = isNow ? {
         zIndex: 1000,
         shadowColor: glowColor,
@@ -197,7 +198,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
                         <Ionicons
                             name={isCompleted ? 'checkbox' : 'square-outline'}
                             size={isUltraCompact ? 10 : 14}
-                            color={isCompleted ? '#22c55e' : 'rgba(255,255,255,0.5)'}
+                            color={isCompleted ? Colors.success : 'rgba(255,255,255,0.5)'}
                         />
                     </TouchableOpacity>
                 )}

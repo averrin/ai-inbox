@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useVaultStore } from '../../services/vaultService';
 import { getTagsFromCache } from '../../utils/tagUtils';
 import { BaseEditor } from './BaseEditor';
+import { Colors } from './design-tokens';
 
 interface TagEditorProps {
     tags: string[];
@@ -87,7 +88,7 @@ export function TagEditor({ tags, onAddTag, onRemoveTag, label }: TagEditorProps
                 value={inputValue}
                 onChangeText={setInputValue}
                 placeholder="Enter tag name..."
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={Colors.text.tertiary}
                 className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-white font-medium"
                 onSubmitEditing={handleConfirm}
                 returnKeyType="done"

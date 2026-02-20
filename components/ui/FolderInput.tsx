@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import { listSubdirectories } from '../../utils/saf';
 import { getSuggestions, applySuggestion, resolveBrowsePath } from '../../utils/folderUtils';
+import { Colors } from './design-tokens';
 
 interface FolderInputProps {
     label: string;
@@ -126,7 +127,7 @@ export function FolderInput({
                             onFocus={handleFocus}
                             onBlur={handleBlur}
                             placeholder={placeholder || (basePath ? 'subfolder...' : 'Enter folder path...')}
-                            placeholderTextColor="#94a3b8"
+                            placeholderTextColor={Colors.text.tertiary}
                             className={`flex-1 ${compact ? 'p-3 text-sm' : 'p-4'} ${basePath ? 'pl-0.5' : ''} pr-12 text-white font-medium`}
                         />
                     </View>

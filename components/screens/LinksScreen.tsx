@@ -9,6 +9,7 @@ import { useSettingsStore } from '../../store/settings';
 import { LinkService, FolderGroup } from '../../services/linkService';
 import { LinksFolderView } from '../links/LinksFolderView';
 import { useFocusEffect } from '@react-navigation/native';
+import { Colors } from '../ui/design-tokens';
 
 const TopTab = createMaterialTopTabNavigator();
 
@@ -77,9 +78,9 @@ export default function LinksScreen() {
             <ScreenHeader title="Links" noBorder />
             <View className="flex-1 bg-transparent">
                 <TopTab.Navigator
-                    style={{ backgroundColor: 'transparent' }}
+                    style={{ backgroundColor: Colors.transparent }}
                     // @ts-ignore
-                    sceneContainerStyle={{ backgroundColor: 'transparent' }}
+                    sceneContainerStyle={{ backgroundColor: Colors.transparent }}
                     tabBar={(props) => <TopTabBarNavigatorAdapter {...props} />}
                     screenOptions={{
                         swipeEnabled: true,

@@ -3,6 +3,7 @@ import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { DayBreakdown, DayStatusLevel } from '../utils/difficultyUtils';
 import { DayStatusMarker } from './DayStatusMarker';
+import { Colors } from './ui/design-tokens';
 
 interface Props {
     visible: boolean;
@@ -69,7 +70,7 @@ export function DaySummaryModal({ visible, onClose, breakdown, status, date }: P
                             </View>
                         </View>
                         <TouchableOpacity onPress={onClose} className="bg-slate-700 p-2 rounded-full">
-                            <Ionicons name="close" size={20} color="#94a3b8" />
+                            <Ionicons name="close" size={20} color={Colors.text.tertiary} />
                         </TouchableOpacity>
                     </View>
 

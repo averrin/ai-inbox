@@ -6,7 +6,7 @@ import { EventType } from '../../services/eventTypeService';
 import { ActionButton } from '../ui/ActionButton';
 import { SettingsListItem } from '../ui/SettingsListItem';
 import { ColorPicker } from '../ui/ColorPicker';
-import { Palette } from '../ui/design-tokens';
+import { Palette, Colors } from '../ui/design-tokens';
 import { IconPicker } from '../ui/IconPicker';
 import { EventTypeBadge } from '../ui/EventTypeBadge';
 import * as Crypto from 'expo-crypto';
@@ -76,7 +76,7 @@ export function EventTypesSettings() {
 
             <View className="flex-row gap-2 items-center">
                 <TouchableOpacity onPress={() => handleEdit(item)} className="p-2">
-                    <Ionicons name="pencil" size={20} color="#94a3b8" />
+                    <Ionicons name="pencil" size={20} color={Colors.text.tertiary} />
                 </TouchableOpacity>
                 <ActionButton
                     onPress={() => handleDelete(item.id)}
@@ -124,7 +124,7 @@ export function EventTypesSettings() {
                             <TextInput
                                 className="bg-slate-800 text-white p-3 rounded-lg mb-6"
                                 placeholder="e.g. Work, Gym"
-                                placeholderTextColor="#64748b"
+                                placeholderTextColor={Colors.secondary}
                                 value={title}
                                 onChangeText={setTitle}
                                 autoFocus={!editingType}
@@ -145,8 +145,8 @@ export function EventTypesSettings() {
                                 <Switch
                                     value={isInverted}
                                     onValueChange={setIsInverted}
-                                    trackColor={{ false: "#334155", true: "#4f46e5" }}
-                                    thumbColor={isInverted ? "#ffffff" : "#94a3b8"}
+                                    trackColor={{ false: Colors.surfaceHighlight, true: "#4f46e5" }}
+                                    thumbColor={isInverted ? Colors.white : Colors.text.tertiary}
                                 />
                             </View>
 
@@ -158,8 +158,8 @@ export function EventTypesSettings() {
                                 <Switch
                                     value={hideBadges}
                                     onValueChange={setHideBadges}
-                                    trackColor={{ false: "#334155", true: "#4f46e5" }}
-                                    thumbColor={hideBadges ? "#ffffff" : "#94a3b8"}
+                                    trackColor={{ false: Colors.surfaceHighlight, true: "#4f46e5" }}
+                                    thumbColor={hideBadges ? Colors.white : Colors.text.tertiary}
                                 />
                             </View>
 

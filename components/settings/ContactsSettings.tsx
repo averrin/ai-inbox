@@ -10,6 +10,7 @@ import { SettingsListItem } from '../ui/SettingsListItem';
 import { ColorPicker } from '../ui/ColorPicker';
 import { IconPicker } from '../ui/IconPicker';
 import { UniversalIcon } from '../ui/UniversalIcon';
+import { Colors, Palette } from '../ui/design-tokens';
 
 export function ContactsSettings() {
     const { contacts, addContact, updateContact, deleteContact } = useSettingsStore();
@@ -113,14 +114,14 @@ export function ContactsSettings() {
                         >
                             <View className="flex-row items-center flex-1">
                                 <View className="w-10 h-10 rounded-full bg-slate-700 items-center justify-center mr-3">
-                                    <UniversalIcon name={contact.icon || 'person'} size={20} color={contact.color || '#94a3b8'} />
+                                    <UniversalIcon name={contact.icon || 'person'} size={20} color={contact.color || Colors.text.tertiary} />
                                 </View>
                                 <View className="flex-1">
                                     <View className="flex-row items-center gap-2">
                                         <Text className="text-white font-semibold">{contact.name}</Text>
                                         {contact.isWife && (
                                             <View className="bg-pink-500/20 px-1.5 py-0.5 rounded flex-row items-center gap-1 border border-pink-500/50">
-                                                <Ionicons name="heart" size={10} color="#ec4899" />
+                                                <Ionicons name="heart" size={10} color={Palette[2]} />
                                                 <Text className="text-pink-400 text-[10px] font-bold">WIFE</Text>
                                             </View>
                                         )}
