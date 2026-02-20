@@ -20,7 +20,7 @@ export function ImageAttachmentButton({ onAnalysisComplete, prompt, style, class
     const pickImage = async () => {
         try {
             const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                mediaTypes: ['images'],
                 allowsEditing: true,
                 quality: 0.5,
                 base64: true,
@@ -46,7 +46,7 @@ export function ImageAttachmentButton({ onAnalysisComplete, prompt, style, class
                 base64,
                 prompt || "Describe this image in detail.",
                 mimeType,
-                'gemini-1.5-flash' // Force a vision-capable model if selectedModel might not be one, or check capabilities
+                selectedModel || 'gemini-1.5-flash'
             );
             if (text) {
                 onAnalysisComplete(text);
