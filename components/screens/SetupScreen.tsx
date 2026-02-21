@@ -1,4 +1,4 @@
-import { View, Text, Alert, TouchableOpacity, Modal, ScrollView, BackHandler, Animated, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, BackHandler, Animated, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
@@ -15,6 +15,7 @@ import { IntegrationsSettings } from '../settings/IntegrationsSettings';
 import { FolderInput } from '../ui/FolderInput';
 import { FileInput } from '../ui/FileInput';
 import { openInObsidian } from '../../utils/obsidian';
+import { showAlert, showError } from '../../utils/alert';
 
 
 import { CalendarsMainSettings } from '../settings/CalendarsMainSettings';
@@ -103,11 +104,14 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                         } catch (e) {
                             console.error("Failed to fetch user details after login", e);
                         }
-                        Alert.alert("Success", "Logged in with GitHub!");
+                        Toast.show({
+                            type: 'success',
+                            text1: 'Logged in with GitHub!',
+                        });
                     })
                     .catch(err => {
                         console.error("OAuth exchange error:", err);
-                        Alert.alert("Login Failed", err.message);
+                        showError("Login Failed", err.message);
                         setLastGithubCode(null);
                     });
             }
@@ -116,7 +120,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
 
     const loginWithGithub = () => {
         if (!githubClientIdInput || !githubClientSecretInput) {
-             Alert.alert("Configuration Missing", "Please enter GitHub Client ID and Secret.");
+             showAlert("Configuration Missing", "Please enter GitHub Client ID and Secret.");
              return;
         }
         // Force update inputs to store just in case
@@ -274,17 +278,17 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         if (uri) {
             setVaultUri(uri);
         } else {
-            Alert.alert("Permission Required", "Please select a folder to save your notes.");
+            showAlert("Permission Required", "Please select a folder to save your notes.");
         }
     };
 
     const handleSave = () => {
         if (!keyInput.trim()) {
-            Alert.alert("Missing API Key", "Please enter your Google Gemini API Key.");
+            showAlert("Missing API Key", "Please enter your Google Gemini API Key.");
             return;
         }
         if (!vaultUri) {
-            Alert.alert("Missing Vault", "Please select a vault folder.");
+            showAlert("Missing Vault", "Please select a vault folder.");
             return;
         }
         setApiKey(keyInput);
@@ -474,7 +478,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             if (fullFilePath) {
                                 await openInObsidian(vaultUri, fullFilePath);
                             } else {
-                                Alert.alert("Error", "Could not resolve prompt file path");
+                                showError("Error", "Could not resolve prompt file path");
                             }
                         }}
                         variant="secondary"

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, Image } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
@@ -30,6 +30,7 @@ import { useSettingsStore } from '../../store/settings';
 import { useUIStore } from '../../store/ui';
 import { Colors, Palette } from '../ui/design-tokens';
 import { MetadataChip } from '../ui/MetadataChip';
+import { showAlert, showError } from '../../utils/alert';
 
 export default function ProfileScreen() {
     const insets = useSafeAreaInsets();
@@ -218,7 +219,7 @@ export default function ProfileScreen() {
     };
 
     const handleDeleteFact = (key: string) => {
-        Alert.alert(
+        showAlert(
             "Delete Fact",
             `Are you sure you want to remove this information: "${key}"?`,
             [
@@ -255,7 +256,7 @@ export default function ProfileScreen() {
             });
         } catch (error) {
             console.error('[ProfileScreen] Copy failed:', error);
-            Alert.alert('Copy Failed', 'Could not copy context to clipboard.');
+            showError('Copy Failed', 'Could not copy context to clipboard.');
         }
     };
 
@@ -265,7 +266,7 @@ export default function ProfileScreen() {
         try {
             const isAvailable = await Sharing.isAvailableAsync();
             if (!isAvailable) {
-                Alert.alert('Sharing Unavailable', 'Sharing is not available on this device.');
+                showAlert('Sharing Unavailable', 'Sharing is not available on this device.');
                 return;
             }
 
@@ -276,7 +277,7 @@ export default function ProfileScreen() {
             });
         } catch (error) {
             console.error('[ProfileScreen] Share failed:', error);
-            Alert.alert('Share Failed', 'Could not share the image.');
+            showError('Share Failed', 'Could not share the image.');
         }
     };
 

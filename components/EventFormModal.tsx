@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Modal, TextInput, Switch, ScrollView, Alert, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, TextInput, Switch, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSettingsStore } from '../store/settings';
@@ -13,6 +13,7 @@ import { useTasksStore, TaskWithSource } from '../store/tasks';
 import { TaskStatusIcon } from './ui/TaskStatusIcon';
 import { ColorPicker } from './ui/ColorPicker';
 import { Palette, Colors } from './ui/design-tokens';
+import { showAlert, showError } from '../utils/alert';
 
 
 
@@ -217,7 +218,7 @@ export function EventFormModal({
 
     const handleAIReschedule = async (rescheduleType: 'later' | 'tomorrow') => {
         if (!apiKey) {
-            Alert.alert("Setup Required", "Please configure your Gemini API Key in settings first.");
+            showAlert("Setup Required", "Please configure your Gemini API Key in settings first.");
             return;
         }
 
@@ -250,11 +251,11 @@ export function EventFormModal({
             if (suggestedTime) {
                 setStartDate(new Date(suggestedTime));
             } else {
-                Alert.alert("AI Suggestion", "Could not find a suitable time slot.");
+                showAlert("AI Suggestion", "Could not find a suitable time slot.");
             }
         } catch (e) {
             console.error(e);
-            Alert.alert("Error", "Failed to reschedule with AI.");
+            showError("Error", "Failed to reschedule with AI.");
         } finally {
             setIsRescheduling(null);
         }
@@ -318,7 +319,7 @@ export function EventFormModal({
                 setScopeAction('delete');
                 setShowScopeSelector(true);
             } else {
-                Alert.alert(
+                showAlert(
                     `Delete ${type === 'zone' ? 'Zone' : 'Event'}`,
                     `Are you sure you want to delete this ${type === 'zone' ? 'zone' : 'event'}?`,
                     [

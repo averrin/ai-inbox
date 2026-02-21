@@ -1,7 +1,8 @@
-import { View, Text, TouchableOpacity, TextInput, Alert, Modal, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Modal, ScrollView } from 'react-native';
 import { useState } from 'react';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import { Colors } from './design-tokens';
+import { showAlert, showError } from '../../utils/alert';
 
 interface FileInputProps {
     label: string;
@@ -32,7 +33,7 @@ export function FileInput({
 
     const handleBrowse = async () => {
         if (!vaultUri) {
-            Alert.alert('Vault Required', 'Please select a vault first.');
+            showAlert('Vault Required', 'Please select a vault first.');
             return;
         }
         setIsSelecting(true);
@@ -45,7 +46,7 @@ export function FileInput({
                 if (contextUri) {
                     scanUri = contextUri;
                 } else {
-                    Alert.alert('Context Root Not Found', `The folder "${contextRootFolder}" does not exist in the vault.`);
+                    showError('Context Root Not Found', `The folder "${contextRootFolder}" does not exist in the vault.`);
                     setIsSelecting(false);
                     return;
                 }
@@ -56,7 +57,7 @@ export function FileInput({
             
             if (foundFiles.length === 0) {
                 const location = contextRootFolder ? `in "${contextRootFolder}"` : 'in vault';
-                Alert.alert('No Files Found', `No ${fileExtension} files found ${location}.`);
+                showAlert('No Files Found', `No ${fileExtension} files found ${location}.`);
                 setIsSelecting(false);
                 return;
             }
@@ -66,7 +67,7 @@ export function FileInput({
             
         } catch (e) {
             console.error('[FileInput] Error browsing files:', e);
-            Alert.alert('Error', 'Could not browse files.');
+            showError('Error', 'Could not browse files.');
         } finally {
             setIsSelecting(false);
         }

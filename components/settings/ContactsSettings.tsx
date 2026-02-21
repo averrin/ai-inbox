@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore, Contact } from '../../store/settings';
 import { useGoogleStore } from '../../store/googleStore';
@@ -11,6 +11,7 @@ import { ColorPicker } from '../ui/ColorPicker';
 import { IconPicker } from '../ui/IconPicker';
 import { UniversalIcon } from '../ui/UniversalIcon';
 import { Colors, Palette } from '../ui/design-tokens';
+import { showAlert } from '../../utils/alert';
 
 export function ContactsSettings() {
     const { contacts, addContact, updateContact, deleteContact } = useSettingsStore();
@@ -45,7 +46,7 @@ export function ContactsSettings() {
 
     const saveContact = () => {
         if (!cName.trim() || !cEmail.trim()) {
-            Alert.alert('Missing Info', 'Name and Email are required.');
+            showAlert('Missing Info', 'Name and Email are required.');
             return;
         }
 
@@ -72,7 +73,7 @@ export function ContactsSettings() {
 
     const handleDeleteContact = () => {
         if (editingId) {
-            Alert.alert(
+            showAlert(
                 "Delete Contact",
                 "Are you sure?",
                 [

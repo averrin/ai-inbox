@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { useSettingsStore } from '../../store/settings';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { Colors } from '../ui/design-tokens';
+import { showAlert } from '../../utils/alert';
 
 const DEFAULT_WALK_PROMPT = `
 You are an expert scheduler and wellness coach.
@@ -38,7 +39,7 @@ export function WalkSettings() {
     const handleSave = () => {
         const days = parseInt(lookahead);
         if (isNaN(days) || days < 1 || days > 7) {
-            Alert.alert("Invalid Input", "Lookahead days must be between 1 and 7.");
+            showAlert("Invalid Input", "Lookahead days must be between 1 and 7.");
             return;
         }
 
@@ -52,7 +53,7 @@ export function WalkSettings() {
     };
 
     const handleReset = () => {
-        Alert.alert(
+        showAlert(
             "Reset Settings",
             "Are you sure you want to reset to defaults?",
             [

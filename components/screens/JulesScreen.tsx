@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, Alert, ActivityIndicator, StyleSheet, Modal, FlatList, TextInput, Animated, Easing } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, ActivityIndicator, StyleSheet, Modal, FlatList, TextInput, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layout } from '../ui/Layout';
@@ -11,6 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuthRequest, makeRedirectUri, ResponseType } from 'expo-auth-session';
+import { showAlert, showError } from '../../utils/alert';
+import Toast from 'react-native-toast-message';
 
 WebBrowser.maybeCompleteAuthSession();
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -673,18 +675,18 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
         try {
             setIsMerging(true);
             await mergePullRequest(ghToken, owner, repo, prNumber);
-            Alert.alert("Success", "Pull Request merged successfully");
+            showAlert("Success", "Pull Request merged successfully");
             if (onRefresh) onRefresh();
         } catch (e) {
             console.error(e);
-            Alert.alert("Error", "Failed to merge Pull Request");
+            showError("Error", "Failed to merge Pull Request");
         } finally {
             setIsMerging(false);
         }
     };
 
     const handleDelete = () => {
-        Alert.alert(
+        showAlert(
             "Delete Session",
             "Are you sure you want to delete this session? This cannot be undone.",
             [
@@ -700,10 +702,10 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
         try {
             await sendMessageToSession(julesGoogleApiKey, session.name, message);
             setMessageVisible(false);
-            Alert.alert("Success", "Message sent to session");
+            showAlert("Success", "Message sent to session");
         } catch (e: any) {
             console.error("Failed to send message", e);
-            Alert.alert("Error", e.message || "Failed to send message");
+            showError("Error", e.message || "Failed to send message");
         } finally {
             setSendingMessage(false);
         }
@@ -1013,12 +1015,15 @@ export default function JulesScreen() {
                         } catch (e) {
                             console.error("Failed to fetch user details after login", e);
                         }
-                        Alert.alert("Success", "Logged in with GitHub!");
+                        Toast.show({
+                            type: 'success',
+                            text1: 'Logged in with GitHub!',
+                        });
                         setShowRepoSelector(true);
                     })
                     .catch(err => {
                         console.error("OAuth exchange error:", err);
-                        Alert.alert("Login Failed", err.message);
+                        showError("Login Failed", err.message);
                         setLastExchangedCode(null);
                     })
                     .finally(() => setLoading(false));
@@ -1028,7 +1033,7 @@ export default function JulesScreen() {
 
     const loginWithGithub = () => {
         if (!githubClientId || !githubClientSecret) {
-            Alert.alert("Configuration Missing", "Please configure GitHub Client ID and Secret in Settings.");
+            showAlert("Configuration Missing", "Please configure GitHub Client ID and Secret in Settings.");
             return;
         }
         promptAsync();
@@ -1305,7 +1310,7 @@ export default function JulesScreen() {
                                             await deleteJulesSession(julesGoogleApiKey, session.name);
                                         } catch (e) {
                                             console.error(e);
-                                            Alert.alert("Error", "Failed to delete session");
+                                            showError("Error", "Failed to delete session");
                                             onRefresh();
                                         }
                                     }

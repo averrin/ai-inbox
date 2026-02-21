@@ -1,4 +1,4 @@
-import { View, Text, FlatList, Image, TouchableOpacity, RefreshControl, TextInput, Alert } from 'react-native';
+import { View, Text, FlatList, Image, TouchableOpacity, RefreshControl, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettingsStore } from '../../store/settings';
 import { useEffect, useState } from 'react';
@@ -111,7 +111,7 @@ export default function NewsScreen() {
     const handleReadAll = () => {
         if (visibleArticles.length === 0) return;
 
-        Alert.alert(
+        showAlert(
             "Read All",
             "This will hide all currently visible articles. Are you sure?",
             [

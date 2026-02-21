@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
@@ -7,6 +7,7 @@ import { BlurView } from 'expo-blur';
 import { useSettingsStore } from '../store/settings';
 import { createCalendarEvent } from '../services/calendarService';
 import { Colors, Palette } from './ui/design-tokens';
+import { showAlert, showError } from '../utils/alert';
 
 interface UnifiedSuggestionModalProps {
     visible: boolean;
@@ -79,7 +80,7 @@ export function UnifiedSuggestionModal({
              }
  
              if (!targetCalendarId) {
-                 Alert.alert("Configuration Error", 'Please set a "Default to create" calendar in Settings.');
+                 showAlert("Configuration Error", 'Please set a "Default to create" calendar in Settings.');
                  setLoading(false);
                  return;
              }
@@ -108,7 +109,7 @@ export function UnifiedSuggestionModal({
             onClose();
         } catch (error) {
             console.error(`Failed to materialize ${type}:`, error);
-            Alert.alert("Error", `Failed to schedule ${type}.`);
+            showError("Error", `Failed to schedule ${type}.`);
         } finally {
             setLoading(false);
         }

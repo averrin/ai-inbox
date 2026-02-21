@@ -1,5 +1,6 @@
 import { Artifact } from '../services/julesApi';
 import type { ArtifactDeps } from './artifactDeps';
+import { showAlert, showError } from './alert';
 
 export async function ensureArtifactsDirectory(deps: ArtifactDeps) {
     const dir = deps.FileSystem.documentDirectory + 'artifacts/';
@@ -31,7 +32,7 @@ export async function installCachedArtifact(apkUri: string, deps: ArtifactDeps) 
         console.log(`[Artifact] Launched package installer via ApkInstaller native module`);
     } catch (installError: any) {
         if (installError?.code === 'APK_PERMISSION_NEEDED') {
-            deps.Alert.alert(
+            showAlert(
                 "Permission Required",
                 "Please enable 'Install unknown apps' for AI Inbox in the settings screen that just opened, then try again."
             );
@@ -228,12 +229,12 @@ export async function downloadAndInstallArtifact(
         if (await deps.Sharing.isAvailableAsync()) {
             await deps.Sharing.shareAsync(result.uri);
         } else {
-            deps.Alert.alert("Success", "Artifact downloaded to: " + result.uri);
+            showAlert("Success", "Artifact downloaded to: " + result.uri);
         }
 
     } catch (e: any) {
         console.error("[Artifact] Critical error in downloadAndInstallArtifact:", e);
-        deps.Alert.alert("Error", "Failed to download/install artifact: " + e.message);
+        showError("Error", "Failed to download/install artifact: " + e.message);
         return null;
     } finally {
         setDownloading(false);

@@ -1,4 +1,4 @@
-import { View, Text, Alert, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal } from 'react-native';
 import { useState, useEffect, useMemo } from 'react';
 import { SyncService } from '../../services/syncService';
 import { Card } from '../ui/Card';
@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { JsonTreeView } from '../ui/JsonTreeView';
 import { Colors } from '../ui/design-tokens';
+import { showAlert, showError } from '../../utils/alert';
 
 export const SyncDebugView = () => {
     const [targets, setTargets] = useState<string[]>([]);
@@ -35,7 +36,7 @@ export const SyncDebugView = () => {
             const data = await SyncService.getInstance().getRemoteData(target);
             setRemoteData(JSON.stringify(data, null, 2));
         } catch (e: any) {
-            Alert.alert("Error fetching remote data", e.message);
+            showError("Error fetching remote data", e.message);
         } finally {
             setIsLoading(false);
         }
@@ -49,9 +50,9 @@ export const SyncDebugView = () => {
             const parsed = JSON.parse(dataToSave);
             await SyncService.getInstance().setRemoteData(selectedTarget, parsed);
             if (newData) setRemoteData(newData); // Update local state if successful
-            Alert.alert("Success", "Remote data updated.");
+            showAlert("Success", "Remote data updated.");
         } catch (e: any) {
-            Alert.alert("Error saving remote data", e.message);
+            showError("Error saving remote data", e.message);
         } finally {
             setIsLoading(false);
         }
@@ -138,7 +139,7 @@ export const SyncDebugView = () => {
     };
 
     const onTreeDelete = (path: string[]) => {
-        Alert.alert(
+        showAlert(
             "Confirm Delete",
             `Are you sure you want to delete the key '${path.join('.')}'?`,
             [
@@ -155,7 +156,7 @@ export const SyncDebugView = () => {
                             // Let's auto-save for better UX in tree mode, or prompt?
                             // For safety, let's just update local state and let user click "Save to Remote"
                         } catch (e) {
-                            Alert.alert("Error deleting", "Could not delete item.");
+                            showError("Error deleting", "Could not delete item.");
                         }
                     }
                 }
@@ -195,7 +196,7 @@ export const SyncDebugView = () => {
             setRemoteData(JSON.stringify(newData, null, 2));
             setEditModalVisible(false);
         } catch (e) {
-            Alert.alert("Update Error", "Failed to update tree data.");
+            showError("Update Error", "Failed to update tree data.");
         }
     };
 
