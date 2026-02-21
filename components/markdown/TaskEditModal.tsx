@@ -354,7 +354,7 @@ export function TaskEditModal({
                         </View>
                     </View>
 
-                    <ScrollView showsVerticalScrollIndicator={false}>
+                    <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                         <View className="mb-4">
                             <Text className="text-text-secondary mb-2 font-medium text-xs uppercase tracking-wider">Title</Text>
                             <TextInput
