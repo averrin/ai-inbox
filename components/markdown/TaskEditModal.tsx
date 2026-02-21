@@ -416,8 +416,8 @@ export function TaskEditModal({
                                             className={`flex-row items-center justify-center py-2 px-3 rounded-xl border ${isSelected ? 'bg-primary border-primary' : 'bg-surface border-border'}`}
                                             style={{ minWidth: '30%' }}
                                         >
-                                            <TaskStatusIcon status={id} size={16} />
-                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-text-secondary' : 'text-text-tertiary'}`}>
+                                            <TaskStatusIcon status={id} size={16} color={isSelected ? Colors.white : undefined} />
+                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-white' : 'text-text-tertiary'}`}>
                                                 {s.label}
                                             </Text>
                                         </TouchableOpacity>
@@ -453,9 +453,9 @@ export function TaskEditModal({
                                             <Ionicons 
                                                 name={p.icon as any} 
                                                 size={16} 
-                                                color={isSelected ? '#818cf8' : p.color} 
+                                                color={isSelected ? Colors.white : p.color}
                                             />
-                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-text-secondary' : 'text-text-tertiary'}`}>
+                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-white' : 'text-text-tertiary'}`}>
                                                 {p.label}
                                             </Text>
                                         </TouchableOpacity>
