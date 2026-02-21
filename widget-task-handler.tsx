@@ -14,6 +14,8 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
 
   if (widgetInfo.widgetName === WIDGET_NAME) {
     try {
+      console.log('JulesWidget: Starting task handler');
+
       // 1. Get Settings
       const settingsJson = await AsyncStorage.getItem('ai-inbox-settings');
       let settings: any = {};
@@ -21,6 +23,7 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
         const parsed = JSON.parse(settingsJson);
         settings = parsed.state || {};
       }
+      console.log('JulesWidget: Settings loaded', settings ? 'Yes' : 'No');
 
       // 2. Get Tasks
       const tasksJson = await AsyncStorage.getItem('tasks-storage');
@@ -31,6 +34,7 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
           tasks = parsed.state.tasks;
         }
       }
+      console.log('JulesWidget: Tasks loaded', tasks.length);
 
       // 3. Upcoming Event
       let upcomingEvent = undefined;
@@ -100,6 +104,7 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
         }
       }
 
+      console.log('JulesWidget: Update Requesting');
       requestWidgetUpdate({
         androidWidgetId: widgetInfo.widgetId,
         renderWidget: () => (
@@ -111,8 +116,17 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
         ),
         widgetName: widgetInfo.widgetName,
       });
-    } catch (error) {
+      console.log('JulesWidget: Update Requested');
+    } catch (error: any) {
        console.error('Widget update failed', error);
+       // Ensure something is visible even on error
+       requestWidgetUpdate({
+        androidWidgetId: widgetInfo.widgetId,
+        renderWidget: () => (
+            <JulesWidget error={error.message || 'Unknown error'} />
+        ),
+        widgetName: widgetInfo.widgetName,
+      });
     }
   }
 }

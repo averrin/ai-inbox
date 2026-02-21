@@ -5,19 +5,38 @@ export interface JulesWidgetProps {
   upcomingEvent?: { title: string; time: string };
   pendingTask?: { title: string };
   githubRuns?: { count: number; running: boolean };
+  error?: string;
 }
 
-export function JulesWidget({ upcomingEvent, pendingTask, githubRuns }: JulesWidgetProps) {
+export function JulesWidget({ upcomingEvent, pendingTask, githubRuns, error }: JulesWidgetProps) {
+  if (error) {
+    return (
+      <FlexWidget
+        style={{
+          height: 'match_parent',
+          width: 'match_parent',
+          backgroundColor: '#00000080',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+        clickAction="OPEN_APP"
+      >
+        <TextWidget text={`Error: ${error}`} style={{ color: '#ff4444', fontSize: 14 }} />
+      </FlexWidget>
+    );
+  }
+
   return (
     <FlexWidget
       style={{
         height: 'match_parent',
         width: 'match_parent',
-        backgroundColor: '#00000000', // Transparent
+        backgroundColor: '#00000040', // Semi-transparent black for visibility
         flexDirection: 'column',
         justifyContent: 'center',
         paddingHorizontal: 16,
         paddingVertical: 8,
+        borderRadius: 16,
       }}
       clickAction="OPEN_APP"
     >
