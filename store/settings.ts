@@ -143,7 +143,9 @@ interface SettingsState {
     tagConfig: Record<string, MetadataConfig>;
     propertyConfig: Record<string, MetadataConfig>;
     setTagConfig: (tag: string, config: MetadataConfig) => void;
+    removeTagConfig: (tag: string) => void;
     setPropertyConfig: (prop: string, config: MetadataConfig) => void;
+    removePropertyConfig: (prop: string) => void;
     contacts: Contact[];
     setContacts: (contacts: Contact[]) => void;
     addContact: (contact: Omit<Contact, 'id'>) => void;
@@ -186,6 +188,9 @@ interface SettingsState {
 export interface MetadataConfig {
     hidden?: boolean;
     color?: string;
+    icon?: string;
+    rounding?: 'none' | 'sm' | 'md' | 'lg' | 'full';
+    variant?: 'default' | 'solid' | 'outline';
     type?: 'text' | 'date' | 'number' | 'boolean';
     valueConfigs?: Record<string, MetadataConfig>; // For property values
 }
@@ -318,9 +323,19 @@ export const useSettingsStore = create<SettingsState>()(
             setTagConfig: (tag, config) => set((state) => ({
                 tagConfig: { ...state.tagConfig, [tag]: config }
             })),
+            removeTagConfig: (tag) => set((state) => {
+                const newConfig = { ...state.tagConfig };
+                delete newConfig[tag];
+                return { tagConfig: newConfig };
+            }),
             setPropertyConfig: (prop, config) => set((state) => ({
                 propertyConfig: { ...state.propertyConfig, [prop]: config }
             })),
+            removePropertyConfig: (prop) => set((state) => {
+                const newConfig = { ...state.propertyConfig };
+                delete newConfig[prop];
+                return { propertyConfig: newConfig };
+            }),
             contacts: [],
             setContacts: (contacts) => set({ contacts }),
             addContact: (contact) => set((state) => ({

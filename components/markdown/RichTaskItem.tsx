@@ -9,6 +9,7 @@ import { REMINDER_PROPERTY_KEY } from '../../services/reminderService';
 import { TaskStatusIcon } from '../ui/TaskStatusIcon';
 import dayjs from 'dayjs';
 import { Colors, Palette } from '../ui/design-tokens';
+import { MetadataChip } from '../ui/MetadataChip';
 
 const FILE_COLORS = [
     Colors.error, // red-500
@@ -128,12 +129,7 @@ export function RichTaskItem({
     );
 
     const metadataSubtitle = (
-        <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 4, alignItems: 'center' }}
-            style={{ marginTop: 4, height: 22 }} // Fixed height for one line
-        >
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
             {task.properties[REMINDER_PROPERTY_KEY] && (
                 <View className="mr-1">
                     <Ionicons name="alarm" size={14} color="#fbbf24" />
@@ -159,54 +155,53 @@ export function RichTaskItem({
                 const valueConfig = config?.valueConfigs?.[valStr];
 
                 const activeColor = valueConfig?.color || config?.color;
+                const activeVariant = config?.variant || 'default';
+                const isSolid = activeVariant === 'solid';
 
-                const customStyle = activeColor ? {
-                    backgroundColor: `${activeColor}33`,
-                    borderColor: `${activeColor}66`,
-                } : undefined;
-                const textStyle = activeColor ? { color: activeColor } : undefined;
+                const textColorStyle = isSolid ? { color: '#FFFFFF' } : (activeColor ? { color: activeColor } : undefined);
 
                 return (
-                    <View
+                    <MetadataChip
                         key={`prop-${key}`}
-                        className="bg-surface-highlight/50 px-1.5 py-0.5 rounded border border-border flex-row items-center"
-                        style={customStyle}
-                    >
-                        {key === 'context' ? (
-                            <Text className="text-text-primary text-[10px]" style={textStyle}>@{value}</Text>
-                        ) : (
-                            <>
-                                <Text className="text-text-tertiary text-[10px] mr-1" style={textStyle}>{key}:</Text>
-                                <Text className="text-text-primary text-[10px]" style={textStyle}>
-                                    {key === 'date' && String(value) === dayjs().format('YYYY-MM-DD') ? 'Today' : String(value)}
-                                </Text>
-                            </>
-                        )}
-                    </View>
+                        label={
+                            key === 'context' ? (
+                                <Text className="text-text-primary text-[10px]" style={textColorStyle}>@{value}</Text>
+                            ) : (
+                                <>
+                                    <Text className="text-text-tertiary text-[10px] mr-1" style={textColorStyle}>{key}:</Text>
+                                    <Text className="text-text-primary text-[10px]" style={textColorStyle}>
+                                        {key === 'date' && String(value) === dayjs().format('YYYY-MM-DD') ? 'Today' : String(value)}
+                                    </Text>
+                                </>
+                            )
+                        }
+                        color={activeColor}
+                        variant={activeVariant}
+                        icon={config?.icon}
+                        rounding={config?.rounding}
+                        size="sm"
+                    />
                 );
             })}
             {task.tags.map(tag => {
                 const config = tagConfig[tag];
                 if (config?.hidden) return null;
 
-                const customStyle = config?.color ? {
-                    backgroundColor: `${config.color}33`,
-                    borderColor: `${config.color}66`,
-                } : undefined;
-                const textStyle = config?.color ? { color: config.color } : undefined;
-
                 return (
-                    <TouchableOpacity
+                    <MetadataChip
                         key={`tag-${tag}`}
+                        label={`#${tag}`}
+                        color={config?.color}
+                        variant={config?.variant || 'default'}
+                        icon={config?.icon}
+                        rounding={config?.rounding}
+                        size="sm"
                         onPress={() => onTagPress?.(tag)}
-                        className="bg-surface-highlight px-1.5 py-0.5 rounded border border-primary"
-                        style={customStyle}
-                    >
-                        <Text className="text-text-secondary text-[10px]" style={textStyle}>#{tag}</Text>
-                    </TouchableOpacity>
+                        style={!config?.color ? { borderColor: Colors.primary, backgroundColor: Colors.surfaceHighlight } : undefined}
+                    />
                 );
             })}
-        </ScrollView>
+        </View>
     );
 
     const rightActions = (onEdit || onDelete || onReschedule) ? (

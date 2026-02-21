@@ -29,6 +29,7 @@ import { analyzeImage } from '../../services/gemini';
 import { useSettingsStore } from '../../store/settings';
 import { useUIStore } from '../../store/ui';
 import { Colors, Palette } from '../ui/design-tokens';
+import { MetadataChip } from '../ui/MetadataChip';
 
 export default function ProfileScreen() {
     const insets = useSafeAreaInsets();
@@ -303,10 +304,16 @@ export default function ProfileScreen() {
     };
 
 
-    const getLevelLabel = (level: number) => {
-        if (level <= 0.3) return { label: 'Fact', color: 'text-primary', bg: 'bg-primary/10' };
-        if (level <= 0.7) return { label: 'Routine', color: 'text-primary', bg: 'bg-primary' };
-        return { label: 'Value', color: 'text-warning', bg: 'bg-warning' };
+    const getLevelChipProps = (level: number) => {
+        if (level <= 0.3) return { label: 'Fact', color: Colors.primary, variant: 'outline' as const };
+        if (level <= 0.7) return { label: 'Routine', color: Colors.primary, variant: 'solid' as const };
+        return { label: 'Value', color: Colors.warning, variant: 'solid' as const };
+    };
+
+    const getDepthLabel = (level: number) => {
+        if (level < 0.35) return "Concrete Facts";
+        if (level < 0.65) return "Habits & Routine";
+        return "Deep Philosophy";
     };
 
     // Custom Tab Component for IslandHeader containing Title and Tabs
@@ -401,17 +408,21 @@ export default function ProfileScreen() {
                                                 {dailyQuestions.map((q, idx) => {
                                                     const qText = typeof q === 'string' ? q : q.text;
                                                     const qLevel = typeof q === 'string' ? 0.5 : q.level;
+                                                    const levelProps = getLevelChipProps(qLevel);
+
                                                     return (
                                                         <View key={idx} className="bg-background p-4 rounded-xl border border-border">
                                                             <View className="flex-row justify-between items-start mb-3">
                                                                 <Text className="text-text-primary font-medium leading-6 flex-1 mr-4">
                                                                     {qText}
                                                                 </Text>
-                                                                <View className={`px-2 py-0.5 rounded ${getLevelLabel(qLevel).bg}`}>
-                                                                    <Text className={`text-[10px] font-bold uppercase tracking-wider ${getLevelLabel(qLevel).color}`}>
-                                                                        {getLevelLabel(qLevel).label}
-                                                                    </Text>
-                                                                </View>
+                                                                <MetadataChip
+                                                                    label={levelProps.label}
+                                                                    color={levelProps.color}
+                                                                    variant={levelProps.variant}
+                                                                    size="sm"
+                                                                    rounding="sm"
+                                                                />
                                                             </View>
                                                             <View className="relative">
                                                                 {questionImages[qText] && (
@@ -533,11 +544,13 @@ export default function ProfileScreen() {
                                                     <Text className="text-text-secondary font-semibold">Depth Preference</Text>
                                                     <Text className="text-secondary text-xs">AI curiosity level</Text>
                                                 </View>
-                                                <View className={`px-3 py-1 rounded-full ${getLevelLabel(config.abstractionLevel).bg}`}>
-                                                    <Text className={`text-xs font-bold ${getLevelLabel(config.abstractionLevel).color}`}>
-                                                        {config.abstractionLevel < 0.35 ? "Concrete Facts" : config.abstractionLevel < 0.65 ? "Habits & Routine" : "Deep Philosophy"}
-                                                    </Text>
-                                                </View>
+                                                <MetadataChip
+                                                    label={getDepthLabel(config.abstractionLevel)}
+                                                    color={getLevelChipProps(config.abstractionLevel).color}
+                                                    variant={getLevelChipProps(config.abstractionLevel).variant}
+                                                    size="sm"
+                                                    rounding="full"
+                                                />
                                             </View>
 
                                             <View className="flex-row items-center gap-3">
@@ -635,9 +648,13 @@ export default function ProfileScreen() {
                                                 <Text className="text-secondary text-xs">
                                                     Last Updated: {new Date(profile.lastUpdated).toLocaleDateString()}
                                                 </Text>
-                                                <Text className="text-secondary text-xs">
-                                                    {filteredFacts.length} {filteredFacts.length === 1 ? 'Fact' : 'Facts'}
-                                                </Text>
+                                                <MetadataChip
+                                                    label={`${filteredFacts.length} ${filteredFacts.length === 1 ? 'Fact' : 'Facts'}`}
+                                                    variant="outline"
+                                                    color={Colors.secondary}
+                                                    size="sm"
+                                                    rounding="sm"
+                                                />
                                             </View>
                                         </View>
                                     </>
@@ -667,11 +684,13 @@ export default function ProfileScreen() {
                                     <Text className="text-text-secondary font-semibold">Depth Preference</Text>
                                     <Text className="text-secondary text-xs">AI curiosity level</Text>
                                 </View>
-                                <View className={`px-3 py-1 rounded-full ${getLevelLabel(config.abstractionLevel).bg}`}>
-                                    <Text className={`text-xs font-bold ${getLevelLabel(config.abstractionLevel).color}`}>
-                                        {config.abstractionLevel < 0.35 ? "Concrete Facts" : config.abstractionLevel < 0.65 ? "Habits & Routine" : "Deep Philosophy"}
-                                    </Text>
-                                </View>
+                                <MetadataChip
+                                    label={getDepthLabel(config.abstractionLevel)}
+                                    color={getLevelChipProps(config.abstractionLevel).color}
+                                    variant={getLevelChipProps(config.abstractionLevel).variant}
+                                    size="sm"
+                                    rounding="full"
+                                />
                             </View>
 
                             <View className="flex-row items-center gap-3">
