@@ -7,6 +7,7 @@ import { BaseEditor } from './BaseEditor';
 import { getPropertyKeysFromCache, getPropertyValuesFromCache } from '../../utils/propertyUtils';
 import { useSettingsStore } from '../../store/settings';
 import { Colors, Palette } from './design-tokens';
+import { MetadataChip } from './MetadataChip';
 
 interface PropertyEditorProps {
     properties: Record<string, any>;
@@ -35,10 +36,14 @@ export function PropertyEditor({
     const valueSuggestions = useMemo(() => getPropertyValuesFromCache(metadataCache, tempKey), [metadataCache, tempKey]);
 
     const filteredKeySuggestions = useMemo(() => {
-        if (!tempKey) return keySuggestions;
+        if (!tempKey.trim()) {
+            return Object.keys(propertyConfig)
+                .filter(k => !properties[k] || k === editingKey)
+                .sort();
+        }
         return keySuggestions
             .filter(k => k.toLowerCase().includes(tempKey.toLowerCase()) && (!properties[k] || k === editingKey));
-    }, [keySuggestions, tempKey, properties, editingKey]);
+    }, [keySuggestions, tempKey, properties, editingKey, propertyConfig]);
 
     const filteredValueSuggestions = useMemo(() => {
         if (!tempValue) return valueSuggestions;
@@ -92,22 +97,32 @@ export function PropertyEditor({
         setIsModalVisible(false);
     };
 
-    const renderItem = ([key, value]: [string, any], index: number) => (
-        <View key={key} className="bg-surface-highlight/80 px-2.5 py-1 rounded-md flex-row items-center border border-border">
-            <TouchableOpacity onPress={() => handleEdit(key, value)} className="flex-row items-center">
-                <Text className="text-text-tertiary text-xs mr-1">{key}:</Text>
-                <Text className="text-text-primary text-xs mr-2" numberOfLines={1}>
-                    {typeof value === 'string' ? value : JSON.stringify(value)}
-                </Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-                onPress={() => handleRemove(key)} 
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-                <Ionicons name="close" size={10} color={Colors.text.tertiary} />
-            </TouchableOpacity>
-        </View>
-    );
+    const renderItem = ([key, value]: [string, any], index: number) => {
+        const config = propertyConfig[key];
+        const valStr = typeof value === 'string' ? value : JSON.stringify(value);
+        // Determine color based on value override or default
+        const valueConfig = config?.valueConfigs?.[valStr];
+        const color = valueConfig?.color || config?.color;
+
+        return (
+            <MetadataChip
+                key={key}
+                label={
+                    <>
+                        <Text className="text-text-tertiary text-xs mr-1" style={color ? { color } : undefined}>{key}:</Text>
+                        <Text className="text-text-primary text-xs font-medium" numberOfLines={1} style={color ? { color } : undefined}>
+                            {valStr}
+                        </Text>
+                    </>
+                }
+                color={color}
+                variant="default"
+                onPress={() => handleEdit(key, value)}
+                onRemove={() => handleRemove(key)}
+                size="md"
+            />
+        );
+    };
 
     return (
         <BaseEditor

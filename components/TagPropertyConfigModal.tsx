@@ -1,20 +1,10 @@
 import React, { useMemo } from 'react';
-import { View, Text, Modal, TouchableOpacity, ScrollView, Switch } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ScrollView, Switch, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore, MetadataConfig } from '../store/settings';
 import { Colors, Palette } from './ui/design-tokens';
-
-const PALETTE = [
-    Colors.error, // red-500
-    Colors.busy, // orange-500
-    Colors.warning, // yellow-500
-    Colors.success, // green-500
-    Palette[11], // cyan-500
-    Colors.primary, // blue-500
-    Palette[16], // purple-500
-    Palette[2], // pink-500
-    Colors.secondary, // slate-500
-];
+import { ColorPicker } from './ui/ColorPicker';
+import { ChipConfigurator } from './ui/ChipConfigurator';
 
 interface TagPropertyConfigModalProps {
     visible: boolean;
@@ -29,35 +19,34 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
         tagConfig, 
         propertyConfig, 
         setTagConfig, 
-        setPropertyConfig 
+        setPropertyConfig,
+        removeTagConfig,
+        removePropertyConfig
     } = useSettingsStore();
 
     const config = type === 'tags' ? (tagConfig?.[item] || {}) : (propertyConfig?.[item] || {});
     const updateFn = type === 'tags' ? setTagConfig : setPropertyConfig;
     const prefix = type === 'tags' ? '#' : '';
 
-    const renderColorPicker = (
-        identifier: string, // Not used in display, but for logic if needed
-        currentConfig: MetadataConfig, 
-        update: (newConfig: MetadataConfig) => void
-    ) => {
-        return (
-            <View className="flex-row flex-wrap gap-2 mt-2">
-                <TouchableOpacity
-                    onPress={() => update({ ...currentConfig, color: undefined })}
-                    className={`w-8 h-8 rounded-full border items-center justify-center ${!currentConfig?.color ? 'border-primary bg-primary' : 'border-border bg-surface'}`}
-                >
-                    {!currentConfig?.color && <Ionicons name="close" size={16} color="#818cf8" />}
-                </TouchableOpacity>
-                {PALETTE.map(color => (
-                    <TouchableOpacity
-                        key={color}
-                        onPress={() => update({ ...currentConfig, color })}
-                        style={{ backgroundColor: color }}
-                        className={`w-8 h-8 rounded-full ${currentConfig?.color === color ? 'border-2 border-white' : ''}`}
-                    />
-                ))}
-            </View>
+    const handleRemove = () => {
+        Alert.alert(
+            "Remove Configuration",
+            "Are you sure you want to remove this configuration? This will revert the item to default appearance.",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Remove",
+                    style: "destructive",
+                    onPress: () => {
+                        if (type === 'tags') {
+                            removeTagConfig(item);
+                        } else {
+                            removePropertyConfig(item);
+                        }
+                        onClose();
+                    }
+                }
+            ]
         );
     };
 
@@ -135,12 +124,13 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
                             </View>
                         )}
 
-                        {/* Default Color */}
-                        <View className="bg-surface p-4 rounded-xl mb-4 border border-border">
-                            <Text className="text-white font-medium text-base mb-1">Default Color</Text>
-                            <Text className="text-text-tertiary text-sm mb-3">Applied to all instances unless overridden</Text>
-                            {renderColorPicker(item, config, (newCfg) => updateFn(item, newCfg))}
-                        </View>
+                        <ChipConfigurator
+                            config={config}
+                            onChange={(newConfig) => updateFn(item, newConfig)}
+                            showReset={true}
+                            onReset={() => updateFn(item, { ...config, color: undefined })}
+                            label={item}
+                        />
 
                          {/* Property Values */}
                          {type === 'properties' && knownValues.length > 0 && (
@@ -152,20 +142,34 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
                                     const valConfig = config.valueConfigs?.[val] || {};
                                     return (
                                         <View key={val} className="mb-6 last:mb-0 border-t border-border pt-4 first:pt-0 first:border-t-0">
-                                            <View className="flex-row items-center mb-2">
-                                                <Ionicons name="git-commit-outline" size={16} color={Colors.text.tertiary} className="mr-2"/>
-                                                <Text className="text-text-primary font-medium">{val}</Text>
+                                            <View className="flex-row items-center justify-between mb-2">
+                                                <View className="flex-row items-center">
+                                                    <Ionicons name="git-commit-outline" size={16} color={Colors.text.tertiary} className="mr-2"/>
+                                                    <Text className="text-text-primary font-medium">{val}</Text>
+                                                </View>
+                                                {valConfig.color && (
+                                                    <TouchableOpacity onPress={() => updateValueConfig(val, { ...valConfig, color: undefined })}>
+                                                        <Text className="text-primary text-xs font-medium">Reset</Text>
+                                                    </TouchableOpacity>
+                                                )}
                                             </View>
-                                            {renderColorPicker(
-                                                val, 
-                                                valConfig, 
-                                                (newCfg) => updateValueConfig(val, newCfg)
-                                            )}
+                                            <ColorPicker
+                                                value={valConfig.color || ''}
+                                                onChange={(color) => updateValueConfig(val, { ...valConfig, color })}
+                                            />
                                         </View>
                                     );
                                 })}
                              </View>
                          )}
+
+                        <TouchableOpacity
+                            onPress={handleRemove}
+                            className="bg-red-500/10 border border-red-500/50 p-4 rounded-xl flex-row items-center justify-center mb-8"
+                        >
+                            <Ionicons name="trash-outline" size={20} color={Colors.error} className="mr-2" />
+                            <Text className="text-error font-medium">Remove Configuration</Text>
+                        </TouchableOpacity>
 
                     </ScrollView>
                 </View>
