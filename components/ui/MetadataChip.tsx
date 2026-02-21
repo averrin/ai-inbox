@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from './design-tokens';
 import { UniversalIcon } from './UniversalIcon';
 
-interface MetadataChipProps {
+export interface MetadataChipProps {
     label: string | React.ReactNode;
     color?: string; // Hex color
     onPress?: () => void;
@@ -34,45 +34,42 @@ export function MetadataChip({
     const baseColor = color || Colors.primary;
 
     // Background
-    let backgroundColor = Colors.surfaceHighlight; // Default / Subtle
+    let backgroundColor = 'transparent';
     if (isSolid) {
         backgroundColor = baseColor;
-    } else if (color) {
-        // Default (tinted)
-        backgroundColor = `${baseColor}33`; // ~20% opacity
     } else if (isOutline) {
-        // Outline (dark bg)
-        backgroundColor = 'rgba(30, 41, 59, 0.5)'; // slate-800/50 (dark grey)
+        backgroundColor = 'transparent';
     } else {
-        // Subtle variant without color
-         backgroundColor = 'rgba(51, 65, 85, 0.5)'; // surfaceHighlightSubtle
+        // Default / Subtle (tinted)
+        // If color provided, tint it. If not, use generic surface highlight
+        backgroundColor = color ? `${baseColor}26` : Colors.surfaceHighlight; // ~15% opacity for tinted
     }
 
     // Border
-    let borderColor = Colors.border;
+    let borderColor = 'transparent';
     if (isSolid) {
         borderColor = baseColor;
-    } else if (color) {
-        borderColor = `${baseColor}66`; // ~40% opacity
     } else if (isOutline) {
          borderColor = baseColor;
+    } else {
+        // Default subtle might have a very light border or none
+        borderColor = color ? `${baseColor}4D` : Colors.border; // ~30% opacity
     }
 
     // Text Color
     let textColor = Colors.text.primary;
     if (isSolid) {
         textColor = '#FFFFFF';
-    } else if (color) {
-        textColor = baseColor;
     } else if (isOutline) {
         textColor = baseColor;
     } else {
-        textColor = Colors.text.secondary;
+        // Default / Subtle
+        textColor = color ? baseColor : Colors.text.secondary;
     }
 
     // Size specific
-    const paddingHorizontal = size === 'sm' ? 6 : 10;
-    const paddingVertical = size === 'sm' ? 2 : 6;
+    const paddingHorizontal = size === 'sm' ? 8 : 12;
+    const paddingVertical = size === 'sm' ? 4 : 8;
     const fontSize = size === 'sm' ? 10 : 13;
 
     // Rounding
@@ -88,13 +85,17 @@ export function MetadataChip({
 
     const Container = onPress ? TouchableOpacity : View;
 
+    // Determine border width
+    const borderWidth = (isOutline || isSolid || color) ? 1 : 1;
+
     return (
         <Container
             onPress={onPress}
+            // @ts-ignore
             style={[{
                 backgroundColor,
                 borderColor,
-                borderWidth: 1,
+                borderWidth,
                 borderRadius,
                 paddingHorizontal,
                 paddingVertical,
@@ -117,8 +118,9 @@ export function MetadataChip({
                 <Text style={{
                     color: textColor,
                     fontSize,
-                    fontWeight: '500',
-                    marginRight: onRemove ? 4 : 0
+                    fontWeight: '700', // Making text slightly bolder for better readability on chips
+                    marginRight: onRemove ? 4 : 0,
+                    letterSpacing: 0.5
                 }}>
                     {label}
                 </Text>

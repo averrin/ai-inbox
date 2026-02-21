@@ -21,6 +21,7 @@ import { artifactDeps } from '../../utils/artifactDeps';
 import { watcherService } from '../../services/watcherService';
 import { useUIStore } from '../../store/ui';
 import { Colors } from '../ui/design-tokens';
+import { MetadataChip } from '../ui/MetadataChip';
 
 dayjs.extend(relativeTime);
 
@@ -443,21 +444,28 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                         ) : artifactsLoading ? (
                             <ActivityIndicator size="small" color={Colors.text.tertiary} />
                         ) : (
-                            <TouchableOpacity
+                    <MetadataChip
+                        label="No Artifact"
+                        icon="alert-circle-outline"
+                        variant="outline"
+                        color={Colors.text.secondary}
+                        size="sm"
                                 onPress={fetchArtifactsData}
-                                className="px-2 py-1 bg-surface/30 border border-border/50 rounded-lg flex-row items-center"
-                            >
-                                <Ionicons name="alert-circle-outline" size={12} color={Colors.secondary} />
-                                <Text className="text-secondary text-[10px] font-medium ml-1">No Artifact</Text>
-                            </TouchableOpacity>
+                    />
                         )}
 
                         {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
                             <TouchableOpacity
                                 onPress={toggleWatch}
-                                className={`p-1.5 ml-1 rounded-lg ${isWatched ? 'bg-primary/15' : ''}`}
+                        className={`ml-1`}
                             >
-                                <Ionicons name={isWatched ? "eye" : "eye-outline"} size={16} color={isWatched ? Colors.primary : Colors.text.tertiary} />
+                        <MetadataChip
+                            label={isWatched ? "Watching" : "Watch"}
+                            icon={isWatched ? "eye" : "eye-outline"}
+                            variant={isWatched ? "solid" : "outline"}
+                            color={isWatched ? Colors.primary : Colors.text.tertiary}
+                            size="sm"
+                        />
                             </TouchableOpacity>
                         )}
 
@@ -542,21 +550,28 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                     ) : artifactsLoading ? (
                         <ActivityIndicator size="small" color={Colors.text.tertiary} />
                     ) : (
-                        <TouchableOpacity
+                        <MetadataChip
+                            label="No Artifact"
+                            icon="alert-circle-outline"
+                            variant="outline"
+                            color={Colors.text.secondary}
+                            size="sm"
                             onPress={fetchArtifactsData}
-                            className="px-3 py-1.5 bg-surface/50 border border-border rounded-lg flex-row items-center"
-                        >
-                            <Ionicons name="alert-circle-outline" size={14} color={Colors.secondary} />
-                            <Text className="text-secondary text-xs font-medium ml-1">No Artifact</Text>
-                        </TouchableOpacity>
+                        />
                     )}
 
                     {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
                         <TouchableOpacity
                             onPress={toggleWatch}
-                            className={`p-1.5 ml-1 rounded-lg ${isWatched ? 'bg-primary/15' : ''}`}
+                            className={`ml-1`}
                         >
-                            <Ionicons name={isWatched ? "eye" : "eye-outline"} size={20} color={isWatched ? Colors.primary : Colors.text.tertiary} />
+                            <MetadataChip
+                                label={isWatched ? "Watching" : "Watch"}
+                                icon={isWatched ? "eye" : "eye-outline"}
+                                variant={isWatched ? "solid" : "outline"}
+                                color={isWatched ? Colors.primary : Colors.text.tertiary}
+                                size="sm"
+                            />
                         </TouchableOpacity>
                     )}
 
@@ -783,14 +798,14 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
                 </View>
                 <View className="flex-col items-center gap-1">
                     {ghRun && (
-                        <View className="flex-row items-center bg-surface/50 px-2 py-0.5 rounded">
-                            <Ionicons
-                                name={ghRun.conclusion === 'success' ? "logo-github" : "alert-circle"}
-                                size={12}
-                                color={getGhStatusColor(ghRun)}
-                            />
-                            <Text className="text-[10px] text-text-tertiary uppercase ml-1.5 font-medium">{ghRun.status}</Text>
-                        </View>
+                        <MetadataChip
+                            label={ghRun.status}
+                            icon={ghRun.conclusion === 'success' ? "logo-github" : "alert-circle"}
+                            variant="outline"
+                            color={getGhStatusColor(ghRun)}
+                            size="sm"
+                            rounding="sm"
+                        />
                     )}
                 </View>
             </View>
@@ -903,8 +918,14 @@ function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }: { run
                     <Ionicons name="git-branch" size={20} color={Colors.text.tertiary} />
                     <Text className="text-white font-bold text-base ml-2">Master Branch</Text>
                     {runningCount > 0 && (
-                        <View className="bg-primary/20 px-2 py-0.5 rounded ml-2 border border-primary/50">
-                            <Text className="text-primary text-xs font-bold">{runningCount} RUNNING</Text>
+                        <View className="ml-2">
+                            <MetadataChip
+                                label={`${runningCount} RUNNING`}
+                                variant="outline"
+                                color={Colors.primary}
+                                size="sm"
+                                rounding="sm"
+                            />
                         </View>
                     )}
                 </View>
