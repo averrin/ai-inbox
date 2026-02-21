@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, LayoutAnimation, Platform, UIManager, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import dayjs from 'dayjs';
@@ -148,7 +148,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                 setTasks(newTasks);
                 Toast.show({ type: 'error', text1: 'Task file missing', text2: 'Removed orphan task.' });
             } else {
-                Alert.alert("Error", "Failed to update task");
+                showError("Error", "Failed to update task");
             }
         }
     };
@@ -337,7 +337,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
 
         } catch (e) {
             console.error('Reschedule failed', e);
-            Alert.alert("Error", "Failed to reschedule task/event");
+            showError("Error", "Failed to reschedule task/event");
         }
     };
 

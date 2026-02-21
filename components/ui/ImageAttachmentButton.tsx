@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, ActivityIndicator, Alert, View } from 'react-native';
+import { TouchableOpacity, ActivityIndicator, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from './design-tokens';
+import { showError } from '../../utils/alert';
 
 interface ImageAttachmentButtonProps {
     onImageSelected: (base64: string, mimeType?: string) => void;
@@ -25,7 +26,7 @@ export function ImageAttachmentButton({ onImageSelected, style, className, disab
                 onImageSelected(result.assets[0].base64, result.assets[0].mimeType);
             }
         } catch (e) {
-            Alert.alert('Error', 'Failed to pick image');
+            showError('Error', 'Failed to pick image');
         }
     };
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Alert, ScrollView, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal } from 'react-native';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { useSettingsStore, NavItemConfig, DEFAULT_NAV_ITEMS } from '../../store/settings';
@@ -8,6 +8,7 @@ import Toast from 'react-native-toast-message';
 import * as Crypto from 'expo-crypto';
 import { NavIconPicker } from '../ui/NavIconPicker';
 import { Colors } from '../ui/design-tokens';
+import { showAlert } from '../../utils/alert';
 
 export function NavigationSettings() {
     const { navConfig, setNavConfig, savedNavConfig, setSavedNavConfig } = useSettingsStore();
@@ -151,7 +152,7 @@ export function NavigationSettings() {
             });
         }
 
-        Alert.alert(
+        showAlert(
             "Reset Navigation",
             "Choose how you want to reset the navigation bar.",
             options

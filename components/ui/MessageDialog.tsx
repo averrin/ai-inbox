@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
+import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { ImageAttachmentButton } from './ImageAttachmentButton';
 import { Ionicons } from '@expo/vector-icons';
 import { analyzeImage } from '../../services/gemini';
 import { useSettingsStore } from '../../store/settings';
 import { Colors } from './design-tokens';
+import { showError } from '../../utils/alert';
 
 interface MessageDialogProps {
     visible: boolean;
@@ -39,7 +40,7 @@ export function MessageDialog({
 
         if (selectedImage) {
             if (!apiKey) {
-                Alert.alert('Error', 'API Key not configured');
+                showError('Error', 'API Key not configured');
                 return;
             }
             setAnalyzing(true);
@@ -60,10 +61,10 @@ export function MessageDialog({
                     setMessage('');
                     setSelectedImage(null);
                 } else {
-                    Alert.alert('Error', 'Failed to analyze image');
+                    showError('Error', 'Failed to analyze image');
                 }
             } catch (e) {
-                Alert.alert('Error', 'Image analysis failed');
+                showError('Error', 'Image analysis failed');
             } finally {
                 setAnalyzing(false);
             }

@@ -16,6 +16,7 @@ WebBrowser.maybeCompleteAuthSession();
 import { registerReminderTask, scanForReminders, Reminder, getHash } from "../services/reminderService";
 import { ReminderModalProvider, useReminderModal } from "../utils/reminderModalContext";
 import { ReminderModal } from "../components/ReminderModal";
+import { GlobalAlerts } from '../components/GlobalAlerts';
 import Toast, { BaseToast, ErrorToast, ToastConfig } from 'react-native-toast-message';
 import { LogBox, View, Text, Platform } from 'react-native';
 import { SyncService } from "../services/syncService";
@@ -211,6 +212,7 @@ function AppContent() {
     <>
       <StatusBar style="light" backgroundColor={Colors.transparent} translucent />
       <Slot />
+      <GlobalAlerts />
       <ReminderModal
         reminder={activeReminder}
         onClose={closeReminder}

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
 import { useHabitStore, HabitDefinition } from '../../store/habitStore';
 import { HabitItem } from '../ui/calendar/components/HabitItem';
 import { HabitModal } from '../HabitModal';
+import { showAlert } from '../../utils/alert';
 
 export function HabitSettings() {
     const { habits, addHabit, updateHabit, deleteHabit, toggleHabit } = useHabitStore();
@@ -30,7 +31,7 @@ export function HabitSettings() {
     };
 
     const handleDelete = (id: string) => {
-        Alert.alert(
+        showAlert(
             "Delete Check",
             "Are you sure you want to delete this check? Past data will be kept but hidden.",
             [
