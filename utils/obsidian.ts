@@ -1,5 +1,5 @@
 import * as Linking from 'expo-linking';
-import { Alert } from 'react-native';
+import { showError } from './alert';
 
 /**
  * Opens a file in Obsidian using the obsidian:// URI scheme.
@@ -23,7 +23,7 @@ export const openInObsidian = async (vaultUri: string, filePath: string) => {
         const vaultBaseMatch = decodedVaultUri.match(/tree\/(.+)$/);
         if (!vaultBaseMatch) {
             console.error('[Linking] Could not extract vault base from URI:', decodedVaultUri);
-            Alert.alert('Error', 'Could not determine vault path');
+            showError('Error', 'Could not determine vault path');
             return;
         }
         const vaultBase = vaultBaseMatch[1];
@@ -33,7 +33,7 @@ export const openInObsidian = async (vaultUri: string, filePath: string) => {
         const filePathMatch = decodedFilePath.match(/document\/(.+)$/);
         if (!filePathMatch) {
             console.error('[Linking] Could not extract file path from URI:', decodedFilePath);
-            Alert.alert('Error', 'Could not determine file path');
+            showError('Error', 'Could not determine file path');
             return;
         }
         const fullPath = filePathMatch[1];
@@ -72,11 +72,11 @@ export const openInObsidian = async (vaultUri: string, filePath: string) => {
             try {
                 await Linking.openURL(url);
             } catch (innerErr) {
-                Alert.alert('Error', 'Could not open Obsidian. Please make sure the app is installed.');
+                showError('Error', 'Could not open Obsidian. Please make sure the app is installed.');
             }
         }
     } catch (e) {
         console.error('[Linking] Failed to open Obsidian:', e);
-        Alert.alert('Error', 'Could not open note in Obsidian');
+        showError('Error', 'Could not open note in Obsidian');
     }
 };

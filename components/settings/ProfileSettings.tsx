@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settings';
 import { DEFAULT_VIZ_PROMPT } from '../../services/profileLogic';
 import { Card } from '../ui/Card';
+import { showAlert } from '../../utils/alert';
+import Toast from 'react-native-toast-message';
 
 
 import { Button } from '../ui/Button';
@@ -20,7 +22,7 @@ export function ProfileSettings() {
 
         const count = parseInt(questionCount);
         if (isNaN(count) || count < 1) {
-            Alert.alert('Invalid Input', 'Question count must be a number greater than 0');
+            showAlert('Invalid Input', 'Question count must be a number greater than 0');
             return;
         }
 
@@ -33,7 +35,11 @@ export function ProfileSettings() {
         });
 
         setVisualizationPrompt(vizPrompt.trim() || null);
-        Alert.alert('Success', 'Profile settings updated.');
+        Toast.show({
+            type: 'success',
+            text1: 'Success',
+            text2: 'Profile settings updated.'
+        });
     };
 
     return (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Calendar from 'expo-calendar';
@@ -26,6 +26,7 @@ import { getParentFolderUri, findFile } from '../../utils/saf';
 import { TaskStatusIcon, getStatusConfig } from '../ui/TaskStatusIcon';
 import { FolderInput } from '../ui/FolderInput';
 import { Colors, Palette } from '../ui/design-tokens';
+import { showAlert, showError } from '../../utils/alert';
 
 interface TaskEditModalProps {
     visible: boolean;
@@ -200,7 +201,7 @@ export function TaskEditModal({
 
     const handleSave = async () => {
         if (!title.trim()) {
-            Alert.alert('Validation', 'Task title cannot be empty.');
+            showAlert('Validation', 'Task title cannot be empty.');
             return;
         }
 
@@ -262,7 +263,7 @@ export function TaskEditModal({
                 onSave(updatedTask, fullFolder);
                 return;
             } else {
-                 Alert.alert("Error", "Failed to create reminder file.");
+                 showError("Error", "Failed to create reminder file.");
                  return;
             }
         } else if (isWikiLink && vaultUri && task?.fileUri) {

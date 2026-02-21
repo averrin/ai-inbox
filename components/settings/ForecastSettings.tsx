@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { useSettingsStore } from '../../store/settings';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { Colors } from '../ui/design-tokens';
+import { showAlert } from '../../utils/alert';
 
 const DEFAULT_PROMPT = `
 You are a highly perceptive and motivating AI productivity expert.
@@ -42,7 +43,7 @@ export function ForecastSettings() {
     };
 
     const handleReset = () => {
-        Alert.alert(
+        showAlert(
             "Reset Prompt",
             "Are you sure you want to reset the prompt to the default?",
             [

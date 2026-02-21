@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, ActivityIndicator, Text, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import { View, ActivityIndicator, Text, Modal, TextInput, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { TaskWithSource } from '../../store/tasks';
 import { useSettingsStore } from '../../store/settings';
 import { TaskService } from '../../services/taskService';
@@ -16,6 +16,7 @@ import * as Calendar from 'expo-calendar';
 import { ensureDirectory } from '../../utils/saf';
 import { useFab } from '../../hooks/useFab';
 import { Colors } from '../ui/design-tokens';
+import { showAlert, showError } from '../../utils/alert';
 
 
 interface TasksFolderViewProps {
@@ -111,7 +112,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                 targetFolderUri = current;
             } catch (e) {
                 console.error("Failed to resolve new folder", e);
-                Alert.alert("Error", "Could not access selected folder.");
+                showError("Error", "Could not access selected folder.");
                 return;
             }
         }
@@ -211,7 +212,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
 
                  } catch (e) {
                      console.error("Failed to move task", e);
-                     Alert.alert("Error", "Failed to move task.");
+                     showError("Error", "Failed to move task.");
                      return;
                  }
              }
@@ -234,7 +235,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
     };
 
     const handleDeleteTask = async (task: TaskWithSource) => {
-        Alert.alert(
+        showAlert(
             "Delete Task",
             "Are you sure you want to remove this task from its source file?",
             [
@@ -265,7 +266,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
             return;
         }
 
-        Alert.alert(
+        showAlert(
             "Clear Completed",
             `Are you sure you want to remove all ${completedTasks.length} completed tasks from their files?`,
             [

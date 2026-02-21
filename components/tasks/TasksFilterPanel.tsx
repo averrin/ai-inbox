@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Text, Linking, Alert } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../ui/design-tokens';
+import { showError } from '../../utils/alert';
 
 interface TasksFilterPanelProps {
     search: string;
@@ -78,7 +79,7 @@ export function TasksFilterPanel({
                     <TouchableOpacity 
                         onPress={() => {
                             Linking.openURL('obsidian://open').catch(() => {
-                                Alert.alert('Error', 'Obsidian app not found or could not be opened.');
+                                showError('Error', 'Obsidian app not found or could not be opened.');
                             });
                         }}
                         className="bg-surface p-2 rounded-lg border border-border"

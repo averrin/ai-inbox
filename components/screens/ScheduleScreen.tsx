@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, RefreshControl, Platform, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, RefreshControl, Platform } from 'react-native';
 import { serializeTaskLine } from '../../utils/taskParser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layout } from '../ui/Layout';
@@ -47,6 +47,7 @@ import { useFab } from '../../hooks/useFab';
 import { useWeatherStore } from '../../store/weatherStore';
 import { WeatherHourGuide } from '../WeatherHourGuide';
 import { Colors, Palette } from '../ui/design-tokens';
+import { showAlert, showError } from '../../utils/alert';
 
 
 export default function ScheduleScreen() {
@@ -441,7 +442,7 @@ export default function ScheduleScreen() {
                 await updateReminder(targetUri, null);
             } catch (e) {
                 console.error("Failed to delete reminder:", e);
-                alert("Failed to delete reminder");
+                showError("Error", "Failed to delete reminder");
                 fetchEvents();
             }
             return;
@@ -481,7 +482,7 @@ export default function ScheduleScreen() {
             }, 500);
         } catch (e) {
             console.error("Failed to delete event", e);
-            alert('Failed to delete event');
+            showError("Error", 'Failed to delete event');
             fetchEvents();
         }
     };
@@ -670,7 +671,7 @@ export default function ScheduleScreen() {
 
             // Prevent editing optimistic events without an ID
             if (!originalId) {
-                alert("This event is still syncing. Please try again in a moment.");
+                showAlert("Syncing", "This event is still syncing. Please try again in a moment.");
                 fetchEvents();
                 return;
             }
@@ -743,7 +744,7 @@ export default function ScheduleScreen() {
                     }, 500);
                 } catch (e) {
                     console.error("Failed to update event", e);
-                    alert('Failed to update event');
+                    showError("Error", 'Failed to update event');
                     fetchEvents(); // Revert
                 }
             })();
@@ -824,7 +825,7 @@ export default function ScheduleScreen() {
 
                 if (!targetCalendar) {
                     console.error('[ScheduleScreen] No suitable calendar found to create event.');
-                    alert('No suitable calendar found to create event.');
+                    showError("Error", 'No suitable calendar found to create event.');
                     fetchEvents(); // Revert
                     return;
                 }
@@ -877,7 +878,7 @@ export default function ScheduleScreen() {
                 }, 500); // Small delay to ensure native calendar has updated
             } catch (e) {
                 console.error("[ScheduleScreen] Failed to create event:", e);
-                alert('Failed to create event. Check logs.');
+                showError("Error", 'Failed to create event. Check logs.');
                 fetchEvents(); // Revert optimistic update
             }
         })();
@@ -1218,7 +1219,7 @@ export default function ScheduleScreen() {
                      }
 
                      if (!targetCalendar) {
-                         alert('No suitable calendar found to schedule suggestion.');
+                         showError("Error", 'No suitable calendar found to schedule suggestion.');
                          fetchEvents(); // Revert
                          return;
                      }
@@ -1236,7 +1237,7 @@ export default function ScheduleScreen() {
 
                 } catch (e) {
                     console.error("Failed to schedule suggestion drop", e);
-                    alert("Failed to schedule suggestion.");
+                    showError("Error", "Failed to schedule suggestion.");
                     fetchEvents(); // Revert
                 }
             })();
@@ -1248,7 +1249,7 @@ export default function ScheduleScreen() {
         const isPersonalEvent = event.isPersonal && event.originalEvent?.id;
 
         if (!isReminder && !isPersonalEvent) {
-            alert('Only reminders and personal events can be rescheduled.');
+            showAlert("Restricted", 'Only reminders and personal events can be rescheduled.');
             return;
         }
 
@@ -1273,7 +1274,7 @@ export default function ScheduleScreen() {
                 );
             } catch (e) {
                 console.error('[ScheduleScreen] Failed to update reminder drop', e);
-                alert('Failed to reschedule reminder.');
+                showError("Error", 'Failed to reschedule reminder.');
                 fetchEvents();
             }
         } else {
@@ -1351,7 +1352,7 @@ export default function ScheduleScreen() {
                 }
             } catch (e) {
                 console.error('[ScheduleScreen] Error in handleEventDrop Personal Path', e);
-                alert('Failed to reschedule event.');
+                showError("Error", 'Failed to reschedule event.');
                 fetchEvents();
             }
         }
@@ -1801,7 +1802,7 @@ export default function ScheduleScreen() {
                                     }
                                 } catch (e: any) {
                                     console.error('[ScheduleScreen] Failed to save/move task', e);
-                                    Alert.alert("Error", `Failed to save task: ${e.message || 'Unknown error'}`);
+                                    showError("Error", `Failed to save task: ${e.message || 'Unknown error'}`);
                                 } finally {
                                     setEditingTask(null);
                                 }
