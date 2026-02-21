@@ -6,7 +6,8 @@ import { useSettingsStore, NavItemConfig, DEFAULT_NAV_ITEMS } from '../../store/
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import * as Crypto from 'expo-crypto';
-import { NavIconPicker } from '../ui/NavIconPicker';
+import { IconPicker } from '../ui/IconPicker';
+import { UniversalIcon } from '../ui/UniversalIcon';
 import { Colors } from '../ui/design-tokens';
 
 export function NavigationSettings() {
@@ -320,13 +321,13 @@ export function NavigationSettings() {
                             onPress={() => setIconPickerTarget({ id: item.id })}
                             className="flex-row items-center bg-background/50 rounded-lg border border-border px-3 py-2 h-10"
                         >
-                            <Ionicons
-                                // @ts-ignore
-                                name={item.icon}
-                                size={20}
-                                color="#818cf8"
-                                style={{ marginRight: 8 }}
-                            />
+                            <View style={{ marginRight: 8 }}>
+                                <UniversalIcon
+                                    name={item.icon}
+                                    size={20}
+                                    color="#818cf8"
+                                />
+                            </View>
                             <Text className="text-text-tertiary text-sm flex-1" numberOfLines={1}>{item.icon}</Text>
                         </TouchableOpacity>
                     </View>
@@ -400,16 +401,25 @@ export function NavigationSettings() {
 
             {renderGroupEditor()}
 
-            <NavIconPicker
-                visible={!!iconPickerTarget}
-                currentIcon={iconPickerTarget ? navConfig.find(i => i.id === iconPickerTarget.id)?.icon || '' : ''}
-                onSelect={(icon) => {
-                    if (iconPickerTarget) {
-                        handleUpdate(iconPickerTarget.id, 'icon', icon);
-                    }
-                }}
-                onClose={() => setIconPickerTarget(null)}
-            />
+            <Modal visible={!!iconPickerTarget} animationType="slide" transparent>
+                <View className="flex-1 bg-background pt-12 px-4">
+                    <View className="flex-row justify-between items-center mb-6">
+                        <Text className="text-white text-xl font-bold">Select Icon</Text>
+                        <TouchableOpacity onPress={() => setIconPickerTarget(null)} className="p-2 bg-surface rounded-full">
+                            <Ionicons name="close" size={24} color="white" />
+                        </TouchableOpacity>
+                    </View>
+                    <IconPicker
+                        value={iconPickerTarget ? navConfig.find(i => i.id === iconPickerTarget.id)?.icon || '' : ''}
+                        onChange={(icon) => {
+                            if (iconPickerTarget) {
+                                handleUpdate(iconPickerTarget.id, 'icon', icon);
+                                setIconPickerTarget(null);
+                            }
+                        }}
+                    />
+                </View>
+            </Modal>
         </ScrollView>
     );
 }

@@ -10,6 +10,7 @@ import { SettingsListItem } from '../ui/SettingsListItem';
 import { ColorPicker } from '../ui/ColorPicker';
 import { IconPicker } from '../ui/IconPicker';
 import { UniversalIcon } from '../ui/UniversalIcon';
+import { MetadataChip } from '../ui/MetadataChip';
 import { Colors, Palette } from '../ui/design-tokens';
 
 export function ContactsSettings() {
@@ -120,10 +121,14 @@ export function ContactsSettings() {
                                     <View className="flex-row items-center gap-2">
                                         <Text className="text-white font-semibold">{contact.name}</Text>
                                         {contact.isWife && (
-                                            <View className="bg-pink-500 px-1.5 py-0.5 rounded flex-row items-center gap-1 border border-pink-500/50">
-                                                <Ionicons name="heart" size={10} color={Palette[2]} />
-                                                <Text className="text-pink-400 text-[10px] font-bold">WIFE</Text>
-                                            </View>
+                                            <MetadataChip
+                                                icon="heart"
+                                                label="WIFE"
+                                                color={Palette[2]}
+                                                variant="solid"
+                                                size="sm"
+                                                rounding="sm"
+                                            />
                                         )}
                                     </View>
                                     <Text className="text-text-tertiary text-xs" numberOfLines={1}>{contact.email}</Text>
