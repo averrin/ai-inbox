@@ -490,7 +490,7 @@ export function EventFormModal({
                                                                 }}
                                                                 className="p-1.5 rounded-lg bg-primary border border-primary items-center justify-center"
                                                             >
-                                                                <Ionicons name="options-outline" size={14} color="#818cf8" />
+                                                                <Ionicons name="options-outline" size={14} color="white" />
                                                             </TouchableOpacity>
                                                         </View>
                                                     ) : (
