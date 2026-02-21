@@ -14,7 +14,7 @@ export function AlertModal({ visible, title, message, options = [], onClose }: A
     if (!visible) return null;
 
     // Default option if none provided
-    const displayOptions = options.length > 0 ? options : [{ text: 'OK', onPress: onClose }];
+    const displayOptions = options.length > 0 ? options : [{ text: 'OK' }];
 
     return (
         <Modal
@@ -56,8 +56,8 @@ export function AlertModal({ visible, title, message, options = [], onClose }: A
                                 <TouchableOpacity
                                     key={index}
                                     onPress={() => {
+                                        if (onClose) onClose();
                                         if (option.onPress) option.onPress();
-                                        else if (onClose) onClose();
                                     }}
                                     className={`${bgClass} py-3 px-4 rounded-xl items-center justify-center ${flexClass}`}
                                 >
