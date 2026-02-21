@@ -98,7 +98,22 @@
           "locationAlwaysAndWhenInUsePermission": "Allow AI Inbox to use your location to provide local weather forecasts."
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "JulesWidget",
+              "label": "Jules Info",
+              "minWidth": "320dp",
+              "minHeight": "100dp",
+              "description": "Shows upcoming events, tasks, and GitHub runs",
+              "previewImage": "./assets/icon.png"
+            }
+          ]
+        }
+      ]
     ]
   }
 }
