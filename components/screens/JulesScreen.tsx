@@ -1324,7 +1324,7 @@ export default function JulesScreen() {
     return (
         <Layout>
             {renderContent()}
-            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+            <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
                 <IslandHeader
                     title="Jules"
                     subtitle={julesOwner && julesRepo ? `${julesOwner}/${julesRepo}` : undefined}
