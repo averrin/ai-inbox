@@ -177,6 +177,8 @@ export function RichTaskItem({
                         }
                         color={activeColor}
                         variant={activeVariant}
+                        icon={config?.icon}
+                        rounding={config?.rounding}
                         size="sm"
                     />
                 );
@@ -191,6 +193,8 @@ export function RichTaskItem({
                         label={`#${tag}`}
                         color={config?.color}
                         variant={config?.variant || 'default'}
+                        icon={config?.icon}
+                        rounding={config?.rounding}
                         size="sm"
                         onPress={() => onTagPress?.(tag)}
                         style={!config?.color ? { borderColor: Colors.primary, backgroundColor: Colors.surfaceHighlight } : undefined}

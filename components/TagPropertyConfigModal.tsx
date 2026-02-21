@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore, MetadataConfig } from '../store/settings';
 import { Colors, Palette } from './ui/design-tokens';
 import { ColorPicker } from './ui/ColorPicker';
+import { ChipConfigurator } from './ui/ChipConfigurator';
 
 interface TagPropertyConfigModalProps {
     visible: boolean;
@@ -123,46 +124,13 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
                             </View>
                         )}
 
-                        {/* Style Variant */}
-                        <View className="bg-surface p-4 rounded-xl mb-4 border border-border">
-                            <Text className="text-white font-medium text-base mb-2">Style</Text>
-                            <View className="flex-row gap-2">
-                                {(['default', 'solid', 'outline'] as const).map((v) => (
-                                    <TouchableOpacity
-                                        key={v}
-                                        onPress={() => updateFn(item, { ...config, variant: v })}
-                                        className={`px-3 py-2 rounded-lg border ${
-                                            (config.variant || 'default') === v
-                                                ? 'bg-primary border-primary'
-                                                : 'bg-surface-highlight border-border'
-                                        }`}
-                                    >
-                                        <Text className={`text-xs font-medium ${
-                                            (config.variant || 'default') === v ? 'text-white' : 'text-text-secondary'
-                                        }`}>
-                                            {v.charAt(0).toUpperCase() + v.slice(1)}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        </View>
-
-                        {/* Default Color */}
-                        <View className="bg-surface p-4 rounded-xl mb-4 border border-border">
-                            <View className="flex-row justify-between items-center mb-1">
-                                <Text className="text-white font-medium text-base">Default Color</Text>
-                                {config.color && (
-                                    <TouchableOpacity onPress={() => updateFn(item, { ...config, color: undefined })}>
-                                        <Text className="text-primary text-xs font-medium">Reset</Text>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-                            <Text className="text-text-tertiary text-sm mb-3">Applied to all instances unless overridden</Text>
-                            <ColorPicker
-                                value={config.color || ''}
-                                onChange={(color) => updateFn(item, { ...config, color })}
-                            />
-                        </View>
+                        <ChipConfigurator
+                            config={config}
+                            onChange={(newConfig) => updateFn(item, newConfig)}
+                            showReset={true}
+                            onReset={() => updateFn(item, { ...config, color: undefined })}
+                            label={item}
+                        />
 
                          {/* Property Values */}
                          {type === 'properties' && knownValues.length > 0 && (

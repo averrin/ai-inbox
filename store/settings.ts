@@ -188,6 +188,8 @@ interface SettingsState {
 export interface MetadataConfig {
     hidden?: boolean;
     color?: string;
+    icon?: string;
+    rounding?: 'none' | 'sm' | 'md' | 'lg' | 'full';
     variant?: 'default' | 'solid' | 'outline';
     type?: 'text' | 'date' | 'number' | 'boolean';
     valueConfigs?: Record<string, MetadataConfig>; // For property values

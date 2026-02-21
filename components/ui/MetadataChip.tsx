@@ -9,6 +9,8 @@ interface MetadataChipProps {
     onPress?: () => void;
     onRemove?: () => void;
     variant?: 'default' | 'outline' | 'solid'; // default = subtle
+    rounding?: 'none' | 'sm' | 'md' | 'lg' | 'full';
+    icon?: string;
     size?: 'sm' | 'md'; // sm = 10px text (RichTaskItem), md = 12-14px text (Editor)
     style?: StyleProp<ViewStyle>;
 }
@@ -19,6 +21,8 @@ export function MetadataChip({
     onPress,
     onRemove,
     variant = 'default',
+    rounding = 'sm',
+    icon,
     size = 'sm',
     style
 }: MetadataChipProps) {
@@ -67,8 +71,17 @@ export function MetadataChip({
     const paddingHorizontal = size === 'sm' ? 6 : 10;
     const paddingVertical = size === 'sm' ? 2 : 6;
     const fontSize = size === 'sm' ? 10 : 13;
-    const borderRadius = 6;
+
+    // Rounding
+    let borderRadius = 6;
+    if (rounding === 'none') borderRadius = 2;
+    if (rounding === 'sm') borderRadius = 6;
+    if (rounding === 'md') borderRadius = 8;
+    if (rounding === 'lg') borderRadius = 12;
+    if (rounding === 'full') borderRadius = 999;
+
     const iconSize = size === 'sm' ? 12 : 16;
+    const displayIconSize = size === 'sm' ? 10 : 14;
 
     const Container = onPress ? TouchableOpacity : View;
 
@@ -88,6 +101,15 @@ export function MetadataChip({
             }, style]}
             hitSlop={onPress ? { top: 4, bottom: 4, left: 4, right: 4 } : undefined}
         >
+            {icon && (
+                <View style={{ marginRight: 4 }}>
+                    <Ionicons
+                        name={icon as any}
+                        size={displayIconSize}
+                        color={textColor}
+                    />
+                </View>
+            )}
             {typeof label === 'string' ? (
                 <Text style={{
                     color: textColor,
