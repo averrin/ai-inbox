@@ -1272,7 +1272,7 @@ export default function JulesScreen() {
         return (
             <ScrollView
                 className="flex-1"
-                contentContainerStyle={{ paddingBottom: insets.bottom + 80, paddingTop: 2 }}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 80, paddingTop: 80 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#818cf8" />}
             >
                 {/* Master Branch Section */}
@@ -1323,14 +1323,17 @@ export default function JulesScreen() {
 
     return (
         <Layout>
-            <IslandHeader
-                title="Jules"
-                subtitle={julesOwner && julesRepo ? `${julesOwner}/${julesRepo}` : undefined}
-                rightActions={[
-                    ...(julesApiKey ? [{ icon: 'git-network-outline', onPress: () => setShowRepoSelector(true) }] : []),
-                    { icon: 'refresh', onPress: onRefresh },
-                ]}
-            />
+            {renderContent()}
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+                <IslandHeader
+                    title="Jules"
+                    subtitle={julesOwner && julesRepo ? `${julesOwner}/${julesRepo}` : undefined}
+                    rightActions={[
+                        ...(julesApiKey ? [{ icon: 'git-network-outline', onPress: () => setShowRepoSelector(true) }] : []),
+                        { icon: 'refresh', onPress: onRefresh },
+                    ]}
+                />
+            </View>
             <RepoSelector
                 visible={showRepoSelector}
                 onClose={() => setShowRepoSelector(false)}
@@ -1341,7 +1344,6 @@ export default function JulesScreen() {
                     setShowRepoSelector(false);
                 }}
             />
-            {renderContent()}
         </Layout>
     );
 }
