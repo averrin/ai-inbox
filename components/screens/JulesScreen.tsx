@@ -455,18 +455,14 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                         )}
 
                         {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
-                            <TouchableOpacity
+                            <MetadataChip
+                                label={isWatched ? "Watching" : "Watch"}
+                                icon={isWatched ? "eye" : "eye-outline"}
+                                variant={isWatched ? "solid" : "outline"}
+                                color={isWatched ? Colors.primary : Colors.text.tertiary}
+                                size="sm"
                                 onPress={toggleWatch}
-                        className={`ml-1`}
-                            >
-                        <MetadataChip
-                            label={isWatched ? "Watching" : "Watch"}
-                            icon={isWatched ? "eye" : "eye-outline"}
-                            variant={isWatched ? "solid" : "outline"}
-                            color={isWatched ? Colors.primary : Colors.text.tertiary}
-                            size="sm"
-                        />
-                            </TouchableOpacity>
+                            />
                         )}
 
                         <TouchableOpacity onPress={() => setExpanded(!expanded)} className="p-1">
@@ -561,18 +557,14 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                     )}
 
                     {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
-                        <TouchableOpacity
+                        <MetadataChip
+                            label={isWatched ? "Watching" : "Watch"}
+                            icon={isWatched ? "eye" : "eye-outline"}
+                            variant={isWatched ? "solid" : "outline"}
+                            color={isWatched ? Colors.primary : Colors.text.tertiary}
+                            size="sm"
                             onPress={toggleWatch}
-                            className={`ml-1`}
-                        >
-                            <MetadataChip
-                                label={isWatched ? "Watching" : "Watch"}
-                                icon={isWatched ? "eye" : "eye-outline"}
-                                variant={isWatched ? "solid" : "outline"}
-                                color={isWatched ? Colors.primary : Colors.text.tertiary}
-                                size="sm"
-                            />
-                        </TouchableOpacity>
+                        />
                     )}
 
                     <TouchableOpacity onPress={() => setExpanded(!expanded)} className="p-1">
