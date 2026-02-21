@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MetadataConfig } from '../../store/settings';
-import { Colors, Palette } from './design-tokens';
+import { Colors } from './design-tokens';
 import { ColorPicker } from './ColorPicker';
-import { NavIconPicker } from './NavIconPicker';
+import { IconPicker } from './IconPicker';
 import { MetadataChip } from './MetadataChip';
 
 interface ChipConfiguratorProps {
@@ -17,12 +18,18 @@ interface ChipConfiguratorProps {
 
 export function ChipConfigurator({ config, onChange, showReset, onReset, label }: ChipConfiguratorProps) {
     const [isIconPickerVisible, setIsIconPickerVisible] = useState(false);
+    const insets = useSafeAreaInsets();
+
+    const handleIconSelect = (icon: string) => {
+        onChange({ ...config, icon });
+        setIsIconPickerVisible(false);
+    };
 
     return (
-        <View className="gap-6">
-            {/* Preview Section */}
-            <View className="bg-surface p-4 rounded-xl border border-border items-center">
-                <Text className="text-text-tertiary text-xs uppercase font-bold mb-4 w-full">Preview</Text>
+        <View className="gap-6 pb-8">
+            {/* Preview Section - Compact */}
+            <View className="bg-surface p-3 rounded-xl border border-border flex-row items-center justify-between">
+                <Text className="text-text-tertiary text-xs uppercase font-bold">Preview</Text>
                 <MetadataChip
                     label={label || 'Example'}
                     color={config.color}
@@ -33,103 +40,123 @@ export function ChipConfigurator({ config, onChange, showReset, onReset, label }
                 />
             </View>
 
+            {/* Layout: Style & Rounding Side-by-Side */}
+            <View className="flex-row gap-4">
+                {/* Style Variant */}
+                <View className="flex-1">
+                    <Text className="text-white font-medium text-sm mb-2">Style</Text>
+                    <View className="gap-2">
+                        {(['default', 'solid', 'outline'] as const).map((v) => (
+                            <TouchableOpacity
+                                key={v}
+                                onPress={() => onChange({ ...config, variant: v })}
+                                className={`px-3 py-2 rounded-lg border items-center justify-center ${
+                                    (config.variant || 'default') === v
+                                        ? 'bg-primary border-primary'
+                                        : 'bg-surface-highlight border-border'
+                                }`}
+                            >
+                                <Text className={`text-xs font-medium ${
+                                    (config.variant || 'default') === v ? 'text-white' : 'text-text-secondary'
+                                }`}>
+                                    {v.charAt(0).toUpperCase() + v.slice(1)}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+
+                {/* Rounding */}
+                <View className="flex-1">
+                    <Text className="text-white font-medium text-sm mb-2">Rounding</Text>
+                    <View className="gap-2">
+                        {([
+                            { value: 'none', label: 'Square' },
+                            { value: 'sm', label: 'Small' },
+                            { value: 'md', label: 'Medium' },
+                            { value: 'full', label: 'Pill' }
+                        ] as const).map((option) => (
+                            <TouchableOpacity
+                                key={option.value}
+                                onPress={() => onChange({ ...config, rounding: option.value as any })}
+                                className={`px-3 py-2 rounded-lg border items-center justify-center ${
+                                    (config.rounding || 'sm') === option.value
+                                        ? 'bg-primary border-primary'
+                                        : 'bg-surface-highlight border-border'
+                                }`}
+                            >
+                                <Text className={`text-xs font-medium ${
+                                    (config.rounding || 'sm') === option.value ? 'text-white' : 'text-text-secondary'
+                                }`}>
+                                    {option.label}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+            </View>
+
             {/* Icon Selector */}
             <View>
-                <Text className="text-white font-medium text-base mb-2">Icon</Text>
-                <View className="flex-row items-center gap-3">
-                    <TouchableOpacity
-                        onPress={() => setIsIconPickerVisible(true)}
-                        className="h-12 w-12 rounded-xl bg-surface-highlight border border-border items-center justify-center"
-                    >
-                        {config.icon ? (
-                            <Ionicons name={config.icon as any} size={24} color={Colors.text.primary} />
-                        ) : (
-                            <Ionicons name="add" size={24} color={Colors.text.tertiary} />
-                        )}
-                    </TouchableOpacity>
+                <View className="flex-row items-center justify-between mb-2">
+                    <Text className="text-white font-medium text-sm">Icon</Text>
                     {config.icon && (
-                        <TouchableOpacity
-                            onPress={() => onChange({ ...config, icon: undefined })}
-                            className="bg-surface px-3 py-2 rounded-lg border border-border"
-                        >
-                            <Text className="text-text-secondary text-sm font-medium">Clear Icon</Text>
+                        <TouchableOpacity onPress={() => onChange({ ...config, icon: undefined })}>
+                            <Text className="text-error text-xs font-medium">Remove</Text>
                         </TouchableOpacity>
                     )}
                 </View>
-                <NavIconPicker
+
+                <TouchableOpacity
+                    onPress={() => setIsIconPickerVisible(true)}
+                    className="flex-row items-center bg-surface-highlight border border-border rounded-xl p-3"
+                >
+                    <View className="w-8 h-8 rounded-lg bg-surface items-center justify-center mr-3 border border-border">
+                        {config.icon ? (
+                            <Ionicons name={config.icon as any} size={20} color={Colors.text.primary} />
+                        ) : (
+                            <Ionicons name="add" size={20} color={Colors.text.tertiary} />
+                        )}
+                    </View>
+                    <Text className="text-text-secondary text-sm flex-1">
+                        {config.icon ? config.icon : 'Select an icon...'}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
+                </TouchableOpacity>
+
+                <Modal
                     visible={isIconPickerVisible}
-                    currentIcon={config.icon || ''}
-                    onSelect={(icon) => onChange({ ...config, icon })}
-                    onClose={() => setIsIconPickerVisible(false)}
-                />
-            </View>
-
-            {/* Style Variant */}
-            <View>
-                <Text className="text-white font-medium text-base mb-2">Style</Text>
-                <View className="flex-row gap-2">
-                    {(['default', 'solid', 'outline'] as const).map((v) => (
-                        <TouchableOpacity
-                            key={v}
-                            onPress={() => onChange({ ...config, variant: v })}
-                            className={`flex-1 px-3 py-3 rounded-lg border items-center justify-center ${
-                                (config.variant || 'default') === v
-                                    ? 'bg-primary border-primary'
-                                    : 'bg-surface-highlight border-border'
-                            }`}
-                        >
-                            <Text className={`text-xs font-medium ${
-                                (config.variant || 'default') === v ? 'text-white' : 'text-text-secondary'
-                            }`}>
-                                {v.charAt(0).toUpperCase() + v.slice(1)}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            </View>
-
-            {/* Rounding */}
-            <View>
-                <Text className="text-white font-medium text-base mb-2">Rounding</Text>
-                <View className="flex-row gap-2">
-                    {([
-                        { value: 'none', label: 'Square', icon: 'square-outline' },
-                        { value: 'sm', label: 'Small', icon: 'stop-outline' }, // Using stop-outline as a proxy for slightly rounded
-                        { value: 'md', label: 'Medium', icon: 'tablet-landscape-outline' },
-                        { value: 'full', label: 'Pill', icon: 'remove-outline' } // Pill shape
-                    ] as const).map((option) => (
-                        <TouchableOpacity
-                            key={option.value}
-                            onPress={() => onChange({ ...config, rounding: option.value as any })}
-                            className={`flex-1 px-2 py-3 rounded-lg border items-center justify-center ${
-                                (config.rounding || 'sm') === option.value
-                                    ? 'bg-primary border-primary'
-                                    : 'bg-surface-highlight border-border'
-                            }`}
-                        >
-                            <Ionicons
-                                name={option.icon as any}
-                                size={18}
-                                color={(config.rounding || 'sm') === option.value ? 'white' : Colors.text.secondary}
-                                style={{ marginBottom: 4 }}
+                    animationType="slide"
+                    presentationStyle="pageSheet"
+                    onRequestClose={() => setIsIconPickerVisible(false)}
+                >
+                    <View className="flex-1 bg-background">
+                         <View className="px-4 py-4 border-b border-border flex-row items-center justify-between" style={{ marginTop: insets.top }}>
+                            <Text className="text-white font-bold text-lg">Select Icon</Text>
+                            <TouchableOpacity
+                                onPress={() => setIsIconPickerVisible(false)}
+                                className="bg-surface p-2 rounded-full"
+                            >
+                                <Ionicons name="close" size={20} color={Colors.text.secondary} />
+                            </TouchableOpacity>
+                        </View>
+                        <View className="flex-1 p-4">
+                            <IconPicker
+                                value={config.icon || ''}
+                                onChange={handleIconSelect}
                             />
-                            <Text className={`text-[10px] font-medium ${
-                                (config.rounding || 'sm') === option.value ? 'text-white' : 'text-text-secondary'
-                            }`}>
-                                {option.label}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+                        </View>
+                    </View>
+                </Modal>
             </View>
 
             {/* Color */}
             <View>
                 <View className="flex-row justify-between items-center mb-2">
-                    <Text className="text-white font-medium text-base">Color</Text>
+                    <Text className="text-white font-medium text-sm">Color</Text>
                     {showReset && onReset && (
                         <TouchableOpacity onPress={onReset}>
-                            <Text className="text-primary text-xs font-medium">Reset Color</Text>
+                            <Text className="text-primary text-xs font-medium">Reset Default</Text>
                         </TouchableOpacity>
                     )}
                 </View>
