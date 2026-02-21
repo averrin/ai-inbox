@@ -341,7 +341,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                         color={Colors.primary}
                                         variant={flags?.isEnglish ? 'solid' : 'default'}
                                         onPress={() => handleToggleFlag('isEnglish')}
-                                        size="md"
+                                        size="sm"
                                     />
                                     <MetadataChip
                                         label="Movable"
@@ -349,7 +349,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                         variant={flags?.movable ? 'solid' : 'default'}
                                         icon="move"
                                         onPress={() => handleToggleFlag('movable')}
-                                        size="md"
+                                        size="sm"
                                     />
                                     <MetadataChip
                                         label="Skippable"
@@ -357,7 +357,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                         variant={flags?.skippable ? 'solid' : 'default'}
                                         icon="return-up-forward"
                                         onPress={() => handleToggleFlag('skippable')}
-                                        size="md"
+                                        size="sm"
                                     />
                                     <MetadataChip
                                         label="Prep"
@@ -365,7 +365,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                         variant={flags?.needPrep ? 'solid' : 'default'}
                                         icon="pricetag-outline"
                                         onPress={() => handleToggleFlag('needPrep')}
-                                        size="md"
+                                        size="sm"
                                     />
                                     <MetadataChip
                                         label="Checkbox"
@@ -373,7 +373,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                         variant={flags?.completable ? 'solid' : 'default'}
                                         icon="checkbox-outline"
                                         onPress={() => handleToggleFlag('completable')}
-                                        size="md"
+                                        size="sm"
                                     />
                                 </View>
                             </View>
