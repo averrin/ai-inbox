@@ -129,12 +129,7 @@ export function RichTaskItem({
     );
 
     const metadataSubtitle = (
-        <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 4, alignItems: 'center' }}
-            style={{ marginTop: 4, height: 22 }} // Fixed height for one line
-        >
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
             {task.properties[REMINDER_PROPERTY_KEY] && (
                 <View className="mr-1">
                     <Ionicons name="alarm" size={14} color="#fbbf24" />
@@ -160,24 +155,28 @@ export function RichTaskItem({
                 const valueConfig = config?.valueConfigs?.[valStr];
 
                 const activeColor = valueConfig?.color || config?.color;
+                const activeVariant = config?.variant || 'default';
+                const isSolid = activeVariant === 'solid';
+
+                const textColorStyle = isSolid ? { color: '#FFFFFF' } : (activeColor ? { color: activeColor } : undefined);
 
                 return (
                     <MetadataChip
                         key={`prop-${key}`}
                         label={
                             key === 'context' ? (
-                                <Text className="text-text-primary text-[10px]" style={activeColor ? { color: activeColor } : undefined}>@{value}</Text>
+                                <Text className="text-text-primary text-[10px]" style={textColorStyle}>@{value}</Text>
                             ) : (
                                 <>
-                                    <Text className="text-text-tertiary text-[10px] mr-1" style={activeColor ? { color: activeColor } : undefined}>{key}:</Text>
-                                    <Text className="text-text-primary text-[10px]" style={activeColor ? { color: activeColor } : undefined}>
+                                    <Text className="text-text-tertiary text-[10px] mr-1" style={textColorStyle}>{key}:</Text>
+                                    <Text className="text-text-primary text-[10px]" style={textColorStyle}>
                                         {key === 'date' && String(value) === dayjs().format('YYYY-MM-DD') ? 'Today' : String(value)}
                                     </Text>
                                 </>
                             )
                         }
                         color={activeColor}
-                        variant="default"
+                        variant={activeVariant}
                         size="sm"
                     />
                 );
@@ -191,14 +190,14 @@ export function RichTaskItem({
                         key={`tag-${tag}`}
                         label={`#${tag}`}
                         color={config?.color}
-                        variant="default"
+                        variant={config?.variant || 'default'}
                         size="sm"
                         onPress={() => onTagPress?.(tag)}
                         style={!config?.color ? { borderColor: Colors.primary, backgroundColor: Colors.surfaceHighlight } : undefined}
                     />
                 );
             })}
-        </ScrollView>
+        </View>
     );
 
     const rightActions = (onEdit || onDelete || onReschedule) ? (

@@ -123,6 +123,30 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
                             </View>
                         )}
 
+                        {/* Style Variant */}
+                        <View className="bg-surface p-4 rounded-xl mb-4 border border-border">
+                            <Text className="text-white font-medium text-base mb-2">Style</Text>
+                            <View className="flex-row gap-2">
+                                {(['default', 'solid', 'outline'] as const).map((v) => (
+                                    <TouchableOpacity
+                                        key={v}
+                                        onPress={() => updateFn(item, { ...config, variant: v })}
+                                        className={`px-3 py-2 rounded-lg border ${
+                                            (config.variant || 'default') === v
+                                                ? 'bg-primary border-primary'
+                                                : 'bg-surface-highlight border-border'
+                                        }`}
+                                    >
+                                        <Text className={`text-xs font-medium ${
+                                            (config.variant || 'default') === v ? 'text-white' : 'text-text-secondary'
+                                        }`}>
+                                            {v.charAt(0).toUpperCase() + v.slice(1)}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+
                         {/* Default Color */}
                         <View className="bg-surface p-4 rounded-xl mb-4 border border-border">
                             <View className="flex-row justify-between items-center mb-1">
