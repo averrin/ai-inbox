@@ -7,6 +7,7 @@ import { Colors } from './design-tokens';
 import { ColorPicker } from './ColorPicker';
 import { IconPicker } from './IconPicker';
 import { MetadataChip } from './MetadataChip';
+import { UniversalIcon } from './UniversalIcon';
 
 interface ChipConfiguratorProps {
     config: MetadataConfig;
@@ -113,7 +114,7 @@ export function ChipConfigurator({ config, onChange, showReset, onReset, label }
                 >
                     <View className="w-8 h-8 rounded-lg bg-surface items-center justify-center mr-3 border border-border">
                         {config.icon ? (
-                            <Ionicons name={config.icon as any} size={20} color={Colors.text.primary} />
+                            <UniversalIcon name={config.icon} size={20} color={Colors.text.primary} />
                         ) : (
                             <Ionicons name="add" size={20} color={Colors.text.tertiary} />
                         )}

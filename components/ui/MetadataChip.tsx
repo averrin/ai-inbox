@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from './design-tokens';
+import { UniversalIcon } from './UniversalIcon';
 
 interface MetadataChipProps {
     label: string | React.ReactNode;
@@ -37,9 +38,11 @@ export function MetadataChip({
     if (isSolid) {
         backgroundColor = baseColor;
     } else if (color) {
+        // Default (tinted)
         backgroundColor = `${baseColor}33`; // ~20% opacity
     } else if (isOutline) {
-        backgroundColor = 'transparent';
+        // Outline (dark bg)
+        backgroundColor = 'rgba(30, 41, 59, 0.5)'; // slate-800/50 (dark grey)
     } else {
         // Subtle variant without color
          backgroundColor = 'rgba(51, 65, 85, 0.5)'; // surfaceHighlightSubtle
@@ -103,8 +106,8 @@ export function MetadataChip({
         >
             {icon && (
                 <View style={{ marginRight: 4 }}>
-                    <Ionicons
-                        name={icon as any}
+                    <UniversalIcon
+                        name={icon}
                         size={displayIconSize}
                         color={textColor}
                     />
