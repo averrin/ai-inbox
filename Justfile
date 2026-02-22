@@ -1,4 +1,4 @@
-# Justfile for AI Inbox
+# Justfile for Architect
 # Environment setup
 
 export ANDROID_HOME := "/home/averrin/Android/Sdk"

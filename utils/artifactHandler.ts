@@ -34,7 +34,7 @@ export async function installCachedArtifact(apkUri: string, deps: ArtifactDeps) 
         if (installError?.code === 'APK_PERMISSION_NEEDED') {
             showAlert(
                 "Permission Required",
-                "Please enable 'Install unknown apps' for AI Inbox in the settings screen that just opened, then try again."
+                "Please enable 'Install unknown apps' for Architect in the settings screen that just opened, then try again."
             );
         } else {
             throw installError;
