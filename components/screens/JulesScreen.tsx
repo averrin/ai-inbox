@@ -528,6 +528,12 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
 
                 {expanded && (
                     <View className="mt-2 border-t border-border pt-2">
+                        {run.head_commit?.message && (
+                            <View className="mb-2">
+                                <Text className="text-secondary text-[10px] font-bold mb-1 uppercase">Commit Message</Text>
+                                <Text className="text-white text-[10px] font-mono" numberOfLines={3}>{run.head_commit.message}</Text>
+                            </View>
+                        )}
                         <Text className="text-secondary text-[10px] font-bold mb-2 uppercase">Checks Status</Text>
                         {checksLoading ? (
                             <ActivityIndicator size="small" color={Colors.text.tertiary} />
@@ -625,6 +631,12 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                         )}
                     </View>
 
+                    {run.head_commit?.message && (
+                        <View className="mb-3">
+                            <Text className="text-text-tertiary text-xs font-bold mb-1 uppercase">Commit Message</Text>
+                            <Text className="text-white text-xs font-mono">{run.head_commit.message}</Text>
+                        </View>
+                    )}
                     <Text className="text-text-tertiary text-xs font-bold mb-2 uppercase">Checks Status</Text>
                     {checksLoading ? (
                         <ActivityIndicator size="small" color={Colors.text.tertiary} />
