@@ -8,9 +8,6 @@ import * as SecureStore from 'expo-secure-store';
 
 const SENSITIVE_KEYS = [
     'apiKey',
-    'googleAndroidClientId',
-    'googleIosClientId',
-    'googleWebClientId',
     'julesApiKey',
     'julesGoogleApiKey',
     'workAccountId',
@@ -78,32 +75,19 @@ interface SettingsState {
     setSelectedModel: (model: string) => void;
     setSelectedImageModel: (model: string) => void;
     setContextRootFolder: (folder: string) => void;
-    googleAndroidClientId: string | null;
-    googleIosClientId: string | null;
-    googleWebClientId: string | null;
-    setGoogleAndroidClientId: (id: string) => void;
-    setGoogleIosClientId: (id: string) => void;
-    setGoogleWebClientId: (id: string) => void;
+
     linksRoot: string | null;
     setLinksRoot: (folder: string) => void;
     backgroundSyncInterval: number;
     setBackgroundSyncInterval: (interval: number) => void;
-    reminderBypassDnd: boolean;
-    setReminderBypassDnd: (bypass: boolean) => void;
-    reminderRingtone: string | null;
-    setReminderRingtone: (ringtone: string) => void;
-    reminderVibration: boolean;
-    setReminderVibration: (vibrate: boolean) => void;
+
     timeFormat: '12h' | '24h';
     setTimeFormat: (format: '12h' | '24h') => void;
     cachedReminders: any[]; // Using any[] to avoid circular dependency with Reminder type
     setCachedReminders: (reminders: any[]) => void;
-    editorType: 'rich' | 'simple';
-    setEditorType: (type: 'rich' | 'simple') => void;
     visibleCalendarIds: string[];
     setVisibleCalendarIds: (ids: string[]) => void;
-    hideLunchBadges: boolean;
-    setHideLunchBadges: (hide: boolean) => void;
+
     hideDeclinedEvents: boolean;
     setHideDeclinedEvents: (hide: boolean) => void;
     defaultCalendarId: string | null;
@@ -262,32 +246,19 @@ export const useSettingsStore = create<SettingsState>()(
             setSelectedModel: (model) => set({ selectedModel: model }),
             setSelectedImageModel: (model) => set({ selectedImageModel: model }),
             setContextRootFolder: (folder) => set({ contextRootFolder: folder }),
-            googleAndroidClientId: null,
-            googleIosClientId: null,
-            googleWebClientId: null,
-            setGoogleAndroidClientId: (id) => set({ googleAndroidClientId: id }),
-            setGoogleIosClientId: (id) => set({ googleIosClientId: id }),
-            setGoogleWebClientId: (id) => set({ googleWebClientId: id }),
+
             linksRoot: null,
             setLinksRoot: (folder) => set({ linksRoot: folder }),
             backgroundSyncInterval: 15,
             setBackgroundSyncInterval: (interval) => set({ backgroundSyncInterval: interval }),
-            reminderBypassDnd: true,
-            setReminderBypassDnd: (bypass) => set({ reminderBypassDnd: bypass }),
-            reminderRingtone: null,
-            setReminderRingtone: (ringtone) => set({ reminderRingtone: ringtone }),
-            reminderVibration: true,
-            setReminderVibration: (vibrate) => set({ reminderVibration: vibrate }),
+
             timeFormat: '24h',
             setTimeFormat: (format) => set({ timeFormat: format }),
             cachedReminders: [],
             setCachedReminders: (reminders) => set({ cachedReminders: reminders }),
-            editorType: 'rich',
-            setEditorType: (type) => set({ editorType: type }),
             visibleCalendarIds: [],
             setVisibleCalendarIds: (ids) => set({ visibleCalendarIds: ids }),
-            hideLunchBadges: true,
-            setHideLunchBadges: (hide) => set({ hideLunchBadges: hide }),
+
             hideDeclinedEvents: false,
             setHideDeclinedEvents: (hide) => set({ hideDeclinedEvents: hide }),
             defaultCalendarId: null,
