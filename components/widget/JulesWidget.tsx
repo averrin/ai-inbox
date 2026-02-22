@@ -31,7 +31,7 @@ export function JulesWidget({ upcomingEvent, pendingTask, githubRuns, error }: J
       style={{
         height: 'match_parent',
         width: 'match_parent',
-        backgroundColor: '#00000040', // Semi-transparent black for visibility
+        backgroundColor: '#222222', // Solid dark background for visibility
         flexDirection: 'column',
         justifyContent: 'center',
         paddingHorizontal: 16,
@@ -46,7 +46,7 @@ export function JulesWidget({ upcomingEvent, pendingTask, githubRuns, error }: J
         <FlexWidget style={{ flexDirection: 'column', flex: 1 }}>
            <TextWidget
             text={upcomingEvent ? upcomingEvent.time : "Today"}
-            style={{ color: '#ffffff', fontSize: 12, opacity: 0.8 }}
+            style={{ color: '#cccccc', fontSize: 12 }}
           />
           <TextWidget
             text={upcomingEvent ? upcomingEvent.title : "No upcoming events"}
