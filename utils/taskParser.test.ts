@@ -76,4 +76,25 @@ describe('TaskParser', () => {
         expect(serialized).toContain('[q:: 2]');
     });
 
+    it('should parse task with inline fields (key:: value)', () => {
+        const line = '- [ ] Task with (priority:: high)';
+        const parsed = parseTaskLine(line);
+        expect(parsed!.properties['priority']).toBe('high');
+        expect(parsed!.title).toBe('Task with'); // Title cleaned
+
+        // Serializes as [key:: value] currently
+        const serialized = serializeTaskLine(parsed!);
+        expect(serialized).toBe('- [ ] Task with [priority:: high]');
+    });
+
+    it('should handle nested parens in inline fields', () => {
+        const line = '- [ ] Task (key:: (nested))';
+        const parsed = parseTaskLine(line);
+        expect(parsed!.properties['key']).toBe('(nested)');
+        expect(parsed!.title).toBe('Task');
+
+        const serialized = serializeTaskLine(parsed!);
+        expect(serialized).toBe('- [ ] Task [key:: (nested)]');
+    });
+
 });

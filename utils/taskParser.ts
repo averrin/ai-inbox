@@ -51,6 +51,22 @@ export function parseTaskLine(line: string): RichTask | null {
             }
         }
 
+        // Potential start of a property: '('
+        if (char === '(') {
+            const closingIndex = findBalancedClosingParen(fullContent, i);
+            if (closingIndex !== -1) {
+                // We have a balanced paren group: ( ... )
+                // Check if it matches (key:: value)
+                const innerResult = parsePropertyContent(fullContent.substring(i + 1, closingIndex));
+                if (innerResult) {
+                    // It IS a property
+                    properties[innerResult.key] = innerResult.value;
+                    i = closingIndex + 1; // Skip this block
+                    continue;
+                }
+            }
+        }
+
         // Potential tag: '#'
         // We defer tag extraction to a regex pass on the *remaining* title or check here?
         // Checking here allows avoiding tags inside other things, but tags usually aren't bracketed.
@@ -96,6 +112,25 @@ function findBalancedClosingBracket(text: string, startIndex: number): number {
         if (text[i] === '[') {
             depth++;
         } else if (text[i] === ']') {
+            depth--;
+            if (depth === 0) {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
+/**
+ * Finds the index of the matching closing parenthesis ')', handling nested parentheses.
+ * Returns -1 if not found.
+ */
+function findBalancedClosingParen(text: string, startIndex: number): number {
+    let depth = 0;
+    for (let i = startIndex; i < text.length; i++) {
+        if (text[i] === '(') {
+            depth++;
+        } else if (text[i] === ')') {
             depth--;
             if (depth === 0) {
                 return i;
