@@ -16,7 +16,7 @@ import { useUIStore } from '../../store/ui';
 import { showAlert } from '../../utils/alert';
 import { useFocusEffect } from '@react-navigation/native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { NewsFilterSettings } from '../settings/NewsFilterSettings';
+import { NewsSettings } from '../settings/NewsSettings';
 
 dayjs.extend(relativeTime);
 
@@ -196,6 +196,22 @@ export default function NewsScreen() {
                 <Swipeable
                     renderRightActions={() => renderRightActions(item)}
                     renderLeftActions={() => renderLeftActions(item)}
+                    onSwipeableOpen={(direction) => {
+                        if (direction === 'left') {
+                             // Swiped Right -> Left Actions Revealed -> Read
+                             markArticleAsRead({
+                                title: item.title,
+                                description: item.description,
+                                url: item.url,
+                                urlToImage: item.urlToImage,
+                                publishedAt: item.publishedAt,
+                                source: { name: item.source.name, id: item.source.id }
+                            });
+                        } else if (direction === 'right') {
+                            // Swiped Left -> Right Actions Revealed -> Hide
+                            hideArticle(item.url);
+                        }
+                    }}
                     containerStyle={{ overflow: 'visible' }} // Ensure shadows/etc work if needed, though mostly for list items
                 >
                     <BaseListItem
@@ -479,7 +495,9 @@ export default function NewsScreen() {
                             <Ionicons name="close" size={24} color="white" />
                         </TouchableOpacity>
                     </View>
-                    <NewsFilterSettings />
+                    <ScrollView contentContainerStyle={{ padding: 16 }}>
+                        <NewsSettings />
+                    </ScrollView>
                 </View>
             </Modal>
         </Layout>
