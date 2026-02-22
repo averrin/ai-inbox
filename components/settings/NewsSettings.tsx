@@ -4,17 +4,20 @@ import { useSettingsStore } from '../../store/settings';
 import { useState } from 'react';
 import { Card } from '../ui/Card';
 import { Colors } from '../ui/design-tokens';
+import { MetadataChip } from '../ui/MetadataChip';
 
 export function NewsSettings() {
     const {
         newsTopics, setNewsTopics,
         rssFeeds, setRssFeeds,
         newsApiKey, setNewsApiKey,
-        ignoredHostnames, setIgnoredHostnames
+        ignoredHostnames, setIgnoredHostnames,
+        newsFilterTerms, addNewsFilterTerm, removeNewsFilterTerm
     } = useSettingsStore();
     const [newTopic, setNewTopic] = useState('');
     const [newRssFeed, setNewRssFeed] = useState('');
     const [newHostname, setNewHostname] = useState('');
+    const [newFilterTerm, setNewFilterTerm] = useState('');
 
     const handleAddTopic = () => {
         if (newTopic.trim()) {
@@ -55,6 +58,14 @@ export function NewsSettings() {
         setIgnoredHostnames(ignoredHostnames.filter(h => h !== hostname));
     };
 
+    const handleAddFilterTerm = () => {
+        const term = newFilterTerm.trim().toLowerCase();
+        if (term && !newsFilterTerms.includes(term)) {
+            addNewsFilterTerm(term);
+            setNewFilterTerm('');
+        }
+    };
+
     return (
         <Card>
             <View className="mb-6">
@@ -80,12 +91,13 @@ export function NewsSettings() {
 
                 <View className="flex-row flex-wrap gap-2 mb-4">
                     {newsTopics.map((topic) => (
-                        <View key={topic} className="bg-surface border border-border rounded-full px-3 py-1 flex-row items-center">
-                            <Text className="text-white mr-2">{topic}</Text>
-                            <TouchableOpacity onPress={() => handleDeleteTopic(topic)}>
-                                <Ionicons name="close-circle" size={16} color={Colors.error} />
-                            </TouchableOpacity>
-                        </View>
+                        <MetadataChip
+                            key={topic}
+                            label={topic}
+                            onRemove={() => handleDeleteTopic(topic)}
+                            variant="outline"
+                            color={Colors.primary}
+                        />
                     ))}
                     {newsTopics.length === 0 && (
                         <Text className="text-secondary italic">No topics added.</Text>
@@ -161,12 +173,13 @@ export function NewsSettings() {
 
                 <View className="flex-row flex-wrap gap-2 mb-4">
                     {ignoredHostnames.map((hostname) => (
-                        <View key={hostname} className="bg-surface border border-border rounded-full px-3 py-1 flex-row items-center">
-                            <Text className="text-white mr-2">{hostname}</Text>
-                            <TouchableOpacity onPress={() => handleDeleteHostname(hostname)}>
-                                <Ionicons name="close-circle" size={16} color={Colors.error} />
-                            </TouchableOpacity>
-                        </View>
+                        <MetadataChip
+                            key={hostname}
+                            label={hostname}
+                            onRemove={() => handleDeleteHostname(hostname)}
+                            variant="outline"
+                            color={Colors.error}
+                        />
                     ))}
                     {ignoredHostnames.length === 0 && (
                         <Text className="text-secondary italic">No hostnames ignored.</Text>
@@ -188,6 +201,47 @@ export function NewsSettings() {
                         onPress={handleAddHostname}
                         className="bg-primary p-3 rounded-xl"
                         disabled={!newHostname.trim()}
+                    >
+                        <Ionicons name="add" size={24} color="white" />
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            <View className="mb-4">
+                <Text className="text-text-secondary mb-2 font-semibold">Ignored Keywords</Text>
+                <Text className="text-text-tertiary text-sm mb-4">
+                    Articles containing these words in the title or description will be hidden.
+                </Text>
+
+                <View className="flex-row flex-wrap gap-2 mb-4">
+                    {newsFilterTerms.map((term) => (
+                        <MetadataChip
+                            key={term}
+                            label={term}
+                            onRemove={() => removeNewsFilterTerm(term)}
+                            variant="outline"
+                            color={Colors.error}
+                        />
+                    ))}
+                    {newsFilterTerms.length === 0 && (
+                        <Text className="text-secondary italic">No keywords ignored.</Text>
+                    )}
+                </View>
+
+                <View className="flex-row items-center gap-2">
+                    <TextInput
+                        className="flex-1 bg-background border border-border text-white rounded-xl px-4 py-3"
+                        placeholder="Add word to block..."
+                        placeholderTextColor={Colors.secondary}
+                        value={newFilterTerm}
+                        onChangeText={setNewFilterTerm}
+                        onSubmitEditing={handleAddFilterTerm}
+                        autoCapitalize="none"
+                    />
+                    <TouchableOpacity
+                        onPress={handleAddFilterTerm}
+                        className="bg-primary p-3 rounded-xl"
+                        disabled={!newFilterTerm.trim()}
                     >
                         <Ionicons name="add" size={24} color="white" />
                     </TouchableOpacity>
