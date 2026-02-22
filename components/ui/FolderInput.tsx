@@ -34,6 +34,8 @@ export function FolderInput({
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const inputRef = useRef<TextInput>(null);
 
     const fetchSuggestions = useCallback(async (currentInput: string) => {
         if (!vaultUri) {
@@ -71,19 +73,32 @@ export function FolderInput({
     }, [value, isFocused, fetchSuggestions]);
 
     const handleSelectSuggestion = (subfolder: string) => {
+        // Cancel blur if any
+        if (blurTimeoutRef.current) {
+            clearTimeout(blurTimeoutRef.current);
+            blurTimeoutRef.current = null;
+        }
+
         const newPath = applySuggestion(value, subfolder, completionMode);
         onChangeText(newPath);
         // Keep suggestions open — will refresh for the new path
+
+        // Ensure focus stays
+        inputRef.current?.focus();
     };
 
     const handleFocus = () => {
+        if (blurTimeoutRef.current) {
+            clearTimeout(blurTimeoutRef.current);
+            blurTimeoutRef.current = null;
+        }
         setIsFocused(true);
         fetchSuggestions(value);
     };
 
     const handleBlur = () => {
         // Delay to allow suggestion tap to register
-        setTimeout(() => {
+        blurTimeoutRef.current = setTimeout(() => {
             setIsFocused(false);
             setShowSuggestions(false);
         }, 200);
@@ -122,6 +137,7 @@ export function FolderInput({
                             <Text className={`text-secondary ${compact ? 'pl-3 text-sm' : 'pl-4'} font-medium`}>{basePath}/</Text>
                         ) : null}
                         <TextInput 
+                            ref={inputRef}
                             value={value} 
                             onChangeText={onChangeText} 
                             onFocus={handleFocus}
