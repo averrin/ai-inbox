@@ -131,7 +131,12 @@ export function RichTaskItem({
     );
 
     const metadataSubtitle = (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+        <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginTop: 4 }}
+            contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 8 }}
+        >
             {task.properties[REMINDER_PROPERTY_KEY] && (
                 <View className="mr-1">
                     <Ionicons name="alarm" size={14} color="#fbbf24" />
@@ -208,7 +213,7 @@ export function RichTaskItem({
                     />
                 );
             })}
-        </View>
+        </ScrollView>
     );
 
     const rightActions = (dragHandle || onEdit || onDelete || onReschedule) ? (
