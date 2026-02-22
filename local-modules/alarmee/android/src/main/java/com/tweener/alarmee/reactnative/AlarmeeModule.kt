@@ -16,10 +16,12 @@ import com.tweener.alarmee.IosNotificationConfiguration
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.ExperimentalTime
 
 class AlarmeeModule : Module() {
   private lateinit var alarmeeService: AlarmeeService
 
+  @OptIn(ExperimentalTime::class)
   override fun definition() = ModuleDefinition {
     Name("AlarmeeModule")
 

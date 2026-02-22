@@ -21,7 +21,8 @@ android {
 
 dependencies {
     implementation project(':expo-modules-core')
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${safeExtGet('kotlinVersion', '1.8.10')}"
+    // Update to match project kotlin version or at least 2.x
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${safeExtGet('kotlinVersion', '2.0.21')}"
 
     // Alarmee dependencies
     implementation "io.github.tweener:alarmee:2.6.0"
