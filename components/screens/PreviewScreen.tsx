@@ -18,6 +18,7 @@ import { formatRecurrenceForReminder } from '../../services/reminderService';
 
 import { LongPressButton } from '../ui/LongPressButton';
 import { LinkAttachment } from '../ui/LinkAttachment';
+import { AppButton } from '../ui/AppButton';
 import { ReminderItem } from '../ui/ReminderItem';
 import { EventInfo } from '../ui/EventInfo';
 import { EventFormModal, EventSaveData } from '../EventFormModal';
@@ -333,21 +334,16 @@ export function PreviewScreen({
                     <View className="px-4 pb-2">
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2">
                             {Array.from({ length: totalTabs }).map((_, index) => (
-                                <TouchableOpacity
+                                <AppButton
                                     key={index}
+                                    title={`Note ${index + 1}`}
+                                    variant="secondary"
+                                    size="sm"
+                                    rounding="full"
+                                    selected={currentTabIndex === index}
                                     onPress={() => onTabChange?.(index)}
-                                    className={`px-4 py-2 rounded-full border ${currentTabIndex === index
-                                        ? 'bg-primary border-primary'
-                                        : 'bg-surface-highlight border-border'
-                                        } mr-2`}
-                                >
-                                    <Text
-                                        className={`${currentTabIndex === index ? 'text-white font-bold' : 'text-text-secondary'
-                                            }`}
-                                    >
-                                        Note {index + 1}
-                                    </Text>
-                                </TouchableOpacity>
+                                    style={{ marginRight: 8 }}
+                                />
                             ))}
                         </ScrollView>
                     </View>
@@ -593,16 +589,17 @@ export function PreviewScreen({
                         className="absolute bottom-4 w-full flex-row justify-start px-6 px-[24px]"
                         pointerEvents="box-none"
                     >
-                        <TouchableOpacity
+                        <AppButton
+                            icon="arrow-back"
+                            variant="secondary"
+                            size="lg"
+                            rounding="full"
                             onPress={() => {
                                 setIsFocused(false);
                                 Keyboard.dismiss();
                             }}
-                            className="w-14 h-14 rounded-full bg-surface-highlight items-center justify-center shadow-lg"
-                            style={{ elevation: 8 }}
-                        >
-                            <Ionicons name="arrow-back" size={28} color="white" />
-                        </TouchableOpacity>
+                            style={{ width: 56, height: 56, elevation: 8 }}
+                        />
                     </View>
                 )}
             </KeyboardAvoidingView>

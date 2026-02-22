@@ -27,6 +27,7 @@ import { TaskStatusIcon, getStatusConfig } from '../ui/TaskStatusIcon';
 import { FolderInput } from '../ui/FolderInput';
 import { Colors, Palette } from '../ui/design-tokens';
 import { showAlert, showError } from '../../utils/alert';
+import { AppButton, CloseButton } from '../ui/AppButton';
 
 interface TaskEditModalProps {
     visible: boolean;
@@ -346,13 +347,15 @@ export function TaskEditModal({
                         <Text className="text-white text-xl font-bold">{(task && task.fileUri) ? 'Edit Task' : 'New Task'}</Text>
                         <View className="flex-row gap-2">
                             {task && task.fileUri && (
-                                <TouchableOpacity onPress={handleOpenNote} className="p-2 bg-surface rounded-lg">
-                                    <Ionicons name="document-text-outline" size={20} color={Colors.text.tertiary} />
-                                </TouchableOpacity>
+                                <AppButton
+                                    icon="document-text-outline"
+                                    variant="ghost"
+                                    size="sm"
+                                    rounding="md"
+                                    onPress={handleOpenNote}
+                                />
                             )}
-                            <TouchableOpacity onPress={onCancel} className="p-2">
-                                <Ionicons name="close" size={24} color={Colors.text.tertiary} />
-                            </TouchableOpacity>
+                            <CloseButton onPress={onCancel} />
                         </View>
                     </View>
 
@@ -412,17 +415,21 @@ export function TaskEditModal({
                                     const s = getStatusConfig(id);
                                     const isSelected = status === id;
                                     return (
-                                        <TouchableOpacity
+                                        <AppButton
                                             key={id}
+                                            variant="ghost"
+                                            size="sm"
+                                            selected={isSelected}
                                             onPress={() => setStatus(id)}
-                                            className={`flex-row items-center justify-center py-2 px-3 rounded-xl border ${isSelected ? 'bg-primary border-primary' : 'bg-surface border-border'}`}
                                             style={{ minWidth: '30%' }}
                                         >
-                                            <TaskStatusIcon status={id} size={16} color={isSelected ? Colors.white : undefined} />
-                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-white' : 'text-text-tertiary'}`}>
-                                                {s.label}
-                                            </Text>
-                                        </TouchableOpacity>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                                                <TaskStatusIcon status={id} size={16} color={isSelected ? Colors.white : undefined} />
+                                                <Text style={{ marginLeft: 6, fontSize: 12, fontWeight: '500', color: isSelected ? '#FFFFFF' : Colors.text.tertiary }}>
+                                                    {s.label}
+                                                </Text>
+                                            </View>
+                                        </AppButton>
                                     );
                                 })}
                             </View>
@@ -439,8 +446,14 @@ export function TaskEditModal({
                                 ].map((p) => {
                                     const isSelected = p.id === 'clear' ? !properties.priority : properties.priority === p.id;
                                     return (
-                                        <TouchableOpacity
+                                        <AppButton
                                             key={p.id}
+                                            icon={p.icon}
+                                            title={p.label}
+                                            variant="ghost"
+                                            size="sm"
+                                            selected={isSelected}
+                                            color={isSelected ? Colors.white : p.color}
                                             onPress={() => {
                                                 const newProps = { ...properties };
                                                 if (p.id === 'clear') {
@@ -450,17 +463,8 @@ export function TaskEditModal({
                                                 }
                                                 setProperties(newProps);
                                             }}
-                                            className={`flex-1 flex-row items-center justify-center py-2.5 rounded-xl border ${isSelected ? 'bg-primary border-primary' : 'bg-surface border-border'}`}
-                                        >
-                                            <Ionicons
-                                                name={p.icon as any}
-                                                size={16}
-                                                color={isSelected ? Colors.white : p.color}
-                                            />
-                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-white' : 'text-text-tertiary'}`}>
-                                                {p.label}
-                                            </Text>
-                                        </TouchableOpacity>
+                                            flex
+                                        />
                                     );
                                 })}
                             </View>
@@ -522,29 +526,31 @@ export function TaskEditModal({
                     </ScrollView>
 
                     <View className="flex-row gap-3 mt-4">
-                        <TouchableOpacity
+                        <AppButton
+                            title="Cancel"
+                            variant="ghost"
+                            size="lg"
                             onPress={onCancel}
-                            className="flex-1 bg-surface p-4 rounded-xl items-center"
-                        >
-                            <Text className="text-white font-semibold">Cancel</Text>
-                        </TouchableOpacity>
+                            flex
+                        />
 
                         {onDelete && task && (task.fileUri || task.originalLine) && (
-                            <TouchableOpacity
+                            <AppButton
+                                icon="trash-outline"
+                                variant="danger-outline"
+                                size="md"
                                 onPress={() => onDelete(task)}
-                                className="bg-surface p-3 rounded-xl items-center justify-center border border-error"
                                 style={{ width: 48 }}
-                            >
-                                <Ionicons name="trash-outline" size={20} color={Colors.error} />
-                            </TouchableOpacity>
+                            />
                         )}
 
-                        <TouchableOpacity
+                        <AppButton
+                            title="Save Changes"
+                            variant="primary"
+                            size="lg"
                             onPress={handleSave}
-                            className="flex-1 bg-primary p-4 rounded-xl items-center"
-                        >
-                            <Text className="text-white font-semibold">Save Changes</Text>
-                        </TouchableOpacity>
+                            flex
+                        />
                     </View>
                 </View>
             </KeyboardAvoidingView>

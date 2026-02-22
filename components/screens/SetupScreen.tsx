@@ -42,6 +42,7 @@ import gitInfo from '../../git-info.json';
 import { WalkSettings } from '../settings/WalkSettings';
 import { SyncDebugView } from '../settings/SyncDebugView';
 import { Colors } from '../ui/design-tokens';
+import { AppButton } from '../ui/AppButton';
 
 type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile' | 'walk' | 'sync-debug';
 
@@ -350,9 +351,14 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     const renderHeader = (title: string, onBack: (() => void) | undefined) => (
         <View className="flex-row items-center px-4 pt-4 pb-2">
             {onBack && (
-                <TouchableOpacity onPress={onBack} className="p-2 mr-2">
-                    <Ionicons name="arrow-back" size={24} color="white" />
-                </TouchableOpacity>
+                <AppButton
+                    icon="arrow-back"
+                    variant="ghost"
+                    size="sm"
+                    rounding="md"
+                    onPress={onBack}
+                    style={{ marginRight: 8, borderWidth: 0 }}
+                />
             )}
             <Text className="text-2xl font-bold text-white">{title}</Text>
         </View>

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from './design-tokens';
+import { CloseButton } from './AppButton';
 
 export interface SelectionOption {
     id: string;
@@ -31,9 +32,7 @@ export function SelectionSheet({ visible, title, options, onSelect, onClose }: S
                     <View className="bg-background rounded-t-3xl border-t border-border p-4 pb-8">
                         <View className="flex-row justify-between items-center mb-4">
                             <Text className="text-white text-lg font-bold">{title}</Text>
-                            <TouchableOpacity onPress={onClose} className="p-2">
-                                <Ionicons name="close" size={20} color={Colors.text.tertiary} />
-                            </TouchableOpacity>
+                            <CloseButton onPress={onClose} />
                         </View>
 
                         <ScrollView className="max-h-80">

@@ -14,6 +14,7 @@ import { TaskStatusIcon } from './ui/TaskStatusIcon';
 import { ColorPicker } from './ui/ColorPicker';
 import { Palette, Colors } from './ui/design-tokens';
 import { showAlert, showError } from '../utils/alert';
+import { AppButton, CloseButton } from './ui/AppButton';
 
 
 
@@ -355,23 +356,24 @@ export function EventFormModal({
                         <Text className="text-white text-xl font-bold">
                             {initialEvent ? 'Edit' : 'New'} {type === 'alarm' ? 'Alarm' : type === 'reminder' ? 'Reminder' : type === 'zone' ? 'Zone' : 'Event'}
                         </Text>
-                        <TouchableOpacity onPress={onCancel} className="p-2">
-                            <Ionicons name="close" size={24} color={Colors.text.tertiary} />
-                        </TouchableOpacity>
+                        <CloseButton onPress={onCancel} />
                     </View>
 
                     {/* Type Selector */}
                     <View className="flex-row bg-surface p-1 rounded-xl mb-4 border border-border">
                         {(['event', 'reminder', 'alarm', 'zone'] as const).map((t) => (
-                            <TouchableOpacity
+                            <AppButton
                                 key={t}
+                                title={t}
+                                variant="ghost"
+                                size="sm"
+                                rounding="md"
+                                selected={type === t}
                                 onPress={() => setType(t)}
-                                className={`flex-1 py-2 rounded-lg items-center ${type === t ? 'bg-primary' : 'bg-transparent'}`}
-                            >
-                                <Text className={`font-semibold capitalize ${type === t ? 'text-white' : 'text-text-tertiary'}`}>
-                                    {t}
-                                </Text>
-                            </TouchableOpacity>
+                                flex
+                                style={type !== t ? { backgroundColor: 'transparent', borderWidth: 0 } : { borderWidth: 0 }}
+                                textStyle={{ textTransform: 'capitalize' }}
+                            />
                         ))}
                     </View>
 
@@ -737,31 +739,31 @@ export function EventFormModal({
                             </ScrollView>
 
                             <View className="flex-row gap-3 mt-4">
-                                <TouchableOpacity
+                                <AppButton
+                                    title="Cancel"
+                                    variant="ghost"
+                                    size="lg"
                                     onPress={onCancel}
-                                    className="flex-1 bg-surface p-4 rounded-xl items-center"
-                                >
-                                    <Text className="text-white font-semibold">Cancel</Text>
-                                </TouchableOpacity>
+                                    flex
+                                />
 
                                 {initialEvent && onDelete && (
-                                    <TouchableOpacity
+                                    <AppButton
+                                        icon="trash-outline"
+                                        variant="danger-outline"
+                                        size="md"
                                         onPress={handlePreDelete}
-                                        className="bg-surface p-3 rounded-xl items-center justify-center border border-error"
                                         style={{ width: 48 }}
-                                    >
-                                        <Ionicons name="trash-outline" size={20} color={Colors.error} />
-                                    </TouchableOpacity>
+                                    />
                                 )}
 
-                                <TouchableOpacity
+                                <AppButton
+                                    title={initialEvent ? 'Save' : 'Create'}
+                                    variant="primary"
+                                    size="lg"
                                     onPress={handlePreSave}
-                                    className="flex-1 bg-primary p-4 rounded-xl items-center"
-                                >
-                                    <Text className="text-white font-semibold">
-                                        {initialEvent ? 'Save' : 'Create'}
-                                    </Text>
-                                </TouchableOpacity>
+                                    flex
+                                />
                             </View>
                         </>
                     ) : (

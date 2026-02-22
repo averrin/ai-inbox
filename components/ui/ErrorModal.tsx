@@ -3,6 +3,7 @@ import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from './design-tokens';
+import { AppButton } from './AppButton';
 
 interface ErrorModalProps {
     visible: boolean;
@@ -51,20 +52,21 @@ export function ErrorModal({ visible, title, error, onClose }: ErrorModalProps) 
                     </ScrollView>
 
                     <View className="flex-row gap-3">
-                         <TouchableOpacity
+                        <AppButton
+                            icon="copy-outline"
+                            title="Copy"
+                            variant="secondary"
+                            size="md"
                             onPress={copyError}
-                            className="flex-1 bg-surface-highlight py-3 rounded-xl items-center justify-center flex-row"
-                        >
-                            <Ionicons name="copy-outline" size={18} color={Colors.text.primary} style={{ marginRight: 8 }} />
-                            <Text className="text-text-primary font-bold">Copy</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
+                            flex
+                        />
+                        <AppButton
+                            title="Close"
+                            variant="danger"
+                            size="md"
                             onPress={onClose}
-                            className="flex-1 bg-red-500 py-3 rounded-xl items-center justify-center"
-                        >
-                            <Text className="text-white font-bold">Close</Text>
-                        </TouchableOpacity>
+                            flex
+                        />
                     </View>
                 </View>
             </View>

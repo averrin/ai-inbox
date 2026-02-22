@@ -1,5 +1,10 @@
-import { TouchableOpacity, Text, ActivityIndicator } from 'react-native';
-import clsx from 'clsx';
+import React from 'react';
+import { AppButton, AppButtonProps } from './AppButton';
+
+/**
+ * Legacy Button component -- delegates to AppButton.
+ * Preserved for backward compatibility; prefer AppButton directly in new code.
+ */
 
 interface ButtonProps {
     onPress: () => void;
@@ -7,24 +12,24 @@ interface ButtonProps {
     variant?: 'primary' | 'secondary' | 'danger';
     loading?: boolean;
     disabled?: boolean;
-    className?: string; // Add this
+    className?: string;
 }
 
-export function Button({ onPress, title, variant = 'primary', loading = false, disabled = false, className }: ButtonProps) {
-    const baseStyle = "p-4 rounded-xl flex-row justify-center items-center shadow-lg active:opacity-80";
-    const variants = {
-        primary: "bg-primary border border-primary",
-        secondary: "bg-surface-highlight border border-border",
-        danger: "bg-error/80 border border-error",
-    };
+const VARIANT_MAP: Record<string, AppButtonProps['variant']> = {
+    primary: 'primary',
+    secondary: 'secondary',
+    danger: 'danger',
+};
 
+export function Button({ onPress, title, variant = 'primary', loading = false, disabled = false }: ButtonProps) {
     return (
-        <TouchableOpacity
+        <AppButton
+            title={title}
+            variant={VARIANT_MAP[variant]}
+            size="lg"
             onPress={onPress}
-            disabled={disabled || loading}
-            className={clsx(baseStyle, variants[variant], (disabled || loading) && "opacity-50", className)}
-        >
-            {loading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-lg">{title}</Text>}
-        </TouchableOpacity>
+            loading={loading}
+            disabled={disabled}
+        />
     );
 }

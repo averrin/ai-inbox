@@ -1,23 +1,26 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
-import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { View, Text, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
-import { ScreenHeader } from '../ui/ScreenHeader';
-import { TopTabBarNavigatorAdapter } from '../ui/TopTabBar';
+import { IslandHeader } from '../ui/IslandHeader';
+import { islandBaseStyle } from '../ui/IslandBar';
 import { useSettingsStore } from '../../store/settings';
 import { LinkService, FolderGroup } from '../../services/linkService';
 import { LinksFolderView } from '../links/LinksFolderView';
 import { useFocusEffect } from '@react-navigation/native';
 import { Colors } from '../ui/design-tokens';
-
-const TopTab = createMaterialTopTabNavigator();
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LinksScreen() {
     const { vaultUri, linksRoot } = useSettingsStore();
+    const insets = useSafeAreaInsets();
     const [folders, setFolders] = useState<FolderGroup[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const [activeFolder, setActiveFolder] = useState<string>('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showSearch, setShowSearch] = useState(false);
 
     const loadFolders = useCallback(async () => {
         if (!vaultUri || !linksRoot) {
@@ -30,6 +33,16 @@ export default function LinksScreen() {
             setError(null);
             const groups = await LinkService.getFolderGroups(vaultUri, linksRoot);
             setFolders(groups);
+
+            // Set initial active folder if not set
+            if (groups.length > 0) {
+                setActiveFolder(prev => {
+                    if (!prev || !groups.find(g => g.path === prev)) {
+                        return groups[0].path;
+                    }
+                    return prev;
+                });
+            }
         } catch (e) {
             console.error('[LinksScreen] Failed to load folders', e);
             setError('Failed to scan links folder');
@@ -73,36 +86,43 @@ export default function LinksScreen() {
         return renderEmptyState();
     }
 
+    const activeFolderObj = folders.find(f => f.path === activeFolder) || folders[0];
+
     return (
         <Layout fullBleed={true}>
-            <ScreenHeader title="Links" noBorder />
-            <View className="flex-1 bg-transparent">
-                <TopTab.Navigator
-                    style={{ backgroundColor: Colors.transparent }}
-                    // @ts-ignore
-                    sceneContainerStyle={{ backgroundColor: Colors.transparent }}
-                    tabBar={(props) => <TopTabBarNavigatorAdapter {...props} />}
-                    screenOptions={{
-                        swipeEnabled: true,
-                        animationEnabled: true,
+            <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
+                <IslandHeader
+                    title="Links"
+                    tabs={folders.map(f => ({ key: f.path, label: f.name }))}
+                    activeTab={activeFolder}
+                    onTabChange={setActiveFolder}
+                    tabsScrollable={true}
+                    rightActions={[
+                        {
+                            icon: 'search',
+                            onPress: () => setShowSearch(!showSearch),
+                            color: showSearch ? Colors.primary : Colors.text.tertiary
+                        }
+                    ]}
+                    showSearch={showSearch}
+                    onCloseSearch={() => setShowSearch(false)}
+                    searchBar={{
+                        value: searchQuery,
+                        onChangeText: setSearchQuery,
+                        placeholder: "Search links..."
                     }}
-                >
-                    {folders.map((folder) => (
-                        <TopTab.Screen
-                            key={folder.path}
-                            name={folder.name}
-                            options={{ title: folder.name }}
-                        >
-                            {() => (
-                                <LinksFolderView
-                                    folderUri={folder.uri}
-                                    folderPath={folder.path}
-                                />
-                            )}
-                        </TopTab.Screen>
-                    ))}
-                </TopTab.Navigator>
+                />
             </View>
+
+            {activeFolderObj && (
+                <LinksFolderView
+                    folderUri={activeFolderObj.uri}
+                    folderPath={activeFolderObj.path}
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    listPaddingTop={insets.top + 60}
+                />
+            )}
         </Layout>
     );
 }

@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { Button } from './Button';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from './design-tokens';
+import { AppButton } from './AppButton';
 import Toast from 'react-native-toast-message';
 
 interface DefaultedPromptProps {
@@ -121,12 +122,13 @@ export function DefaultedPrompt({
                         variant={isDirty ? "primary" : "secondary"}
                     />
                 </View>
-                <TouchableOpacity
+                <AppButton
+                    icon="refresh-outline"
+                    variant="danger-outline"
+                    size="md"
                     onPress={handleReset}
-                    className="bg-error/10 border border-error/20 px-4 rounded-xl items-center justify-center"
-                >
-                    <Ionicons name="refresh-outline" size={20} color={Colors.error} />
-                </TouchableOpacity>
+                    style={{ backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.2)' }}
+                />
             </View>
         </View>
     );

@@ -26,6 +26,8 @@ interface TasksListProps {
     selectedIds?: string[]; // Use fileUri + originalLine as unique ID
     onToggleSelection?: (task: TaskWithSource) => void;
     onTagPress?: (tag: string) => void;
+    /** Extra top padding for floating header offset */
+    listPaddingTop?: number;
 }
 
 const STATUS_OPTIONS: SelectionOption[] = [
@@ -56,7 +58,8 @@ export function TasksList({
     selectionMode = false,
     selectedIds = [],
     onToggleSelection,
-    onTagPress
+    onTagPress,
+    listPaddingTop = 0,
 }: TasksListProps) {
     const insets = useSafeAreaInsets();
     const [activeTaskForSheet, setActiveTaskForSheet] = useState<TaskWithSource | null>(null);
@@ -138,7 +141,7 @@ export function TasksList({
                         />
                     );
                 }}
-                contentContainerStyle={{ padding: 12, paddingBottom: insets.bottom + 80 }}
+                contentContainerStyle={{ padding: 12, paddingTop: listPaddingTop + 12, paddingBottom: insets.bottom + 80 }}
                 ListEmptyComponent={
                     <View className="items-center justify-center py-20">
                         <Text className="text-secondary italic">No tasks found matching criteria.</Text>

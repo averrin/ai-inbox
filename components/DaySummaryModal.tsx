@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { DayBreakdown, DayStatusLevel } from '../utils/difficultyUtils';
 import { DayStatusMarker } from './DayStatusMarker';
 import { Colors } from './ui/design-tokens';
+import { CloseButton } from './ui/AppButton';
 
 interface Props {
     visible: boolean;
@@ -69,9 +70,7 @@ export function DaySummaryModal({ visible, onClose, breakdown, status, date }: P
                                 </Text>
                             </View>
                         </View>
-                        <TouchableOpacity onPress={onClose} className="bg-surface-highlight p-2 rounded-full">
-                            <Ionicons name="close" size={20} color={Colors.text.tertiary} />
-                        </TouchableOpacity>
+                        <CloseButton onPress={onClose} />
                     </View>
 
                     <ScrollView className="p-4 max-h-[400px]">

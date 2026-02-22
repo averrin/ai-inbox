@@ -8,6 +8,7 @@ import { useMoodStore } from '../../store/moodStore';
 import { useSettingsStore } from '../../store/settings';
 import { syncMoodReminders } from '../../services/reminderService';
 import { Colors } from '../ui/design-tokens';
+import { AppButton } from '../ui/AppButton';
 
 export function MoodSettings() {
     const { moodReminderEnabled, moodReminderTime, setMoodReminder } = useMoodStore();
@@ -110,9 +111,13 @@ export function MoodSettings() {
                     <Text className="text-error text-sm ml-2 flex-1">
                         Notifications are not enabled. Tap here to fix.
                     </Text>
-                    <TouchableOpacity onPress={requestPermissions} className="bg-error px-3 py-1 rounded-lg">
-                        <Text className="text-white text-xs font-bold">Fix</Text>
-                    </TouchableOpacity>
+                    <AppButton
+                        title="Fix"
+                        variant="danger"
+                        size="xs"
+                        rounding="md"
+                        onPress={requestPermissions}
+                    />
                 </View>
             )}
         </Card>

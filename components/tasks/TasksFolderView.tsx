@@ -22,18 +22,47 @@ import { showAlert, showError } from '../../utils/alert';
 interface TasksFolderViewProps {
     folderUri: string;
     folderPath: string;
+    /** Externally managed filter state (lifted to parent for header embedding) */
+    search?: string;
+    setSearch?: (text: string) => void;
+    showCompleted?: boolean;
+    setShowCompleted?: (show: boolean) => void;
+    sortBy?: 'smart' | 'file' | 'title' | 'priority';
+    setSortBy?: (sort: 'smart' | 'file' | 'title' | 'priority') => void;
+    /** Hide the built-in filter panel (when rendered externally in header) */
+    hideFilterPanel?: boolean;
+    /** Extra top padding for floating header offset */
+    listPaddingTop?: number;
 }
 
-export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps) {
+export function TasksFolderView({
+    folderUri,
+    folderPath,
+    search: externalSearch,
+    setSearch: externalSetSearch,
+    showCompleted: externalShowCompleted,
+    setShowCompleted: externalSetShowCompleted,
+    sortBy: externalSortBy,
+    setSortBy: externalSetSortBy,
+    hideFilterPanel = false,
+    listPaddingTop = 0,
+}: TasksFolderViewProps) {
     const { vaultUri } = useSettingsStore();
 
     const { tasks, setTasks, isLoading, isRefreshing, loadTasks } = useFolderTasks(folderUri, folderPath);
 
-    // Filter State
-    const [search, setSearch] = useState('');
-    const [showCompleted, setShowCompleted] = useState(false);
-    const [sortBy, setSortBy] = useState<'smart' | 'file' | 'title' | 'priority'>('smart');
+    // Filter State — use external if provided, otherwise local
+    const [localSearch, localSetSearch] = useState('');
+    const [localShowCompleted, localSetShowCompleted] = useState(false);
+    const [localSortBy, localSetSortBy] = useState<'smart' | 'file' | 'title' | 'priority'>('smart');
     const [isSortSheetVisible, setIsSortSheetVisible] = useState(false);
+
+    const search = externalSearch ?? localSearch;
+    const setSearch = externalSetSearch ?? localSetSearch;
+    const showCompleted = externalShowCompleted ?? localShowCompleted;
+    const setShowCompleted = externalSetShowCompleted ?? localSetShowCompleted;
+    const sortBy = externalSortBy ?? localSortBy;
+    const setSortBy = externalSetSortBy ?? localSetSortBy;
 
     const filteredTasks = useFilteredTasks(tasks, search, showCompleted, sortBy);
 
@@ -350,16 +379,18 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
 
     return (
         <View className="flex-1 bg-transparent">
-            <TasksFilterPanel
-                search={search}
-                setSearch={setSearch}
-                showCompleted={showCompleted}
-                setShowCompleted={setShowCompleted}
-                onRemoveCompleted={handleRemoveCompleted}
-                onMergeTasks={handleMergeRequest}
-                sortBy={sortBy}
-                onToggleSort={() => setIsSortSheetVisible(true)}
-            />
+            {!hideFilterPanel && (
+                <TasksFilterPanel
+                    search={search}
+                    setSearch={setSearch}
+                    showCompleted={showCompleted}
+                    setShowCompleted={setShowCompleted}
+                    onRemoveCompleted={handleRemoveCompleted}
+                    onMergeTasks={handleMergeRequest}
+                    sortBy={sortBy}
+                    onToggleSort={() => setIsSortSheetVisible(true)}
+                />
+            )}
 
             <TasksList
                 tasks={filteredTasks}
@@ -371,6 +402,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                 onDelete={handleDeleteTask}
                 onUpdate={handleSaveEdit}
                 onTagPress={handleTagPress}
+                listPaddingTop={listPaddingTop}
             />
 
             {editingTask !== undefined && (
