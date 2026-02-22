@@ -350,7 +350,7 @@ export default function NewsScreen() {
                         )
                     ]}
                 >
-                    <View style={[islandBaseStyle, { marginTop: 8, paddingLeft: 4, position: 'relative' }]}>
+                    <View style={[islandBaseStyle, { marginTop: 8, paddingLeft: 4, position: 'relative', marginLeft: 4, marginRight: 4 }]}>
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}

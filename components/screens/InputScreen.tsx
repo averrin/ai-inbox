@@ -7,7 +7,6 @@ import { ScreenHeader } from '../ui/ScreenHeader';
 import { Button } from '../ui/Button';
 import { LinkAttachment } from '../ui/LinkAttachment';
 import { FileAttachment } from '../ui/FileAttachment';
-import { RichTextEditor } from '../RichTextEditor'; // Updated import
 import { LongPressButton } from '../ui/LongPressButton';
 import { URLMetadata } from '../../utils/urlMetadata';
 import { useSettingsStore } from '../../store/settings';
@@ -77,7 +76,7 @@ export function InputScreen({
     onRemoveReminder,
 }: InputScreenProps) {
     const insets = useSafeAreaInsets();
-    const { editorType, timeFormat } = useSettingsStore();
+    const { timeFormat } = useSettingsStore();
 
     // Rich Task State
     const [editingTask, setEditingTask] = React.useState<RichTask | null>(null);
@@ -131,35 +130,19 @@ export function InputScreen({
                     keyboardShouldPersistTaps="handled"
                 >
                     {/* Text Editor */}
-                    {editorType === 'simple' ? (
-                        <SimpleTextEditor
-                            value={inputText}
-                            onChangeText={onInputTextChange}
-                            placeholder="Paste URL or type your thought..."
-                            onAttach={onAttach}
-                            onReminder={onReminder}
-                            onCreateReminder={onCreateReminder}
-                            onCamera={onCamera}
-                            onRecord={onRecord}
-                            recording={recording}
-                            disabled={disabled}
-                            autoFocus
-                        />
-                    ) : (
-                        <RichTextEditor
-                            value={inputText}
-                            onChangeText={onInputTextChange}
-                            placeholder="Paste URL or type your thought..."
-                            onAttach={onAttach}
-                            onReminder={onReminder}
-                            onCreateReminder={onCreateReminder}
-                            onCamera={onCamera}
-                            onRecord={onRecord}
-                            recording={recording}
-                            disabled={disabled}
-                            autoFocus
-                        />
-                    )}
+                    <SimpleTextEditor
+                        value={inputText}
+                        onChangeText={onInputTextChange}
+                        placeholder="Paste URL or type your thought..."
+                        onAttach={onAttach}
+                        onReminder={onReminder}
+                        onCreateReminder={onCreateReminder}
+                        onCamera={onCamera}
+                        onRecord={onRecord}
+                        recording={recording}
+                        disabled={disabled}
+                        autoFocus
+                    />
 
                     {/* File attachment info */}
                     {attachedFiles.length > 0 && (

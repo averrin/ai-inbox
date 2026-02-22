@@ -10,7 +10,6 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { FolderInput } from '../ui/FolderInput';
 import { FileAttachment } from '../ui/FileAttachment';
-import { RichTextEditor } from '../RichTextEditor';
 import { SimpleTextEditor } from '../SimpleTextEditor';
 import { TagEditor } from '../ui/TagEditor';
 import { PropertyEditor } from '../ui/PropertyEditor';
@@ -117,7 +116,7 @@ export function PreviewScreen({
     onTabChange,
 }: PreviewScreenProps) {
     const insets = useSafeAreaInsets();
-    const { timeFormat, editorType } = useSettingsStore();
+    const { timeFormat } = useSettingsStore();
     const { metadataCache } = useVaultStore();
 
     // Focus Mode
@@ -567,8 +566,7 @@ export function PreviewScreen({
                         {/* Body Content */}
                         <View className={`mb-4 ${isFocused ? 'flex-1 mt-4' : ''}`}>
                             {!isFocused && <Text className="text-text-secondary mb-2 ml-1 text-sm font-semibold">Content</Text>}
-                            {editorType === 'simple' ? (
-                                <SimpleTextEditor
+                            <SimpleTextEditor
                                     value={body}
                                     onChangeText={onBodyChange}
                                     placeholder="Note content..."
@@ -583,23 +581,6 @@ export function PreviewScreen({
                                     containerStyle={isFocused ? { flex: 1, marginBottom: 0 } : undefined}
                                     inputStyle={isFocused ? { maxHeight: undefined, height: '100%' } : undefined}
                                 />
-                            ) : (
-                                <RichTextEditor
-                                    value={body}
-                                    onChangeText={onBodyChange}
-                                    placeholder="Note content..."
-                                    onAttach={onAttach}
-                                    onReminder={handleCreateReminder}
-                                    onCamera={onCamera}
-                                    onRecord={onRecord}
-                                    recording={recording}
-                                    disabled={saving}
-                                    onFocus={() => setIsFocused(true)}
-                                    onBlur={() => { /* Wait for user to explicitly exit focus mode via back button */ }}
-                                    containerStyle={isFocused ? { flex: 1, marginBottom: 0 } : undefined}
-                                    inputStyle={isFocused ? { maxHeight: undefined, height: '100%' } : undefined}
-                                />
-                            )}
                         </View>
 
                     </Animated.View>

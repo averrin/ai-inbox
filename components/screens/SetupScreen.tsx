@@ -48,9 +48,9 @@ type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function SetupScreen({ onClose, canClose }: { onClose?: () => void, canClose?: boolean }) {
-    
+
     const insets = useSafeAreaInsets();
-    const { apiKey, vaultUri, customPromptPath, selectedModel, selectedImageModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setSelectedImageModel, setContextRootFolder, setDaySummaryPrompt, googleAndroidClientId, googleIosClientId, googleWebClientId, setGoogleAndroidClientId, setGoogleIosClientId, setGoogleWebClientId, timeFormat, setTimeFormat, editorType, setEditorType, julesApiKey, setJulesApiKey, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret, linksRoot, setLinksRoot } = useSettingsStore();
+    const { apiKey, vaultUri, customPromptPath, selectedModel, selectedImageModel, contextRootFolder, daySummaryPrompt, setApiKey, setVaultUri, setCustomPromptPath, setSelectedModel, setSelectedImageModel, setContextRootFolder, setDaySummaryPrompt, timeFormat, setTimeFormat, julesApiKey, setJulesApiKey, julesWorkflow, setJulesWorkflow, julesGoogleApiKey, setJulesGoogleApiKey, githubClientId, setGithubClientId, githubClientSecret, setGithubClientSecret, linksRoot, setLinksRoot } = useSettingsStore();
     const [keyInput, setKeyInput] = useState(apiKey || '');
     const [promptPathInput, setPromptPathInput] = useState(customPromptPath || '');
     const [modelInput, setModelInput] = useState(selectedModel);
@@ -120,8 +120,8 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
 
     const loginWithGithub = () => {
         if (!githubClientIdInput || !githubClientSecretInput) {
-             showAlert("Configuration Missing", "Please enter GitHub Client ID and Secret.");
-             return;
+            showAlert("Configuration Missing", "Please enter GitHub Client ID and Secret.");
+            return;
         }
         // Force update inputs to store just in case
         setGithubClientId(githubClientIdInput);
@@ -875,112 +875,112 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <LogsSettings />
                         </View>
                     ) : (
-                    <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} keyboardShouldPersistTaps="always">
-                        {activeSection === 'general' && (
-                            <>
-                                {renderHeader("General", () => setActiveSection('root'))}
-                                <View className="px-0">{renderGeneralSettings()}</View>
-                            </>
-                        )}
-                        {activeSection === 'navigation' && (
-                            <>
-                                {renderHeader("Navigation", () => setActiveSection('root'))}
-                                <View className="px-0"><NavigationSettings /></View>
-                            </>
-                        )}
-                        {activeSection === 'integrations' && (
-                            <>
-                                {renderHeader("Integrations", () => setActiveSection('root'))}
-                                <View className="px-0">{renderIntegrationsSettings()}</View>
-                            </>
-                        )}
-                        {activeSection === 'news' && (
-                            <>
-                                {renderHeader("News Topics", () => setActiveSection('root'))}
-                                <View className="px-0"><NewsSettings /></View>
-                            </>
-                        )}
-                        {activeSection === 'profile' && (
-                            <>
-                                {renderHeader("Profile Settings", () => setActiveSection('root'))}
-                                <View className="px-0"><ProfileSettings /></View>
-                            </>
-                        )}
-                        {activeSection === 'calendars' && (
-                            <>
-                                {renderHeader("Calendar Settings", () => setActiveSection('root'))}
-                                {/* Calendars Config */}
-                                <View className="px-0"><CalendarsMainSettings /></View>
-                            </>
-                        )}
-                        {activeSection === 'forecast' && (
-                            <>
-                                {renderHeader("AI Forecast", () => setActiveSection('root'))}
-                                <View className="px-0"><ForecastSettings /></View>
-                            </>
-                        )}
-                        {activeSection === 'walk' && (
-                            <>
-                                {renderHeader("Walk Suggestions", () => setActiveSection('root'))}
-                                <View className="px-0"><WalkSettings /></View>
-                            </>
-                        )}
-                        {activeSection === 'event-types' && (
-                            <>
-                                {renderHeader("Event Types", () => setActiveSection('root'))}
-                                <View className="px-0"><EventTypesSettings /></View>
-                            </>
-                        )}
-                        {activeSection === 'time-ranges' && (
-                            <>
-                                {renderHeader("Time Ranges", () => setActiveSection('root'))}
-                                <View className="px-0"><TimeRangesSettings /></View>
-                            </>
-                        )}
-                        {activeSection === 'checks-mood' && (
-                            <>
-                                {renderHeader("Checks & Mood", () => setActiveSection('root'))}
-                                <View className="px-0">
-                                    <View className="mb-6"><HabitSettings /></View>
-                                    <View><MoodSettings /></View>
-                                </View>
-                            </>
-                        )}
-                        {activeSection === 'tasks-tags' && (
-                            <>
-                                {renderHeader("Tasks & Tags", () => setActiveSection('root'))}
-                                <View className="px-0">
-                                    <View className="mb-6"><TasksSettings /></View>
-                                    <View><TagPropertySettings /></View>
-                                </View>
-                            </>
-                        )}
-                        {activeSection === 'contacts' && (
-                            <>
-                                {renderHeader("Contacts & Attendees", () => setActiveSection('root'))}
-                                <View className="px-0"><ContactsSettings /></View>
-                            </>
-                        )}
+                        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} keyboardShouldPersistTaps="always">
+                            {activeSection === 'general' && (
+                                <>
+                                    {renderHeader("General", () => setActiveSection('root'))}
+                                    <View className="px-0">{renderGeneralSettings()}</View>
+                                </>
+                            )}
+                            {activeSection === 'navigation' && (
+                                <>
+                                    {renderHeader("Navigation", () => setActiveSection('root'))}
+                                    <View className="px-0"><NavigationSettings /></View>
+                                </>
+                            )}
+                            {activeSection === 'integrations' && (
+                                <>
+                                    {renderHeader("Integrations", () => setActiveSection('root'))}
+                                    <View className="px-0">{renderIntegrationsSettings()}</View>
+                                </>
+                            )}
+                            {activeSection === 'news' && (
+                                <>
+                                    {renderHeader("News Topics", () => setActiveSection('root'))}
+                                    <View className="px-0"><NewsSettings /></View>
+                                </>
+                            )}
+                            {activeSection === 'profile' && (
+                                <>
+                                    {renderHeader("Profile Settings", () => setActiveSection('root'))}
+                                    <View className="px-0"><ProfileSettings /></View>
+                                </>
+                            )}
+                            {activeSection === 'calendars' && (
+                                <>
+                                    {renderHeader("Calendar Settings", () => setActiveSection('root'))}
+                                    {/* Calendars Config */}
+                                    <View className="px-0"><CalendarsMainSettings /></View>
+                                </>
+                            )}
+                            {activeSection === 'forecast' && (
+                                <>
+                                    {renderHeader("AI Forecast", () => setActiveSection('root'))}
+                                    <View className="px-0"><ForecastSettings /></View>
+                                </>
+                            )}
+                            {activeSection === 'walk' && (
+                                <>
+                                    {renderHeader("Walk Suggestions", () => setActiveSection('root'))}
+                                    <View className="px-0"><WalkSettings /></View>
+                                </>
+                            )}
+                            {activeSection === 'event-types' && (
+                                <>
+                                    {renderHeader("Event Types", () => setActiveSection('root'))}
+                                    <View className="px-0"><EventTypesSettings /></View>
+                                </>
+                            )}
+                            {activeSection === 'time-ranges' && (
+                                <>
+                                    {renderHeader("Time Ranges", () => setActiveSection('root'))}
+                                    <View className="px-0"><TimeRangesSettings /></View>
+                                </>
+                            )}
+                            {activeSection === 'checks-mood' && (
+                                <>
+                                    {renderHeader("Checks & Mood", () => setActiveSection('root'))}
+                                    <View className="px-0">
+                                        <View className="mb-6"><HabitSettings /></View>
+                                        <View><MoodSettings /></View>
+                                    </View>
+                                </>
+                            )}
+                            {activeSection === 'tasks-tags' && (
+                                <>
+                                    {renderHeader("Tasks & Tags", () => setActiveSection('root'))}
+                                    <View className="px-0">
+                                        <View className="mb-6"><TasksSettings /></View>
+                                        <View><TagPropertySettings /></View>
+                                    </View>
+                                </>
+                            )}
+                            {activeSection === 'contacts' && (
+                                <>
+                                    {renderHeader("Contacts & Attendees", () => setActiveSection('root'))}
+                                    <View className="px-0"><ContactsSettings /></View>
+                                </>
+                            )}
 
-                        {activeSection === 'weather' && (
-                            <>
-                                {renderHeader("Weather", () => setActiveSection('root'))}
-                                <View className="px-0"><WeatherSettings /></View>
-                            </>
-                        )}
-                        {activeSection === 'advanced' && (
-                            <>
-                                {renderHeader("Advanced", () => setActiveSection('root'))}
-                                <View className="px-0">{renderAdvancedSettings()}</View>
-                            </>
-                        )}
-                        {activeSection === 'sync-debug' && (
-                            <>
-                                {renderHeader("Cloud Sync Debug", () => setActiveSection('advanced'))}
-                                <View className="px-0"><SyncDebugView /></View>
-                            </>
-                        )}
-                    </ScrollView>
+                            {activeSection === 'weather' && (
+                                <>
+                                    {renderHeader("Weather", () => setActiveSection('root'))}
+                                    <View className="px-0"><WeatherSettings /></View>
+                                </>
+                            )}
+                            {activeSection === 'advanced' && (
+                                <>
+                                    {renderHeader("Advanced", () => setActiveSection('root'))}
+                                    <View className="px-0">{renderAdvancedSettings()}</View>
+                                </>
+                            )}
+                            {activeSection === 'sync-debug' && (
+                                <>
+                                    {renderHeader("Cloud Sync Debug", () => setActiveSection('advanced'))}
+                                    <View className="px-0"><SyncDebugView /></View>
+                                </>
+                            )}
+                        </ScrollView>
                     )}
                 </Animated.View>
 
