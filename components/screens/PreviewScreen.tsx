@@ -354,7 +354,7 @@ export function PreviewScreen({
                     </View>
                 )}
 
-                <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}>
+                <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} keyboardShouldPersistTaps="handled">
                     <Animated.View entering={FadeIn.duration(500)} style={{ flex: 1 }}>
                         {!isFocused && (
                             <Card padding="p-3">
