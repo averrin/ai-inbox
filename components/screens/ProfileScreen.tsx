@@ -679,6 +679,20 @@ export default function ProfileScreen() {
                             Configure Questions
                         </Text>
 
+                        <View className="bg-slate-950/50 rounded-xl border border-border p-4 mb-4">
+                            <View className="mb-2">
+                                <Text className="text-text-secondary font-semibold">Focus Topic (Optional)</Text>
+                                <Text className="text-secondary text-xs">Guide the conversation</Text>
+                            </View>
+                            <TextInput
+                                className="text-text-primary bg-background border border-border rounded-lg p-3"
+                                placeholder="e.g. Childhood, Career, Dreams..."
+                                placeholderTextColor={Colors.text.tertiary}
+                                value={config.targetTopic || ''}
+                                onChangeText={(text) => updateConfig({ targetTopic: text })}
+                            />
+                        </View>
+
                         <View className="bg-slate-950/50 rounded-xl border border-border p-4 mb-6">
                             <View className="flex-row justify-between items-center mb-4">
                                 <View>
