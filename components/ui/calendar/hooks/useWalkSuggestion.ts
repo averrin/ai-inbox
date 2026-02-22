@@ -128,6 +128,7 @@ export function useWalkSuggestion({ events, extraEvents = [], selectedDate, weat
         isVirtual: true,
         type: 'walk-suggestion',
         typeTag: 'WALK_SUGGESTION',
+        movable: true,
         reason: currentSuggestion.reason
     } : null;
 
