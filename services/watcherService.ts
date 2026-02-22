@@ -267,7 +267,8 @@ class WatcherService {
                     if (freshRun.status === 'completed') {
                         if (freshRun.conclusion === 'success') {
                             // Download artifact
-                            await this.updateNotification(item, "Downloading artifact...", 100);
+                            const commitMsg = freshRun.head_commit?.message?.split('\n')[0] || 'No commit message';
+                            await this.updateNotification(item, `Downloading artifact...\nCommit: ${commitMsg}`, 100);
 
                             // Fetch artifacts list
                             const artifacts = await fetchArtifacts(item.token, item.owner, item.repo, parseInt(id));
@@ -288,7 +289,7 @@ class WatcherService {
 
                                 if (path) {
                                     item.artifactPath = path;
-                                    await this.updateNotification(item, "Ready to Install", undefined, true);
+                                    await this.updateNotification(item, `Ready to Install\nCommit: ${commitMsg}`, undefined, true);
                                     // Automatically unwatch but keep notification
                                     await this.unwatchRun(parseInt(id), false);
                                 } else {
