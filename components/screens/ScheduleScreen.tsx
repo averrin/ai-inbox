@@ -1687,7 +1687,7 @@ export default function ScheduleScreen() {
                             initialFolder={editingTask.filePath && editingTask.filePath.includes('/')
                                 ? editingTask.filePath.substring(0, editingTask.filePath.lastIndexOf('/'))
                                 : ''}
-                            onDelete={() => editingTask && handleDeleteTask(editingTask)}
+                            onDelete={editingTask?.fileUri ? () => handleDeleteTask(editingTask) : undefined}
                             onSave={async (updatedTask, folderPath) => {
                                 const { TaskService } = await import('../../services/taskService');
                                 const { ensureDirectory } = await import('../../utils/saf');

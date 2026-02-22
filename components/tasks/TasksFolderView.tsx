@@ -386,7 +386,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                         setEditingTask(null);
                     }}
                     onSave={editingTask ? (task, folder) => handleSaveEdit(task, folder) : (task, folder) => handleSaveNewTask(task, folder)}
-                    onDelete={() => editingTask && handleDeleteTask(editingTask)}
+                    onDelete={editingTask ? () => handleDeleteTask(editingTask) : undefined}
                     onOpenEvent={(id) => {
                         setIsModalVisible(false);
                         Calendar.getEventAsync(id).then(evt => {
