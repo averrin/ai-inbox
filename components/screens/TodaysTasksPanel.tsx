@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { UniversalIcon } from '../ui/UniversalIcon';
 import Toast from 'react-native-toast-message';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
@@ -16,6 +17,7 @@ import { RescheduleModal } from '../RescheduleModal';
 import { useNow } from '../ui/calendar/hooks/useNow';
 import { Colors } from '../ui/design-tokens';
 import { MetadataChip } from '../ui/MetadataChip';
+import { showError } from '../../utils/alert';
 
 dayjs.extend(isBetween);
 
@@ -44,7 +46,7 @@ const PRIORITY_ORDER: Record<string, number> = {
 export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTask, onRefresh }: TodaysTasksPanelProps) => {
     const { tasks, setTasks } = useTasksStore();
     const { vaultUri } = useSettingsStore();
-    const { completedEvents, toggleCompleted } = useEventTypesStore();
+    const { completedEvents, toggleCompleted, assignments, eventTypes, eventIcons } = useEventTypesStore();
     const { now } = useNow(true);
     const [expanded, setExpanded] = useState(true);
 
@@ -492,6 +494,13 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                                     shadowRadius: 20,
                                 } : {};
 
+                                // Determine Type & Icon
+                                const title = item.data.title;
+                                const typeId = assignments[title];
+                                const eventType = typeId ? eventTypes.find(t => t.id === typeId) : null;
+                                const typeName = eventType?.title || 'Event';
+                                const iconName = eventIcons[title] || eventType?.icon || 'calendar-outline';
+
                                 return (
                                     <View key={`event-wrap-${index}`}>
                                         <TouchableOpacity
@@ -512,10 +521,10 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                                                         {dayjs(item.data.start).format('HH:mm')} - {dayjs(item.data.end).format('HH:mm')}
                                                     </Text>
                                                     <View className="w-1 h-1 rounded-full bg-surface-highlight" />
-                                                    <Text className="text-[10px] text-primary font-bold uppercase tracking-tighter">Event</Text>
+                                                    <Text className="text-[10px] text-primary font-bold uppercase tracking-tighter">{typeName}</Text>
                                                 </View>
                                             </View>
-                                            <Ionicons name="calendar-outline" size={14} color="#475569" />
+                                            <UniversalIcon name={iconName} size={14} color="#475569" />
                                         </TouchableOpacity>
                                     </View>
                                 );
