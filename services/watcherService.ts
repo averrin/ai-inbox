@@ -36,6 +36,7 @@ interface WatchedRun {
     lastStatus: string;
     lastChecked: number;
     artifactPath?: string;
+    artifactRetries?: number;
 }
 
 class WatcherService {
@@ -293,7 +294,10 @@ class WatcherService {
                 if (freshRun.conclusion === 'success') {
                     // Download artifact
                     const commitMsg = freshRun.head_commit?.message?.split('\n')[0] || 'No commit message';
-                    await this.updateNotification(item, `Downloading artifact...\nCommit: ${commitMsg}`, 100);
+
+                    if (!item.artifactRetries) {
+                        await this.updateNotification(item, `Downloading artifact...\nCommit: ${commitMsg}`, 100);
+                    }
 
                     // Fetch artifacts list
                     const artifacts = await fetchArtifacts(item.token, item.owner, item.repo, parseInt(id));
@@ -330,6 +334,15 @@ class WatcherService {
                             await this.unwatchRun(parseInt(id), false);
                         }
                     } else {
+                        const MAX_RETRIES = 5;
+                        const retries = item.artifactRetries || 0;
+                        if (retries < MAX_RETRIES) {
+                            item.artifactRetries = retries + 1;
+                            await this.updateNotification(item, `Waiting for artifacts... (${item.artifactRetries}/${MAX_RETRIES})\nCommit: ${commitMsg}`, 100);
+                            await this.save();
+                            return;
+                        }
+
                         await this.updateNotification(item, "No artifact found");
                         await this.unwatchRun(parseInt(id), false);
                     }
