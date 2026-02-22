@@ -1,5 +1,5 @@
 import { StorageAccessFramework } from 'expo-file-system/legacy';
-import { readFileContent, saveToVault, checkDirectoryExists, writeSafe, writeSafeWithPadding, findFile, createFile } from '../utils/saf';
+import { readFileContent, saveToVault, checkDirectoryExists, writeSafe, findFile, createFile } from '../utils/saf';
 import { parseTaskLine, RichTask, updateTaskInText, removeTaskFromText, serializeTaskLine } from '../utils/taskParser';
 import { TaskWithSource } from '../store/tasks';
 
@@ -177,7 +177,7 @@ export class TaskService {
         try {
             // ensure we use the content from the file to avoid stale references, but we already read it above.
             const newContent = updateTaskInText(content, task, updatedTask);
-            await writeSafeWithPadding(uri, newContent, content.length);
+            await writeSafe(uri, newContent);
         } catch (e) {
             console.error(`[TaskService] Failed to sync update for ${task.title}`, e);
             throw e;
@@ -232,7 +232,7 @@ export class TaskService {
             // Always write if different, or if we want to ensure consistency. 
             // Optimally we only write if changed.
             if (content !== newContent) {
-                await writeSafeWithPadding(task.fileUri, newContent, content.length);
+                await writeSafe(task.fileUri, newContent);
             }
         } catch (e) {
             console.error(`[TaskService] Failed to sync deletion for ${task.title}`, e);
@@ -265,7 +265,7 @@ export class TaskService {
 
                 if (updatedContent !== content) {
                     try {
-                        await writeSafeWithPadding(fileUri, updatedContent, content.length);
+                        await writeSafe(fileUri, updatedContent);
                     } catch (e) {
                         console.error(`[TaskService] Bulk deletion write failed for ${fileUri}`, e);
                     }
