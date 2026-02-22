@@ -6,6 +6,8 @@ import { RichTaskItem } from './markdown/RichTaskItem';
 import { useDragDrop } from './DragDropContext';
 import { RichTask } from '../utils/taskParser';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors } from './ui/design-tokens';
 
 interface DraggableTaskItemProps {
   task: RichTask;
@@ -18,6 +20,8 @@ interface DraggableTaskItemProps {
   onReschedule?: () => void;
   isHighlighted?: boolean;
   highlightColor?: string;
+  onStatusLongPress?: () => void;
+  onPriorityLongPress?: () => void;
 }
 
 export const DraggableTaskItem = ({
@@ -30,7 +34,9 @@ export const DraggableTaskItem = ({
   onTagPress,
   onReschedule,
   isHighlighted,
-  highlightColor
+  highlightColor,
+  onStatusLongPress,
+  onPriorityLongPress
 }: DraggableTaskItemProps) => {
   const { isDragging, dragX, dragY, dragData } = useDragDrop();
 
@@ -43,7 +49,6 @@ export const DraggableTaskItem = ({
   };
 
   const gesture = Gesture.Pan()
-    .activateAfterLongPress(300)
     .onStart((e) => {
       isDragging.value = true;
       dragX.value = e.absoluteX;
@@ -71,25 +76,31 @@ export const DraggableTaskItem = ({
     };
   });
 
-  return (
+  const DragHandle = (
     <GestureDetector gesture={gesture}>
-      <Animated.View style={animatedStyle}>
-        <RichTaskItem
-          task={task}
-          onToggle={onToggle}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onUpdate={onUpdate}
-          fileName={fileName}
-          onTagPress={onTagPress}
-          onReschedule={onReschedule}
-          isHighlighted={isHighlighted}
-          highlightColor={highlightColor}
-          // Disable long press actions on RichTaskItem to avoid conflict with drag
-          onStatusLongPress={undefined}
-          onPriorityLongPress={undefined}
-        />
-      </Animated.View>
+      <View style={{ padding: 4 }}>
+        <Ionicons name="reorder-two-outline" size={20} color={Colors.text.secondary} />
+      </View>
     </GestureDetector>
+  );
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <RichTaskItem
+        task={task}
+        onToggle={onToggle}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onUpdate={onUpdate}
+        fileName={fileName}
+        onTagPress={onTagPress}
+        onReschedule={onReschedule}
+        isHighlighted={isHighlighted}
+        highlightColor={highlightColor}
+        onStatusLongPress={onStatusLongPress}
+        onPriorityLongPress={onPriorityLongPress}
+        dragHandle={DragHandle}
+      />
+    </Animated.View>
   );
 };
