@@ -16,9 +16,10 @@ import { TaskService } from '../../services/taskService';
 import { findNextFreeSlot, updateCalendarEvent, deleteCalendarEvent } from '../../services/calendarService';
 import { RescheduleModal } from '../RescheduleModal';
 import { useNow } from '../ui/calendar/hooks/useNow';
-import { Colors } from '../ui/design-tokens';
+import { Colors, Palette } from '../ui/design-tokens';
 import { MetadataChip } from '../ui/MetadataChip';
 import { showError } from '../../utils/alert';
+import { SelectionSheet, SelectionOption } from '../ui/SelectionSheet';
 
 dayjs.extend(isBetween);
 
@@ -44,6 +45,22 @@ const PRIORITY_ORDER: Record<string, number> = {
     none: 0,
 };
 
+const STATUS_OPTIONS: SelectionOption[] = [
+    { id: ' ', label: 'Pending', icon: 'square-outline', color: Colors.text.tertiary },
+    { id: '/', label: 'In Progress', icon: 'play-circle-outline', color: '#818cf8' },
+    { id: 'x', label: 'Done', icon: 'checkbox', color: Colors.success },
+    { id: '-', label: "Won't Do", icon: 'close-circle-outline', color: Colors.text.tertiary },
+    { id: '?', label: 'Planned', icon: 'help-circle-outline', color: '#fbbf24' },
+    { id: '>', label: 'Delayed', icon: 'arrow-forward-circle-outline', color: Palette[14] },
+];
+
+const PRIORITY_OPTIONS: SelectionOption[] = [
+    { id: 'high', label: 'High Priority', icon: 'arrow-up-circle', color: Colors.error },
+    { id: 'medium', label: 'Medium Priority', icon: 'remove-circle', color: Palette[5] },
+    { id: 'low', label: 'Low Priority', icon: 'arrow-down-circle', color: Colors.success },
+    { id: 'clear', label: 'Clear Priority', icon: 'close-circle', destructive: true },
+];
+
 export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTask, onRefresh }: TodaysTasksPanelProps) => {
     const { tasks, setTasks } = useTasksStore();
     const { vaultUri } = useSettingsStore();
@@ -54,6 +71,11 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
     // Reschedule Modal State
     const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
     const [taskToReschedule, setTaskToReschedule] = useState<(TaskWithSource | any) & { _type?: 'task' | 'event' } | null>(null);
+
+    // Selection Sheet State
+    const [isStatusSheetVisible, setIsStatusSheetVisible] = useState(false);
+    const [isPrioritySheetVisible, setIsPrioritySheetVisible] = useState(false);
+    const [activeTaskForSheet, setActiveTaskForSheet] = useState<TaskWithSource | null>(null);
 
     const toggleExpanded = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -161,6 +183,31 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
             } else {
                 showError("Error", "Failed to update task");
             }
+        }
+    };
+
+    const handleStatusSelect = (option: SelectionOption) => {
+        if (activeTaskForSheet) {
+            const newStatus = option.id;
+            const updatedTask: RichTask = {
+                ...activeTaskForSheet,
+                status: newStatus,
+                completed: newStatus === 'x'
+            };
+            handleTaskUpdate(activeTaskForSheet, updatedTask);
+        }
+    };
+
+    const handlePrioritySelect = (option: SelectionOption) => {
+        if (activeTaskForSheet) {
+            const newProps = { ...activeTaskForSheet.properties };
+            if (option.id === 'clear') {
+                delete newProps.priority;
+            } else {
+                newProps.priority = option.id;
+            }
+            const updatedTask: RichTask = { ...activeTaskForSheet, properties: newProps };
+            handleTaskUpdate(activeTaskForSheet, updatedTask);
         }
     };
 
@@ -510,6 +557,14 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                                             onReschedule={() => handleReschedule(item.data, 'task')}
                                             isHighlighted={isHighlighted}
                                             highlightColor={highlightColor}
+                                            onStatusLongPress={() => {
+                                                setActiveTaskForSheet(item.data);
+                                                setIsStatusSheetVisible(true);
+                                            }}
+                                            onPriorityLongPress={() => {
+                                                setActiveTaskForSheet(item.data);
+                                                setIsPrioritySheetVisible(true);
+                                            }}
                                         />
                                     </View>
                                 );
@@ -582,6 +637,21 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                         onClose={() => setRescheduleModalVisible(false)}
                         onSelect={executeReschedule}
                         showLater={taskToReschedule?._type === 'event' || !!taskToReschedule?.properties?.event_id}
+                    />
+
+                    <SelectionSheet
+                        visible={isStatusSheetVisible}
+                        title="Change Status"
+                        options={STATUS_OPTIONS}
+                        onSelect={handleStatusSelect}
+                        onClose={() => setIsStatusSheetVisible(false)}
+                    />
+                    <SelectionSheet
+                        visible={isPrioritySheetVisible}
+                        title="Set Priority"
+                        options={PRIORITY_OPTIONS}
+                        onSelect={handlePrioritySelect}
+                        onClose={() => setIsPrioritySheetVisible(false)}
                     />
                 </View>
             )}

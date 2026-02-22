@@ -50,6 +50,7 @@ interface RichTaskItemProps {
     onReschedule?: () => void;
     isHighlighted?: boolean;
     highlightColor?: string;
+    dragHandle?: React.ReactNode;
 }
 
 export function RichTaskItem({
@@ -70,7 +71,8 @@ export function RichTaskItem({
     onTagPress,
     onReschedule,
     isHighlighted,
-    highlightColor
+    highlightColor,
+    dragHandle
 }: RichTaskItemProps) {
     const { tagConfig, propertyConfig } = useSettingsStore();
 
@@ -209,8 +211,9 @@ export function RichTaskItem({
         </View>
     );
 
-    const rightActions = (onEdit || onDelete || onReschedule) ? (
+    const rightActions = (dragHandle || onEdit || onDelete || onReschedule) ? (
         <>
+            {dragHandle}
             {onReschedule && <ActionButton onPress={onReschedule} icon="time-outline" variant="neutral" />}
             {onEdit && <ActionButton onPress={onEdit} icon="pencil" variant="neutral" />}
             {onDelete && <ActionButton onPress={onDelete} icon="trash-outline" variant="danger" />}
