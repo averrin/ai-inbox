@@ -1663,9 +1663,27 @@ export default function ScheduleScreen() {
                             visible={!!editingTask}
                             task={editingTask}
                             enableFolderSelection={true}
-                            initialFolder={editingTask.filePath && editingTask.filePath.includes('/')
-                                ? editingTask.filePath.substring(0, editingTask.filePath.lastIndexOf('/'))
+                            initialFolder={(editingTask as any).filePath && (editingTask as any).filePath.includes('/')
+                                ? (editingTask as any).filePath.substring(0, (editingTask as any).filePath.lastIndexOf('/'))
                                 : ''}
+                            onDelete={async (task) => {
+                                if (!vaultUri) return;
+                                try {
+                                    await TaskService.syncTaskDeletion(vaultUri, task as TaskWithSource);
+
+                                    const { tasks, setTasks } = useTasksStore.getState();
+                                    const taskWithSource = task as unknown as TaskWithSource;
+                                    const filteredTasks = tasks.filter(t =>
+                                        !(t.filePath === taskWithSource.filePath && t.originalLine === taskWithSource.originalLine)
+                                    );
+                                    setTasks(filteredTasks);
+
+                                    Toast.show({ type: 'success', text1: 'Task Deleted' });
+                                    setEditingTask(null);
+                                } catch (e) {
+                                    Toast.show({ type: 'error', text1: 'Delete Failed' });
+                                }
+                            }}
                             onSave={async (updatedTask, folderPath) => {
                                 const { TaskService } = await import('../../services/taskService');
                                 const { ensureDirectory } = await import('../../utils/saf');

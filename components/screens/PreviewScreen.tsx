@@ -430,7 +430,7 @@ export function PreviewScreen({
                                     })()}
                                     onUpdate={(newProps) => {
                                         if (!onUpdateFrontmatter) return;
-                                        
+
                                         const updates: Record<string, any> = {};
                                         // We need to compare with the subset of properties we are editing
                                         const currentProps = { ...data.frontmatter };
@@ -450,7 +450,7 @@ export function PreviewScreen({
                                                 updates[key] = undefined;
                                             }
                                         });
-                                        
+
                                         if (Object.keys(updates).length > 0) {
                                             onUpdateFrontmatter(updates);
                                         }
@@ -488,7 +488,7 @@ export function PreviewScreen({
                                                 onRemove={onRemoveLink ? () => onRemoveLink(index) : undefined}
                                             />
                                         ))}
-                                     </View>
+                                    </View>
                                 )}
 
                                 {/* Rich Task Items */}
@@ -640,7 +640,7 @@ export function PreviewScreen({
                 visible={showEventModal}
                 initialEvent={(editingEventIndex !== null && data?.actions) ? data.actions[editingEventIndex] : null}
                 onSave={handleSaveEvent}
-                 onCancel={() => {
+                onCancel={() => {
                     setShowEventModal(false);
                     setEditingEventIndex(null);
                 }}
@@ -653,6 +653,11 @@ export function PreviewScreen({
                 enableFolderSelection={false}
                 onSave={handleSaveTask}
                 onCancel={() => setIsTaskModalVisible(false)}
+                onDelete={editingTask ? () => {
+                    handleDeleteTask(editingTask);
+                    setIsTaskModalVisible(false);
+                    setEditingTask(null);
+                } : undefined}
             />
         </Layout>
     );

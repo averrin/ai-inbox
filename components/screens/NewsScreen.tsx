@@ -361,7 +361,7 @@ export default function NewsScreen() {
                             <MetadataChip
                                 label="All"
                                 variant={(selectedFilter === null && !showCustomInput) ? "solid" : "outline"}
-                                color={Colors.primary}
+                                color={Colors.status.healthy}
                                 onPress={() => {
                                     setSelectedFilter(null);
                                     setShowCustomInput(false);

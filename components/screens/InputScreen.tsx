@@ -117,15 +117,15 @@ export function InputScreen({
     return (
         <Layout>
             <ScreenHeader title="Take a Note" />
-            <KeyboardAvoidingView 
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 className="flex-1"
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
             >
 
                 {/* Main Content ScrollView */}
-                <ScrollView 
-                    className="flex-1 px-4" 
+                <ScrollView
+                    className="flex-1 px-4"
                     contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
@@ -177,7 +177,7 @@ export function InputScreen({
 
                     {/* Link attachment info */}
                     {links && links.length > 0 && (
-                         <View className="mb-4">
+                        <View className="mb-4">
                             {links.map((link, index) => (
                                 <LinkAttachment
                                     key={`${link.url}-${index}`}
@@ -186,7 +186,7 @@ export function InputScreen({
                                     showRemove={true}
                                 />
                             ))}
-                         </View>
+                        </View>
                     )}
 
                     {/* Rich Task Items */}
@@ -195,7 +195,7 @@ export function InputScreen({
                             <Text className="text-text-secondary mb-2 ml-1 text-sm font-semibold">Tasks</Text>
                             {tasks.map((task, index) => (
                                 <View key={`${task.title}-${index}`} className="mb-1">
-                                    <RichTaskItem 
+                                    <RichTaskItem
                                         task={task}
                                         onToggle={() => handleToggleTask(task)}
                                         onEdit={() => handleEditTask(task)}
@@ -210,7 +210,7 @@ export function InputScreen({
                     {/* Reminder Info */}
                     {reminderData && (
                         <View className="mb-4">
-                            <ReminderItem 
+                            <ReminderItem
                                 reminder={{
                                     id: 'new-reminder',
                                     fileUri: '',
@@ -285,7 +285,7 @@ export function InputScreen({
                         />
                     )}
                     <View className="h-4" />
-                     <Button
+                    <Button
                         title="Cancel"
                         onPress={onCancel}
                         variant="secondary"
@@ -293,12 +293,17 @@ export function InputScreen({
                 </ScrollView>
             </KeyboardAvoidingView>
 
-            <TaskEditModal 
+            <TaskEditModal
                 visible={isTaskModalVisible}
                 task={editingTask}
                 enableFolderSelection={false}
                 onSave={handleSaveTask}
                 onCancel={() => setIsTaskModalVisible(false)}
+                onDelete={editingTask ? () => {
+                    handleDeleteTask(editingTask);
+                    setIsTaskModalVisible(false);
+                    setEditingTask(null);
+                } : undefined}
             />
         </Layout>
     );

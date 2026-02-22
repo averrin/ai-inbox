@@ -438,9 +438,8 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
             {expanded && (
                 <View className="mx-4 mt-2 gap-1">
                     {displayItems.length === 0 ? (
-                        <View className="p-4 items-center justify-center border border-dashed border-border rounded-lg">
-                            <Text className="text-secondary text-xs italic">Nothing for today</Text>
-                            <TouchableOpacity onPress={onAdd} className="mt-2">
+                        <View className="p-4 items-center justify-center border border-dashed border-border rounded-lg mt-0 mb-2 ml-4 mr-4">
+                            <TouchableOpacity onPress={onAdd} className="">
                                 <Text className="text-primary text-xs font-medium">Add a task</Text>
                             </TouchableOpacity>
                         </View>

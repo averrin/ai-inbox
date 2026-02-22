@@ -126,7 +126,7 @@ export function EventFormModal({
                 setStartDate(start);
 
                 // End date handling
-                const end = new Date(initialEvent.end || initialEvent.endDate || start.getTime() + 60*60000);
+                const end = new Date(initialEvent.end || initialEvent.endDate || start.getTime() + 60 * 60000);
                 const diffMins = Math.round((end.getTime() - start.getTime()) / 60000);
                 setDurationMinutes(diffMins > 0 ? diffMins : 60);
 
@@ -134,7 +134,7 @@ export function EventFormModal({
                 setIsWork(initialEvent.isWork || false);
                 setContent(initialEvent.originalEvent?.content || '');
                 setColor(initialEvent.color || Palette[0]);
-                
+
                 // Initialize isNonFree from content/notes
                 const noteContent = initialEvent.originalEvent?.content || initialEvent.originalEvent?.notes || '';
                 setIsNonFree(noteContent.includes('[nonFree::true]'));
@@ -289,7 +289,7 @@ export function EventFormModal({
                 interval: isNaN(interval) || interval < 1 ? 1 : interval
             };
         } else {
-             data.recurrenceRule = null;
+            data.recurrenceRule = null;
         }
 
         onSave(data);
@@ -355,11 +355,9 @@ export function EventFormModal({
                         <Text className="text-white text-xl font-bold">
                             {initialEvent ? 'Edit' : 'New'} {type === 'alarm' ? 'Alarm' : type === 'reminder' ? 'Reminder' : type === 'zone' ? 'Zone' : 'Event'}
                         </Text>
-                        {initialEvent && onDelete && (
-                            <TouchableOpacity onPress={handlePreDelete} className="bg-error/10 p-2 rounded-full">
-                                <Ionicons name="trash-outline" size={20} color={Colors.error} />
-                            </TouchableOpacity>
-                        )}
+                        <TouchableOpacity onPress={onCancel} className="p-2">
+                            <Ionicons name="close" size={24} color={Colors.text.tertiary} />
+                        </TouchableOpacity>
                     </View>
 
                     {/* Type Selector */}
@@ -542,7 +540,7 @@ export function EventFormModal({
                                                 className={`px-3 py-1.5 rounded-full border ${isRescheduling === 'later' ? 'bg-primary border-primary' : 'bg-surface border-primary'}`}
                                             >
                                                 {isRescheduling === 'later' ? (
-                                                     <ActivityIndicator size="small" color="white" />
+                                                    <ActivityIndicator size="small" color="white" />
                                                 ) : (
                                                     <Text className="text-xs text-text-secondary">✨ Later</Text>
                                                 )}
@@ -553,7 +551,7 @@ export function EventFormModal({
                                                 className={`px-3 py-1.5 rounded-full border ${isRescheduling === 'tomorrow' ? 'bg-primary border-primary' : 'bg-surface border-primary'}`}
                                             >
                                                 {isRescheduling === 'tomorrow' ? (
-                                                     <ActivityIndicator size="small" color="white" />
+                                                    <ActivityIndicator size="small" color="white" />
                                                 ) : (
                                                     <Text className="text-xs text-text-secondary">✨ Tomorrow</Text>
                                                 )}
@@ -604,15 +602,13 @@ export function EventFormModal({
                                                 <TouchableOpacity
                                                     key={freq}
                                                     onPress={() => setRecurrenceFreq(freq)}
-                                                    className={`px-3 py-2 rounded-lg border ${
-                                                        recurrenceFreq === freq
-                                                        ? 'bg-primary border-primary'
-                                                        : 'bg-surface-highlight border-border'
-                                                    }`}
+                                                    className={`px-3 py-2 rounded-lg border ${recurrenceFreq === freq
+                                                            ? 'bg-primary border-primary'
+                                                            : 'bg-surface-highlight border-border'
+                                                        }`}
                                                 >
-                                                    <Text className={`text-xs font-semibold capitalize ${
-                                                        recurrenceFreq === freq ? 'text-white' : 'text-text-secondary'
-                                                    }`}>
+                                                    <Text className={`text-xs font-semibold capitalize ${recurrenceFreq === freq ? 'text-white' : 'text-text-secondary'
+                                                        }`}>
                                                         {freq}
                                                     </Text>
                                                 </TouchableOpacity>
@@ -631,8 +627,8 @@ export function EventFormModal({
                                                 />
                                                 <Text className="text-text-tertiary text-sm capitalize">
                                                     {recurrenceFreq === 'daily' ? 'Days' :
-                                                     recurrenceFreq === 'weekly' ? 'Weeks' :
-                                                     recurrenceFreq === 'monthly' ? 'Months' : 'Years'}
+                                                        recurrenceFreq === 'weekly' ? 'Weeks' :
+                                                            recurrenceFreq === 'monthly' ? 'Months' : 'Years'}
                                                 </Text>
                                             </View>
                                         )}
@@ -694,19 +690,19 @@ export function EventFormModal({
                                                 setShowTimePicker(null);
                                                 if (selectedDate) {
                                                     if (pickerMode === 'start') {
-                                                         const newDate = new Date(startDate);
-                                                         newDate.setHours(selectedDate.getHours());
-                                                         newDate.setMinutes(selectedDate.getMinutes());
-                                                         setStartDate(newDate);
+                                                        const newDate = new Date(startDate);
+                                                        newDate.setHours(selectedDate.getHours());
+                                                        newDate.setMinutes(selectedDate.getMinutes());
+                                                        setStartDate(newDate);
                                                     } else {
-                                                         // Selecting End Time
-                                                         const newEnd = new Date(startDate);
-                                                         newEnd.setHours(selectedDate.getHours());
-                                                         newEnd.setMinutes(selectedDate.getMinutes());
+                                                        // Selecting End Time
+                                                        const newEnd = new Date(startDate);
+                                                        newEnd.setHours(selectedDate.getHours());
+                                                        newEnd.setMinutes(selectedDate.getMinutes());
 
-                                                         // Calculate duration in minutes
-                                                         const diff = Math.round((newEnd.getTime() - startDate.getTime()) / 60000);
-                                                         setDurationMinutes(diff > 0 ? diff : durationMinutes);
+                                                        // Calculate duration in minutes
+                                                        const diff = Math.round((newEnd.getTime() - startDate.getTime()) / 60000);
+                                                        setDurationMinutes(diff > 0 ? diff : durationMinutes);
                                                     }
                                                 }
                                             }}
@@ -719,8 +715,8 @@ export function EventFormModal({
                                         <Text className="text-text-secondary mb-2 font-medium text-xs uppercase tracking-wider">Linked Tasks</Text>
                                         <View className="gap-2">
                                             {linkedTasks.map((t, i) => (
-                                                <TouchableOpacity 
-                                                    key={i} 
+                                                <TouchableOpacity
+                                                    key={i}
                                                     onPress={() => onOpenTask && onOpenTask(t)}
                                                     className="bg-surface p-3 rounded-xl border border-border flex-row items-center gap-2"
                                                 >
@@ -747,6 +743,17 @@ export function EventFormModal({
                                 >
                                     <Text className="text-white font-semibold">Cancel</Text>
                                 </TouchableOpacity>
+
+                                {initialEvent && onDelete && (
+                                    <TouchableOpacity
+                                        onPress={handlePreDelete}
+                                        className="bg-surface p-3 rounded-xl items-center justify-center border border-error"
+                                        style={{ width: 48 }}
+                                    >
+                                        <Ionicons name="trash-outline" size={20} color={Colors.error} />
+                                    </TouchableOpacity>
+                                )}
+
                                 <TouchableOpacity
                                     onPress={handlePreSave}
                                     className="flex-1 bg-primary p-4 rounded-xl items-center"

@@ -27,8 +27,12 @@ screenshot:
     @echo "Screenshot saved to ./screenshot.png"
 
 connect:
-    scrcpy -w
+    scrcpy -w --max-fps=30 --max-size=1280 --video-bit-rate=8M 
 
 merge branch:
     git fetch
     opencode run "merge branch {{ branch }} and resolve conflicts. consider its Github PR for context"
+
+updateBranch branch:
+    git fetch
+    opencode run "merge master into {{ branch }} and resolve conflicts"
