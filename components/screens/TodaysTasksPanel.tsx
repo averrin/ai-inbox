@@ -15,6 +15,7 @@ import { findNextFreeSlot, updateCalendarEvent } from '../../services/calendarSe
 import { RescheduleModal } from '../RescheduleModal';
 import { useNow } from '../ui/calendar/hooks/useNow';
 import { Colors } from '../ui/design-tokens';
+import { MetadataChip } from '../ui/MetadataChip';
 
 dayjs.extend(isBetween);
 
@@ -128,6 +129,13 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
         // Combine and Sort
         return [...dedupedEvents, ...filteredTasks];
     }, [tasks, date, calendarEvents, completedEvents]);
+
+    const tasksCount = displayItems.filter(i => i.type === 'task').length;
+    const eventsCount = displayItems.filter(i => i.type === 'event').length;
+
+    const remindersCount = useMemo(() => {
+        return calendarEvents.filter(e => e.type === 'marker' && dayjs(e.start).isSame(dayjs(date), 'day')).length;
+    }, [calendarEvents, date]);
 
     const handleTaskUpdate = async (original: TaskWithSource, updated: RichTask) => {
         if (!vaultUri) return;
@@ -352,11 +360,39 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                     <Text className="text-text-primary font-semibold text-sm">
                         Focus for {dayjs(date).format('MMM D')}
                     </Text>
-                    {displayItems.length > 0 && (
-                        <View className="bg-primary px-1.5 py-0.5 rounded">
-                            <Text className="text-white text-[10px] font-bold">{displayItems.length}</Text>
-                        </View>
-                    )}
+
+                    <View className="flex-row items-center gap-1.5 ml-1">
+                        {tasksCount > 0 && (
+                            <MetadataChip
+                                icon="checkbox-outline"
+                                label={String(tasksCount)}
+                                size="sm"
+                                color={Colors.primary}
+                                variant="solid"
+                                rounding="full"
+                            />
+                        )}
+                        {eventsCount > 0 && (
+                            <MetadataChip
+                                icon="calendar-outline"
+                                label={String(eventsCount)}
+                                size="sm"
+                                color={Colors.info}
+                                variant="solid"
+                                rounding="full"
+                            />
+                        )}
+                        {remindersCount > 0 && (
+                            <MetadataChip
+                                icon="notifications-outline"
+                                label={String(remindersCount)}
+                                size="sm"
+                                color={Colors.warning}
+                                variant="solid"
+                                rounding="full"
+                            />
+                        )}
+                    </View>
                 </View>
                 <View className="flex-row items-center gap-3">
                     <TouchableOpacity onPress={(e) => { e.stopPropagation(); onAdd(); }}>
