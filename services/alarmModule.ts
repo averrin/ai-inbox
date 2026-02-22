@@ -1,47 +1,39 @@
-import { NativeModules, Platform } from 'react-native';
-
-const { AlarmModule } = NativeModules;
-
-interface AlarmInterface {
-    scheduleAlarm(title: string, message: string, timestamp: number, id: number): Promise<boolean>;
-    stopAlarm(id: number): Promise<boolean>;
-    getLaunchAlarmDetails(): Promise<{ id: number, title?: string, message?: string } | null>;
-    cancelAllAlarms(): Promise<boolean>;
-}
+import { Platform } from 'react-native';
+import { scheduleAlarm, cancelAlarm, cancelAllAlarms } from 'alarmee-native';
 
 export const scheduleNativeAlarm = async (title: string, message: string, timestamp: number, id: number) => {
-    if (Platform.OS === 'android' && AlarmModule) {
-        return await AlarmModule.scheduleAlarm(title, message, timestamp, id);
-    }
     if (Platform.OS === 'android') {
-        console.warn("AlarmModule is not linked. Rebuild the app.");
+        // Convert numeric ID to string ID used by alarmee
+        const uuid = `alarm-${id}`;
+        return await scheduleAlarm(title, message, timestamp, uuid);
     }
     return false;
 };
 
 export const stopNativeAlarm = async (id: number) => {
-    if (Platform.OS === 'android' && AlarmModule) {
-        return await AlarmModule.stopAlarm(id);
+    if (Platform.OS === 'android') {
+        const uuid = `alarm-${id}`;
+        return await cancelAlarm(uuid);
     }
     return false;
 };
 
 export const getLaunchAlarmDetails = async (): Promise<{ id: number, title?: string, message?: string } | null> => {
-    if (Platform.OS === 'android' && AlarmModule) {
-        return await AlarmModule.getLaunchAlarmDetails();
-    }
+    // Not implemented in alarmee wrapper yet
     return null;
 };
 
 export const cancelAllNativeAlarms = async () => {
-    if (Platform.OS === 'android' && AlarmModule) {
-        return await AlarmModule.cancelAllAlarms();
+    if (Platform.OS === 'android') {
+        return await cancelAllAlarms();
     }
     return false;
 };
 
 export const dismissNativeNotification = async (id: number) => {
-    if (Platform.OS === 'android' && AlarmModule) {
-        return await AlarmModule.dismissNotification(id);
+    // Alarmee cancel removes notification too
+    if (Platform.OS === 'android') {
+        const uuid = `alarm-${id}`;
+        return await cancelAlarm(uuid);
     }
 };

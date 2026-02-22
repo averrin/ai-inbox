@@ -19,6 +19,7 @@
     "@react-navigation/material-top-tabs": "^7.4.13",
     "@react-navigation/native": "^7.1.8",
     "@xmldom/xmldom": "^0.8.11",
+    "alarmee-native": "file:./local-modules/alarmee",
     "apk-installer": "file:./local-modules/apk-installer",
     "calendarize": "^1.1.1",
     "clsx": "^2.1.1",
