@@ -140,17 +140,20 @@ export async function downloadAndInstallArtifact(
 
         try { await redirectResponse.body?.cancel(); } catch (_) {}
 
+        const headers: Record<string, string> = {};
         if (!wasRedirected) {
-            console.warn(`[Artifact] No redirect detected, status: ${redirectResponse.status}`);
+            console.warn(`[Artifact] No redirect detected, using auth headers, status: ${redirectResponse.status}`);
+            headers['Authorization'] = `Bearer ${token}`;
+            headers['Accept'] = 'application/vnd.github+json';
         }
 
         if (onStatus) onStatus("Downloading...");
 
-        // Download from the final (Azure) URL without auth headers
+        // Download from the final URL
         const downloadResumable = deps.FileSystem.createDownloadResumable(
             finalUrl,
             zipFileUri,
-            {},
+            headers,
             (progress) => {
                 const percent = progress.totalBytesWritten / progress.totalBytesExpectedToWrite;
                 onProgress(percent);
@@ -158,9 +161,14 @@ export async function downloadAndInstallArtifact(
         );
 
         const result = await downloadResumable.downloadAsync();
-        console.log(`[Artifact] Download finished: ${result?.uri}`);
+        console.log(`[Artifact] Download finished: ${result?.uri} Status: ${result?.status}`);
+
         if (!result || !result.uri) {
-            throw new Error("Download failed");
+            throw new Error("Download failed: No result returned");
+        }
+
+        if (result.status !== 200) {
+            throw new Error(`Download failed with status ${result.status}`);
         }
 
         onProgress(1); // Ensure 100%
