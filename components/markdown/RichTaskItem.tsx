@@ -134,8 +134,8 @@ export function RichTaskItem({
         <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={{ marginTop: 4 }}
-            contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 8 }}
+            style={{ marginTop: 4, height: 56 }}
+            contentContainerStyle={{ flexDirection: 'column', flexWrap: 'wrap', gap: 4, paddingRight: 8, alignContent: 'flex-start' }}
         >
             {task.properties[REMINDER_PROPERTY_KEY] && (
                 <View className="mr-1">
