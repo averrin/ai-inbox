@@ -1,0 +1,7 @@
+{
+  "platforms": ["android"],
+  "android": {
+    "package": "com.tweener.alarmee.reactnative",
+    "modules": ["AlarmeeModule"]
+  }
+}
