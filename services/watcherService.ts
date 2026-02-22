@@ -44,6 +44,24 @@ class WatcherService {
     private initialized = false;
     private isChecking = false;
     private eventEmitter: NativeEventEmitter | null = null;
+    private activeDownloads = new Set<number>();
+    private downloadListeners = new Set<(runId: number, isDownloading: boolean) => void>();
+
+    isDownloading(runId: number): boolean {
+        return this.activeDownloads.has(runId);
+    }
+
+    addDownloadListener(callback: (runId: number, isDownloading: boolean) => void) {
+        this.downloadListeners.add(callback);
+    }
+
+    removeDownloadListener(callback: (runId: number, isDownloading: boolean) => void) {
+        this.downloadListeners.delete(callback);
+    }
+
+    private notifyDownloadListeners(runId: number, isDownloading: boolean) {
+        this.downloadListeners.forEach(cb => cb(runId, isDownloading));
+    }
 
     async init() {
         if (this.initialized) return;
@@ -248,82 +266,94 @@ class WatcherService {
                  // Continue to ensure we save/update state if needed, though with 0 runs nothing happens
             }
 
-            for (const id of runIds) {
-                const item = this.watchedRuns[id];
-                if (!item) continue; // Safety check
+            // Parallel execution using Promise.all
+            await Promise.all(runIds.map(id => this.checkRun(id)));
+        } finally {
+            this.isChecking = false;
+        }
+    }
 
-                // Skip if finished and artifact ready (user hasn't installed yet)
-                if (item.artifactPath) continue;
+    private async checkRun(id: string) {
+        const item = this.watchedRuns[id];
+        if (!item) return; // Safety check
 
-                try {
-                    const freshRun = await fetchWorkflowRun(item.token, item.owner, item.repo, parseInt(id));
-                    item.run = freshRun;
-                    item.lastStatus = freshRun.status;
-                    item.lastChecked = Date.now();
+        // Skip if finished and artifact ready (user hasn't installed yet)
+        if (item.artifactPath) return;
 
-                    const now = Date.now();
-                    const elapsed = now - item.startTime;
+        try {
+            const freshRun = await fetchWorkflowRun(item.token, item.owner, item.repo, parseInt(id));
+            item.run = freshRun;
+            item.lastStatus = freshRun.status;
+            item.lastChecked = Date.now();
 
-                    if (freshRun.status === 'completed') {
-                        if (freshRun.conclusion === 'success') {
-                            // Download artifact
-                            await this.updateNotification(item, "Downloading artifact...", 100);
+            const now = Date.now();
+            const elapsed = now - item.startTime;
 
-                            // Fetch artifacts list
-                            const artifacts = await fetchArtifacts(item.token, item.owner, item.repo, parseInt(id));
-                            // Select best artifact (reuse logic or simple filter)
-                            const artifact = artifacts.find(a => a.name.includes('app-release') || a.name.includes('app-debug')) || artifacts[0];
+            if (freshRun.status === 'completed') {
+                if (freshRun.conclusion === 'success') {
+                    // Download artifact
+                    const commitMsg = freshRun.head_commit?.message?.split('\n')[0] || 'No commit message';
+                    await this.updateNotification(item, `Downloading artifact...\nCommit: ${commitMsg}`, 100);
 
-                            if (artifact) {
-                                const path = await downloadAndInstallArtifact(
-                                    artifact,
-                                    item.token,
-                                    freshRun.head_branch,
-                                    () => { },
-                                    () => { },
-                                    artifactDeps,
-                                    undefined,
-                                    true // Only download
-                                );
+                    // Fetch artifacts list
+                    const artifacts = await fetchArtifacts(item.token, item.owner, item.repo, parseInt(id));
+                    // Select best artifact (reuse logic or simple filter)
+                    const artifact = artifacts.find(a => a.name.includes('app-release') || a.name.includes('app-debug')) || artifacts[0];
 
-                                if (path) {
-                                    item.artifactPath = path;
-                                    await this.updateNotification(item, "Ready to Install", undefined, true);
-                                    // Automatically unwatch but keep notification
-                                    await this.unwatchRun(parseInt(id), false);
-                                } else {
-                                    await this.updateNotification(item, "Artifact download failed");
-                                    await this.unwatchRun(parseInt(id), false);
-                                }
-                            } else {
-                                await this.updateNotification(item, "No artifact found");
-                                await this.unwatchRun(parseInt(id), false);
-                            }
+                    if (artifact) {
+                        let path: string | null = null;
+                        this.activeDownloads.add(parseInt(id));
+                        this.notifyDownloadListeners(parseInt(id), true);
+                        try {
+                            path = await downloadAndInstallArtifact(
+                                artifact,
+                                item.token,
+                                freshRun.head_branch,
+                                () => { },
+                                () => { },
+                                artifactDeps,
+                                undefined,
+                                true // Only download
+                            );
+                        } finally {
+                            this.activeDownloads.delete(parseInt(id));
+                            this.notifyDownloadListeners(parseInt(id), false);
+                        }
+
+                        if (path) {
+                            item.artifactPath = path;
+                            await this.updateNotification(item, `Ready to Install\nCommit: ${commitMsg}`, undefined, true);
+                            // Automatically unwatch but keep notification
+                            await this.unwatchRun(parseInt(id), false);
                         } else {
-                            await this.updateNotification(item, `Build ${freshRun.conclusion}`);
-                            // Automatically unwatch failed runs but keep notification
+                            await this.updateNotification(item, "Artifact download failed");
                             await this.unwatchRun(parseInt(id), false);
                         }
                     } else {
-                        // In progress
-                        const progress = Math.min(0.99, elapsed / item.estimatedDuration);
-                        const percent = Math.round(progress * 100);
-                        const remainingMs = Math.max(0, item.estimatedDuration - elapsed);
-                        const remainingMins = Math.ceil(remainingMs / 60000);
-                        const commitMsg = item.run.head_commit?.message?.split('\n')[0] || 'No commit message';
-                        const smallText = `${item.run.head_branch} • ${percent}% • ~${remainingMins}m left`;
-                        const body = `${item.run.head_branch} • ${percent}% • ~${remainingMins}m left\nRepo: ${item.owner}/${item.repo}\nCommit: ${commitMsg}`;
-                        await this.updateNotification(item, body, percent, false, smallText);
+                        await this.updateNotification(item, "No artifact found");
+                        await this.unwatchRun(parseInt(id), false);
                     }
-
-                    await this.save();
-
-                } catch (e) {
-                    console.error(`Failed to check run ${id}`, e);
+                } else {
+                    await this.updateNotification(item, `Build ${freshRun.conclusion}`);
+                    // Automatically unwatch failed runs but keep notification
+                    await this.unwatchRun(parseInt(id), false);
                 }
+            } else {
+                // In progress
+                const progress = Math.min(0.99, elapsed / item.estimatedDuration);
+                const percent = Math.round(progress * 100);
+                const remainingMs = Math.max(0, item.estimatedDuration - elapsed);
+                const remainingMins = Math.ceil(remainingMs / 60000);
+                const commitMsg = item.run.head_commit?.message?.split('\n')[0] || 'No commit message';
+                const smallText = `${item.run.head_branch} • ${percent}% • ~${remainingMins}m left`;
+                const body = `${item.run.head_branch} • ${percent}% • ~${remainingMins}m left\nRepo: ${item.owner}/${item.repo}\nCommit: ${commitMsg}`;
+                await this.updateNotification(item, body, percent, false, smallText);
             }
-        } finally {
-            this.isChecking = false;
+
+            await this.save();
+
+        } catch (e) {
+            console.error(`Failed to check run ${id}`, e);
         }
     }
 

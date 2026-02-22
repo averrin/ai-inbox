@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Alert, ScrollView, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal } from 'react-native';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { useSettingsStore, NavItemConfig, DEFAULT_NAV_ITEMS } from '../../store/settings';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import * as Crypto from 'expo-crypto';
-import { NavIconPicker } from '../ui/NavIconPicker';
+import { IconPicker } from '../ui/IconPicker';
+import { UniversalIcon } from '../ui/UniversalIcon';
 import { Colors } from '../ui/design-tokens';
+import { showAlert } from '../../utils/alert';
 
 export function NavigationSettings() {
     const { navConfig, setNavConfig, savedNavConfig, setSavedNavConfig } = useSettingsStore();
@@ -151,54 +153,115 @@ export function NavigationSettings() {
             });
         }
 
-        Alert.alert(
+        showAlert(
             "Reset Navigation",
             "Choose how you want to reset the navigation bar.",
             options
         );
     };
 
+    const handleGroupChildMove = (childId: string, direction: 'up' | 'down') => {
+        if (!editingGroup || !editingGroup.children) return;
+        const list = [...editingGroup.children];
+        const index = list.findIndex(i => i.id === childId);
+
+        const swapIndex = direction === 'up' ? index - 1 : index + 1;
+
+        if (swapIndex < 0 || swapIndex >= list.length) return;
+
+        [list[index], list[swapIndex]] = [list[swapIndex], list[index]];
+
+        // Update group and navConfig
+        const newGroup = { ...editingGroup, children: list };
+        setEditingGroup(newGroup);
+
+        const newNavConfig = navConfig.map(i => i.id === newGroup.id ? newGroup : i);
+        setNavConfig(newNavConfig);
+    };
+
+    const handleGroupChildUpdate = (childId: string, field: keyof NavItemConfig, value: any) => {
+        if (!editingGroup || !editingGroup.children) return;
+        const newChildren = editingGroup.children.map(c => c.id === childId ? { ...c, [field]: value } : c);
+
+        const newGroup = { ...editingGroup, children: newChildren };
+        setEditingGroup(newGroup);
+
+        const newNavConfig = navConfig.map(i => i.id === newGroup.id ? newGroup : i);
+        setNavConfig(newNavConfig);
+    };
+
+    const handleRemoveFromGroup = (childId: string) => {
+        if (!editingGroup || !editingGroup.children) return;
+
+        const childToRemove = editingGroup.children.find(c => c.id === childId);
+        if (!childToRemove) return;
+
+        // Remove from group
+        const newChildren = editingGroup.children.filter(c => c.id !== childId);
+        const newGroup = { ...editingGroup, children: newChildren };
+
+        // Add to root (inheriting segment from group)
+        const newRootItem = { ...childToRemove, segment: editingGroup.segment };
+
+        let newNavConfig = navConfig.map(i => i.id === newGroup.id ? newGroup : i);
+
+        // Ensure not duplicate in root
+        if (!newNavConfig.some(i => i.id === childId)) {
+            newNavConfig.push(newRootItem);
+        }
+
+        setEditingGroup(newGroup);
+        setNavConfig(newNavConfig);
+    };
+
+    const handleAddToGroup = (item: NavItemConfig) => {
+        if (!editingGroup) return;
+
+        // Remove from root (if exists there)
+        // Note: item passed might be from DEFAULT_NAV_ITEMS so check by ID in navConfig
+        const existingInRoot = navConfig.find(i => i.id === item.id);
+
+        // Use the existing config if found (to preserve custom titles/icons), else use the default item
+        const itemToAdd = existingInRoot || item;
+
+        let newNavConfig = navConfig.filter(i => i.id !== item.id);
+
+        // Add to group children
+        const currentChildren = editingGroup.children || [];
+        // Ensure not duplicate
+        if (currentChildren.some(c => c.id === item.id)) return;
+
+        const newChildren = [...currentChildren, itemToAdd];
+        const newGroup = { ...editingGroup, children: newChildren };
+
+        // Update group in config
+        const groupIndex = newNavConfig.findIndex(i => i.id === editingGroup.id);
+        if (groupIndex !== -1) {
+             newNavConfig[groupIndex] = newGroup;
+        }
+
+        setEditingGroup(newGroup);
+        setNavConfig(newNavConfig);
+    };
+
     const renderGroupEditor = () => {
         if (!editingGroup) return null;
 
-        const toggleScreenInGroup = (screenId: string) => {
-            // Logic works on global navConfig to find items
+        const currentChildren = editingGroup.children || [];
 
-            const currentChildren = editingGroup.children || [];
-            const isPresent = currentChildren.some(c => c.id === screenId);
+        // Items available to add: Not in current group and not in any other group
+        const availableItems = DEFAULT_NAV_ITEMS.filter(screen => {
+            const inCurrentGroup = currentChildren.some(c => c.id === screen.id);
+            if (inCurrentGroup) return false;
 
-            let newChildren: NavItemConfig[];
-            let newConfig = [...navConfig];
+            // Check if in another group
+            const inAnotherGroup = navConfig.some(item =>
+                item.id !== editingGroup.id &&
+                item.children?.some(c => c.id === screen.id)
+            );
 
-            if (isPresent) {
-                // Remove from group, add to root (Main)
-                const childToRemove = currentChildren.find(c => c.id === screenId)!;
-                newChildren = currentChildren.filter(c => c.id !== screenId);
-
-                if (!newConfig.some(i => i.id === screenId)) {
-                    // When returning to root, inherit segment from group
-                    newConfig.push({ ...childToRemove, segment: editingGroup.segment });
-                }
-            } else {
-                // Add to group, remove from root
-                const screenConfig = newConfig.find(i => i.id === screenId);
-
-                if (screenConfig) {
-                    newChildren = [...currentChildren, screenConfig];
-                    newConfig = newConfig.filter(i => i.id !== screenId);
-                } else {
-                    return;
-                }
-            }
-
-            // Update the group itself within newConfig
-            const groupIndex = newConfig.findIndex(i => i.id === editingGroup.id);
-            if (groupIndex !== -1) {
-                newConfig[groupIndex] = { ...newConfig[groupIndex], children: newChildren };
-                setNavConfig(newConfig);
-                setEditingGroup({ ...editingGroup, children: newChildren });
-            }
-        };
+            return !inAnotherGroup;
+        });
 
         return (
             <Modal visible={!!editingGroup} animationType="slide" transparent>
@@ -210,37 +273,93 @@ export function NavigationSettings() {
                         </TouchableOpacity>
                     </View>
 
-                    <Text className="text-text-tertiary mb-4">Select screens to include in this group menu.</Text>
-
                     <ScrollView>
-                        {DEFAULT_NAV_ITEMS.map(screen => {
-                            const isSelected = editingGroup.children?.some(c => c.id === screen.id);
-                            // Check if locked in another group
-                            const isLocked = !isSelected && !navConfig.some(i => i.id === screen.id) && navConfig.find(i => i.id !== editingGroup.id && i.children?.some(c => c.id === screen.id));
+                        <Text className="text-text-secondary mb-2 font-semibold uppercase text-xs">Items in Group</Text>
+                        {currentChildren.length === 0 ? (
+                            <Text className="text-text-tertiary italic mb-4">No items in this group.</Text>
+                        ) : (
+                            currentChildren.map((item, index) => (
+                                <View key={item.id} className="bg-surface border border-border rounded-xl p-3 mb-3">
+                                    <View className="flex-row items-center justify-between mb-2">
+                                        <View className="flex-row items-center gap-2">
+                                            <TouchableOpacity
+                                                onPress={() => handleGroupChildMove(item.id, 'up')}
+                                                disabled={index === 0}
+                                                className={`p-1 rounded ${index === 0 ? 'opacity-30' : 'bg-surface-highlight'}`}
+                                            >
+                                                <Ionicons name="arrow-up" size={16} color="white" />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                onPress={() => handleGroupChildMove(item.id, 'down')}
+                                                disabled={index === currentChildren.length - 1}
+                                                className={`p-1 rounded ${index === currentChildren.length - 1 ? 'opacity-30' : 'bg-surface-highlight'}`}
+                                            >
+                                                <Ionicons name="arrow-down" size={16} color="white" />
+                                            </TouchableOpacity>
 
-                            return (
-                                <TouchableOpacity
-                                    key={screen.id}
-                                    onPress={() => !isLocked && toggleScreenInGroup(screen.id)}
-                                    className={`p-4 rounded-xl mb-2 border flex-row items-center justify-between ${isSelected ? 'bg-surface-highlight border-primary' : 'bg-surface border-border'} ${isLocked ? 'opacity-50' : ''}`}
-                                    disabled={!!isLocked}
-                                >
-                                    <View className="flex-row items-center gap-3">
-                                        <Ionicons
-                                            // @ts-ignore
-                                            name={screen.icon}
-                                            size={20}
-                                            color={isSelected ? '#818cf8' : Colors.text.tertiary}
-                                        />
-                                        <Text className={`font-medium ${isSelected ? 'text-white' : 'text-text-tertiary'}`}>
-                                            {screen.title}
-                                        </Text>
+                                            <Text className="text-secondary text-xs font-mono ml-1" numberOfLines={1} style={{ maxWidth: 120 }}>
+                                                {item.id}
+                                            </Text>
+                                        </View>
+
+                                        <TouchableOpacity
+                                            onPress={() => handleRemoveFromGroup(item.id)}
+                                            className="bg-error/20 w-8 h-8 items-center justify-center rounded-full"
+                                        >
+                                            <Ionicons name="trash-outline" size={18} color={Colors.error} />
+                                        </TouchableOpacity>
                                     </View>
-                                    {!!isLocked && <Text className="text-xs text-secondary italic">In another group</Text>}
-                                    {isSelected && <Ionicons name="checkmark-circle" size={20} color="#818cf8" />}
-                                </TouchableOpacity>
-                            );
-                        })}
+
+                                    <View className="flex-row gap-2">
+                                        <View className="flex-1">
+                                            <Text className="text-secondary text-[10px] mb-1 uppercase">Title</Text>
+                                            <TextInput
+                                                value={item.title}
+                                                onChangeText={(text) => handleGroupChildUpdate(item.id, 'title', text)}
+                                                className="bg-background/50 text-white px-3 py-2 h-10 rounded-lg border border-border text-sm"
+                                            />
+                                        </View>
+                                        <View className="flex-1">
+                                            <Text className="text-secondary text-[10px] mb-1 uppercase">Icon</Text>
+                                            <TouchableOpacity
+                                                onPress={() => setIconPickerTarget({ id: item.id })}
+                                                className="flex-row items-center bg-background/50 rounded-lg border border-border px-3 py-2 h-10"
+                                            >
+                                                <Ionicons
+                                                    // @ts-ignore
+                                                    name={item.icon}
+                                                    size={20}
+                                                    color="#818cf8"
+                                                    style={{ marginRight: 8 }}
+                                                />
+                                                <Text className="text-text-tertiary text-sm flex-1" numberOfLines={1}>{item.icon}</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </View>
+                            ))
+                        )}
+
+                        <View className="mt-4 pt-4 border-t border-border">
+                            <Text className="text-text-secondary mb-2 font-semibold uppercase text-xs">Available Items</Text>
+                             <View className="flex-row flex-wrap gap-2">
+                                {availableItems.map(screen => (
+                                    <TouchableOpacity
+                                        key={screen.id}
+                                        onPress={() => handleAddToGroup(screen)}
+                                        className="flex-row items-center bg-surface border border-border rounded-lg px-3 py-2 mb-2"
+                                    >
+                                        <Ionicons name="add" size={16} color="#818cf8" style={{ marginRight: 4 }} />
+                                        <Text className="text-text-secondary text-sm">{screen.title}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                                {availableItems.length === 0 && (
+                                    <Text className="text-text-tertiary italic">No other items available.</Text>
+                                )}
+                            </View>
+                        </View>
+
+                        <View className="h-20" />
                     </ScrollView>
                 </View>
             </Modal>
@@ -320,13 +439,13 @@ export function NavigationSettings() {
                             onPress={() => setIconPickerTarget({ id: item.id })}
                             className="flex-row items-center bg-background/50 rounded-lg border border-border px-3 py-2 h-10"
                         >
-                            <Ionicons
-                                // @ts-ignore
-                                name={item.icon}
-                                size={20}
-                                color="#818cf8"
-                                style={{ marginRight: 8 }}
-                            />
+                            <View style={{ marginRight: 8 }}>
+                                <UniversalIcon
+                                    name={item.icon}
+                                    size={20}
+                                    color="#818cf8"
+                                />
+                            </View>
                             <Text className="text-text-tertiary text-sm flex-1" numberOfLines={1}>{item.icon}</Text>
                         </TouchableOpacity>
                     </View>
@@ -400,23 +519,43 @@ export function NavigationSettings() {
 
             {renderGroupEditor()}
 
-            <NavIconPicker
-                visible={!!iconPickerTarget}
-                currentIcon={iconPickerTarget ? navConfig.find(i => i.id === iconPickerTarget.id)?.icon || '' : ''}
-                onSelect={(icon) => {
-                    if (iconPickerTarget) {
-                        handleUpdate(iconPickerTarget.id, 'icon', icon);
-                    }
-                }}
-                onClose={() => setIconPickerTarget(null)}
-            />
+            <Modal visible={!!iconPickerTarget} animationType="slide" transparent>
+                <View className="flex-1 bg-background pt-12 px-4">
+                    <View className="flex-row justify-between items-center mb-6">
+                        <Text className="text-white text-xl font-bold">Select Icon</Text>
+                        <TouchableOpacity onPress={() => setIconPickerTarget(null)} className="p-2 bg-surface rounded-full">
+                            <Ionicons name="close" size={24} color="white" />
+                        </TouchableOpacity>
+                    </View>
+                    <IconPicker
+                        value={(() => {
+                            if (!iconPickerTarget) return '';
+                            if (editingGroup) {
+                                const child = editingGroup.children?.find(c => c.id === iconPickerTarget.id);
+                                if (child) return child.icon;
+                            }
+                            return navConfig.find(i => i.id === iconPickerTarget.id)?.icon || '';
+                        })()}
+                        onChange={(icon: string) => {
+                            if (iconPickerTarget) {
+                                if (editingGroup && editingGroup.children?.some(c => c.id === iconPickerTarget.id)) {
+                                    handleGroupChildUpdate(iconPickerTarget.id, 'icon', icon);
+                                } else {
+                                    handleUpdate(iconPickerTarget.id, 'icon', icon);
+                                }
+                                setIconPickerTarget(null);
+                            }
+                        }}
+                    />
+                </View>
+            </Modal>
         </ScrollView>
     );
 }
 
 // Add types for AlertButton since it's used
 interface AlertButton {
-    text?: string;
+    text: string;
     onPress?: () => void;
     style?: 'default' | 'cancel' | 'destructive';
 }

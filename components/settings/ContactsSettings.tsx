@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore, Contact } from '../../store/settings';
 import { useGoogleStore } from '../../store/googleStore';
@@ -10,7 +10,9 @@ import { SettingsListItem } from '../ui/SettingsListItem';
 import { ColorPicker } from '../ui/ColorPicker';
 import { IconPicker } from '../ui/IconPicker';
 import { UniversalIcon } from '../ui/UniversalIcon';
+import { MetadataChip } from '../ui/MetadataChip';
 import { Colors, Palette } from '../ui/design-tokens';
+import { showAlert } from '../../utils/alert';
 
 export function ContactsSettings() {
     const { contacts, addContact, updateContact, deleteContact } = useSettingsStore();
@@ -45,7 +47,7 @@ export function ContactsSettings() {
 
     const saveContact = () => {
         if (!cName.trim() || !cEmail.trim()) {
-            Alert.alert('Missing Info', 'Name and Email are required.');
+            showAlert('Missing Info', 'Name and Email are required.');
             return;
         }
 
@@ -72,7 +74,7 @@ export function ContactsSettings() {
 
     const handleDeleteContact = () => {
         if (editingId) {
-            Alert.alert(
+            showAlert(
                 "Delete Contact",
                 "Are you sure?",
                 [
@@ -120,10 +122,14 @@ export function ContactsSettings() {
                                     <View className="flex-row items-center gap-2">
                                         <Text className="text-white font-semibold">{contact.name}</Text>
                                         {contact.isWife && (
-                                            <View className="bg-pink-500 px-1.5 py-0.5 rounded flex-row items-center gap-1 border border-pink-500/50">
-                                                <Ionicons name="heart" size={10} color={Palette[2]} />
-                                                <Text className="text-pink-400 text-[10px] font-bold">WIFE</Text>
-                                            </View>
+                                            <MetadataChip
+                                                icon="heart"
+                                                label="WIFE"
+                                                color={Palette[2]}
+                                                variant="solid"
+                                                size="sm"
+                                                rounding="sm"
+                                            />
                                         )}
                                     </View>
                                     <Text className="text-text-tertiary text-xs" numberOfLines={1}>{contact.email}</Text>

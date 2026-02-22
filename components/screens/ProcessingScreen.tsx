@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Alert, Modal } from 'react-native';
+import { Modal } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { ShareIntent } from 'expo-share-intent';
 import { Audio } from 'expo-av';
@@ -16,6 +16,7 @@ import { openInObsidian as openNoteInObsidian } from '../../utils/obsidian';
 import { getMostUsedTags } from '../../utils/tagUtils';
 import { processURLsInText, URLMetadata } from '../../utils/urlMetadata';
 import { useVaultStore } from '../../services/vaultService';
+import { showAlert, showError } from '../../utils/alert';
 
 // Screen components
 import { LoadingScreen } from './LoadingScreen';
@@ -167,7 +168,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         try {
             const perm = await Audio.requestPermissionsAsync();
             if (perm.status !== 'granted') {
-                Alert.alert('Permission needed', 'Microphone permission is required to record audio.');
+                showAlert('Permission needed', 'Microphone permission is required to record audio.');
                 return;
             }
             await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
@@ -175,7 +176,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             setRecording(recording);
         } catch (err) {
             console.error('Failed to start recording', err);
-            Alert.alert('Error', 'Failed to start recording');
+            showError('Error', 'Failed to start recording');
         }
     };
 
@@ -209,7 +210,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             }
         } catch (e) {
             console.error('[File Picker] Error:', e);
-            Alert.alert('Error', 'Could not pick file');
+            showError('Error', 'Could not pick file');
         }
     };
 
@@ -218,7 +219,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             const ImagePicker = await import('expo-image-picker');
             const { status } = await ImagePicker.requestCameraPermissionsAsync();
             if (status !== 'granted') {
-                Alert.alert('Permission Required', 'Camera permission is required.');
+                showAlert('Permission Required', 'Camera permission is required.');
                 return;
             }
             const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8, allowsEditing: false });
@@ -229,7 +230,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
             }
         } catch (e) {
             console.error('[Camera] Error:', e);
-            Alert.alert('Error', 'Could not open camera');
+            showError('Error', 'Could not open camera');
         }
     };
 
@@ -615,7 +616,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                         );
                     } else {
                         // If multiple notes, disable quick save and show preview
-                        Alert.alert('Multiple Notes', 'Multiple notes were generated. Please review them individually.');
+                        showAlert('Multiple Notes', 'Multiple notes were generated. Please review them individually.');
                         setLoading(false);
                         setInputMode(false);
                     }
@@ -652,7 +653,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
 
     const handleDirectSave = async () => {
         if (!vaultUri || !apiKey) {
-            Alert.alert('Setup Required', 'Please configure Vault and API Key in settings.');
+            showAlert('Setup Required', 'Please configure Vault and API Key in settings.');
             return;
         }
 
@@ -822,7 +823,7 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
         forceSkipObsidian?: boolean
     ) => {
         if (!vaultUri) {
-            Alert.alert('Error', 'Vault not configured');
+            showError('Error', 'Vault not configured');
             return;
         }
 
@@ -908,11 +909,11 @@ export default function ProcessingScreen({ shareIntent, onReset }: { shareIntent
                 }
 
                 if (errorOccurred) {
-                    Alert.alert('Some Events Failed', 'One or more events could not be added to your calendar. Please check the logs.');
+                    showError('Some Events Failed', 'One or more events could not be added to your calendar. Please check the logs.');
                 }
             } else {
                 console.warn('Skipping event creation: No target calendar found.');
-                Alert.alert('Scheduling Skipped', 'No writable calendar found. Please check your calendar permissions and settings.');
+                showAlert('Scheduling Skipped', 'No writable calendar found. Please check your calendar permissions and settings.');
             }
         }
 

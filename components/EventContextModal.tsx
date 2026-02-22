@@ -13,6 +13,7 @@ import { RelationService } from '../services/relationService';
 import { TaskPicker } from './ui/TaskPicker';
 import { TaskWithSource } from '../store/tasks';
 import { TaskStatusIcon } from './ui/TaskStatusIcon';
+import { MetadataChip } from './ui/MetadataChip';
 import { Colors, Palette } from './ui/design-tokens';
 
 interface Props {
@@ -334,63 +335,46 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
 
                             <View className="flex-row items-center justify-between border-t border-border pt-2 mt-1">
                                 {/* Flags */}
-                                <View className="flex-row gap-2">
-                                    <TouchableOpacity
+                                <View className="flex-row flex-wrap gap-2">
+                                    <MetadataChip
+                                        label="English"
+                                        color={Colors.primary}
+                                        variant={flags?.isEnglish ? 'solid' : 'default'}
                                         onPress={() => handleToggleFlag('isEnglish')}
-                                        className={`px-2 py-1 rounded-md border ${flags?.isEnglish ? 'bg-primary border-primary' : 'bg-surface-highlight border-transparent'}`}
-                                    >
-                                        <Text className={`text-xs ${flags?.isEnglish ? 'text-primary font-bold' : 'text-text-tertiary'}`}>
-                                            English
-                                        </Text>
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
+                                        size="sm"
+                                    />
+                                    <MetadataChip
+                                        label="Movable"
+                                        color={Colors.success}
+                                        variant={flags?.movable ? 'solid' : 'default'}
+                                        icon="move"
                                         onPress={() => handleToggleFlag('movable')}
-                                        className={`px-2 py-1 rounded-md border ${flags?.movable ? 'bg-success border-success' : 'bg-surface-highlight border-transparent'}`}
-                                    >
-                                        <View className="flex-row items-center gap-1">
-                                            <Ionicons name="move" size={12} color={flags?.movable ? '#34d399' : Colors.text.tertiary} />
-                                            <Text className={`text-xs ${flags?.movable ? 'text-success font-bold' : 'text-text-tertiary'}`}>
-                                                Movable
-                                            </Text>
-                                        </View>
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
+                                        size="sm"
+                                    />
+                                    <MetadataChip
+                                        label="Skippable"
+                                        color={Colors.error}
+                                        variant={flags?.skippable ? 'solid' : 'default'}
+                                        icon="return-up-forward"
                                         onPress={() => handleToggleFlag('skippable')}
-                                        className={`px-2 py-1 rounded-md border ${flags?.skippable ? 'bg-error border-error' : 'bg-surface-highlight border-transparent'}`}
-                                    >
-                                        <View className="flex-row items-center gap-1">
-                                            <Ionicons name="return-up-forward" size={12} color={flags?.skippable ? '#fb7185' : Colors.text.tertiary} />
-                                            <Text className={`text-xs ${flags?.skippable ? 'text-error font-bold' : 'text-text-tertiary'}`}>
-                                                Skippable
-                                            </Text>
-                                        </View>
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
+                                        size="sm"
+                                    />
+                                    <MetadataChip
+                                        label="Prep"
+                                        color={Colors.warning}
+                                        variant={flags?.needPrep ? 'solid' : 'default'}
+                                        icon="pricetag-outline"
                                         onPress={() => handleToggleFlag('needPrep')}
-                                        className={`px-2 py-1 rounded-md border ${flags?.needPrep ? 'bg-warning border-warning' : 'bg-surface-highlight border-transparent'}`}
-                                    >
-                                        <View className="flex-row items-center gap-1">
-                                            <Ionicons name="pricetag-outline" size={12} color={flags?.needPrep ? '#fbbf24' : Colors.text.tertiary} />
-                                            <Text className={`text-xs ${flags?.needPrep ? 'text-warning font-bold' : 'text-text-tertiary'}`}>
-                                                Prep
-                                            </Text>
-                                        </View>
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
+                                        size="sm"
+                                    />
+                                    <MetadataChip
+                                        label="Checkbox"
+                                        color={'#22d3ee'}
+                                        variant={flags?.completable ? 'solid' : 'default'}
+                                        icon="checkbox-outline"
                                         onPress={() => handleToggleFlag('completable')}
-                                        className={`px-2 py-1 rounded-md border ${flags?.completable ? 'bg-primary border-primary' : 'bg-surface-highlight border-transparent'}`}
-                                    >
-                                        <View className="flex-row items-center gap-1">
-                                            <Ionicons name="checkbox-outline" size={12} color={flags?.completable ? '#22d3ee' : Colors.text.tertiary} />
-                                            <Text className={`text-xs ${flags?.completable ? 'text-primary font-bold' : 'text-text-tertiary'}`}>
-                                                Checkbox
-                                            </Text>
-                                        </View>
-                                    </TouchableOpacity>
+                                        size="sm"
+                                    />
                                 </View>
                             </View>
 
@@ -516,16 +500,16 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                 onPress={() => { onClose(); onEdit?.(); }}
                                 className="flex-1 py-3 flex-row items-center justify-center gap-2 rounded-xl bg-surface border border-border"
                             >
-                                <Ionicons name="create-outline" size={18} color={Palette[5]} />
-                                <Text className="text-warning font-medium text-xs" numberOfLines={1}>Edit</Text>
+                                <Ionicons name="create-outline" size={18} color={Colors.text.primary} />
+                                <Text className="text-text-primary font-medium text-xs" numberOfLines={1}>Edit</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 onPress={handleOpenInCalendar}
                                 className="flex-1 py-3 flex-row items-center justify-center gap-2 rounded-xl bg-surface border border-border"
                             >
-                                <Ionicons name="open-outline" size={18} color="#60a5fa" />
-                                <Text className="text-primary font-medium text-xs" numberOfLines={1}>Open</Text>
+                                <Ionicons name="open-outline" size={18} color={Colors.text.primary} />
+                                <Text className="text-text-primary font-medium text-xs" numberOfLines={1}>Open</Text>
                             </TouchableOpacity>
 
                             {currentType && (

@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import { View, Text, Modal, TouchableOpacity, ScrollView, Switch, Alert } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ScrollView, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore, MetadataConfig } from '../store/settings';
 import { Colors, Palette } from './ui/design-tokens';
 import { ColorPicker } from './ui/ColorPicker';
 import { ChipConfigurator } from './ui/ChipConfigurator';
+import { showAlert } from '../utils/alert';
 
 interface TagPropertyConfigModalProps {
     visible: boolean;
@@ -29,7 +30,7 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
     const prefix = type === 'tags' ? '#' : '';
 
     const handleRemove = () => {
-        Alert.alert(
+        showAlert(
             "Remove Configuration",
             "Are you sure you want to remove this configuration? This will revert the item to default appearance.",
             [

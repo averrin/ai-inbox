@@ -1,10 +1,10 @@
 import React from 'react';
-import { TouchableOpacity } from 'react-native';
+import { TouchableOpacity, GestureResponderEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from './design-tokens';
 
 interface ActionButtonProps {
-    onPress: () => void;
+    onPress: (event?: GestureResponderEvent) => void;
     icon: keyof typeof Ionicons.glyphMap;
     variant?: 'neutral' | 'danger' | 'success' | 'warning';
     size?: number;
