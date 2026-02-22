@@ -33,6 +33,7 @@ interface TaskEditModalProps {
     task: (RichTask & { fileUri?: string }) | null;
     onSave: (task: RichTask, folderPath?: string) => void;
     onCancel: () => void;
+    onDelete?: () => void;
     onOpenEvent?: (id: string) => void;
     initialFolder?: string;
     enableFolderSelection?: boolean;
@@ -43,6 +44,7 @@ export function TaskEditModal({
     task,
     onSave,
     onCancel,
+    onDelete,
     onOpenEvent,
     initialFolder,
     enableFolderSelection = true
@@ -520,6 +522,15 @@ export function TaskEditModal({
                     </ScrollView>
 
                     <View className="flex-row gap-3 mt-4">
+                        {onDelete && (
+                            <TouchableOpacity
+                                onPress={onDelete}
+                                className="items-center justify-center w-12 rounded-xl border border-red-500/30"
+                                style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)' }}
+                            >
+                                <Ionicons name="trash-outline" size={20} color={Colors.error} />
+                            </TouchableOpacity>
+                        )}
                         <TouchableOpacity
                             onPress={onCancel}
                             className="flex-1 bg-surface p-3 rounded-xl items-center"

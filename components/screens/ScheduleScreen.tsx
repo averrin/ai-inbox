@@ -423,6 +423,34 @@ export default function ScheduleScreen() {
         icon: 'add'
     });
 
+    const handleDeleteTask = async (task: TaskWithSource) => {
+        showAlert(
+            "Delete Task",
+            "Are you sure you want to remove this task from its source file?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            const { TaskService } = await import('../../services/taskService');
+                            await TaskService.syncTaskDeletion(vaultUri!, task);
+                            const { tasks, setTasks } = useTasksStore.getState();
+                            setTasks(tasks.filter(t =>
+                                !(t.fileUri === task.fileUri && t.originalLine === task.originalLine)
+                            ));
+                            setEditingTask(null);
+                            Toast.show({ type: 'success', text1: 'Task Removed' });
+                        } catch (e) {
+                            Toast.show({ type: 'error', text1: 'Delete Failed' });
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const handleDeleteEvent = async (options: DeleteOptions) => {
         // Reminder Deletion
         if (editingEvent?.typeTag === 'REMINDER' || editingEvent?.originalEvent?.fileUri) {
@@ -1659,6 +1687,7 @@ export default function ScheduleScreen() {
                             initialFolder={editingTask.filePath && editingTask.filePath.includes('/')
                                 ? editingTask.filePath.substring(0, editingTask.filePath.lastIndexOf('/'))
                                 : ''}
+                            onDelete={() => editingTask && handleDeleteTask(editingTask)}
                             onSave={async (updatedTask, folderPath) => {
                                 const { TaskService } = await import('../../services/taskService');
                                 const { ensureDirectory } = await import('../../utils/saf');

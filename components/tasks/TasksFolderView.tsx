@@ -249,6 +249,8 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                             setTasks(prev => prev.filter(t => 
                                 !(t.fileUri === task.fileUri && t.originalLine === task.originalLine)
                             ));
+                            setIsModalVisible(false);
+                            setEditingTask(null);
                             Toast.show({ type: 'success', text1: 'Task Removed' });
                         } catch (e) {
                             Toast.show({ type: 'error', text1: 'Delete Failed' });
@@ -384,6 +386,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                         setEditingTask(null);
                     }}
                     onSave={editingTask ? (task, folder) => handleSaveEdit(task, folder) : (task, folder) => handleSaveNewTask(task, folder)}
+                    onDelete={() => editingTask && handleDeleteTask(editingTask)}
                     onOpenEvent={(id) => {
                         setIsModalVisible(false);
                         Calendar.getEventAsync(id).then(evt => {

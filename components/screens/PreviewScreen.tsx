@@ -281,6 +281,8 @@ export function PreviewScreen({
     const handleDeleteTask = (task: RichTask) => {
         const newText = removeTaskFromText(body, task);
         onBodyChange(newText);
+        setIsTaskModalVisible(false);
+        setEditingTask(null);
     };
 
     const handleSaveTask = (updatedTask: RichTask) => {
@@ -652,6 +654,7 @@ export function PreviewScreen({
                 task={editingTask}
                 enableFolderSelection={false}
                 onSave={handleSaveTask}
+                onDelete={() => editingTask && handleDeleteTask(editingTask)}
                 onCancel={() => setIsTaskModalVisible(false)}
             />
         </Layout>

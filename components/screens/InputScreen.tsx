@@ -99,6 +99,8 @@ export function InputScreen({
     const handleDeleteTask = (task: RichTask) => {
         const newText = removeTaskFromText(inputText, task);
         onInputTextChange(newText);
+        setIsTaskModalVisible(false);
+        setEditingTask(null);
     };
 
     const handleUpdateTask = (oldTask: RichTask, updatedTask: RichTask) => {
@@ -298,6 +300,7 @@ export function InputScreen({
                 task={editingTask}
                 enableFolderSelection={false}
                 onSave={handleSaveTask}
+                onDelete={() => editingTask && handleDeleteTask(editingTask)}
                 onCancel={() => setIsTaskModalVisible(false)}
             />
         </Layout>
