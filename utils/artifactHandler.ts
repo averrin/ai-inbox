@@ -117,9 +117,25 @@ export async function downloadAndInstallArtifact(
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/vnd.github+json',
             },
+            redirect: 'manual'
         });
-        const finalUrl = redirectResponse.url;
-        const wasRedirected = finalUrl !== artifact.archive_download_url;
+
+        let finalUrl = redirectResponse.url;
+        let wasRedirected = false;
+
+        if (redirectResponse.status === 301 || redirectResponse.status === 302 || redirectResponse.status === 307 || redirectResponse.status === 308) {
+            const location = redirectResponse.headers.get('location');
+            if (location) {
+                finalUrl = location;
+                wasRedirected = true;
+                console.log(`[Artifact] Manual redirect captured: ${finalUrl}`);
+            }
+        } else if (finalUrl !== artifact.archive_download_url) {
+            // Fetch followed redirect automatically
+            wasRedirected = true;
+            console.log(`[Artifact] Auto redirect detected: ${finalUrl}`);
+        }
+
         console.log(`[Artifact] Resolved download URL (redirected: ${wasRedirected})`);
 
         try { await redirectResponse.body?.cancel(); } catch (_) {}
