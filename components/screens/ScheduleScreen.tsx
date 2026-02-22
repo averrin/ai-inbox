@@ -435,14 +435,23 @@ export default function ScheduleScreen() {
                     onPress: async () => {
                         try {
                             const { TaskService } = await import('../../services/taskService');
+
+                            // TaskService.syncTaskDeletion will attempt to resolve fileUri from filePath if missing
                             await TaskService.syncTaskDeletion(vaultUri!, task);
+
                             const { tasks, setTasks } = useTasksStore.getState();
-                            setTasks(tasks.filter(t =>
-                                !(t.fileUri === task.fileUri && t.originalLine === task.originalLine)
-                            ));
+                            setTasks(tasks.filter(t => {
+                                if (task.fileUri) {
+                                    return !(t.fileUri === task.fileUri && t.originalLine === task.originalLine);
+                                } else {
+                                    // Fallback match by path/content if URI missing
+                                    return !(t.filePath === task.filePath && t.originalLine === task.originalLine);
+                                }
+                            }));
                             setEditingTask(null);
                             Toast.show({ type: 'success', text1: 'Task Removed' });
                         } catch (e) {
+                            console.error('Delete task failed', e);
                             Toast.show({ type: 'error', text1: 'Delete Failed' });
                         }
                     }
@@ -1687,7 +1696,7 @@ export default function ScheduleScreen() {
                             initialFolder={editingTask.filePath && editingTask.filePath.includes('/')
                                 ? editingTask.filePath.substring(0, editingTask.filePath.lastIndexOf('/'))
                                 : ''}
-                            onDelete={editingTask?.fileUri ? () => handleDeleteTask(editingTask) : undefined}
+                            onDelete={(editingTask?.fileUri || editingTask?.filePath) ? () => handleDeleteTask(editingTask) : undefined}
                             onSave={async (updatedTask, folderPath) => {
                                 const { TaskService } = await import('../../services/taskService');
                                 const { ensureDirectory } = await import('../../utils/saf');
