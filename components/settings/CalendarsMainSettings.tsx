@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, Switch } from 'react-n
 import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore } from '../../store/settings';
 import { Card } from '../ui/Card';
+import { MetadataChip } from '../ui/MetadataChip';
 import { PersonalSettings } from './PersonalSettings';
 import { WorkSettings } from './WorkSettings';
 import { AdditionalCalendars } from './AdditionalCalendars';
@@ -27,9 +28,13 @@ export function CalendarsMainSettings() {
                     <View className="flex-row items-center justify-between">
                         <Text className="text-white font-semibold text-lg">{title}</Text>
                         {status && (
-                            <View className="bg-primary px-2 py-0.5 rounded border border-primary">
-                                <Text className="text-primary text-[10px] font-bold">{status}</Text>
-                            </View>
+                            <MetadataChip
+                                label={status}
+                                variant="solid"
+                                color={Colors.primary}
+                                size="sm"
+                                rounding="sm"
+                            />
                         )}
                     </View>
                     {subtitle && <Text className="text-text-tertiary text-sm mt-0.5" numberOfLines={1}>{subtitle}</Text>}

@@ -7,6 +7,7 @@ import { getWritableCalendars } from '../../services/calendarService';
 import { SettingsListItem } from '../ui/SettingsListItem';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../ui/Button';
+import { MetadataChip } from '../ui/MetadataChip';
 import { Colors, Palette } from '../ui/design-tokens';
 
 export function AdditionalCalendars() {
@@ -99,25 +100,21 @@ export function AdditionalCalendars() {
                     <View className="ml-4 pl-4 border-l-2 border-border/50 mt-1">
                         {/* Default Logic */}
                         <View className="flex-row items-center gap-2 mb-2">
-                            <TouchableOpacity
+                            <MetadataChip
+                                icon="add-circle"
+                                label="Default Create"
+                                variant={isCreateDefault ? 'solid' : 'outline'}
+                                color={Colors.success}
                                 onPress={() => setDefaultCreateCalendarId(cal.id)}
-                                className={`flex-row items-center gap-1 px-2 py-1 rounded-md border ${isCreateDefault ? 'bg-success border-success' : 'bg-surface border-border'}`}
-                            >
-                                <Ionicons name="add-circle" size={14} color={isCreateDefault ? Palette[9] : Colors.secondary} />
-                                <Text className={`text-xs ${isCreateDefault ? 'text-success font-bold' : 'text-text-tertiary'}`}>
-                                    Default Create
-                                </Text>
-                            </TouchableOpacity>
+                            />
 
-                            <TouchableOpacity
+                            <MetadataChip
+                                icon="eye"
+                                label="Default Open"
+                                variant={isOpenDefault ? 'solid' : 'outline'}
+                                color={Colors.warning}
                                 onPress={() => setDefaultOpenCalendarId(cal.id)}
-                                className={`flex-row items-center gap-1 px-2 py-1 rounded-md border ${isOpenDefault ? 'bg-warning border-warning' : 'bg-surface border-border'}`}
-                            >
-                                <Ionicons name="eye" size={14} color={isOpenDefault ? Palette[5] : Colors.secondary} />
-                                <Text className={`text-xs ${isOpenDefault ? 'text-warning font-bold' : 'text-text-tertiary'}`}>
-                                    Default Open
-                                </Text>
-                            </TouchableOpacity>
+                            />
                         </View>
 
                         {/* Default Event Type Picker Trigger */}

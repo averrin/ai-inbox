@@ -97,7 +97,7 @@ export function WeatherSettings() {
                 <Text className="text-text-secondary mb-2 font-semibold">Current Selection</Text>
                 <View className="bg-surface/50 border border-border rounded-xl p-4 flex-row items-center gap-3">
                     <View className="bg-primary p-2 rounded-full">
-                        <Ionicons name="location" size={20} color="#818cf8" />
+                        <Ionicons name="location" size={20} color="white" />
                     </View>
                     <View>
                         <Text className="text-white font-medium">
