@@ -6,6 +6,7 @@ import { analyzeImage } from '../../services/gemini';
 import { useSettingsStore } from '../../store/settings';
 import { Colors } from './design-tokens';
 import { showError } from '../../utils/alert';
+import { AppButton } from './AppButton';
 
 interface MessageDialogProps {
     visible: boolean;
@@ -120,12 +121,23 @@ export function MessageDialog({
                                 disabled={sending || analyzing}
                             />
                         )}
-                        <TouchableOpacity onPress={close} className="flex-1 bg-surface py-3 rounded-xl items-center" disabled={sending || analyzing}>
-                            <Text className="text-white font-bold">Cancel</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={handleSend} className="flex-1 bg-primary py-3 rounded-xl items-center" disabled={sending || analyzing || (!message.trim() && !selectedImage)}>
-                            {sending || analyzing ? <ActivityIndicator size="small" color="white" /> : <Text className="text-white font-bold">{sendLabel}</Text>}
-                        </TouchableOpacity>
+                        <AppButton
+                            title="Cancel"
+                            variant="ghost"
+                            size="md"
+                            onPress={close}
+                            disabled={sending || analyzing}
+                            flex
+                        />
+                        <AppButton
+                            title={sendLabel}
+                            variant="primary"
+                            size="md"
+                            onPress={handleSend}
+                            disabled={sending || analyzing || (!message.trim() && !selectedImage)}
+                            loading={sending || analyzing}
+                            flex
+                        />
                     </View>
                 </View>
             </View>

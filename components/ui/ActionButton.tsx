@@ -1,7 +1,13 @@
 import React from 'react';
-import { TouchableOpacity, GestureResponderEvent } from 'react-native';
+import { GestureResponderEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from './design-tokens';
+import { AppButton } from './AppButton';
+
+/**
+ * Legacy ActionButton -- delegates to AppButton.
+ * Preserved for backward compatibility; prefer AppButton directly in new code.
+ */
 
 interface ActionButtonProps {
     onPress: (event?: GestureResponderEvent) => void;
@@ -10,40 +16,23 @@ interface ActionButtonProps {
     size?: number;
 }
 
+const VARIANT_COLOR: Record<string, string> = {
+    danger: '#f87171',
+    success: '#4ade80',
+    warning: '#fbbf24',
+    neutral: Colors.text.tertiary,
+};
+
 export function ActionButton({ onPress, icon, variant = 'neutral', size = 16 }: ActionButtonProps) {
-    const getStyles = () => {
-        switch (variant) {
-            case 'danger':
-                return {
-                    container: 'bg-surface-highlight',
-                    color: '#f87171'
-                };
-            case 'success':
-                return {
-                    container: 'bg-surface-highlight',
-                    color: '#4ade80'
-                };
-            case 'warning':
-                return {
-                    container: 'bg-surface-highlight', // Matching the recurrence tag style roughly or generic warning
-                    color: '#fbbf24'
-                };
-            default: // neutral
-                return {
-                    container: 'bg-surface-highlight/50',
-                    color: Colors.text.tertiary
-                };
-        }
-    };
-
-    const styles = getStyles();
-
     return (
-        <TouchableOpacity 
-            onPress={onPress} 
-            className={`p-2 rounded-lg ${styles.container}`}
-        >
-            <Ionicons name={icon} size={size} color={styles.color} />
-        </TouchableOpacity>
+        <AppButton
+            icon={icon as string}
+            variant="secondary"
+            size="sm"
+            rounding="md"
+            color={VARIANT_COLOR[variant]}
+            onPress={onPress}
+            style={variant === 'neutral' ? { opacity: 0.5 } : undefined}
+        />
     );
 }

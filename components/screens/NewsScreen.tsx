@@ -14,6 +14,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import * as WebBrowser from 'expo-web-browser';
 import { Colors } from '../ui/design-tokens';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CloseButton } from '../ui/AppButton';
 import { useUIStore } from '../../store/ui';
 import { showAlert } from '../../utils/alert';
 import { useFocusEffect } from '@react-navigation/native';
@@ -349,6 +350,14 @@ export default function NewsScreen() {
                             : []
                         )
                     ]}
+                    showSearch={showCustomInput}
+                    onCloseSearch={() => setShowCustomInput(false)}
+                    searchBar={{
+                        value: customQuery,
+                        onChangeText: setCustomQuery,
+                        placeholder: "Enter custom query...",
+                        onSubmit: handleCustomSubmit
+                    }}
                 >
                     <View style={[islandBaseStyle, { marginTop: 8, paddingLeft: 4, position: 'relative', marginLeft: 4, marginRight: 4 }]}>
                         <ScrollView
@@ -423,27 +432,6 @@ export default function NewsScreen() {
                             pointerEvents="none"
                         />
                     </View>
-
-                    {showCustomInput && (
-                        <View className="px-1 pb-2 flex-row items-center gap-2">
-                            <TextInput
-                                className="flex-1 bg-background border border-border text-white rounded-xl px-4 py-2 text-sm"
-                                placeholder="Enter custom query..."
-                                placeholderTextColor={Colors.secondary}
-                                value={customQuery}
-                                onChangeText={setCustomQuery}
-                                onSubmitEditing={handleCustomSubmit}
-                                returnKeyType="search"
-                                autoFocus
-                            />
-                            <TouchableOpacity
-                                className="bg-primary p-2 rounded-xl"
-                                onPress={handleCustomSubmit}
-                            >
-                                <Ionicons name="search" size={20} color="white" />
-                            </TouchableOpacity>
-                        </View>
-                    )}
                 </IslandHeader>
             </View>
 
@@ -514,9 +502,7 @@ export default function NewsScreen() {
                 <View className="flex-1 bg-background">
                     <View className="flex-row justify-between items-center p-4 border-b border-border bg-surface">
                         <Text className="text-white font-bold text-lg">News Settings</Text>
-                        <TouchableOpacity onPress={() => setShowSettings(false)}>
-                            <Ionicons name="close" size={24} color="white" />
-                        </TouchableOpacity>
+                        <CloseButton onPress={() => setShowSettings(false)} />
                     </View>
                     <ScrollView contentContainerStyle={{ padding: 16 }}>
                         <NewsSettings />

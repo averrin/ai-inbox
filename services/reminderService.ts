@@ -269,7 +269,7 @@ export async function createStandaloneReminder(
             recurrenceRule: recurrence || null,
             alarm: !!alarm,
             persistent: persistent || null,
-            content: bodyContent || 'Created via Reminders App.',
+            content: bodyContent || '',
             tags: tags,
             ...additionalProps,
             createdAt: Timestamp.now()

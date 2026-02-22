@@ -8,6 +8,7 @@ import { useHabitStore } from '../store/habitStore';
 import { syncMoodReminders } from '../services/reminderService';
 import { ForecastSection } from './ForecastSection';
 import { Colors, Palette } from './ui/design-tokens';
+import { AppButton, CloseButton } from './ui/AppButton';
 
 interface MoodEvaluationModalProps {
     visible: boolean;
@@ -86,12 +87,7 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
                                 {dayjs(date).format('dddd, MMMM D, YYYY')}
                             </Text>
                         </View>
-                        <TouchableOpacity
-                            onPress={onClose}
-                            className="bg-surface p-2 rounded-full"
-                        >
-                            <Ionicons name="close" size={20} color={Colors.text.tertiary} />
-                        </TouchableOpacity>
+                        <CloseButton onPress={onClose} />
                     </View>
 
                     <ForecastSection date={date} />
@@ -171,22 +167,21 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
                     )}
 
                     <View className="flex-row gap-3">
-                        <TouchableOpacity
+                        <AppButton
+                            title="Cancel"
+                            variant="ghost"
+                            size="md"
                             onPress={onClose}
-                            className="flex-1 bg-surface p-3 rounded-xl items-center"
-                        >
-                            <Text className="text-white font-semibold">Cancel</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
+                            flex
+                        />
+                        <AppButton
+                            title="Save"
+                            variant="primary"
+                            size="md"
                             onPress={handleSave}
                             disabled={selectedMood === null}
-                            className={`flex-1 p-3 rounded-xl items-center ${
-                                selectedMood !== null ? 'bg-primary' : 'bg-surface-highlight opacity-50'
-                            }`}
-                        >
-                            <Text className="text-white font-semibold">Save</Text>
-                        </TouchableOpacity>
+                            flex
+                        />
                     </View>
                 </View>
             </KeyboardAvoidingView>

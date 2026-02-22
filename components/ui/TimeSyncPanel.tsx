@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from './design-tokens';
+import { AppButton } from './AppButton';
 
 interface TimeSyncPanelProps {
     isSynced: boolean;
@@ -31,21 +32,24 @@ export function TimeSyncPanel({
 
             {!isSynced ? (
                 <View className="flex-row gap-2 flex-1 justify-end">
-                    <TouchableOpacity 
+                    <AppButton
+                        icon="arrow-down"
+                        title="To Events"
+                        variant="secondary"
+                        size="xs"
+                        rounding="md"
+                        color="#fbbf24"
                         onPress={onCopyReminderToEvents}
-                        className="bg-surface-highlight px-3 py-1.5 rounded-lg flex-row items-center gap-1 border border-border"
-                    >
-                        <Ionicons name="arrow-down" size={12} color="#fbbf24" />
-                        <Text className="text-text-primary text-[10px] font-medium">To Events</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
+                    />
+                    <AppButton
+                        icon="arrow-up"
+                        title="To Reminder"
+                        variant="secondary"
+                        size="xs"
+                        rounding="md"
+                        color="#4ade80"
                         onPress={onCopyEventsToReminder}
-                        className="bg-surface-highlight px-3 py-1.5 rounded-lg flex-row items-center gap-1 border border-border"
-                    >
-                        <Ionicons name="arrow-up" size={12} color="#4ade80" />
-                        <Text className="text-text-primary text-[10px] font-medium">To Reminder</Text>
-                    </TouchableOpacity>
+                    />
                 </View>
             ) : (
                  <Text className="text-text-tertiary text-[10px] italic flex-1 text-right">

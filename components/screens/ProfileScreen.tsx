@@ -37,7 +37,7 @@ export default function ProfileScreen() {
     const [editingFact, setEditingFact] = useState<{ key: string, value: string } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isImageFull, setIsImageFull] = useState(false);
-    const [activeTab, setActiveTab] = useState<'home' | 'details'>('home');
+    const [activeTab, setActiveTab] = useState('home');
     const [detailsTab, setDetailsTab] = useState<'facts' | 'traits'>('facts');
     const [showDepthModal, setShowDepthModal] = useState(false);
     const [isAddingFact, setIsAddingFact] = useState(false);
@@ -218,7 +218,7 @@ export default function ProfileScreen() {
             await submitAnswers();
             setQuestionImages({});
         } catch (e) {
-             console.error('Submit failed', e);
+            console.error('Submit failed', e);
         } finally {
             setIsAnalyzingImages(false);
         }
@@ -267,10 +267,12 @@ export default function ProfileScreen() {
             `Are you sure you want to remove this trait: "${trait}"?`,
             [
                 { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: () => {
-                    deleteTrait(trait);
-                    setEditingTrait(null);
-                }}
+                {
+                    text: "Delete", style: "destructive", onPress: () => {
+                        deleteTrait(trait);
+                        setEditingTrait(null);
+                    }
+                }
             ]
         );
     };
@@ -363,49 +365,16 @@ export default function ProfileScreen() {
         return "Deep Philosophy";
     };
 
-    // Custom Tab Component for IslandHeader containing Title and Tabs
-    const TabToggle = () => (
-        <View className="flex-row items-center pl-2 pr-1">
-            <Text className="text-white font-bold text-lg leading-tight mr-3">
-                Profile
-            </Text>
-            <View className="flex-row items-center bg-surface rounded-full p-0.5">
-                <TouchableOpacity
-                    onPress={() => setActiveTab('home')}
-                    className={`flex-row items-center px-3 py-1.5 rounded-full ${activeTab === 'home' ? 'bg-surface-highlight' : 'bg-transparent'}`}
-                >
-                    <Ionicons
-                        name={activeTab === 'home' ? "home" : "home-outline"}
-                        size={16}
-                        color={activeTab === 'home' ? "white" : Colors.text.tertiary}
-                    />
-                    <Text className={`ml-1.5 text-xs font-bold ${activeTab === 'home' ? 'text-white' : 'text-text-tertiary'}`}>
-                        Home
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    onPress={() => setActiveTab('details')}
-                    className={`flex-row items-center px-3 py-1.5 rounded-full ${activeTab === 'details' ? 'bg-surface-highlight' : 'bg-transparent'}`}
-                >
-                    <Ionicons
-                        name={activeTab === 'details' ? "list" : "list-outline"}
-                        size={16}
-                        color={activeTab === 'details' ? "white" : Colors.text.tertiary}
-                    />
-                    <Text className={`ml-1.5 text-xs font-bold ${activeTab === 'details' ? 'text-white' : 'text-text-tertiary'}`}>
-                        Details
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
-
     return (
         <Layout>
             <IslandHeader
                 title="Profile"
-                leftContent={<TabToggle />}
+                tabs={[
+                    { key: 'home', label: 'Home', icon: 'home-outline', activeIcon: 'home' },
+                    { key: 'details', label: 'Details', icon: 'list-outline', activeIcon: 'list' },
+                ]}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
                 rightActions={[
                     { icon: 'share-outline', onPress: handleCopyContext }
                 ]}
@@ -481,7 +450,7 @@ export default function ProfileScreen() {
                                                                         />
                                                                         <TouchableOpacity
                                                                             onPress={() => {
-                                                                                const newImages = {...questionImages};
+                                                                                const newImages = { ...questionImages };
                                                                                 delete newImages[qText];
                                                                                 setQuestionImages(newImages);
                                                                             }}
@@ -735,7 +704,7 @@ export default function ProfileScreen() {
                                                         )}
                                                     </View>
                                                     <View className="mt-4 pt-2 border-t border-border flex-row justify-between items-center">
-                                                         <Text className="text-secondary text-xs">
+                                                        <Text className="text-secondary text-xs">
                                                             Traits describe your personality and values.
                                                         </Text>
                                                         <MetadataChip
@@ -897,7 +866,7 @@ export default function ProfileScreen() {
                             text2: 'Profile updated successfully'
                         });
                     } catch (e) {
-                         Toast.show({
+                        Toast.show({
                             type: 'error',
                             text1: 'Error',
                             text2: 'Failed to add fact'
@@ -933,7 +902,7 @@ export default function ProfileScreen() {
                             onSubmitEditing={handleAddTraitSubmit}
                             autoFocus
                         />
-                         <View className="flex-row gap-3">
+                        <View className="flex-row gap-3">
                             <TouchableOpacity
                                 className="flex-1 bg-surface py-4 rounded-xl items-center"
                                 onPress={() => {

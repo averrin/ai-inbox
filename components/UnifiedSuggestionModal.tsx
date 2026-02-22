@@ -8,6 +8,7 @@ import { useSettingsStore } from '../store/settings';
 import { createCalendarEvent } from '../services/calendarService';
 import { Colors, Palette } from './ui/design-tokens';
 import { showAlert, showError } from '../utils/alert';
+import { AppButton, CloseButton } from './ui/AppButton';
 
 interface UnifiedSuggestionModalProps {
     visible: boolean;
@@ -123,12 +124,10 @@ export function UnifiedSuggestionModal({
                     
                     {/* Header */}
                     <View className={`${bgColorClass} p-6 items-center border-b border-border relative`}>
-                        <TouchableOpacity 
+                        <CloseButton
                             onPress={onClose}
-                            className="absolute top-4 right-4 z-10 p-1"
-                        >
-                            <Ionicons name="close" size={24} color="rgba(255,255,255,0.6)" />
-                        </TouchableOpacity>
+                            style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}
+                        />
 
                         <View className={`w-16 h-16 ${iconBgClass} rounded-full items-center justify-center mb-3 shadow-lg shadow-black/20`}>
                             <Ionicons name={iconName} size={32} color="white" />
@@ -157,12 +156,13 @@ export function UnifiedSuggestionModal({
                             </View>
                             
                             {/* Button to trigger picker */}
-                            <TouchableOpacity 
+                            <AppButton
+                                title="Change"
+                                variant="secondary"
+                                size="sm"
+                                rounding="md"
                                 onPress={() => setShowPicker(true)}
-                                className="bg-surface-highlight px-4 py-2 rounded-lg"
-                            >
-                                <Text className="text-white font-medium">Change</Text>
-                            </TouchableOpacity>
+                            />
                         </View>
 
                         {/* DateTimePicker - Conditionally rendered for Android */}
@@ -181,35 +181,25 @@ export function UnifiedSuggestionModal({
                         )}
 
                         <View className="space-y-3 pt-2 flex-col gap-1">
-                             <TouchableOpacity
+                            <AppButton
+                                icon="calendar"
+                                title={isWalk ? 'Schedule Walk' : 'Schedule Lunch'}
+                                variant={isWalk ? 'success' : 'primary'}
+                                size="md"
                                 onPress={handleConfirm}
-                                disabled={loading}
-                                className={`${confirmBtnClass} py-3 rounded-xl flex-row justify-center items-center shadow-lg shadow-black/20`}
-                            >
-                                {loading ? (
-                                    <ActivityIndicator color="white" />
-                                ) : (
-                                    <>
-                                        <Ionicons name="calendar" size={20} color="white" className="mr-2" />
-                                        <Text className="text-white font-bold text-base">
-                                            {isWalk ? 'Schedule Walk' : 'Schedule Lunch'}
-                                        </Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
+                                loading={loading}
+                            />
 
-                            <TouchableOpacity
+                            <AppButton
+                                icon="close-circle-outline"
+                                title={isWalk ? 'Dismiss for Today' : 'Skip Lunch'}
+                                variant="ghost"
+                                size="md"
                                 onPress={() => {
                                     if (onDismiss) onDismiss();
                                     onClose();
                                 }}
-                                className="bg-surface py-3 rounded-xl flex-row justify-center items-center border border-border"
-                            >
-                                <Ionicons name="close-circle-outline" size={20} color={Colors.text.tertiary} className="mr-2" />
-                                <Text className="text-text-tertiary font-semibold">
-                                    {isWalk ? 'Dismiss for Today' : 'Skip Lunch'}
-                                </Text>
-                            </TouchableOpacity>
+                            />
                         </View>
                     </View>
                 </View>

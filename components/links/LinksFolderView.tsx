@@ -11,16 +11,18 @@ import { Colors } from '../ui/design-tokens';
 interface LinksFolderViewProps {
     folderUri: string;
     folderPath: string;
+    searchQuery: string;
+    onSearchChange: (q: string) => void;
+    listPaddingTop?: number;
 }
 
-export function LinksFolderView({ folderUri, folderPath }: LinksFolderViewProps) {
+export function LinksFolderView({ folderUri, folderPath, searchQuery, onSearchChange, listPaddingTop }: LinksFolderViewProps) {
     const { vaultUri } = useSettingsStore();
     const { links, setLinks, isLoading, isRefreshing, loadLinks } = useFolderLinks(folderUri, folderPath);
-    const [search, setSearch] = useState('');
 
     const filteredLinks = links.filter(link => {
-        if (!search) return true;
-        const q = search.toLowerCase();
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
         return (
             (link.title && link.title.toLowerCase().includes(q)) ||
             (link.url && link.url.toLowerCase().includes(q)) ||
@@ -43,41 +45,19 @@ export function LinksFolderView({ folderUri, folderPath }: LinksFolderViewProps)
     };
 
     const handleTagPress = (tag: string) => {
-        setSearch(tag);
+        onSearchChange(tag);
     };
 
     return (
-        <View className="flex-1 bg-transparent">
-             {/* Search Bar */}
-             <View className="px-4 py-2 bg-background/50 border-b border-border">
-                <View className="flex-row items-center bg-surface rounded-lg px-3 py-2 border border-border">
-                    <Ionicons name="search" size={18} color={Colors.text.tertiary} />
-                    <TextInput
-                        className="flex-1 ml-2 text-white text-sm"
-                        placeholder="Search links..."
-                        placeholderTextColor={Colors.secondary}
-                        value={search}
-                        onChangeText={setSearch}
-                    />
-                    {search.length > 0 && (
-                        <Ionicons
-                            name="close-circle"
-                            size={18}
-                            color={Colors.secondary}
-                            onPress={() => setSearch('')}
-                        />
-                    )}
-                </View>
-             </View>
 
-            <LinksList
-                links={filteredLinks}
-                isLoading={isLoading}
-                isRefreshing={isRefreshing}
-                onRefresh={() => loadLinks(true)}
-                onDelete={handleDelete}
-                onTagPress={handleTagPress}
-            />
-        </View>
+        <LinksList
+            links={filteredLinks}
+            isLoading={isLoading}
+            isRefreshing={isRefreshing}
+            onRefresh={() => loadLinks(true)}
+            onDelete={handleDelete}
+            onTagPress={handleTagPress}
+            listPaddingTop={listPaddingTop}
+        />
     );
 }

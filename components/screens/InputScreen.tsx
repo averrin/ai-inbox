@@ -15,6 +15,7 @@ import { ReminderItem } from '../ui/ReminderItem';
 import { RichTaskItem } from '../markdown/RichTaskItem';
 import { TaskEditModal } from '../markdown/TaskEditModal';
 import { findTasks, updateTaskInText, RichTask, serializeTaskLine, removeTaskFromText } from '../../utils/taskParser';
+import { AppButton } from '../ui/AppButton';
 
 interface InputScreenProps {
     inputText: string;
@@ -216,13 +217,16 @@ export function InputScreen({
                             {suggestedTags.map(tag => {
                                 const isSelected = selectedTags.includes(tag);
                                 return (
-                                    <TouchableOpacity
+                                    <AppButton
                                         key={tag}
+                                        title={`#${tag}`}
+                                        variant="ghost"
+                                        size="xs"
+                                        rounding="full"
+                                        selected={isSelected}
                                         onPress={() => onToggleTag(tag)}
-                                        className={`px-3 py-1.5 rounded-full border ${isSelected ? 'bg-primary border-primary' : 'bg-surface/50 border-border'}`}
-                                    >
-                                        <Text className={`text-xs font-medium ${isSelected ? 'text-white' : 'text-text-tertiary'}`}>#{tag}</Text>
-                                    </TouchableOpacity>
+                                        style={!isSelected ? { backgroundColor: 'rgba(30,41,59,0.5)' } : undefined}
+                                    />
                                 );
                             })}
                         </View>

@@ -21,6 +21,7 @@ export const islandBaseStyle: ViewStyle = {
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
+    overflow: 'hidden',
     ...Shadows.default,
     opacity: 0.95
 };
@@ -31,14 +32,14 @@ export const islandBaseStyle: ViewStyle = {
  */
 export function IslandBar({ leftContent, rightContent, containerStyle, islandStyle }: IslandBarProps) {
     return (
-        <View style={[{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, containerStyle]} pointerEvents="box-none">
+        <View style={[{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, containerStyle]} pointerEvents="box-none">
             {leftContent ? (
-                <View style={[islandBaseStyle, islandStyle]}>
+                <View style={[islandBaseStyle, { flexShrink: 1 }, islandStyle]}>
                     {leftContent}
                 </View>
             ) : <View />}
             {rightContent ? (
-                <View style={[islandBaseStyle, islandStyle]}>
+                <View style={[islandBaseStyle, { flexShrink: 0 }, islandStyle]}>
                     {rightContent}
                 </View>
             ) : <View />}

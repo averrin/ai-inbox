@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GradientSlider } from './GradientSlider';
 import { hslToHex, hexToHsl } from './colorUtils';
 import { Colors } from '../design-tokens';
+import { AppButton, CloseButton } from '../AppButton';
 
 interface ColorPickerModalProps {
     visible: boolean;
@@ -80,9 +81,7 @@ export function ColorPickerModal({ visible, initialColor, onClose, onSelect }: C
                 <View style={styles.container}>
                     <View style={styles.header}>
                         <Text style={styles.title}>Custom Color</Text>
-                        <TouchableOpacity onPress={onClose}>
-                            <Ionicons name="close" size={24} color={Colors.text.tertiary} />
-                        </TouchableOpacity>
+                        <CloseButton onPress={onClose} />
                     </View>
 
                     <View style={styles.previewContainer}>
@@ -123,9 +122,12 @@ export function ColorPickerModal({ visible, initialColor, onClose, onSelect }: C
                         />
                     </View>
 
-                    <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                        <Text style={styles.saveButtonText}>Select Color</Text>
-                    </TouchableOpacity>
+                    <AppButton
+                        title="Select Color"
+                        variant="primary"
+                        size="lg"
+                        onPress={handleSave}
+                    />
                 </View>
             </View>
         </Modal>

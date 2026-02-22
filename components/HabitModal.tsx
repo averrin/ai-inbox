@@ -6,6 +6,7 @@ import { HabitDefinition } from '../store/habitStore';
 import { ColorPicker } from './ui/ColorPicker';
 import { Palette, Colors } from './ui/design-tokens';
 import { IconPicker } from './ui/IconPicker';
+import { CloseButton } from './ui/AppButton';
 
 interface HabitModalProps {
     visible: boolean;
@@ -55,9 +56,7 @@ export function HabitModal({ visible, onClose, onSave, initialData }: HabitModal
                         <Text className="text-white text-xl font-bold">
                             {initialData ? 'Edit Check' : 'New Check'}
                         </Text>
-                        <TouchableOpacity onPress={onClose}>
-                            <Ionicons name="close" size={24} color={Colors.text.tertiary} />
-                        </TouchableOpacity>
+                        <CloseButton onPress={onClose} />
                     </View>
 
                     <ScrollView>

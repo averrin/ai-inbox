@@ -8,6 +8,7 @@ import { ColorPicker } from './ColorPicker';
 import { IconPicker } from './IconPicker';
 import { MetadataChip } from './MetadataChip';
 import { UniversalIcon } from './UniversalIcon';
+import { AppButton, CloseButton } from './AppButton';
 
 interface ChipConfiguratorProps {
     config: MetadataConfig;
@@ -48,21 +49,15 @@ export function ChipConfigurator({ config, onChange, showReset, onReset, label }
                     <Text className="text-white font-medium text-sm mb-2">Style</Text>
                     <View className="gap-2">
                         {(['default', 'solid', 'outline'] as const).map((v) => (
-                            <TouchableOpacity
+                            <AppButton
                                 key={v}
+                                title={v.charAt(0).toUpperCase() + v.slice(1)}
+                                variant="secondary"
+                                size="xs"
+                                rounding="md"
+                                selected={(config.variant || 'default') === v}
                                 onPress={() => onChange({ ...config, variant: v })}
-                                className={`px-3 py-2 rounded-lg border items-center justify-center ${
-                                    (config.variant || 'default') === v
-                                        ? 'bg-primary border-primary'
-                                        : 'bg-surface-highlight border-border'
-                                }`}
-                            >
-                                <Text className={`text-xs font-medium ${
-                                    (config.variant || 'default') === v ? 'text-white' : 'text-text-secondary'
-                                }`}>
-                                    {v.charAt(0).toUpperCase() + v.slice(1)}
-                                </Text>
-                            </TouchableOpacity>
+                            />
                         ))}
                     </View>
                 </View>
@@ -77,21 +72,15 @@ export function ChipConfigurator({ config, onChange, showReset, onReset, label }
                             { value: 'md', label: 'Medium' },
                             { value: 'full', label: 'Pill' }
                         ] as const).map((option) => (
-                            <TouchableOpacity
+                            <AppButton
                                 key={option.value}
+                                title={option.label}
+                                variant="secondary"
+                                size="xs"
+                                rounding="md"
+                                selected={(config.rounding || 'sm') === option.value}
                                 onPress={() => onChange({ ...config, rounding: option.value as any })}
-                                className={`px-3 py-2 rounded-lg border items-center justify-center ${
-                                    (config.rounding || 'sm') === option.value
-                                        ? 'bg-primary border-primary'
-                                        : 'bg-surface-highlight border-border'
-                                }`}
-                            >
-                                <Text className={`text-xs font-medium ${
-                                    (config.rounding || 'sm') === option.value ? 'text-white' : 'text-text-secondary'
-                                }`}>
-                                    {option.label}
-                                </Text>
-                            </TouchableOpacity>
+                            />
                         ))}
                     </View>
                 </View>
@@ -134,12 +123,7 @@ export function ChipConfigurator({ config, onChange, showReset, onReset, label }
                     <View className="flex-1 bg-background">
                          <View className="px-4 py-4 border-b border-border flex-row items-center justify-between" style={{ marginTop: insets.top }}>
                             <Text className="text-white font-bold text-lg">Select Icon</Text>
-                            <TouchableOpacity
-                                onPress={() => setIsIconPickerVisible(false)}
-                                className="bg-surface p-2 rounded-full"
-                            >
-                                <Ionicons name="close" size={20} color={Colors.text.secondary} />
-                            </TouchableOpacity>
+                            <CloseButton onPress={() => setIsIconPickerVisible(false)} />
                         </View>
                         <View className="flex-1 p-4">
                             <IconPicker

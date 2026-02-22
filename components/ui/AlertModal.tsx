@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity } from 'react-native';
 import { AlertOption } from '../../store/ui';
+import { AppButton } from './AppButton';
 
 interface AlertModalProps {
     visible: boolean;
@@ -39,32 +40,21 @@ export function AlertModal({ visible, title, message, options = [], onClose }: A
                             const isDestructive = option.style === 'destructive';
                             const isCancel = option.style === 'cancel';
 
-                            let bgClass = 'bg-surface-highlight';
-                            let textClass = 'text-text-primary';
-
-                            if (isDestructive) {
-                                bgClass = 'bg-red-500/20';
-                                textClass = 'text-red-500';
-                            } else if (!isCancel) {
-                                bgClass = 'bg-primary';
-                                textClass = 'text-white';
-                            }
-
-                            const flexClass = displayOptions.length === 2 ? 'flex-1' : 'w-full';
+                            const variant = isDestructive ? 'danger-outline' as const : isCancel ? 'secondary' as const : 'primary' as const;
 
                             return (
-                                <TouchableOpacity
+                                <AppButton
                                     key={index}
+                                    title={option.text}
+                                    variant={variant}
+                                    size="md"
                                     onPress={() => {
                                         if (onClose) onClose();
                                         if (option.onPress) option.onPress();
                                     }}
-                                    className={`${bgClass} py-3 px-4 rounded-xl items-center justify-center ${flexClass}`}
-                                >
-                                    <Text className={`${textClass} font-bold text-base`}>
-                                        {option.text}
-                                    </Text>
-                                </TouchableOpacity>
+                                    flex={displayOptions.length === 2}
+                                    style={displayOptions.length !== 2 ? { width: '100%' } : undefined}
+                                />
                             );
                         })}
                     </View>

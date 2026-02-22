@@ -1,8 +1,7 @@
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Animated, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
-import { ScreenHeader } from '../ui/ScreenHeader';
 import { useState, useEffect } from 'react';
 import { scanForReminders, Reminder, formatRecurrenceForReminder } from '../../services/reminderService';
 import { useSettingsStore } from '../../store/settings';
@@ -13,6 +12,8 @@ import { EventFormModal, EventSaveData, DeleteOptions } from '../EventFormModal'
 import { useOptimisticReminders } from '../../hooks/useOptimisticReminders';
 import { useFab } from '../../hooks/useFab';
 import { Colors } from '../ui/design-tokens';
+import { IslandHeader } from '../ui/IslandHeader';
+import { islandBaseStyle } from '../ui/IslandBar';
 
 export default function RemindersListScreen() {
   const insets = useSafeAreaInsets();
@@ -22,6 +23,11 @@ export default function RemindersListScreen() {
   // Edit Modal State
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+
+  const [activeTab, setActiveTab] = useState('Upcoming');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+
 
   const {
     setCachedReminders,
@@ -56,10 +62,10 @@ export default function RemindersListScreen() {
   };
 
   const handleDeleteReminder = async (options: DeleteOptions) => {
-      if (!editingReminder) return;
-      await deleteReminder(editingReminder);
-      setIsEditModalVisible(false);
-      setEditingReminder(null);
+    if (!editingReminder) return;
+    await deleteReminder(editingReminder);
+    setIsEditModalVisible(false);
+    setEditingReminder(null);
   };
 
   const handleEditReminder = (reminder: Reminder) => {
@@ -77,8 +83,18 @@ export default function RemindersListScreen() {
   };
 
   const now = new Date();
-  const overdue = reminders.filter(r => new Date(r.reminderTime) <= now).sort((a, b) => new Date(a.reminderTime).getTime() - new Date(b.reminderTime).getTime());
-  const upcoming = reminders.filter(r => new Date(r.reminderTime) > now).sort((a, b) => new Date(a.reminderTime).getTime() - new Date(b.reminderTime).getTime());
+  const sortedReminders = reminders
+    .filter(r => {
+      if (!searchQuery.trim()) return true;
+      return r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (r.description && r.description.toLowerCase().includes(searchQuery.toLowerCase()));
+    })
+    .sort((a, b) => new Date(a.reminderTime).getTime() - new Date(b.reminderTime).getTime());
+
+  const overdue = sortedReminders.filter(r => new Date(r.reminderTime) <= now);
+  const upcoming = sortedReminders.filter(r => new Date(r.reminderTime) > now);
+
+  const displayedReminders = activeTab === 'All' ? sortedReminders : (activeTab === 'Upcoming' ? upcoming : overdue);
 
   const getRelativeTime = (date: Date) => {
     const diffMs = date.getTime() - now.getTime();
@@ -95,24 +111,46 @@ export default function RemindersListScreen() {
 
   // Wrap reminder for EventFormModal
   const editingEvent = editingReminder ? {
-      originalEvent: editingReminder,
-      typeTag: 'REMINDER',
-      title: editingReminder.title,
-      start: new Date(editingReminder.reminderTime),
-      end: new Date(editingReminder.reminderTime)
+    originalEvent: editingReminder,
+    typeTag: 'REMINDER',
+    title: editingReminder.title,
+    start: new Date(editingReminder.reminderTime),
+    end: new Date(editingReminder.reminderTime)
   } : null;
 
   return (
     <Layout>
-      <ScreenHeader
-        title="Reminders"
-        rightActions={[
-          ...(isSyncing ? [{ icon: 'sync', onPress: () => {}, render: () => <ActivityIndicator size="small" color="#818cf8" /> }] : []),
-          { icon: 'refresh', onPress: loadReminders, disabled: loading || isSyncing },
-        ]}
-      />
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}>
+      <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
+        <IslandHeader
+          title="Reminders"
+          tabs={[
+            { key: 'Upcoming', label: 'Upcoming' },
+            { key: 'Overdue', label: 'Overdue' },
+            { key: 'All', label: 'All' },
+          ]}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          tabsScrollable={false}
+          rightActions={[
+            {
+              icon: 'search',
+              onPress: () => setShowSearch(!showSearch),
+              color: showSearch ? Colors.primary : Colors.text.tertiary
+            },
+            ...(isSyncing ? [{ icon: 'sync', onPress: () => { }, render: () => <ActivityIndicator size="small" color="#818cf8" /> }] : []),
+            { icon: 'refresh', onPress: loadReminders, disabled: loading || isSyncing },
+          ]}
+          showSearch={showSearch}
+          onCloseSearch={() => setShowSearch(false)}
+          searchBar={{
+            value: searchQuery,
+            onChangeText: setSearchQuery,
+            placeholder: "Search reminders..."
+          }}
+        />
+      </View>
 
+      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingTop: insets.top + 80, paddingBottom: insets.bottom + 80 }}>
         {reminders.length === 0 ? (
           <View className="bg-surface/50 p-8 rounded-xl border border-border items-center mt-4">
             <Ionicons name="alarm-outline" size={64} color={Colors.secondary} />
@@ -121,24 +159,23 @@ export default function RemindersListScreen() {
               Tap the + button to create a reminder!
             </Text>
           </View>
+        ) : displayedReminders.length === 0 ? (
+          <View className="bg-surface/50 p-8 rounded-xl border border-border items-center mt-4">
+            <Ionicons name="search-outline" size={64} color={Colors.secondary} />
+            <Text className="text-text-tertiary italic text-center mt-4 text-lg">No matches found.</Text>
+          </View>
         ) : (
           <View className="gap-6">
-            {upcoming.length > 0 && (
+            {activeTab === 'All' && (
               <View>
-                <Text className="text-success font-bold mb-3 text-sm uppercase tracking-wider">Upcoming</Text>
                 <View className="gap-0">
-                  {upcoming.map((reminder) => (
+                  {displayedReminders.map((reminder) => (
                     <ReminderItem
                       key={reminder.fileUri}
                       reminder={reminder}
                       relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
                       onEdit={() => handleEditReminder(reminder)}
-                      onDelete={() => handleDeleteReminder({})}
-                      // Actually ReminderItem usually has an edit button which opens the modal. The onDelete prop on ReminderItem might be for direct deletion.
-                      // Let's check ReminderItem. But here I passed `handleDeleteReminderWithNote` before.
-                      // I should pass a function that calls `deleteReminder(reminder, true)`.
-                      // The modal `onDelete` is handled by `handleDeleteReminder`.
-                      // But the list item also has actions.
+                      onDelete={() => deleteReminder(reminder)}
                       onShow={() => showReminder(reminder)}
                       timeFormat={timeFormat}
                     />
@@ -147,9 +184,26 @@ export default function RemindersListScreen() {
               </View>
             )}
 
-            {overdue.length > 0 && (
+            {activeTab === 'Upcoming' && upcoming.length > 0 && (
               <View>
-                <Text className="text-error font-bold mb-3 text-sm uppercase tracking-wider">Overdue</Text>
+                <View className="gap-0">
+                  {upcoming.map((reminder) => (
+                    <ReminderItem
+                      key={reminder.fileUri}
+                      reminder={reminder}
+                      relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
+                      onEdit={() => handleEditReminder(reminder)}
+                      onDelete={() => deleteReminder(reminder)}
+                      onShow={() => showReminder(reminder)}
+                      timeFormat={timeFormat}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {activeTab === 'Overdue' && overdue.length > 0 && (
+              <View>
                 <View className="gap-0">
                   {overdue.map((reminder) => (
                     <ReminderItem
@@ -157,10 +211,7 @@ export default function RemindersListScreen() {
                       reminder={reminder}
                       relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
                       onEdit={() => handleEditReminder(reminder)}
-                      onDelete={() => {
-                          // Direct delete from list item (trash icon)
-                          deleteReminder(reminder);
-                      }}
+                      onDelete={() => deleteReminder(reminder)}
                       onShow={() => showReminder(reminder)}
                       timeFormat={timeFormat}
                     />
@@ -174,18 +225,18 @@ export default function RemindersListScreen() {
 
       {/* Edit Modal */}
       {editingReminder && (
-          <EventFormModal
-            visible={isEditModalVisible}
-            initialEvent={editingEvent}
-            initialType={editingReminder.alarm ? 'alarm' : 'reminder'}
-            onSave={handleSaveEdit}
-            onCancel={() => {
-              setIsEditModalVisible(false);
-              setEditingReminder(null);
-            }}
-            onDelete={handleDeleteReminder}
-            timeFormat={timeFormat}
-          />
+        <EventFormModal
+          visible={isEditModalVisible}
+          initialEvent={editingEvent}
+          initialType={editingReminder.alarm ? 'alarm' : 'reminder'}
+          onSave={handleSaveEdit}
+          onCancel={() => {
+            setIsEditModalVisible(false);
+            setEditingReminder(null);
+          }}
+          onDelete={handleDeleteReminder}
+          timeFormat={timeFormat}
+        />
       )}
 
       {/* Creation Modal */}
