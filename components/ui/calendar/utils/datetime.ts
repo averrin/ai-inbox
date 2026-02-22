@@ -146,7 +146,7 @@ export function isSecondaryEvent<T extends ICalendarEventBase>(e: T): boolean {
   if (e.type === 'zone' || e.type === 'marker') return true
 
   // Special titles that should generally be background to avoid column splitting
-  const title = e.title.toLowerCase()
+  const title = e.title?.toLowerCase() || ''
   if (title.includes('out of office') || title.includes('off-site')) return true
 
   return false

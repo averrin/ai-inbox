@@ -139,6 +139,11 @@ export default function ScheduleScreen() {
 
     const scrollOffset = useRef(initialScrollOffset);
 
+    // Trigger fetch when date or calendars change while focused
+    useEffect(() => {
+        fetchEvents();
+    }, [date, visibleCalendarIds, viewMode]);
+
     const changeDate = (newDate: Date) => {
         if (dayjs(newDate).isSame(date, 'day')) return;
 
@@ -158,6 +163,8 @@ export default function ScheduleScreen() {
     };
 
     const fetchEvents = useCallback(async () => {
+        setIsEventsLoaded(false);
+        setEvents([]); // Clear previous events to avoid "phantom" sightings
         try {
             const startDate = dayjs(date).startOf(viewMode === 'week' ? 'week' : 'day').subtract(7, 'day').toDate();
             const endDate = dayjs(date).endOf(viewMode === 'week' ? 'week' : 'day').add(7, 'day').toDate();
@@ -1206,34 +1213,34 @@ export default function ScheduleScreen() {
             // Async Creation
             (async () => {
                 try {
-                     const calendars = await getWritableCalendars();
-                     let targetCalendar;
-                     if (defaultCreateCalendarId) {
-                         targetCalendar = calendars.find(c => c.id === defaultCreateCalendarId && c.allowsModifications);
-                     }
-                     if (!targetCalendar && visibleCalendarIds.length > 0) {
-                         targetCalendar = calendars.find(c => c.id === visibleCalendarIds[0] && c.allowsModifications);
-                     }
-                     if (!targetCalendar && calendars.length > 0) {
-                         targetCalendar = calendars[0];
-                     }
+                    const calendars = await getWritableCalendars();
+                    let targetCalendar;
+                    if (defaultCreateCalendarId) {
+                        targetCalendar = calendars.find(c => c.id === defaultCreateCalendarId && c.allowsModifications);
+                    }
+                    if (!targetCalendar && visibleCalendarIds.length > 0) {
+                        targetCalendar = calendars.find(c => c.id === visibleCalendarIds[0] && c.allowsModifications);
+                    }
+                    if (!targetCalendar && calendars.length > 0) {
+                        targetCalendar = calendars[0];
+                    }
 
-                     if (!targetCalendar) {
-                         showError("Error", 'No suitable calendar found to schedule suggestion.');
-                         fetchEvents(); // Revert
-                         return;
-                     }
+                    if (!targetCalendar) {
+                        showError("Error", 'No suitable calendar found to schedule suggestion.');
+                        fetchEvents(); // Revert
+                        return;
+                    }
 
-                     await createCalendarEvent(targetCalendar.id, {
-                         title: title,
-                         startDate: newStart,
-                         endDate: newEnd,
-                         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                         notes: isWalk ? 'Scheduled Walk' : 'Scheduled Lunch'
-                     });
+                    await createCalendarEvent(targetCalendar.id, {
+                        title: title,
+                        startDate: newStart,
+                        endDate: newEnd,
+                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        notes: isWalk ? 'Scheduled Walk' : 'Scheduled Lunch'
+                    });
 
-                     // Re-sync
-                     setTimeout(() => fetchEvents(), 500);
+                    // Re-sync
+                    setTimeout(() => fetchEvents(), 500);
 
                 } catch (e) {
                     console.error("Failed to schedule suggestion drop", e);
@@ -1569,9 +1576,9 @@ export default function ScheduleScreen() {
                         onClose={() => setSelectedEvent(null)}
                         type="lunch"
                         suggestion={selectedEvent ? {
-                             start: selectedEvent.start, 
-                             end: selectedEvent.end,
-                             title: selectedEvent.title
+                            start: selectedEvent.start,
+                            end: selectedEvent.end,
+                            title: selectedEvent.title
                         } : null}
                         onEventCreated={fetchEvents}
                         onDismiss={() => setSelectedEvent(null)}
@@ -1581,9 +1588,9 @@ export default function ScheduleScreen() {
                         visible={!!selectedEvent && selectedEvent?.typeTag === 'WALK_SUGGESTION'}
                         onClose={() => setSelectedEvent(null)}
                         type="walk"
-                        suggestion={selectedEvent ? { 
-                            start: selectedEvent.startDate, 
-                            reason: selectedEvent.reason 
+                        suggestion={selectedEvent ? {
+                            start: selectedEvent.startDate,
+                            reason: selectedEvent.reason
                         } : null}
                         onEventCreated={() => {
                             dismissWalk();
