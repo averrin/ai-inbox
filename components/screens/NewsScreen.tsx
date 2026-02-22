@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Article, fetchNews } from '../../services/newsService';
 import { Layout } from '../ui/Layout';
 import { IslandHeader } from '../ui/IslandHeader';
+import { islandBaseStyle } from '../ui/IslandBar';
 import { MetadataChip } from '../ui/MetadataChip';
 import { BaseListItem } from '../ui/BaseListItem';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +13,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import * as WebBrowser from 'expo-web-browser';
 import { Colors } from '../ui/design-tokens';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useUIStore } from '../../store/ui';
 import { showAlert } from '../../utils/alert';
 import { useFocusEffect } from '@react-navigation/native';
@@ -26,7 +28,7 @@ export default function NewsScreen() {
         newsTopics, rssFeeds, newsApiKey,
         hiddenArticles, readArticles, hideArticle, markArticleAsRead,
         ignoredHostnames, viewedArticles, markArticleAsViewed, hideArticles,
-        newsFilterTerms
+        newsFilterTerms, newsDefaultViewMode
     } = useSettingsStore();
     const { setFab, clearFab } = useUIStore();
 
@@ -36,8 +38,9 @@ export default function NewsScreen() {
     const [selectedFilter, setSelectedFilter] = useState<string | null>(null); // null = All
     const [customQuery, setCustomQuery] = useState('');
     const [showCustomInput, setShowCustomInput] = useState(false);
-    const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+    const [viewMode, setViewMode] = useState<'card' | 'list'>(newsDefaultViewMode);
     const [showSettings, setShowSettings] = useState(false);
+    const [scrollX, setScrollX] = useState(0);
 
     // Derived filtered list to exclude hidden/read articles
     const visibleArticles = articles.filter(a => {
@@ -198,8 +201,8 @@ export default function NewsScreen() {
                     renderLeftActions={() => renderLeftActions(item)}
                     onSwipeableOpen={(direction) => {
                         if (direction === 'left') {
-                             // Swiped Right -> Left Actions Revealed -> Read
-                             markArticleAsRead({
+                            // Swiped Right -> Left Actions Revealed -> Read
+                            markArticleAsRead({
                                 title: item.title,
                                 description: item.description,
                                 url: item.url,
@@ -335,10 +338,6 @@ export default function NewsScreen() {
                     title="News Feed"
                     rightActions={[
                         {
-                            icon: 'settings-outline',
-                            onPress: () => setShowSettings(true),
-                        },
-                        {
                             icon: viewMode === 'list' ? 'grid-outline' : 'list-outline',
                             onPress: () => setViewMode(prev => prev === 'list' ? 'card' : 'list'),
                         },
@@ -351,55 +350,79 @@ export default function NewsScreen() {
                         )
                     ]}
                 >
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{ gap: 8, paddingHorizontal: 4, paddingVertical: 8 }}
-                    >
-                        <MetadataChip
-                            label="All"
-                            variant={(selectedFilter === null && !showCustomInput) ? "solid" : "outline"}
-                            color={Colors.primary}
-                            onPress={() => {
-                                setSelectedFilter(null);
-                                setShowCustomInput(false);
-                            }}
-                        />
-                        {newsTopics.map(topic => (
+                    <View style={[islandBaseStyle, { marginTop: 8, paddingLeft: 4, position: 'relative' }]}>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{ gap: 8, paddingLeft: 12, paddingRight: 32, paddingVertical: 4 }}
+                            onScroll={(e) => setScrollX(e.nativeEvent.contentOffset.x)}
+                            scrollEventThrottle={16}
+                        >
                             <MetadataChip
-                                key={topic}
-                                label={topic}
-                                variant={(selectedFilter === topic && !showCustomInput) ? "solid" : "outline"}
+                                label="All"
+                                variant={(selectedFilter === null && !showCustomInput) ? "solid" : "outline"}
                                 color={Colors.primary}
                                 onPress={() => {
-                                    setSelectedFilter(topic);
+                                    setSelectedFilter(null);
                                     setShowCustomInput(false);
                                 }}
                             />
-                        ))}
-                        {rssFeeds.map(feed => {
-                            const label = (() => {
-                                try {
-                                    return new URL(feed).hostname.replace('www.', '');
-                                } catch {
-                                    return feed;
-                                }
-                            })();
-                            return (
+                            {newsTopics.map(topic => (
                                 <MetadataChip
-                                    key={feed}
-                                    label={label}
-                                    icon="logo-rss"
-                                    variant={(selectedFilter === feed && !showCustomInput) ? "solid" : "outline"}
-                                    color={Colors.warning}
+                                    key={topic}
+                                    label={topic}
+                                    variant={(selectedFilter === topic && !showCustomInput) ? "solid" : "outline"}
+                                    color={Colors.primary}
                                     onPress={() => {
-                                        setSelectedFilter(feed);
+                                        setSelectedFilter(topic);
                                         setShowCustomInput(false);
                                     }}
                                 />
-                            );
-                        })}
-                    </ScrollView>
+                            ))}
+                            {rssFeeds.map(feed => {
+                                const label = (() => {
+                                    try {
+                                        return new URL(feed).hostname.replace('www.', '');
+                                    } catch {
+                                        return feed;
+                                    }
+                                })();
+                                return (
+                                    <MetadataChip
+                                        key={feed}
+                                        label={label}
+                                        icon="logo-rss"
+                                        variant={(selectedFilter === feed && !showCustomInput) ? "solid" : "outline"}
+                                        color={Colors.warning}
+                                        onPress={() => {
+                                            setSelectedFilter(feed);
+                                            setShowCustomInput(false);
+                                        }}
+                                    />
+                                );
+                            })}
+                        </ScrollView>
+
+                        {/* Left Gradient Fade */}
+                        {scrollX > 10 && (
+                            <LinearGradient
+                                colors={['rgba(30, 41, 59, 1)', 'rgba(30, 41, 59, 0)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 24, borderTopLeftRadius: 30, borderBottomLeftRadius: 30 }}
+                                pointerEvents="none"
+                            />
+                        )}
+
+                        {/* Right Gradient Fade */}
+                        <LinearGradient
+                            colors={['rgba(30, 41, 59, 0)', 'rgba(30, 41, 59, 1)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 32, borderTopRightRadius: 30, borderBottomRightRadius: 30 }}
+                            pointerEvents="none"
+                        />
+                    </View>
 
                     {showCustomInput && (
                         <View className="px-1 pb-2 flex-row items-center gap-2">
@@ -488,7 +511,7 @@ export default function NewsScreen() {
                 presentationStyle="pageSheet"
                 onRequestClose={() => setShowSettings(false)}
             >
-                 <View className="flex-1 bg-background">
+                <View className="flex-1 bg-background">
                     <View className="flex-row justify-between items-center p-4 border-b border-border bg-surface">
                         <Text className="text-white font-bold text-lg">News Settings</Text>
                         <TouchableOpacity onPress={() => setShowSettings(false)}>

@@ -31,5 +31,4 @@ connect:
 
 merge branch:
     git fetch
-    git pull
     opencode run "merge branch {{ branch }} and resolve conflicts. consider its Github PR for context"

@@ -12,7 +12,8 @@ export function NewsSettings() {
         rssFeeds, setRssFeeds,
         newsApiKey, setNewsApiKey,
         ignoredHostnames, setIgnoredHostnames,
-        newsFilterTerms, addNewsFilterTerm, removeNewsFilterTerm
+        newsFilterTerms, addNewsFilterTerm, removeNewsFilterTerm,
+        newsDefaultViewMode, setNewsDefaultViewMode
     } = useSettingsStore();
     const [newTopic, setNewTopic] = useState('');
     const [newRssFeed, setNewRssFeed] = useState('');
@@ -81,6 +82,24 @@ export function NewsSettings() {
                 <Text className="text-secondary text-xs">
                     Get your key from <Text className="text-primary underline">newsapi.org</Text>
                 </Text>
+            </View>
+
+            <View className="mb-6">
+                <Text className="text-text-secondary mb-2 font-semibold">Default View Mode</Text>
+                <View className="flex-row bg-surface border border-border rounded-xl p-1">
+                    <TouchableOpacity
+                        className={`flex-1 py-3 items-center justify-center rounded-lg ${newsDefaultViewMode === 'list' ? 'bg-primary' : 'bg-transparent'}`}
+                        onPress={() => setNewsDefaultViewMode('list')}
+                    >
+                        <Text className={`font-medium ${newsDefaultViewMode === 'list' ? 'text-white' : 'text-text-secondary'}`}>List</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        className={`flex-1 py-3 items-center justify-center rounded-lg ${newsDefaultViewMode === 'card' ? 'bg-primary' : 'bg-transparent'}`}
+                        onPress={() => setNewsDefaultViewMode('card')}
+                    >
+                        <Text className={`font-medium ${newsDefaultViewMode === 'card' ? 'text-white' : 'text-text-secondary'}`}>Card</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <View className="mb-4">
