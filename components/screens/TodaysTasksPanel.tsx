@@ -53,7 +53,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
 
     // Reschedule Modal State
     const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
-    const [taskToReschedule, setTaskToReschedule] = useState<TaskWithSource | any | null>(null);
+    const [taskToReschedule, setTaskToReschedule] = useState<(TaskWithSource | any) & { _type?: 'task' | 'event' } | null>(null);
 
     const toggleExpanded = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -255,8 +255,8 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
         }
     };
 
-    const handleReschedule = (item: TaskWithSource | any) => {
-        setTaskToReschedule(item);
+    const handleReschedule = (item: TaskWithSource | any, type: 'task' | 'event') => {
+        setTaskToReschedule({ ...item, _type: type });
         setRescheduleModalVisible(true);
     };
 
@@ -265,7 +265,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
         const item = taskToReschedule;
         setRescheduleModalVisible(false);
 
-        const isTask = item.originalLine !== undefined;
+        const isTask = item._type === 'task';
         const hasEvent = isTask ? !!item.properties.event_id : true;
 
         try {
@@ -363,6 +363,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                 const eventId = item.originalEvent?.id || item.id;
 
                 await updateCalendarEvent(eventId, {
+                    title: item.title,
                     startDate: slot,
                     endDate: slotEnd,
                     editScope: 'this', // Always move just this instance for reschedule
@@ -507,7 +508,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                                             onToggle={() => handleToggleTask(item.data)}
                                             onUpdate={(updated) => handleTaskUpdate(item.data, updated)}
                                             onEdit={() => onEditTask?.(item.data)}
-                                            onReschedule={() => handleReschedule(item.data)}
+                                            onReschedule={() => handleReschedule(item.data, 'task')}
                                             isHighlighted={isHighlighted}
                                             highlightColor={highlightColor}
                                         />
@@ -558,7 +559,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
 
                                             <View className="flex-row items-center gap-1 ml-2">
                                                 <ActionButton
-                                                    onPress={(e: any) => { e?.stopPropagation(); handleReschedule(item.data); }}
+                                                    onPress={(e: any) => { e?.stopPropagation(); handleReschedule(item.data, 'event'); }}
                                                     icon="time-outline"
                                                     variant="neutral"
                                                     size={16}
@@ -581,7 +582,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                         visible={rescheduleModalVisible}
                         onClose={() => setRescheduleModalVisible(false)}
                         onSelect={executeReschedule}
-                        showLater={!!taskToReschedule?.properties.event_id}
+                        showLater={taskToReschedule?._type === 'event' || !!taskToReschedule?.properties?.event_id}
                     />
                 </View>
             )}
