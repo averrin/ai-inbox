@@ -1,6 +1,6 @@
 # Justfile for AI Inbox
-
 # Environment setup
+
 export ANDROID_HOME := "/home/averrin/Android/Sdk"
 export PATH := ANDROID_HOME + "/platform-tools:" + ANDROID_HOME + "/cmdline-tools/latest/bin:" + env_var('PATH')
 
@@ -27,4 +27,8 @@ screenshot:
     @echo "Screenshot saved to ./screenshot.png"
 
 connect:
-    scrcpy
+    scrcpy -w
+
+merge branch:
+    git fetch
+    opencode run "merge branch {{ branch }} and resolve conflicts. consider its Github PR for context"

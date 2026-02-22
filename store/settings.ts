@@ -165,11 +165,17 @@ interface SettingsState {
     readArticles: NewsArticle[]; // List of full articles saved for later
     ignoredHostnames: string[];
     setIgnoredHostnames: (hostnames: string[]) => void;
+    newsFilterTerms: string[];
+    setNewsFilterTerms: (terms: string[]) => void;
+    addNewsFilterTerm: (term: string) => void;
+    removeNewsFilterTerm: (term: string) => void;
     hideArticle: (url: string) => void;
     markArticleAsRead: (article: NewsArticle) => void;
     viewedArticles: string[]; // List of URLs that have been opened
     markArticleAsViewed: (url: string) => void;
     hideArticles: (urls: string[]) => void; // Bulk hide
+    newsDefaultViewMode: 'list' | 'card';
+    setNewsDefaultViewMode: (mode: 'list' | 'card') => void;
     navConfig: NavItemConfig[];
     setNavConfig: (config: NavItemConfig[]) => void;
     savedNavConfig: NavItemConfig[] | null;
@@ -361,6 +367,14 @@ export const useSettingsStore = create<SettingsState>()(
             readArticles: [],
             ignoredHostnames: [],
             setIgnoredHostnames: (hostnames) => set({ ignoredHostnames: hostnames }),
+            newsFilterTerms: [],
+            setNewsFilterTerms: (terms) => set({ newsFilterTerms: terms }),
+            addNewsFilterTerm: (term) => set((state) => ({
+                newsFilterTerms: state.newsFilterTerms.includes(term) ? state.newsFilterTerms : [...state.newsFilterTerms, term]
+            })),
+            removeNewsFilterTerm: (term) => set((state) => ({
+                newsFilterTerms: state.newsFilterTerms.filter(t => t !== term)
+            })),
             hideArticle: (url) => set((state) => ({
                 hiddenArticles: state.hiddenArticles.includes(url) ? state.hiddenArticles : [...state.hiddenArticles, url]
             })),
@@ -374,6 +388,8 @@ export const useSettingsStore = create<SettingsState>()(
             hideArticles: (urls) => set((state) => ({
                 hiddenArticles: [...state.hiddenArticles, ...urls.filter(u => !state.hiddenArticles.includes(u))]
             })),
+            newsDefaultViewMode: 'list',
+            setNewsDefaultViewMode: (mode) => set({ newsDefaultViewMode: mode }),
             navConfig: DEFAULT_NAV_ITEMS,
             setNavConfig: (config) => set({ navConfig: config }),
             savedNavConfig: null,

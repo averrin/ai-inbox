@@ -806,7 +806,7 @@ export async function updateCalendarAsync(
   if (!ExpoCalendar.saveCalendarAsync) {
     throw new UnavailabilityError('Calendar', 'updateCalendarAsync');
   }
-  if (!id) {
+  if (!id || String(id).trim() === 'undefined' || String(id).trim() === 'null') {
     throw new Error(
       'updateCalendarAsync must be called with an id (string) of the target calendar'
     );
@@ -857,7 +857,7 @@ export async function deleteCalendarAsync(id: string): Promise<void> {
   if (!ExpoCalendar.deleteCalendarAsync) {
     throw new UnavailabilityError('Calendar', 'deleteCalendarAsync');
   }
-  if (!id) {
+  if (!id || String(id).trim() === 'undefined' || String(id).trim() === 'null') {
     throw new Error(
       'deleteCalendarAsync must be called with an id (string) of the target calendar'
     );
@@ -918,7 +918,7 @@ export async function getEventAsync(
   if (!ExpoCalendar.getEventByIdAsync) {
     throw new UnavailabilityError('Calendar', 'getEventAsync');
   }
-  if (!id) {
+  if (!id || String(id).trim() === 'undefined' || String(id).trim() === 'null') {
     throw new Error('getEventAsync must be called with an id (string) of the target event');
   }
   if (Platform.OS === 'ios') {
@@ -988,7 +988,7 @@ export async function updateEventAsync(
   if (!ExpoCalendar.saveEventAsync) {
     throw new UnavailabilityError('Calendar', 'updateEventAsync');
   }
-  if (!id) {
+  if (!id || String(id).trim() === 'undefined' || String(id).trim() === 'null') {
     throw new Error('updateEventAsync must be called with an id (string) of the target event');
   }
 
@@ -1025,7 +1025,7 @@ export async function deleteEventAsync(
   if (!ExpoCalendar.deleteEventAsync) {
     throw new UnavailabilityError('Calendar', 'deleteEventAsync');
   }
-  if (!id) {
+  if (!id || String(id).trim() === 'undefined' || String(id).trim() === 'null') {
     throw new Error('deleteEventAsync must be called with an id (string) of the target event');
   }
   const { futureEvents = false, instanceStartDate } = recurringEventOptions;
@@ -1047,7 +1047,7 @@ export async function getAttendeesForEventAsync(
   if (!ExpoCalendar.getAttendeesForEventAsync) {
     throw new UnavailabilityError('Calendar', 'getAttendeesForEventAsync');
   }
-  if (!id) {
+  if (!id || String(id).trim() === 'undefined' || String(id).trim() === 'null') {
     throw new Error(
       'getAttendeesForEventAsync must be called with an id (string) of the target event'
     );
@@ -1107,7 +1107,7 @@ export async function updateAttendeeAsync(
   if (!ExpoCalendar.saveAttendeeForEventAsync) {
     throw new UnavailabilityError('Calendar', 'updateAttendeeAsync');
   }
-  if (!id) {
+  if (!id || String(id).trim() === 'undefined' || String(id).trim() === 'null') {
     throw new Error('updateAttendeeAsync must be called with an id (string) of the target event');
   }
   const newDetails = { ...details, id };
@@ -1137,7 +1137,7 @@ export async function deleteAttendeeAsync(id: string): Promise<void> {
   if (!ExpoCalendar.deleteAttendeeAsync) {
     throw new UnavailabilityError('Calendar', 'deleteAttendeeAsync');
   }
-  if (!id) {
+  if (!id || String(id).trim() === 'undefined' || String(id).trim() === 'null') {
     throw new Error('deleteAttendeeAsync must be called with an id (string) of the target event');
   }
   return ExpoCalendar.deleteAttendeeAsync(id);
@@ -1202,7 +1202,7 @@ export async function getReminderAsync(id: string): Promise<Reminder> {
   if (!ExpoCalendar.getReminderByIdAsync) {
     throw new UnavailabilityError('Calendar', 'getReminderAsync');
   }
-  if (!id) {
+  if (!id || String(id).trim() === 'undefined' || String(id).trim() === 'null') {
     throw new Error('getReminderAsync must be called with an id (string) of the target reminder');
   }
   return ExpoCalendar.getReminderByIdAsync(id);
@@ -1245,7 +1245,7 @@ export async function updateReminderAsync(id: string, details: Reminder = {}): P
   if (!ExpoCalendar.saveReminderAsync) {
     throw new UnavailabilityError('Calendar', 'updateReminderAsync');
   }
-  if (!id) {
+  if (!id || String(id).trim() === 'undefined' || String(id).trim() === 'null') {
     throw new Error(
       'updateReminderAsync must be called with an id (string) of the target reminder'
     );
@@ -1271,7 +1271,7 @@ export async function deleteReminderAsync(id: string): Promise<void> {
   if (!ExpoCalendar.deleteReminderAsync) {
     throw new UnavailabilityError('Calendar', 'deleteReminderAsync');
   }
-  if (!id) {
+  if (!id || String(id).trim() === 'undefined' || String(id).trim() === 'null') {
     throw new Error(
       'deleteReminderAsync must be called with an id (string) of the target reminder'
     );
@@ -1304,7 +1304,7 @@ export async function getSourceAsync(id: string): Promise<Source> {
   if (!ExpoCalendar.getSourceByIdAsync) {
     throw new UnavailabilityError('Calendar', 'getSourceAsync');
   }
-  if (!id) {
+  if (!id || String(id).trim() === 'undefined' || String(id).trim() === 'null') {
     throw new Error('getSourceAsync must be called with an id (string) of the target source');
   }
   return ExpoCalendar.getSourceByIdAsync(id);
@@ -1323,7 +1323,7 @@ export function openEventInCalendar(id: string): void {
     console.warn(`openEventInCalendar is not available on platform: ${Platform.OS}`);
     return;
   }
-  if (!id) {
+  if (!id || String(id).trim() === 'undefined' || String(id).trim() === 'null') {
     throw new Error('openEventInCalendar must be called with an id (string) of the target event');
   }
   return ExpoCalendar.openEventInCalendar(id);

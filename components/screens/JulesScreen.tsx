@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, Alert, ActivityIndicator, StyleSheet, Modal, FlatList, TextInput, Animated, Easing } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, ActivityIndicator, StyleSheet, Modal, FlatList, TextInput, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layout } from '../ui/Layout';
@@ -11,6 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuthRequest, makeRedirectUri, ResponseType } from 'expo-auth-session';
+import { showAlert, showError } from '../../utils/alert';
+import Toast from 'react-native-toast-message';
 
 WebBrowser.maybeCompleteAuthSession();
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -212,6 +214,76 @@ function CheckStatusItem({ check, compact = false }: { check: CheckRun, compact?
     );
 }
 
+function ArtifactActionButton({
+    artifacts,
+    loading,
+    downloading,
+    progress,
+    status,
+    cachedPath,
+    onPress,
+    onFetch,
+    compact = false
+}: {
+    artifacts: Artifact[] | null,
+    loading: boolean,
+    downloading: boolean,
+    progress: number | null,
+    status: string | null,
+    cachedPath: string | null,
+    onPress: () => void,
+    onFetch: () => void,
+    compact?: boolean
+}) {
+    if (artifacts && artifacts.length > 0) {
+        if (downloading) {
+            return (
+                <MetadataChip
+                    label={status || `${Math.round((progress || 0) * 100)}%`}
+                    loading={true}
+                    progress={progress || 0}
+                    variant="default"
+                    size={compact ? 'sm' : 'md'}
+                    disabled={true}
+                />
+            );
+        }
+
+        return (
+            <MetadataChip
+                label={cachedPath ? "Install" : "Artifact"}
+                icon={cachedPath ? "construct-outline" : "download-outline"}
+                variant="default"
+                size={compact ? 'sm' : 'md'}
+                onPress={onPress}
+            />
+        );
+    }
+
+    if (loading) {
+        return (
+             <MetadataChip
+                label="Checking..."
+                loading={true}
+                variant="outline"
+                color={Colors.text.tertiary}
+                size={compact ? 'sm' : 'md'}
+            />
+        );
+    }
+
+    return (
+        <MetadataChip
+            label="No Artifact"
+            icon="alert-circle-outline"
+            variant="outline"
+            color={Colors.text.secondary}
+            size={compact ? 'sm' : 'md'}
+            onPress={onFetch}
+        />
+    );
+}
+
 function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, refreshTrigger, embedded = false, compact = false }: { run: WorkflowRun, token: string, owner: string, repo: string, initialExpanded?: boolean, refreshTrigger?: number, embedded?: boolean, compact?: boolean }) {
     const [checks, setChecks] = useState<CheckRun[] | null>(null);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
@@ -224,9 +296,20 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
     const [expanded, setExpanded] = useState(initialExpanded);
     const [prInactive, setPrInactive] = useState(false);
     const [isWatched, setIsWatched] = useState(watcherService.isWatching(run.id));
+    const [isWatcherDownloading, setIsWatcherDownloading] = useState(watcherService.isDownloading(run.id));
 
     const spinValue = useRef(new Animated.Value(0)).current;
     const isFetchingRef = useRef(false);
+
+    useEffect(() => {
+        const onDownloadChange = (runId: number, downloading: boolean) => {
+            if (runId === run.id) {
+                setIsWatcherDownloading(downloading);
+            }
+        };
+        watcherService.addDownloadListener(onDownloadChange);
+        return () => watcherService.removeDownloadListener(onDownloadChange);
+    }, [run.id]);
 
     const pr = run.pull_requests && run.pull_requests.length > 0 ? run.pull_requests[0] : null;
 
@@ -425,34 +508,17 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                     </TouchableOpacity>
 
                     <View className="flex-row items-center gap-2">
-                        {artifacts && artifacts.length > 0 ? (
-                            <TouchableOpacity
-                                onPress={handleDownloadArtifact}
-                                disabled={isDownloading}
-                                className={`px-2 py-1 ${isDownloading ? 'bg-surface-highlight' : 'bg-surface-highlight/50'} rounded-lg flex-row items-center overflow-hidden`}
-                            >
-                                {isDownloading && (
-                                    <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
-                                )}
-                                {isDownloading ? (
-                                    <ActivityIndicator size="small" color="white" style={{ transform: [{ scale: 0.5 }] }} />
-                                ) : (
-                                    <Ionicons name={cachedArtifactPath ? "construct-outline" : "download-outline"} size={14} color="white" />
-                                )}
-                                <Text className="text-white text-[10px] font-semibold ml-1">{isDownloading ? (status || `${Math.round((progress || 0) * 100)}%`) : (cachedArtifactPath ? "Install" : "Artifact")}</Text>
-                            </TouchableOpacity>
-                        ) : artifactsLoading ? (
-                            <ActivityIndicator size="small" color={Colors.text.tertiary} />
-                        ) : (
-                    <MetadataChip
-                        label="No Artifact"
-                        icon="alert-circle-outline"
-                        variant="outline"
-                        color={Colors.text.secondary}
-                        size="sm"
-                                onPress={fetchArtifactsData}
-                    />
-                        )}
+                        <ArtifactActionButton
+                            artifacts={artifacts}
+                            loading={artifactsLoading}
+                            downloading={isDownloading || isWatcherDownloading}
+                            progress={progress}
+                            status={isDownloading ? status : (isWatcherDownloading ? "Watcher..." : null)}
+                            cachedPath={cachedArtifactPath}
+                            onPress={handleDownloadArtifact}
+                            onFetch={fetchArtifactsData}
+                            compact={true}
+                        />
 
                         {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
                             <MetadataChip
@@ -473,6 +539,12 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
 
                 {expanded && (
                     <View className="mt-2 border-t border-border pt-2">
+                        {run.head_commit?.message && (
+                            <View className="mb-2">
+                                <Text className="text-secondary text-[10px] font-bold mb-1 uppercase">Commit Message</Text>
+                                <Text className="text-white text-[10px] font-mono" numberOfLines={3}>{run.head_commit.message}</Text>
+                            </View>
+                        )}
                         <Text className="text-secondary text-[10px] font-bold mb-2 uppercase">Checks Status</Text>
                         {checksLoading ? (
                             <ActivityIndicator size="small" color={Colors.text.tertiary} />
@@ -527,34 +599,17 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                 </TouchableOpacity>
 
                 <View className="flex-row items-center gap-2">
-                    {artifacts && artifacts.length > 0 ? (
-                        <TouchableOpacity
-                            onPress={handleDownloadArtifact}
-                            disabled={isDownloading}
-                            className={`px-3 py-1.5 ${isDownloading ? 'bg-surface-highlight' : 'bg-surface-highlight'} rounded-lg flex-row items-center overflow-hidden`}
-                        >
-                            {isDownloading && (
-                                <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
-                            )}
-                            {isDownloading ? (
-                                <ActivityIndicator size="small" color="white" style={{ transform: [{ scale: 0.7 }] }} />
-                            ) : (
-                                <Ionicons name={cachedArtifactPath ? "construct-outline" : "download-outline"} size={16} color="white" />
-                            )}
-                            <Text className="text-white text-xs font-semibold ml-1">{isDownloading ? (status || `${Math.round((progress || 0) * 100)}%`) : (cachedArtifactPath ? "Install" : "Artifact")}</Text>
-                        </TouchableOpacity>
-                    ) : artifactsLoading ? (
-                        <ActivityIndicator size="small" color={Colors.text.tertiary} />
-                    ) : (
-                        <MetadataChip
-                            label="No Artifact"
-                            icon="alert-circle-outline"
-                            variant="outline"
-                            color={Colors.text.secondary}
-                            size="sm"
-                            onPress={fetchArtifactsData}
-                        />
-                    )}
+                    <ArtifactActionButton
+                        artifacts={artifacts}
+                        loading={artifactsLoading}
+                        downloading={isDownloading || isWatcherDownloading}
+                        progress={progress}
+                        status={isDownloading ? status : (isWatcherDownloading ? "Watcher..." : null)}
+                        cachedPath={cachedArtifactPath}
+                        onPress={handleDownloadArtifact}
+                        onFetch={fetchArtifactsData}
+                        compact={false}
+                    />
 
                     {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
                         <MetadataChip
@@ -587,6 +642,12 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                         )}
                     </View>
 
+                    {run.head_commit?.message && (
+                        <View className="mb-3">
+                            <Text className="text-text-tertiary text-xs font-bold mb-1 uppercase">Commit Message</Text>
+                            <Text className="text-white text-xs font-mono">{run.head_commit.message}</Text>
+                        </View>
+                    )}
                     <Text className="text-text-tertiary text-xs font-bold mb-2 uppercase">Checks Status</Text>
                     {checksLoading ? (
                         <ActivityIndicator size="small" color={Colors.text.tertiary} />
@@ -673,18 +734,18 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
         try {
             setIsMerging(true);
             await mergePullRequest(ghToken, owner, repo, prNumber);
-            Alert.alert("Success", "Pull Request merged successfully");
+            showAlert("Success", "Pull Request merged successfully");
             if (onRefresh) onRefresh();
         } catch (e) {
             console.error(e);
-            Alert.alert("Error", "Failed to merge Pull Request");
+            showError("Error", "Failed to merge Pull Request");
         } finally {
             setIsMerging(false);
         }
     };
 
     const handleDelete = () => {
-        Alert.alert(
+        showAlert(
             "Delete Session",
             "Are you sure you want to delete this session? This cannot be undone.",
             [
@@ -700,10 +761,10 @@ function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultR
         try {
             await sendMessageToSession(julesGoogleApiKey, session.name, message);
             setMessageVisible(false);
-            Alert.alert("Success", "Message sent to session");
+            showAlert("Success", "Message sent to session");
         } catch (e: any) {
             console.error("Failed to send message", e);
-            Alert.alert("Error", e.message || "Failed to send message");
+            showError("Error", e.message || "Failed to send message");
         } finally {
             setSendingMessage(false);
         }
@@ -1013,12 +1074,15 @@ export default function JulesScreen() {
                         } catch (e) {
                             console.error("Failed to fetch user details after login", e);
                         }
-                        Alert.alert("Success", "Logged in with GitHub!");
+                        Toast.show({
+                            type: 'success',
+                            text1: 'Logged in with GitHub!',
+                        });
                         setShowRepoSelector(true);
                     })
                     .catch(err => {
                         console.error("OAuth exchange error:", err);
-                        Alert.alert("Login Failed", err.message);
+                        showError("Login Failed", err.message);
                         setLastExchangedCode(null);
                     })
                     .finally(() => setLoading(false));
@@ -1028,7 +1092,7 @@ export default function JulesScreen() {
 
     const loginWithGithub = () => {
         if (!githubClientId || !githubClientSecret) {
-            Alert.alert("Configuration Missing", "Please configure GitHub Client ID and Secret in Settings.");
+            showAlert("Configuration Missing", "Please configure GitHub Client ID and Secret in Settings.");
             return;
         }
         promptAsync();
@@ -1272,7 +1336,7 @@ export default function JulesScreen() {
         return (
             <ScrollView
                 className="flex-1"
-                contentContainerStyle={{ paddingBottom: insets.bottom + 80, paddingTop: 2 }}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 80, paddingTop: 80 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#818cf8" />}
             >
                 {/* Master Branch Section */}
@@ -1305,7 +1369,7 @@ export default function JulesScreen() {
                                             await deleteJulesSession(julesGoogleApiKey, session.name);
                                         } catch (e) {
                                             console.error(e);
-                                            Alert.alert("Error", "Failed to delete session");
+                                            showError("Error", "Failed to delete session");
                                             onRefresh();
                                         }
                                     }
@@ -1323,14 +1387,17 @@ export default function JulesScreen() {
 
     return (
         <Layout>
-            <IslandHeader
-                title="Jules"
-                subtitle={julesOwner && julesRepo ? `${julesOwner}/${julesRepo}` : undefined}
-                rightActions={[
-                    ...(julesApiKey ? [{ icon: 'git-network-outline', onPress: () => setShowRepoSelector(true) }] : []),
-                    { icon: 'refresh', onPress: onRefresh },
-                ]}
-            />
+            {renderContent()}
+            <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
+                <IslandHeader
+                    title="Jules"
+                    subtitle={julesOwner && julesRepo ? `${julesOwner}/${julesRepo}` : undefined}
+                    rightActions={[
+                        ...(julesApiKey ? [{ icon: 'git-network-outline', onPress: () => setShowRepoSelector(true) }] : []),
+                        { icon: 'refresh', onPress: onRefresh },
+                    ]}
+                />
+            </View>
             <RepoSelector
                 visible={showRepoSelector}
                 onClose={() => setShowRepoSelector(false)}
@@ -1341,7 +1408,6 @@ export default function JulesScreen() {
                     setShowRepoSelector(false);
                 }}
             />
-            {renderContent()}
         </Layout>
     );
 }

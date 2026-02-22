@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import * as Clipboard from 'expo-clipboard';
@@ -7,6 +7,7 @@ import { LinkWithSource } from '../../services/linkService';
 import Toast from 'react-native-toast-message';
 import { useSettingsStore } from '../../store/settings';
 import { Colors } from '../ui/design-tokens';
+import { showAlert } from '../../utils/alert';
 
 interface LinkItemProps {
     link: LinkWithSource;
@@ -29,7 +30,7 @@ export function LinkItem({ link, onDelete, onTagPress }: LinkItemProps) {
     };
 
     const handleDelete = () => {
-        Alert.alert(
+        showAlert(
             "Delete Link",
             "Are you sure you want to remove this link?",
             [

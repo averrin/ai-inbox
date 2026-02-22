@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Calendar from 'expo-calendar';
@@ -26,6 +26,7 @@ import { getParentFolderUri, findFile } from '../../utils/saf';
 import { TaskStatusIcon, getStatusConfig } from '../ui/TaskStatusIcon';
 import { FolderInput } from '../ui/FolderInput';
 import { Colors, Palette } from '../ui/design-tokens';
+import { showAlert, showError } from '../../utils/alert';
 
 interface TaskEditModalProps {
     visible: boolean;
@@ -200,7 +201,7 @@ export function TaskEditModal({
 
     const handleSave = async () => {
         if (!title.trim()) {
-            Alert.alert('Validation', 'Task title cannot be empty.');
+            showAlert('Validation', 'Task title cannot be empty.');
             return;
         }
 
@@ -262,7 +263,7 @@ export function TaskEditModal({
                 onSave(updatedTask, fullFolder);
                 return;
             } else {
-                 Alert.alert("Error", "Failed to create reminder file.");
+                 showError("Error", "Failed to create reminder file.");
                  return;
             }
         } else if (isWikiLink && vaultUri && task?.fileUri) {
@@ -353,7 +354,7 @@ export function TaskEditModal({
                         </View>
                     </View>
 
-                    <ScrollView showsVerticalScrollIndicator={false}>
+                    <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                         <View className="mb-4">
                             <Text className="text-text-secondary mb-2 font-medium text-xs uppercase tracking-wider">Title</Text>
                             <TextInput
@@ -415,8 +416,8 @@ export function TaskEditModal({
                                             className={`flex-row items-center justify-center py-2 px-3 rounded-xl border ${isSelected ? 'bg-primary border-primary' : 'bg-surface border-border'}`}
                                             style={{ minWidth: '30%' }}
                                         >
-                                            <TaskStatusIcon status={id} size={16} />
-                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-text-secondary' : 'text-text-tertiary'}`}>
+                                            <TaskStatusIcon status={id} size={16} color={isSelected ? Colors.white : undefined} />
+                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-white' : 'text-text-tertiary'}`}>
                                                 {s.label}
                                             </Text>
                                         </TouchableOpacity>
@@ -452,9 +453,9 @@ export function TaskEditModal({
                                             <Ionicons 
                                                 name={p.icon as any} 
                                                 size={16} 
-                                                color={isSelected ? '#818cf8' : p.color} 
+                                                color={isSelected ? Colors.white : p.color}
                                             />
-                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-text-secondary' : 'text-text-tertiary'}`}>
+                                            <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-white' : 'text-text-tertiary'}`}>
                                                 {p.label}
                                             </Text>
                                         </TouchableOpacity>

@@ -156,30 +156,35 @@ export function RichTaskItem({
 
                 const activeColor = valueConfig?.color || config?.color;
                 const activeVariant = config?.variant || 'default';
-                const isSolid = activeVariant === 'solid';
+
+                const isPassed = config?.type === 'date' && dayjs(String(value)).isValid() && dayjs(String(value)).isBefore(dayjs(), 'day');
+                const effectiveVariant = isPassed && activeVariant === 'solid' ? 'outline' : activeVariant;
+
+                const isSolid = effectiveVariant === 'solid';
 
                 const textColorStyle = isSolid ? { color: '#FFFFFF' } : (activeColor ? { color: activeColor } : undefined);
+
+                const displayValue = key === 'date' && String(value) === dayjs().format('YYYY-MM-DD') ? 'Today' : String(value);
 
                 return (
                     <MetadataChip
                         key={`prop-${key}`}
                         label={
-                            key === 'context' ? (
-                                <Text className="text-text-primary text-[10px]" style={textColorStyle}>@{value}</Text>
+                            config?.icon ? (
+                                <Text className="text-text-primary text-[10px]" style={textColorStyle}>{displayValue}</Text>
                             ) : (
                                 <>
                                     <Text className="text-text-tertiary text-[10px] mr-1" style={textColorStyle}>{key}:</Text>
-                                    <Text className="text-text-primary text-[10px]" style={textColorStyle}>
-                                        {key === 'date' && String(value) === dayjs().format('YYYY-MM-DD') ? 'Today' : String(value)}
-                                    </Text>
+                                    <Text className="text-text-primary text-[10px]" style={textColorStyle}>{displayValue}</Text>
                                 </>
                             )
                         }
                         color={activeColor}
-                        variant={activeVariant}
+                        variant={effectiveVariant}
                         icon={config?.icon}
                         rounding={config?.rounding}
                         size="sm"
+                        style={isPassed ? { borderStyle: 'dashed' } : undefined}
                     />
                 );
             })}
