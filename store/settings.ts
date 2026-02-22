@@ -15,6 +15,7 @@ const SENSITIVE_KEYS = [
     'githubClientId',
     'githubClientSecret',
     'newsApiKey',
+    'buxferPassword',
 ];
 
 export interface Contact {
@@ -56,6 +57,7 @@ export const DEFAULT_NAV_ITEMS: NavItemConfig[] = [
 
     // Others default to left usually, but let's put them explicitly
     { id: 'Links', visible: true, title: 'Links', icon: 'link-outline', type: 'screen', segment: 'left' },
+    { id: 'Money', visible: true, title: 'Money', icon: 'cash-outline', type: 'screen', segment: 'left' },
     { id: 'Canvas', visible: true, title: 'Canvas', icon: 'brush-outline', type: 'screen', segment: 'left' },
     { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline', type: 'screen', segment: 'left' },
     { id: 'Profile', visible: true, title: 'Profile', icon: 'person-outline', type: 'screen', segment: 'left' },
@@ -172,6 +174,10 @@ interface SettingsState {
     setWalkLookaheadDays: (days: number) => void;
     myEmails: string[];
     setMyEmails: (emails: string[]) => void;
+    buxferEmail: string | null;
+    setBuxferEmail: (email: string | null) => void;
+    buxferPassword: string | null;
+    setBuxferPassword: (password: string | null) => void;
 }
 
 
@@ -373,6 +379,10 @@ export const useSettingsStore = create<SettingsState>()(
             setWalkLookaheadDays: (days) => set({ walkLookaheadDays: days }),
             myEmails: [],
             setMyEmails: (emails) => set({ myEmails: emails }),
+            buxferEmail: null,
+            setBuxferEmail: (email) => set({ buxferEmail: email }),
+            buxferPassword: null,
+            setBuxferPassword: (password) => set({ buxferPassword: password }),
         }),
 
         {
@@ -383,8 +393,26 @@ export const useSettingsStore = create<SettingsState>()(
                 const { cachedReminders, ...rest } = state;
                 return rest;
             },
-            version: 12,
+            version: 13,
             migrate: (persistedState: any, version: number) => {
+                if (version < 13) {
+                    if (persistedState.navConfig && !persistedState.navConfig.some((item: any) => item.id === 'Money')) {
+                        const settingsIndex = persistedState.navConfig.findIndex((item: any) => item.id === 'Settings');
+                        const newItem = {
+                            id: 'Money',
+                            visible: true,
+                            title: 'Money',
+                            icon: 'cash-outline',
+                            type: 'screen',
+                            segment: 'left'
+                        };
+                        if (settingsIndex !== -1) {
+                            persistedState.navConfig.splice(settingsIndex, 0, newItem);
+                        } else {
+                            persistedState.navConfig.push(newItem);
+                        }
+                    }
+                }
                 if (version < 12) {
                     if (persistedState.navConfig && !persistedState.navConfig.some((item: any) => item.id === 'Canvas')) {
                         const settingsIndex = persistedState.navConfig.findIndex((item: any) => item.id === 'Settings');

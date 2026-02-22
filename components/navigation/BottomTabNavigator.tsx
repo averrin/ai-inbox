@@ -11,6 +11,7 @@ import NewsScreen from '../screens/NewsScreen';
 import CanvasScreen from '../screens/CanvasScreen';
 import JulesScreen from '../screens/JulesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import MoneyScreen from '../screens/MoneyScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect, useState } from 'react';
 import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
@@ -231,6 +232,7 @@ function InnerTabNavigator({
     Input: { children: () => <ProcessingScreen shareIntent={shareIntent} onReset={onReset} />, options: { tabBarLabel: 'Note' } },
     Tasks: { component: TasksScreen },
     Links: { component: LinksScreen },
+    Money: { component: MoneyScreen },
     Reminders: { component: RemindersListScreen },
     Canvas: { component: CanvasScreen, options: { swipeEnabled: false } },
     Jules: { component: JulesScreen },
