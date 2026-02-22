@@ -1,4 +1,4 @@
-import { View, Text, FlatList, Image, TouchableOpacity, RefreshControl, TextInput, ScrollView } from 'react-native';
+import { View, Text, FlatList, Image, TouchableOpacity, RefreshControl, TextInput, ScrollView, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettingsStore } from '../../store/settings';
 import { useEffect, useState, useCallback } from 'react';
@@ -15,6 +15,8 @@ import { Colors } from '../ui/design-tokens';
 import { useUIStore } from '../../store/ui';
 import { showAlert } from '../../utils/alert';
 import { useFocusEffect } from '@react-navigation/native';
+import { Swipeable } from 'react-native-gesture-handler';
+import { NewsFilterSettings } from '../settings/NewsFilterSettings';
 
 dayjs.extend(relativeTime);
 
@@ -23,7 +25,8 @@ export default function NewsScreen() {
     const {
         newsTopics, rssFeeds, newsApiKey,
         hiddenArticles, readArticles, hideArticle, markArticleAsRead,
-        ignoredHostnames, viewedArticles, markArticleAsViewed, hideArticles
+        ignoredHostnames, viewedArticles, markArticleAsViewed, hideArticles,
+        newsFilterTerms
     } = useSettingsStore();
     const { setFab, clearFab } = useUIStore();
 
@@ -34,6 +37,7 @@ export default function NewsScreen() {
     const [customQuery, setCustomQuery] = useState('');
     const [showCustomInput, setShowCustomInput] = useState(false);
     const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+    const [showSettings, setShowSettings] = useState(false);
 
     // Derived filtered list to exclude hidden/read articles
     const visibleArticles = articles.filter(a => {
@@ -46,7 +50,12 @@ export default function NewsScreen() {
                 return false;
             }
         });
-        return !isHidden && !isRead && !isIgnored;
+
+        // Filter by terms (case insensitive)
+        const combinedText = `${a.title} ${a.description || ''}`.toLowerCase();
+        const isBlocked = newsFilterTerms.some(term => combinedText.includes(term.toLowerCase()));
+
+        return !isHidden && !isRead && !isIgnored && !isBlocked;
     });
 
     useFocusEffect(
@@ -146,61 +155,100 @@ export default function NewsScreen() {
         );
     };
 
+    const renderRightActions = (item: Article) => {
+        // Swipe Left -> Reveal on Right -> Ignore
+        return (
+            <TouchableOpacity
+                className="bg-error justify-center items-center w-20 mb-2 rounded-r-xl"
+                onPress={() => hideArticle(item.url)}
+            >
+                <Ionicons name="eye-off-outline" size={24} color="white" />
+                <Text className="text-white text-xs font-bold mt-1">Hide</Text>
+            </TouchableOpacity>
+        );
+    };
+
+    const renderLeftActions = (item: Article) => {
+        // Swipe Right -> Reveal on Left -> Read
+        return (
+            <TouchableOpacity
+                className="bg-primary justify-center items-center w-20 mb-2 rounded-l-xl"
+                onPress={() => markArticleAsRead({
+                    title: item.title,
+                    description: item.description,
+                    url: item.url,
+                    urlToImage: item.urlToImage,
+                    publishedAt: item.publishedAt,
+                    source: { name: item.source.name, id: item.source.id }
+                })}
+            >
+                <Ionicons name="bookmark" size={24} color="white" />
+                <Text className="text-white text-xs font-bold mt-1">Read</Text>
+            </TouchableOpacity>
+        );
+    };
+
     const renderItem = ({ item }: { item: Article }) => {
         const isViewed = viewedArticles.includes(item.url);
 
         if (viewMode === 'list') {
             return (
-                <BaseListItem
-                    title={
-                        <Text className={`font-medium ${isViewed ? 'text-text-tertiary' : 'text-white'}`} numberOfLines={2}>
-                            {item.title}
-                        </Text>
-                    }
-                    subtitle={
-                        <View className="flex-row items-center gap-2">
-                            <Text className="text-xs text-primary font-bold uppercase" numberOfLines={1} ellipsizeMode="tail" style={{ maxWidth: 100 }}>{item.source.name}</Text>
-                            <Text className="text-xs text-secondary">• {dayjs(item.publishedAt).fromNow()}</Text>
-                            {item.matchedTopic && (
-                                <Text className="text-[10px] text-text-secondary font-medium">• {item.matchedTopic}</Text>
-                            )}
-                        </View>
-                    }
-                    onPress={() => handleOpenArticle(item.url)}
-                    leftIcon={
-                        item.urlToImage ? (
-                            <Image
-                                source={{ uri: item.urlToImage }}
-                                className="w-12 h-12 rounded-lg bg-surface-highlight"
-                                resizeMode="cover"
-                                style={isViewed ? { opacity: 0.6 } : {}}
-                            />
-                        ) : (
-                            <View className="w-12 h-12 bg-surface-highlight rounded-lg items-center justify-center">
-                                <Ionicons name="newspaper-outline" size={24} color={Colors.text.tertiary} />
+                <Swipeable
+                    renderRightActions={() => renderRightActions(item)}
+                    renderLeftActions={() => renderLeftActions(item)}
+                    containerStyle={{ overflow: 'visible' }} // Ensure shadows/etc work if needed, though mostly for list items
+                >
+                    <BaseListItem
+                        title={
+                            <Text className={`font-medium ${isViewed ? 'text-text-tertiary' : 'text-white'}`} numberOfLines={2}>
+                                {item.title}
+                            </Text>
+                        }
+                        subtitle={
+                            <View className="flex-row items-center gap-2">
+                                <Text className="text-xs text-primary font-bold uppercase" numberOfLines={1} ellipsizeMode="tail" style={{ maxWidth: 100 }}>{item.source.name}</Text>
+                                <Text className="text-xs text-secondary">• {dayjs(item.publishedAt).fromNow()}</Text>
+                                {item.matchedTopic && (
+                                    <Text className="text-[10px] text-text-secondary font-medium">• {item.matchedTopic}</Text>
+                                )}
                             </View>
-                        )
-                    }
-                    hideIconBackground={true}
-                    containerStyle={{ marginBottom: 8, opacity: isViewed ? 0.8 : 1 }}
-                    rightActions={
-                        <View className="flex-row items-center gap-1">
-                            <TouchableOpacity
-                                onPress={() => markArticleAsRead({
-                                    title: item.title,
-                                    description: item.description,
-                                    url: item.url,
-                                    urlToImage: item.urlToImage,
-                                    publishedAt: item.publishedAt,
-                                    source: { name: item.source.name, id: item.source.id }
-                                })}
-                                className="p-2"
-                            >
-                                <Ionicons name="bookmark-outline" size={18} color={Colors.text.tertiary} />
-                            </TouchableOpacity>
-                        </View>
-                    }
-                />
+                        }
+                        onPress={() => handleOpenArticle(item.url)}
+                        leftIcon={
+                            item.urlToImage ? (
+                                <Image
+                                    source={{ uri: item.urlToImage }}
+                                    className="w-12 h-12 rounded-lg bg-surface-highlight"
+                                    resizeMode="cover"
+                                    style={isViewed ? { opacity: 0.6 } : {}}
+                                />
+                            ) : (
+                                <View className="w-12 h-12 bg-surface-highlight rounded-lg items-center justify-center">
+                                    <Ionicons name="newspaper-outline" size={24} color={Colors.text.tertiary} />
+                                </View>
+                            )
+                        }
+                        hideIconBackground={true}
+                        containerStyle={{ marginBottom: 8, opacity: isViewed ? 0.8 : 1 }}
+                        rightActions={
+                            <View className="flex-row items-center gap-1">
+                                <TouchableOpacity
+                                    onPress={() => markArticleAsRead({
+                                        title: item.title,
+                                        description: item.description,
+                                        url: item.url,
+                                        urlToImage: item.urlToImage,
+                                        publishedAt: item.publishedAt,
+                                        source: { name: item.source.name, id: item.source.id }
+                                    })}
+                                    className="p-2"
+                                >
+                                    <Ionicons name="bookmark-outline" size={18} color={Colors.text.tertiary} />
+                                </TouchableOpacity>
+                            </View>
+                        }
+                    />
+                </Swipeable>
             );
         }
 
@@ -270,6 +318,10 @@ export default function NewsScreen() {
                 <IslandHeader
                     title="News Feed"
                     rightActions={[
+                        {
+                            icon: 'settings-outline',
+                            onPress: () => setShowSettings(true),
+                        },
                         {
                             icon: viewMode === 'list' ? 'grid-outline' : 'list-outline',
                             onPress: () => setViewMode(prev => prev === 'list' ? 'card' : 'list'),
@@ -413,6 +465,23 @@ export default function NewsScreen() {
                     </>
                 )}
             </View>
+
+            <Modal
+                visible={showSettings}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setShowSettings(false)}
+            >
+                 <View className="flex-1 bg-background">
+                    <View className="flex-row justify-between items-center p-4 border-b border-border bg-surface">
+                        <Text className="text-white font-bold text-lg">News Settings</Text>
+                        <TouchableOpacity onPress={() => setShowSettings(false)}>
+                            <Ionicons name="close" size={24} color="white" />
+                        </TouchableOpacity>
+                    </View>
+                    <NewsFilterSettings />
+                </View>
+            </Modal>
         </Layout>
     );
 }

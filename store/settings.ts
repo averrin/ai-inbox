@@ -165,6 +165,10 @@ interface SettingsState {
     readArticles: NewsArticle[]; // List of full articles saved for later
     ignoredHostnames: string[];
     setIgnoredHostnames: (hostnames: string[]) => void;
+    newsFilterTerms: string[];
+    setNewsFilterTerms: (terms: string[]) => void;
+    addNewsFilterTerm: (term: string) => void;
+    removeNewsFilterTerm: (term: string) => void;
     hideArticle: (url: string) => void;
     markArticleAsRead: (article: NewsArticle) => void;
     viewedArticles: string[]; // List of URLs that have been opened
@@ -361,6 +365,14 @@ export const useSettingsStore = create<SettingsState>()(
             readArticles: [],
             ignoredHostnames: [],
             setIgnoredHostnames: (hostnames) => set({ ignoredHostnames: hostnames }),
+    newsFilterTerms: [],
+    setNewsFilterTerms: (terms) => set({ newsFilterTerms: terms }),
+    addNewsFilterTerm: (term) => set((state) => ({
+        newsFilterTerms: state.newsFilterTerms.includes(term) ? state.newsFilterTerms : [...state.newsFilterTerms, term]
+    })),
+    removeNewsFilterTerm: (term) => set((state) => ({
+        newsFilterTerms: state.newsFilterTerms.filter(t => t !== term)
+    })),
             hideArticle: (url) => set((state) => ({
                 hiddenArticles: state.hiddenArticles.includes(url) ? state.hiddenArticles : [...state.hiddenArticles, url]
             })),
