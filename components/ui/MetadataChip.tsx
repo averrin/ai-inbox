@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
+import { View, Text, TouchableOpacity, StyleProp, ViewStyle, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from './design-tokens';
 import { UniversalIcon } from './UniversalIcon';
@@ -14,6 +14,10 @@ export interface MetadataChipProps {
     icon?: string;
     size?: 'sm' | 'md'; // sm = 10px text (RichTaskItem), md = 12-14px text (Editor)
     style?: StyleProp<ViewStyle>;
+    progress?: number; // 0 to 1
+    progressColor?: string;
+    loading?: boolean;
+    disabled?: boolean;
 }
 
 export function MetadataChip({
@@ -25,7 +29,11 @@ export function MetadataChip({
     rounding = 'sm',
     icon,
     size = 'sm',
-    style
+    style,
+    progress,
+    progressColor,
+    loading,
+    disabled
 }: MetadataChipProps) {
     const isSolid = variant === 'solid';
     const isOutline = variant === 'outline';
@@ -88,9 +96,12 @@ export function MetadataChip({
     // Determine border width
     const borderWidth = (isOutline || isSolid || color) ? 1 : 1;
 
+    const isInteractionDisabled = disabled || loading;
+
     return (
         <Container
-            onPress={onPress}
+            onPress={isInteractionDisabled ? undefined : onPress}
+            disabled={isInteractionDisabled}
             // @ts-ignore
             style={[{
                 backgroundColor,
@@ -102,10 +113,33 @@ export function MetadataChip({
                 flexDirection: 'row',
                 alignItems: 'center',
                 alignSelf: 'flex-start',
+                overflow: 'hidden', // Required for progress bar clipping
             }, style]}
             hitSlop={onPress ? { top: 4, bottom: 4, left: 4, right: 4 } : undefined}
         >
-            {icon && (
+            {/* Progress Bar */}
+            {progress !== undefined && progress !== null && (
+                <View style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: `${Math.min(Math.max(progress, 0), 1) * 100}%`,
+                    backgroundColor: progressColor || '#4ade80', // Default green
+                    opacity: 0.3,
+                }} />
+            )}
+
+            {/* Loading Spinner or Icon */}
+            {loading ? (
+                 <View style={{ marginRight: 4 }}>
+                    <ActivityIndicator
+                        size="small"
+                        color={textColor}
+                        style={{ transform: [{ scale: size === 'sm' ? 0.7 : 0.8 }] }}
+                    />
+                </View>
+            ) : icon ? (
                 <View style={{ marginRight: 4 }}>
                     <UniversalIcon
                         name={icon}
@@ -113,7 +147,8 @@ export function MetadataChip({
                         color={textColor}
                     />
                 </View>
-            )}
+            ) : null}
+
             {typeof label === 'string' ? (
                 <Text style={{
                     color: textColor,

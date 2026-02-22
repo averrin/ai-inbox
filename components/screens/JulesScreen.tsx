@@ -214,6 +214,76 @@ function CheckStatusItem({ check, compact = false }: { check: CheckRun, compact?
     );
 }
 
+function ArtifactActionButton({
+    artifacts,
+    loading,
+    downloading,
+    progress,
+    status,
+    cachedPath,
+    onPress,
+    onFetch,
+    compact = false
+}: {
+    artifacts: Artifact[] | null,
+    loading: boolean,
+    downloading: boolean,
+    progress: number | null,
+    status: string | null,
+    cachedPath: string | null,
+    onPress: () => void,
+    onFetch: () => void,
+    compact?: boolean
+}) {
+    if (artifacts && artifacts.length > 0) {
+        if (downloading) {
+            return (
+                <MetadataChip
+                    label={status || `${Math.round((progress || 0) * 100)}%`}
+                    loading={true}
+                    progress={progress || 0}
+                    variant="default"
+                    size={compact ? 'sm' : 'md'}
+                    disabled={true}
+                />
+            );
+        }
+
+        return (
+            <MetadataChip
+                label={cachedPath ? "Install" : "Artifact"}
+                icon={cachedPath ? "construct-outline" : "download-outline"}
+                variant="default"
+                size={compact ? 'sm' : 'md'}
+                onPress={onPress}
+            />
+        );
+    }
+
+    if (loading) {
+        return (
+             <MetadataChip
+                label="Checking..."
+                loading={true}
+                variant="outline"
+                color={Colors.text.tertiary}
+                size={compact ? 'sm' : 'md'}
+            />
+        );
+    }
+
+    return (
+        <MetadataChip
+            label="No Artifact"
+            icon="alert-circle-outline"
+            variant="outline"
+            color={Colors.text.secondary}
+            size={compact ? 'sm' : 'md'}
+            onPress={onFetch}
+        />
+    );
+}
+
 function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, refreshTrigger, embedded = false, compact = false }: { run: WorkflowRun, token: string, owner: string, repo: string, initialExpanded?: boolean, refreshTrigger?: number, embedded?: boolean, compact?: boolean }) {
     const [checks, setChecks] = useState<CheckRun[] | null>(null);
     const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
@@ -427,34 +497,17 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                     </TouchableOpacity>
 
                     <View className="flex-row items-center gap-2">
-                        {artifacts && artifacts.length > 0 ? (
-                            <TouchableOpacity
-                                onPress={handleDownloadArtifact}
-                                disabled={isDownloading}
-                                className={`px-2 py-1 ${isDownloading ? 'bg-surface-highlight' : 'bg-surface-highlight/50'} rounded-lg flex-row items-center overflow-hidden`}
-                            >
-                                {isDownloading && (
-                                    <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
-                                )}
-                                {isDownloading ? (
-                                    <ActivityIndicator size="small" color="white" style={{ transform: [{ scale: 0.5 }] }} />
-                                ) : (
-                                    <Ionicons name={cachedArtifactPath ? "construct-outline" : "download-outline"} size={14} color="white" />
-                                )}
-                                <Text className="text-white text-[10px] font-semibold ml-1">{isDownloading ? (status || `${Math.round((progress || 0) * 100)}%`) : (cachedArtifactPath ? "Install" : "Artifact")}</Text>
-                            </TouchableOpacity>
-                        ) : artifactsLoading ? (
-                            <ActivityIndicator size="small" color={Colors.text.tertiary} />
-                        ) : (
-                    <MetadataChip
-                        label="No Artifact"
-                        icon="alert-circle-outline"
-                        variant="outline"
-                        color={Colors.text.secondary}
-                        size="sm"
-                                onPress={fetchArtifactsData}
-                    />
-                        )}
+                        <ArtifactActionButton
+                            artifacts={artifacts}
+                            loading={artifactsLoading}
+                            downloading={isDownloading}
+                            progress={progress}
+                            status={status}
+                            cachedPath={cachedArtifactPath}
+                            onPress={handleDownloadArtifact}
+                            onFetch={fetchArtifactsData}
+                            compact={true}
+                        />
 
                         {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
                             <MetadataChip
@@ -529,34 +582,17 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                 </TouchableOpacity>
 
                 <View className="flex-row items-center gap-2">
-                    {artifacts && artifacts.length > 0 ? (
-                        <TouchableOpacity
-                            onPress={handleDownloadArtifact}
-                            disabled={isDownloading}
-                            className={`px-3 py-1.5 ${isDownloading ? 'bg-surface-highlight' : 'bg-surface-highlight'} rounded-lg flex-row items-center overflow-hidden`}
-                        >
-                            {isDownloading && (
-                                <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(progress || 0) * 100}%`, backgroundColor: '#4ade80', opacity: 0.3 }} />
-                            )}
-                            {isDownloading ? (
-                                <ActivityIndicator size="small" color="white" style={{ transform: [{ scale: 0.7 }] }} />
-                            ) : (
-                                <Ionicons name={cachedArtifactPath ? "construct-outline" : "download-outline"} size={16} color="white" />
-                            )}
-                            <Text className="text-white text-xs font-semibold ml-1">{isDownloading ? (status || `${Math.round((progress || 0) * 100)}%`) : (cachedArtifactPath ? "Install" : "Artifact")}</Text>
-                        </TouchableOpacity>
-                    ) : artifactsLoading ? (
-                        <ActivityIndicator size="small" color={Colors.text.tertiary} />
-                    ) : (
-                        <MetadataChip
-                            label="No Artifact"
-                            icon="alert-circle-outline"
-                            variant="outline"
-                            color={Colors.text.secondary}
-                            size="sm"
-                            onPress={fetchArtifactsData}
-                        />
-                    )}
+                    <ArtifactActionButton
+                        artifacts={artifacts}
+                        loading={artifactsLoading}
+                        downloading={isDownloading}
+                        progress={progress}
+                        status={status}
+                        cachedPath={cachedArtifactPath}
+                        onPress={handleDownloadArtifact}
+                        onFetch={fetchArtifactsData}
+                        compact={false}
+                    />
 
                     {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
                         <MetadataChip
