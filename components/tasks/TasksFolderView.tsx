@@ -28,7 +28,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
     const { vaultUri } = useSettingsStore();
 
     const { tasks, setTasks, isLoading, isRefreshing, loadTasks } = useFolderTasks(folderUri, folderPath);
-    
+
     // Filter State
     const [search, setSearch] = useState('');
     const [showCompleted, setShowCompleted] = useState(false);
@@ -57,8 +57,8 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
     const handleToggleTask = async (task: TaskWithSource) => {
         const newStatus = task.status === 'x' ? ' ' : 'x';
         const updatedTask: RichTask = { ...task, status: newStatus, completed: newStatus === 'x' };
-        
-        setTasks(prev => prev.map(t => 
+
+        setTasks(prev => prev.map(t =>
             (t.fileUri === task.fileUri && t.originalLine === task.originalLine) ? { ...t, status: newStatus, completed: newStatus === 'x', originalLine: serializeTaskLine(updatedTask) } : t
         ));
 
@@ -66,7 +66,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
             await TaskService.syncTaskUpdate(vaultUri!, task, updatedTask);
         } catch (e) {
             // Revert on error
-            setTasks(prev => prev.map(t => 
+            setTasks(prev => prev.map(t =>
                 (t.filePath === task.filePath && t.title === task.title) ? { ...t, completed: task.completed } : t
             ));
             Toast.show({
@@ -87,7 +87,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
         setIsModalVisible(true);
     }, []);
 
-   
+
     useFab({
         onPress: handleCreateTask,
         icon: 'add'
@@ -116,7 +116,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                 return;
             }
         }
-        
+
         try {
             // Find default file in target folder (Inbox.md or Tasks.md or create Inbox.md)
             const defaultFile = await TaskService.findDefaultTaskFile(targetFolderUri);
@@ -156,15 +156,15 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
 
         // Check for folder change
         if (newFolderPath && typeof newFolderPath === 'string') {
-             // current folder path
-             const currentFolder = target.filePath && target.filePath.includes('/')
+            // current folder path
+            const currentFolder = target.filePath && target.filePath.includes('/')
                 ? target.filePath.substring(0, target.filePath.lastIndexOf('/'))
                 : '';
 
-             // Check if changed
-             if (newFolderPath !== currentFolder) {
-                 // === MOVE LOGIC ===
-                 try {
+            // Check if changed
+            if (newFolderPath !== currentFolder) {
+                // === MOVE LOGIC ===
+                try {
                     // Resolve URI
                     let targetFolderUri = vaultUri;
                     const parts = newFolderPath.split('/').filter(p => p.trim());
@@ -188,7 +188,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                     if (newFolderPath === folderPath) {
                         // Moved to another file in same folder (e.g. from Project.md to Inbox.md in same folder)
                         // Update local state
-                         const movedTask: TaskWithSource = {
+                        const movedTask: TaskWithSource = {
                             ...updatedTask,
                             fileUri: defaultFile.uri,
                             filePath: `${folderPath}/${defaultFile.name}`,
@@ -210,17 +210,17 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                     Toast.show({ type: 'success', text1: 'Task Moved' });
                     return;
 
-                 } catch (e) {
-                     console.error("Failed to move task", e);
-                     showError("Error", "Failed to move task.");
-                     return;
-                 }
-             }
+                } catch (e) {
+                    console.error("Failed to move task", e);
+                    showError("Error", "Failed to move task.");
+                    return;
+                }
+            }
         }
 
         try {
             await TaskService.syncTaskUpdate(vaultUri, target, updatedTask);
-            setTasks(prev => prev.map(t => 
+            setTasks(prev => prev.map(t =>
                 (t.fileUri === target.fileUri && t.originalLine === target.originalLine) ? { ...t, ...updatedTask, originalLine: serializeTaskLine(updatedTask) } : t
             ));
             setIsModalVisible(false);
@@ -240,13 +240,13 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
             "Are you sure you want to remove this task from its source file?",
             [
                 { text: "Cancel", style: "cancel" },
-                { 
-                    text: "Delete", 
+                {
+                    text: "Delete",
                     style: "destructive",
                     onPress: async () => {
                         try {
                             await TaskService.syncTaskDeletion(vaultUri!, task);
-                            setTasks(prev => prev.filter(t => 
+                            setTasks(prev => prev.filter(t =>
                                 !(t.fileUri === task.fileUri && t.originalLine === task.originalLine)
                             ));
                             Toast.show({ type: 'success', text1: 'Task Removed' });
@@ -271,8 +271,8 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
             `Are you sure you want to remove all ${completedTasks.length} completed tasks from their files?`,
             [
                 { text: "Cancel", style: "cancel" },
-                { 
-                    text: "Clear", 
+                {
+                    text: "Clear",
                     style: "destructive",
                     onPress: async () => {
                         // setIsLoading(true); // Hook manages loading, but we can't force it easily unless we expose setter.
@@ -316,7 +316,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
             Toast.show({ type: 'error', text1: 'Please enter a filename' });
             return;
         }
-        
+
         let targetName = mergeFileName.trim();
         if (!targetName.endsWith('.md')) targetName += '.md';
 
@@ -350,7 +350,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
 
     return (
         <View className="flex-1 bg-transparent">
-            <TasksFilterPanel 
+            <TasksFilterPanel
                 search={search}
                 setSearch={setSearch}
                 showCompleted={showCompleted}
@@ -390,6 +390,11 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                             if (evt) setEditingEvent(evt);
                         });
                     }}
+                    onDelete={editingTask ? () => {
+                        handleDeleteTask(editingTask);
+                        setIsModalVisible(false);
+                        setEditingTask(null);
+                    } : undefined}
                 />
             )}
 
@@ -418,7 +423,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                 animationType="fade"
                 onRequestClose={() => setIsMergeModalVisible(false)}
             >
-                <KeyboardAvoidingView 
+                <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     className="flex-1 justify-center items-center bg-black/50 p-6"
                 >
@@ -445,7 +450,7 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                                 </TouchableOpacity>
                             </View>
                         )}
-                        
+
                         <Text className="text-text-secondary text-sm mb-1 ml-1">New Filename</Text>
                         <TextInput
                             className="bg-surface text-white p-3 rounded-lg border border-border mb-6"
@@ -457,13 +462,13 @@ export function TasksFolderView({ folderUri, folderPath }: TasksFolderViewProps)
                         />
 
                         <View className="flex-row justify-end gap-3">
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 onPress={() => setIsMergeModalVisible(false)}
                                 className="px-4 py-2"
                             >
                                 <Text className="text-text-tertiary font-medium">Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 onPress={executeMerge}
                                 className="bg-primary px-4 py-2 rounded-lg"
                             >

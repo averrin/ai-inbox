@@ -36,6 +36,7 @@ interface TaskEditModalProps {
     onOpenEvent?: (id: string) => void;
     initialFolder?: string;
     enableFolderSelection?: boolean;
+    onDelete?: (task: RichTask & { fileUri?: string }) => void;
 }
 
 export function TaskEditModal({
@@ -45,12 +46,13 @@ export function TaskEditModal({
     onCancel,
     onOpenEvent,
     initialFolder,
-    enableFolderSelection = true
+    enableFolderSelection = true,
+    onDelete
 }: TaskEditModalProps) {
     const { propertyConfig, vaultUri, timeFormat } = useSettingsStore();
     const { tasksRoot } = useTasksStore();
     const { metadataCache } = useVaultStore();
-    
+
     const [title, setTitle] = useState('');
     const [status, setStatus] = useState(' ');
     const [properties, setProperties] = useState<Record<string, any>>({});
@@ -58,7 +60,7 @@ export function TaskEditModal({
     const [showReminderModal, setShowReminderModal] = useState(false);
     const [linkedEvents, setLinkedEvents] = useState<{ id: string, title: string, date: Date }[]>([]);
     const [folder, setFolder] = useState('');
-    
+
     // Derived from settings for autocomplete
     const keySuggestions = Object.keys(propertyConfig);
 
@@ -71,20 +73,18 @@ export function TaskEditModal({
                 setTags([...task.tags]);
 
                 // Initialize folder from task location if available
-                // folder is relative to tasksRoot (e.g. "Work" not "Tasks/Work")
                 if ((task as any).filePath) {
                     const fp = (task as any).filePath;
                     const parts = fp.split('/');
                     if (parts.length > 1) {
                         parts.pop(); // Remove filename
                         let fullPath = parts.join('/');
-                        // Strip tasksRoot prefix to get relative part
                         if (tasksRoot && fullPath.startsWith(tasksRoot)) {
                             fullPath = fullPath.substring(tasksRoot.length).replace(/^\//, '');
                         }
                         setFolder(fullPath);
                     } else {
-                        setFolder(''); // Root of tasksRoot
+                        setFolder('');
                     }
                 } else if (initialFolder !== undefined) {
                     let rel = initialFolder;
@@ -101,7 +101,7 @@ export function TaskEditModal({
                 setProperties({});
                 setTags([]);
 
-                // New Task Folder — folder is relative to tasksRoot
+                // New Task Folder
                 if (initialFolder !== undefined) {
                     let rel = initialFolder;
                     if (tasksRoot && rel.startsWith(tasksRoot)) {
@@ -125,18 +125,18 @@ export function TaskEditModal({
                     try {
                         const evt = await Calendar.getEventAsync(id);
                         if (evt) {
-                            events.push({ 
-                                id: evt.id, 
-                                title: task.properties.event_title || evt.title, 
-                                date: new Date(evt.startDate) 
+                            events.push({
+                                id: evt.id,
+                                title: task.properties.event_title || evt.title,
+                                date: new Date(evt.startDate)
                             });
                         }
                     } catch (e) {
                         // console.warn(`Failed to load event ${id}`, e);
-                        events.push({ 
-                            id, 
-                            title: task.properties.event_title || 'Unknown Event', 
-                            date: new Date() 
+                        events.push({
+                            id,
+                            title: task.properties.event_title || 'Unknown Event',
+                            date: new Date()
                         });
                     }
                 }
@@ -259,12 +259,13 @@ export function TaskEditModal({
                     indentation: task?.indentation || '',
                     originalLine: task?.originalLine || '',
                 };
+
                 const fullFolder = tasksRoot ? (folder ? `${tasksRoot}/${folder}` : tasksRoot) : folder;
                 onSave(updatedTask, fullFolder);
                 return;
             } else {
-                 showError("Error", "Failed to create reminder file.");
-                 return;
+                showError("Error", "Failed to create reminder file.");
+                return;
             }
         } else if (isWikiLink && vaultUri && task?.fileUri) {
             // Check if we need to sync reminder changes to the linked file
@@ -321,6 +322,7 @@ export function TaskEditModal({
             indentation: task?.indentation || '',
             originalLine: task?.originalLine || '',
         };
+
         const fullFolder = tasksRoot ? (folder ? `${tasksRoot}/${folder}` : tasksRoot) : folder;
         await onSave(updatedTask, fullFolder);
     };
@@ -335,7 +337,7 @@ export function TaskEditModal({
 
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
-            <KeyboardAvoidingView 
+            <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 className="flex-1 justify-center items-center bg-black/50 px-4"
             >
@@ -343,7 +345,7 @@ export function TaskEditModal({
                     <View className="flex-row justify-between items-center mb-4">
                         <Text className="text-white text-xl font-bold">{(task && task.fileUri) ? 'Edit Task' : 'New Task'}</Text>
                         <View className="flex-row gap-2">
-                             {task && task.fileUri && (
+                            {task && task.fileUri && (
                                 <TouchableOpacity onPress={handleOpenNote} className="p-2 bg-surface rounded-lg">
                                     <Ionicons name="document-text-outline" size={20} color={Colors.text.tertiary} />
                                 </TouchableOpacity>
@@ -384,8 +386,8 @@ export function TaskEditModal({
                                 <Text className="text-text-secondary mb-2 font-medium text-xs uppercase tracking-wider">Linked Events</Text>
                                 <View className="gap-2">
                                     {linkedEvents.map((evt, i) => (
-                                        <TouchableOpacity 
-                                            key={i} 
+                                        <TouchableOpacity
+                                            key={i}
                                             onPress={() => onOpenEvent && onOpenEvent(evt.id)}
                                             className="bg-surface p-3 rounded-xl border border-border flex-row items-center gap-2"
                                         >
@@ -450,9 +452,9 @@ export function TaskEditModal({
                                             }}
                                             className={`flex-1 flex-row items-center justify-center py-2.5 rounded-xl border ${isSelected ? 'bg-primary border-primary' : 'bg-surface border-border'}`}
                                         >
-                                            <Ionicons 
-                                                name={p.icon as any} 
-                                                size={16} 
+                                            <Ionicons
+                                                name={p.icon as any}
+                                                size={16}
                                                 color={isSelected ? Colors.white : p.color}
                                             />
                                             <Text className={`ml-1.5 text-xs font-medium ${isSelected ? 'text-white' : 'text-text-tertiary'}`}>
@@ -522,14 +524,24 @@ export function TaskEditModal({
                     <View className="flex-row gap-3 mt-4">
                         <TouchableOpacity
                             onPress={onCancel}
-                            className="flex-1 bg-surface p-3 rounded-xl items-center"
+                            className="flex-1 bg-surface p-4 rounded-xl items-center"
                         >
                             <Text className="text-white font-semibold">Cancel</Text>
                         </TouchableOpacity>
 
+                        {onDelete && task && (task.fileUri || task.originalLine) && (
+                            <TouchableOpacity
+                                onPress={() => onDelete(task)}
+                                className="bg-surface p-3 rounded-xl items-center justify-center border border-error"
+                                style={{ width: 48 }}
+                            >
+                                <Ionicons name="trash-outline" size={20} color={Colors.error} />
+                            </TouchableOpacity>
+                        )}
+
                         <TouchableOpacity
                             onPress={handleSave}
-                            className="flex-1 bg-primary p-3 rounded-xl items-center"
+                            className="flex-1 bg-primary p-4 rounded-xl items-center"
                         >
                             <Text className="text-white font-semibold">Save Changes</Text>
                         </TouchableOpacity>
