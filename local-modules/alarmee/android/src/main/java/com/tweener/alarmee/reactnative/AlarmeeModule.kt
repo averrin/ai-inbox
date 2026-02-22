@@ -45,7 +45,7 @@ class AlarmeeModule : Module() {
           )
       )
 
-      alarmeeService = createAlarmeeService()
+      alarmeeService = createAlarmeeService(context)
       alarmeeService.initialize(platformConfiguration = config)
     }
 

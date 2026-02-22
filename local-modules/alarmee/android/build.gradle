@@ -24,7 +24,7 @@ dependencies {
     // Use standard kotlin stdlib, version determined by project or fallback
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${safeExtGet('kotlinVersion', '1.9.24')}"
 
-    // Alarmee dependencies - Downgrade to 2.4.2 to avoid Kotlin 2.3.0 requirement
-    implementation "io.github.tweener:alarmee:2.4.2"
+    // Alarmee dependencies - Downgrade to 2.0.0 for compatibility
+    implementation "io.github.tweener:alarmee:2.0.0"
     implementation "org.jetbrains.kotlinx:kotlinx-datetime:0.4.1"
 }
