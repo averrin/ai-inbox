@@ -85,6 +85,7 @@ export default function ScheduleScreen() {
 
     const calendarRef = useRef<CalendarRef>(null);
     const gcTimeoutRef = useRef<any>(null);
+    const fetchIdRef = useRef(0);
 
 
 
@@ -163,8 +164,8 @@ export default function ScheduleScreen() {
     };
 
     const fetchEvents = useCallback(async () => {
-        setIsEventsLoaded(false);
-        setEvents([]); // Clear previous events to avoid "phantom" sightings
+        const currentId = ++fetchIdRef.current;
+        // Keep existing events visible during fetch to avoid flashing
         try {
             const startDate = dayjs(date).startOf(viewMode === 'week' ? 'week' : 'day').subtract(7, 'day').toDate();
             const endDate = dayjs(date).endOf(viewMode === 'week' ? 'week' : 'day').add(7, 'day').toDate();
@@ -172,6 +173,7 @@ export default function ScheduleScreen() {
             const safeCalendarIds = Array.isArray(visibleCalendarIds) ? visibleCalendarIds.filter(id => !!id) : [];
 
             if (safeCalendarIds.length === 0) {
+                if (currentId !== fetchIdRef.current) return;
                 setEvents([]);
                 setIsEventsLoaded(true);
                 return;
@@ -180,6 +182,8 @@ export default function ScheduleScreen() {
             // console.log('[ScheduleScreen] Fetching events for calendars:', safeCalendarIds);
 
             const nativeEvents = await getCalendarEvents(safeCalendarIds, startDate, endDate);
+
+            if (currentId !== fetchIdRef.current) return;
 
             if (!nativeEvents) {
                 console.warn('[ScheduleScreen] getCalendarEvents returned null/undefined');
@@ -357,6 +361,8 @@ export default function ScheduleScreen() {
 
             const finalEvents = [...combinedEvents, ...allDayZones];
 
+            if (currentId !== fetchIdRef.current) return;
+
             setEvents(finalEvents);
             setIsEventsLoaded(true);
 
@@ -372,6 +378,7 @@ export default function ScheduleScreen() {
             }
 
         } catch (e) {
+            if (currentId !== fetchIdRef.current) return;
             console.error("[ScheduleScreen] Critical error in fetchEvents:", e);
             setIsEventsLoaded(true);
         }
