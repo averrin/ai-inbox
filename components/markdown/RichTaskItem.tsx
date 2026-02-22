@@ -156,7 +156,11 @@ export function RichTaskItem({
 
                 const activeColor = valueConfig?.color || config?.color;
                 const activeVariant = config?.variant || 'default';
-                const isSolid = activeVariant === 'solid';
+
+                const isPassed = config?.type === 'date' && dayjs(String(value)).isValid() && dayjs(String(value)).isBefore(dayjs(), 'day');
+                const effectiveVariant = isPassed && activeVariant === 'solid' ? 'outline' : activeVariant;
+
+                const isSolid = effectiveVariant === 'solid';
 
                 const textColorStyle = isSolid ? { color: '#FFFFFF' } : (activeColor ? { color: activeColor } : undefined);
 
@@ -176,10 +180,11 @@ export function RichTaskItem({
                             )
                         }
                         color={activeColor}
-                        variant={activeVariant}
+                        variant={effectiveVariant}
                         icon={config?.icon}
                         rounding={config?.rounding}
                         size="sm"
+                        style={isPassed ? { borderStyle: 'dashed' } : undefined}
                     />
                 );
             })}

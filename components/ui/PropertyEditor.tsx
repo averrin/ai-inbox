@@ -104,6 +104,8 @@ export function PropertyEditor({
         const valueConfig = config?.valueConfigs?.[valStr];
         const color = valueConfig?.color || config?.color;
 
+        const isPassed = config?.type === 'date' && dayjs(valStr).isValid() && dayjs(valStr).isBefore(dayjs(), 'day');
+
         return (
             <MetadataChip
                 key={key}
@@ -116,7 +118,8 @@ export function PropertyEditor({
                     </>
                 }
                 color={color}
-                variant="default"
+                variant={isPassed ? "outline" : "default"}
+                style={isPassed ? { borderStyle: 'dashed' } : undefined}
                 onPress={() => handleEdit(key, value)}
                 onRemove={() => handleRemove(key)}
                 size="md"
