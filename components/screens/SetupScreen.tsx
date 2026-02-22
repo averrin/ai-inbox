@@ -509,26 +509,6 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                     </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                    onPress={() => setEditorType(editorType === 'rich' ? 'simple' : 'rich')}
-                    className="bg-surface/50 p-4 rounded-xl border border-border flex-row items-center justify-between mt-2"
-                >
-                    <View className="flex-row items-center flex-1">
-                        <Ionicons name="text-outline" size={20} color="#818cf8" />
-                        <View className="ml-3 flex-1">
-                            <Text className="text-white font-medium">Text Editor</Text>
-                            <Text className="text-text-tertiary text-xs">Use classic editor if experiencing issues</Text>
-                        </View>
-                    </View>
-                    <View className="bg-surface-highlight rounded-lg flex-row p-1">
-                        <View className={`px-2 py-1 rounded-md ${editorType === 'rich' ? 'bg-primary' : ''}`}>
-                            <Text className="text-white text-xs font-bold">Rich</Text>
-                        </View>
-                        <View className={`px-2 py-1 rounded-md ${editorType === 'simple' ? 'bg-primary' : ''}`}>
-                            <Text className="text-white text-xs font-bold">Simple</Text>
-                        </View>
-                    </View>
-                </TouchableOpacity>
             </View>
         </Card>
     );

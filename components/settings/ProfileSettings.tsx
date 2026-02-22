@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput } from 'react-native';
 import { useProfileStore } from '../../store/profileStore';
 import { useSettingsStore } from '../../store/settings';
 import { DEFAULT_VIZ_PROMPT } from '../../services/profileLogic';
 import { Card } from '../ui/Card';
 import { showAlert } from '../../utils/alert';
 import Toast from 'react-native-toast-message';
+import { DefaultedPrompt } from '../ui/DefaultedPrompt';
 
 
 import { Button } from '../ui/Button';
@@ -16,7 +17,6 @@ export function ProfileSettings() {
     const [targetTopic, setTargetTopic] = useState(config.targetTopic || '');
     const [questionCount, setQuestionCount] = useState(config.questionCount.toString());
     const [forbiddenTopics, setForbiddenTopics] = useState(config.forbiddenTopics.join(', '));
-    const [vizPrompt, setVizPrompt] = useState(visualizationPrompt || DEFAULT_VIZ_PROMPT);
 
     const handleSave = () => {
 
@@ -34,7 +34,6 @@ export function ProfileSettings() {
             forbiddenTopics: forbidden
         });
 
-        setVisualizationPrompt(vizPrompt.trim() || null);
         Toast.show({
             type: 'success',
             text1: 'Success',
@@ -88,37 +87,20 @@ export function ProfileSettings() {
                 </View>
 
                 <View className="pt-4 border-t border-border">
-                    <Text className="text-text-secondary mb-2 font-semibold">Visualization Prompt</Text>
-                    <TextInput
-                        className="bg-surface text-text-primary p-3 rounded-lg border border-border h-32"
-                        placeholder={DEFAULT_VIZ_PROMPT}
-                        placeholderTextColor="#475569"
-                        multiline
-                        textAlignVertical="top"
-                        value={vizPrompt}
-                        onChangeText={setVizPrompt}
-                    />
-                    <Text className="text-secondary text-[10px] mt-1 italic">
-                        Use {"{{facts}}"} and {"{{traits}}"} as placeholders for profile data.
-                    </Text>
-                    {visualizationPrompt && (
-                        <TouchableOpacity 
-                            onPress={() => {
-                                setVizPrompt(DEFAULT_VIZ_PROMPT);
-                            }}
-
-                            className="mt-2"
-                        >
-                            <Text className="text-primary text-xs font-medium">Reset to Default</Text>
-                        </TouchableOpacity>
-                    )}
+                    <Button title="Save General Settings" onPress={handleSave} />
                 </View>
 
                 <View className="pt-4 border-t border-border">
-                    <Button title="Save Changes" onPress={handleSave} />
+                    <DefaultedPrompt
+                        title="Visualization Prompt"
+                        description="Customize how the AI visualizes your profile data."
+                        currentValue={visualizationPrompt}
+                        defaultValue={DEFAULT_VIZ_PROMPT}
+                        onSave={setVisualizationPrompt}
+                        placeholders={['{{facts}}', '{{traits}}']}
+                    />
                 </View>
             </View>
         </Card>
     );
 }
-
