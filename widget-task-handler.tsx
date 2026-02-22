@@ -39,6 +39,9 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
       // 3. Upcoming Event
       let upcomingEvent = undefined;
       if (settings.visibleCalendarIds && settings.visibleCalendarIds.length > 0) {
+        // Calendar access in background/headless task is unreliable/unsupported without foreground service
+        // Disabling temporarily to stabilize widget rendering
+        /*
         try {
             const now = new Date();
             const tomorrow = new Date();
@@ -62,6 +65,7 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
         } catch (e) {
             console.warn('Widget: Failed to fetch calendar events', e);
         }
+        */
       }
 
       // 4. Pending Task
@@ -104,7 +108,7 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
         }
       }
 
-      console.log('JulesWidget: Update Requesting');
+      console.log('JulesWidget: Update Requesting with data:', JSON.stringify({ upcomingEvent, pendingTask, githubRuns }));
       requestWidgetUpdate({
         androidWidgetId: widgetInfo.widgetId,
         renderWidget: () => (
