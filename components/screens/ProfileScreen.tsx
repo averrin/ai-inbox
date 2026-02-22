@@ -38,8 +38,12 @@ export default function ProfileScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isImageFull, setIsImageFull] = useState(false);
     const [activeTab, setActiveTab] = useState<'home' | 'details'>('home');
+    const [detailsTab, setDetailsTab] = useState<'facts' | 'traits'>('facts');
     const [showDepthModal, setShowDepthModal] = useState(false);
     const [isAddingFact, setIsAddingFact] = useState(false);
+    const [isAddingTrait, setIsAddingTrait] = useState(false);
+    const [newTraitText, setNewTraitText] = useState('');
+    const [editingTrait, setEditingTrait] = useState<{ original: string, value: string } | null>(null);
     const [questionImages, setQuestionImages] = useState<Record<string, { base64: string, mimeType?: string }>>({});
     const [isAnalyzingImages, setIsAnalyzingImages] = useState(false);
     const { apiKey, selectedModel } = useSettingsStore();
@@ -58,17 +62,27 @@ export default function ProfileScreen() {
                     iconColor: 'white'
                 });
             } else {
-                setFab({
-                    visible: true,
-                    icon: 'add',
-                    onPress: () => setIsAddingFact(true),
-                    color: '#4f46e5',
-                    iconColor: 'white'
-                });
+                if (detailsTab === 'facts') {
+                    setFab({
+                        visible: true,
+                        icon: 'add',
+                        onPress: () => setIsAddingFact(true),
+                        color: '#4f46e5',
+                        iconColor: 'white'
+                    });
+                } else {
+                    setFab({
+                        visible: true,
+                        icon: 'add',
+                        onPress: () => setIsAddingTrait(true),
+                        color: '#4f46e5',
+                        iconColor: 'white'
+                    });
+                }
             }
 
             return () => clearFab();
-        }, [activeTab, setFab, clearFab])
+        }, [activeTab, detailsTab, setFab, clearFab])
     );
 
     // Gesture shared values
@@ -139,6 +153,9 @@ export default function ProfileScreen() {
         updateConfig,
         deleteFact,
         updateFact,
+        addTrait,
+        updateTrait,
+        deleteTrait,
         addFactFromText
     } = useProfileStore();
 
@@ -218,6 +235,21 @@ export default function ProfileScreen() {
         }
     };
 
+    const handleSaveEditTrait = async () => {
+        if (editingTrait) {
+            await updateTrait(editingTrait.original, editingTrait.value);
+            setEditingTrait(null);
+        }
+    };
+
+    const handleAddTraitSubmit = async () => {
+        if (newTraitText.trim()) {
+            await addTrait(newTraitText.trim());
+            setIsAddingTrait(false);
+            setNewTraitText('');
+        }
+    };
+
     const handleDeleteFact = (key: string) => {
         showAlert(
             "Delete Fact",
@@ -225,6 +257,20 @@ export default function ProfileScreen() {
             [
                 { text: "Cancel", style: "cancel" },
                 { text: "Delete", style: "destructive", onPress: () => deleteFact(key) }
+            ]
+        );
+    };
+
+    const handleDeleteTrait = (trait: string) => {
+        showAlert(
+            "Delete Trait",
+            `Are you sure you want to remove this trait: "${trait}"?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "Delete", style: "destructive", onPress: () => {
+                    deleteTrait(trait);
+                    setEditingTrait(null);
+                }}
             ]
         );
     };
@@ -577,86 +623,131 @@ export default function ProfileScreen() {
                                         <View className="bg-background rounded-xl border border-border overflow-hidden">
                                             <View className="bg-surface/50 px-4 py-3 border-b border-border flex-row items-center justify-between">
                                                 <View className="flex-row items-center gap-2">
-                                                    <Ionicons name="document-text-outline" size={16} color={Colors.text.tertiary} />
-                                                    <Text className="text-text-secondary font-semibold">Current Profile Context</Text>
+                                                    <TouchableOpacity
+                                                        onPress={() => setDetailsTab('facts')}
+                                                        className={`px-3 py-1.5 rounded-full ${detailsTab === 'facts' ? 'bg-primary' : 'bg-transparent border border-transparent'}`}
+                                                    >
+                                                        <Text className={`${detailsTab === 'facts' ? 'text-white font-bold' : 'text-text-secondary'} text-xs`}>Facts</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        onPress={() => setDetailsTab('traits')}
+                                                        className={`px-3 py-1.5 rounded-full ${detailsTab === 'traits' ? 'bg-primary' : 'bg-transparent border border-transparent'}`}
+                                                    >
+                                                        <Text className={`${detailsTab === 'traits' ? 'text-white font-bold' : 'text-text-secondary'} text-xs`}>Traits</Text>
+                                                    </TouchableOpacity>
                                                 </View>
                                             </View>
 
-                                            {/* Search Bar */}
-                                            {Object.keys(profile.facts).length > 0 && (
-                                                <View className="px-3 pt-3 pb-1">
-                                                    <View className="flex-row items-center bg-slate-950 rounded-lg border border-border px-3 py-2">
-                                                        <Ionicons name="search-outline" size={16} color="#475569" />
-                                                        <TextInput
-                                                            className="flex-1 ml-2 text-text-primary text-sm h-6 p-0"
-                                                            placeholder="Search facts..."
-                                                            placeholderTextColor="#475569"
-                                                            value={searchQuery}
-                                                            onChangeText={setSearchQuery}
+                                            {detailsTab === 'facts' ? (
+                                                <>
+                                                    {/* Search Bar */}
+                                                    {Object.keys(profile.facts).length > 0 && (
+                                                        <View className="px-3 pt-3 pb-1">
+                                                            <View className="flex-row items-center bg-slate-950 rounded-lg border border-border px-3 py-2">
+                                                                <Ionicons name="search-outline" size={16} color="#475569" />
+                                                                <TextInput
+                                                                    className="flex-1 ml-2 text-text-primary text-sm h-6 p-0"
+                                                                    placeholder="Search facts..."
+                                                                    placeholderTextColor="#475569"
+                                                                    value={searchQuery}
+                                                                    onChangeText={setSearchQuery}
+                                                                />
+                                                                {searchQuery ? (
+                                                                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                                                        <Ionicons name="close-circle" size={16} color="#475569" />
+                                                                    </TouchableOpacity>
+                                                                ) : null}
+                                                            </View>
+                                                        </View>
+                                                    )}
+
+                                                    <View className="p-2">
+                                                        {Object.keys(profile.facts).length === 0 ? (
+                                                            <Text className="text-secondary italic text-center py-4">
+                                                                Profile is empty. Click "Ask More Questions" to start!
+                                                            </Text>
+                                                        ) : filteredFacts.length === 0 ? (
+                                                            <Text className="text-secondary italic text-center py-8">
+                                                                No results for "{searchQuery}"
+                                                            </Text>
+                                                        ) : (
+                                                            <ScrollView
+                                                                nestedScrollEnabled={true}
+                                                                style={{ maxHeight: 400 }}
+                                                                contentContainerStyle={{ paddingBottom: 10 }}
+                                                            >
+                                                                {filteredFacts.map(([key, value]) => (
+                                                                    <View key={key} className="flex-row items-center border-b border-border py-3 px-2">
+                                                                        <View className="flex-1">
+                                                                            <Text className="text-secondary text-[10px] uppercase font-bold tracking-wider mb-0.5">{key}</Text>
+                                                                            <Text className="text-text-primary text-sm leading-5">
+                                                                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                                                            </Text>
+                                                                        </View>
+                                                                        <View className="flex-row gap-1">
+                                                                            <TouchableOpacity
+                                                                                className="p-2"
+                                                                                onPress={() => handleEditFact(key, value)}
+                                                                            >
+                                                                                <Ionicons name="pencil-outline" size={16} color={Palette[14]} />
+                                                                            </TouchableOpacity>
+                                                                            <TouchableOpacity
+                                                                                className="p-2"
+                                                                                onPress={() => handleDeleteFact(key)}
+                                                                            >
+                                                                                <Ionicons name="trash-outline" size={16} color={Colors.error} />
+                                                                            </TouchableOpacity>
+                                                                        </View>
+                                                                    </View>
+                                                                ))}
+                                                            </ScrollView>
+                                                        )}
+                                                    </View>
+                                                    <View className="bg-slate-950 px-4 py-2 border-t border-border flex-row justify-between items-center">
+                                                        <Text className="text-secondary text-xs">
+                                                            Last Updated: {new Date(profile.lastUpdated).toLocaleDateString()}
+                                                        </Text>
+                                                        <MetadataChip
+                                                            label={`${filteredFacts.length} ${filteredFacts.length === 1 ? 'Fact' : 'Facts'}`}
+                                                            variant="outline"
+                                                            color={Colors.secondary}
+                                                            size="sm"
+                                                            rounding="sm"
                                                         />
-                                                        {searchQuery ? (
-                                                            <TouchableOpacity onPress={() => setSearchQuery('')}>
-                                                                <Ionicons name="close-circle" size={16} color="#475569" />
-                                                            </TouchableOpacity>
-                                                        ) : null}
+                                                    </View>
+                                                </>
+                                            ) : (
+                                                <View className="p-4">
+                                                    <View className="flex-row flex-wrap gap-2">
+                                                        {(profile.traits || []).map((trait, index) => (
+                                                            <MetadataChip
+                                                                key={index}
+                                                                label={trait}
+                                                                variant="outline"
+                                                                color={Colors.primary}
+                                                                onPress={() => setEditingTrait({ original: trait, value: trait })}
+                                                            />
+                                                        ))}
+                                                        {(profile.traits || []).length === 0 && (
+                                                            <Text className="text-secondary italic w-full text-center py-8">
+                                                                No traits defined yet. Add one!
+                                                            </Text>
+                                                        )}
+                                                    </View>
+                                                    <View className="mt-4 pt-2 border-t border-border flex-row justify-between items-center">
+                                                         <Text className="text-secondary text-xs">
+                                                            Traits describe your personality and values.
+                                                        </Text>
+                                                        <MetadataChip
+                                                            label={`${(profile.traits || []).length} Traits`}
+                                                            variant="outline"
+                                                            color={Colors.secondary}
+                                                            size="sm"
+                                                            rounding="sm"
+                                                        />
                                                     </View>
                                                 </View>
                                             )}
-
-                                            <View className="p-2">
-                                                {Object.keys(profile.facts).length === 0 ? (
-                                                    <Text className="text-secondary italic text-center py-4">
-                                                        Profile is empty. Click "Ask More Questions" to start!
-                                                    </Text>
-                                                ) : filteredFacts.length === 0 ? (
-                                                    <Text className="text-secondary italic text-center py-8">
-                                                        No results for "{searchQuery}"
-                                                    </Text>
-                                                ) : (
-                                                    <ScrollView
-                                                        nestedScrollEnabled={true}
-                                                        style={{ maxHeight: 400 }}
-                                                        contentContainerStyle={{ paddingBottom: 10 }}
-                                                    >
-                                                        {filteredFacts.map(([key, value]) => (
-                                                            <View key={key} className="flex-row items-center border-b border-border py-3 px-2">
-                                                                <View className="flex-1">
-                                                                    <Text className="text-secondary text-[10px] uppercase font-bold tracking-wider mb-0.5">{key}</Text>
-                                                                    <Text className="text-text-primary text-sm leading-5">
-                                                                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                                                                    </Text>
-                                                                </View>
-                                                                <View className="flex-row gap-1">
-                                                                    <TouchableOpacity
-                                                                        className="p-2"
-                                                                        onPress={() => handleEditFact(key, value)}
-                                                                    >
-                                                                        <Ionicons name="pencil-outline" size={16} color={Palette[14]} />
-                                                                    </TouchableOpacity>
-                                                                    <TouchableOpacity
-                                                                        className="p-2"
-                                                                        onPress={() => handleDeleteFact(key)}
-                                                                    >
-                                                                        <Ionicons name="trash-outline" size={16} color={Colors.error} />
-                                                                    </TouchableOpacity>
-                                                                </View>
-                                                            </View>
-                                                        ))}
-                                                    </ScrollView>
-                                                )}
-                                            </View>
-                                            <View className="bg-slate-950 px-4 py-2 border-t border-border flex-row justify-between items-center">
-                                                <Text className="text-secondary text-xs">
-                                                    Last Updated: {new Date(profile.lastUpdated).toLocaleDateString()}
-                                                </Text>
-                                                <MetadataChip
-                                                    label={`${filteredFacts.length} ${filteredFacts.length === 1 ? 'Fact' : 'Facts'}`}
-                                                    variant="outline"
-                                                    color={Colors.secondary}
-                                                    size="sm"
-                                                    rounding="sm"
-                                                />
-                                            </View>
                                         </View>
                                     </>
                                 )}
@@ -806,6 +897,95 @@ export default function ProfileScreen() {
                 enableImageAttachment={true}
                 imagePrompt="Analyze this image to extract facts, habits, or preferences about the user."
             />
+
+            {/* Add Trait Modal */}
+            <Modal
+                visible={isAddingTrait}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setIsAddingTrait(false)}
+            >
+                <View className="flex-1 bg-black/60 justify-center px-6">
+                    <View className="bg-background border border-border rounded-2xl p-6 shadow-2xl">
+                        <Text className="text-text-tertiary text-xs uppercase font-bold tracking-widest mb-4">
+                            Add New Trait
+                        </Text>
+                        <TextInput
+                            className="bg-slate-950 text-text-primary p-4 rounded-xl border border-border mb-6"
+                            placeholder="E.g., Creative, Analytical, Early Bird..."
+                            placeholderTextColor="#475569"
+                            value={newTraitText}
+                            onChangeText={setNewTraitText}
+                            onSubmitEditing={handleAddTraitSubmit}
+                            autoFocus
+                        />
+                         <View className="flex-row gap-3">
+                            <TouchableOpacity
+                                className="flex-1 bg-surface py-4 rounded-xl items-center"
+                                onPress={() => {
+                                    setIsAddingTrait(false);
+                                    setNewTraitText('');
+                                }}
+                            >
+                                <Text className="text-text-secondary font-bold">Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                className="flex-1 bg-primary py-4 rounded-xl items-center"
+                                onPress={handleAddTraitSubmit}
+                            >
+                                <Text className="text-white font-bold">Add</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Edit Trait Modal */}
+            <Modal
+                visible={!!editingTrait}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setEditingTrait(null)}
+            >
+                <View className="flex-1 bg-black/60 justify-center px-6">
+                    <View className="bg-background border border-border rounded-2xl p-6 shadow-2xl">
+                        <Text className="text-text-tertiary text-xs uppercase font-bold tracking-widest mb-1">
+                            Edit Trait
+                        </Text>
+                        <Text className="text-text-secondary text-xs mb-4">
+                            Update or remove this personality trait.
+                        </Text>
+
+                        <TextInput
+                            className="bg-slate-950 text-text-primary p-4 rounded-xl border border-border mb-6"
+                            value={editingTrait?.value || ''}
+                            onChangeText={(text) => setEditingTrait(prev => prev ? { ...prev, value: text } : null)}
+                            autoFocus
+                        />
+
+                        <View className="flex-row gap-3">
+                            <TouchableOpacity
+                                className="bg-surface p-4 rounded-xl items-center justify-center aspect-square"
+                                onPress={() => editingTrait && handleDeleteTrait(editingTrait.original)}
+                            >
+                                <Ionicons name="trash-outline" size={24} color={Colors.error} />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                className="flex-1 bg-surface py-4 rounded-xl items-center"
+                                onPress={() => setEditingTrait(null)}
+                            >
+                                <Text className="text-text-secondary font-bold">Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                className="flex-1 bg-primary py-4 rounded-xl items-center"
+                                onPress={handleSaveEditTrait}
+                            >
+                                <Text className="text-white font-bold">Save</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Full Screen Image Modal - closing tag for Layout below */}
             <Modal

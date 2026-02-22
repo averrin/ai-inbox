@@ -32,6 +32,9 @@ interface ProfileState {
     setAnswer: (question: string, text: string) => void;
     deleteFact: (key: string) => Promise<void>;
     updateFact: (key: string, value: any) => Promise<void>;
+    addTrait: (trait: string) => Promise<void>;
+    updateTrait: (originalTrait: string, newTrait: string) => Promise<void>;
+    deleteTrait: (trait: string) => Promise<void>;
     addFactFromText: (text: string) => Promise<void>;
     resetDaily: () => void;
 }
@@ -251,6 +254,85 @@ export const useProfileStore = create<ProfileState>()(
                     get().generateProfileImage();
                 } catch (e) {
                     console.error('[ProfileStore] Failed to update fact', e);
+                    set({ isLoading: false });
+                }
+            },
+
+            addTrait: async (trait: string) => {
+                const { profile } = get();
+                const { vaultUri } = useSettingsStore.getState();
+                if (!vaultUri) return;
+
+                const currentTraits = profile.traits || [];
+                // Prevent duplicates
+                if (currentTraits.includes(trait)) {
+                     console.warn('[ProfileStore] Trait already exists');
+                     return;
+                }
+                const newTraits = [...currentTraits, trait];
+
+                const updatedProfile = { ...profile, traits: newTraits, lastUpdated: new Date().toISOString() };
+
+                set({ isLoading: true });
+                try {
+                    await ProfileService.saveProfile(vaultUri, updatedProfile);
+                    set({ profile: updatedProfile, isLoading: false });
+                    // Trigger image regeneration
+                    get().generateProfileImage();
+                } catch (e) {
+                    console.error('[ProfileStore] Failed to add trait', e);
+                    set({ isLoading: false });
+                }
+            },
+
+            updateTrait: async (originalTrait: string, newTrait: string) => {
+                const { profile } = get();
+                const { vaultUri } = useSettingsStore.getState();
+                if (!vaultUri) return;
+
+                const currentTraits = profile.traits || [];
+                const index = currentTraits.indexOf(originalTrait);
+
+                if (index === -1) {
+                     console.warn('[ProfileStore] Trait not found to update');
+                     return;
+                }
+
+                const newTraits = [...currentTraits];
+                newTraits[index] = newTrait;
+
+                const updatedProfile = { ...profile, traits: newTraits, lastUpdated: new Date().toISOString() };
+
+                set({ isLoading: true });
+                try {
+                    await ProfileService.saveProfile(vaultUri, updatedProfile);
+                    set({ profile: updatedProfile, isLoading: false });
+                    // Trigger image regeneration
+                    get().generateProfileImage();
+                } catch (e) {
+                    console.error('[ProfileStore] Failed to update trait', e);
+                    set({ isLoading: false });
+                }
+            },
+
+            deleteTrait: async (trait: string) => {
+                const { profile } = get();
+                const { vaultUri } = useSettingsStore.getState();
+                if (!vaultUri) return;
+
+                const currentTraits = profile.traits || [];
+                const newTraits = currentTraits.filter(t => t !== trait);
+
+                const updatedProfile = { ...profile, traits: newTraits, lastUpdated: new Date().toISOString() };
+
+                set({ isLoading: true });
+                try {
+                    await ProfileService.saveProfile(vaultUri, updatedProfile);
+                    set({ profile: updatedProfile, isLoading: false });
+                    // Trigger image regeneration
+                    get().generateProfileImage();
+                } catch (e) {
+                    console.error('[ProfileStore] Failed to delete trait', e);
                     set({ isLoading: false });
                 }
             },
