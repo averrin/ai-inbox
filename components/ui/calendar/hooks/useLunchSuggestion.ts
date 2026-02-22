@@ -91,6 +91,7 @@ export function useLunchSuggestion(
                     color: lunchRangeDef.color,
                     type: 'generated',
                     typeTag: 'LUNCH_SUGGESTION',
+                    movable: true
                     // Pass the range ID or some ref if needed
                 });
 
