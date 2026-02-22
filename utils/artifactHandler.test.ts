@@ -113,13 +113,45 @@ const mockDeps = {
         // Reset deps
         mockPlatform.OS = 'android';
 
+        // Mock global.fetch for manual redirect
+        const originalFetch = global.fetch;
+        global.fetch = async (url: string | URL | Request, init?: RequestInit) => {
+            console.log(`Fetch called for: ${url.toString()}`);
+            if (url.toString().includes('example.com/zip')) {
+                // Simulate manual redirect
+                if (init?.redirect === 'manual') {
+                    return {
+                        status: 302,
+                        url: '',
+                        headers: {
+                            get: (name: string) => name.toLowerCase() === 'location' ? 'http://example.com/final-zip' : null
+                        },
+                        body: { cancel: async () => {} }
+                    } as any;
+                } else {
+                     // Simulate auto redirect (should not happen with our code change)
+                     return {
+                        status: 200,
+                        url: 'http://example.com/final-zip',
+                        headers: { get: () => null },
+                        body: { cancel: async () => {} }
+                    } as any;
+                }
+            }
+            return originalFetch(url, init);
+        };
+
         // Ensure 1.apk is NOT cached
         mockFileSystem.getInfoAsync = async (uri) => {
              if (uri.includes('artifacts/1.apk')) return { exists: false, isDirectory: false };
              return { exists: true, isDirectory: uri.endsWith('/') || uri.includes('unzipped'), size: 12345 };
         };
 
-        await downloadAndInstallArtifact(mockArtifact, 'token', 'branch', setDownloading, onProgress, mockDeps as any, onStatus);
+        try {
+            await downloadAndInstallArtifact(mockArtifact, 'token', 'branch', setDownloading, onProgress, mockDeps as any, onStatus);
+        } finally {
+            global.fetch = originalFetch;
+        }
 
         if (!installCalled) throw new Error('ApkInstaller not called for app-release on Android');
         if (downloading) throw new Error('Downloading state not reset');
@@ -140,16 +172,37 @@ const mockDeps = {
             return true;
         };
 
-        const resultPath = await downloadAndInstallArtifact(
-            mockArtifact,
-            'token',
-            'branch',
-            setDownloading,
-            () => {},
-            mockDeps as any,
-            () => {},
-            true // onlyDownload
-        );
+        // Mock fetch again
+        const originalFetch = global.fetch;
+        global.fetch = async (url: string | URL | Request, init?: RequestInit) => {
+            if (url.toString().includes('example.com/zip')) {
+                return {
+                        status: 302,
+                        url: '',
+                        headers: {
+                            get: (name: string) => name.toLowerCase() === 'location' ? 'http://example.com/final-zip' : null
+                        },
+                        body: { cancel: async () => {} }
+                    } as any;
+            }
+            return originalFetch(url, init);
+        };
+
+        let resultPath;
+        try {
+            resultPath = await downloadAndInstallArtifact(
+                mockArtifact,
+                'token',
+                'branch',
+                setDownloading,
+                () => {},
+                mockDeps as any,
+                () => {},
+                true // onlyDownload
+            );
+        } finally {
+            global.fetch = originalFetch;
+        }
 
         if (installCalled) throw new Error('ApkInstaller WAS called when onlyDownload=true');
         if (!resultPath || !resultPath.includes('artifacts/1.apk')) throw new Error('Did not return correct artifact path');
