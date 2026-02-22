@@ -334,6 +334,21 @@ export function TaskEditModal({
         openInObsidian(vaultUri, task.fileUri);
     };
 
+    const handleUnlinkEvent = (eventId: string) => {
+        const currentEventIds = properties['event_id'] ? properties['event_id'].split(',').map((s: string) => s.trim()) : [];
+        const newEventIds = currentEventIds.filter((id: string) => id !== eventId);
+
+        const newProps = { ...properties };
+        if (newEventIds.length > 0) {
+            newProps['event_id'] = newEventIds.join(',');
+        } else {
+            delete newProps['event_id'];
+            delete newProps['event_title'];
+        }
+        setProperties(newProps);
+        setLinkedEvents(prev => prev.filter(e => e.id !== eventId));
+    };
+
     const isAlarm = properties[ALARM_PROPERTY_KEY] === 'true';
 
     return (
@@ -389,20 +404,28 @@ export function TaskEditModal({
                                 <Text className="text-text-secondary mb-2 font-medium text-xs uppercase tracking-wider">Linked Events</Text>
                                 <View className="gap-2">
                                     {linkedEvents.map((evt, i) => (
-                                        <TouchableOpacity
-                                            key={i}
-                                            onPress={() => onOpenEvent && onOpenEvent(evt.id)}
-                                            className="bg-surface p-3 rounded-xl border border-border flex-row items-center gap-2"
-                                        >
-                                            <Ionicons name="calendar-outline" size={16} color="#818cf8" />
-                                            <View className="flex-1">
-                                                <Text className="text-white font-medium" numberOfLines={1}>{evt.title}</Text>
-                                                <Text className="text-secondary text-xs">{dayjs(evt.date).format('dddd, MMM D, h:mm A')}</Text>
-                                            </View>
-                                            {onOpenEvent && (
-                                                <Ionicons name="chevron-forward" size={16} color="#475569" />
-                                            )}
-                                        </TouchableOpacity>
+                                        <View key={i} className="flex-row items-stretch gap-2">
+                                            <TouchableOpacity
+                                                onPress={() => onOpenEvent && onOpenEvent(evt.id)}
+                                                className="bg-surface p-3 rounded-xl border border-border flex-row items-center gap-2 flex-1"
+                                            >
+                                                <Ionicons name="calendar-outline" size={16} color="#818cf8" />
+                                                <View className="flex-1">
+                                                    <Text className="text-white font-medium" numberOfLines={1}>{evt.title}</Text>
+                                                    <Text className="text-secondary text-xs">{dayjs(evt.date).format('dddd, MMM D, h:mm A')}</Text>
+                                                </View>
+                                                {onOpenEvent && (
+                                                    <Ionicons name="chevron-forward" size={16} color="#475569" />
+                                                )}
+                                            </TouchableOpacity>
+
+                                            <TouchableOpacity
+                                                onPress={() => handleUnlinkEvent(evt.id)}
+                                                className="bg-surface px-4 rounded-xl border border-border justify-center items-center"
+                                            >
+                                                <Ionicons name="trash-outline" size={20} color={Colors.error} />
+                                            </TouchableOpacity>
+                                        </View>
                                     ))}
                                 </View>
                             </View>
