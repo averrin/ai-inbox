@@ -18,6 +18,7 @@ export interface Account {
   name: string;
   bank: string;
   balance: number;
+  currency?: string;
   lastSynced?: string;
 }
 
@@ -27,6 +28,7 @@ export interface Transaction {
   date: string;
   type: string;
   amount: number;
+  currency?: string;
   accountId: string;
   tags?: string;
   accountName?: string;
