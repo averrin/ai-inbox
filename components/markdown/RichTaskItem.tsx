@@ -176,7 +176,7 @@ export function RichTaskItem({
                                 <Text className="text-text-primary text-[10px]" style={textColorStyle}>{displayValue}</Text>
                             ) : (
                                 <>
-                                    <Text className="text-text-tertiary text-[10px] mr-1" style={textColorStyle}>{key}:</Text>
+                                    <Text className="text-text-tertiary text-[10px] mr-1" style={textColorStyle}>{config?.rewrite || key}:</Text>
                                     <Text className="text-text-primary text-[10px]" style={textColorStyle}>{displayValue}</Text>
                                 </>
                             )
@@ -197,7 +197,7 @@ export function RichTaskItem({
                 return (
                     <MetadataChip
                         key={`tag-${tag}`}
-                        label={`#${tag}`}
+                        label={config?.rewrite || `#${tag}`}
                         color={config?.color}
                         variant={config?.variant || 'default'}
                         icon={config?.icon}
