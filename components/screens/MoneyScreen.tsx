@@ -2,6 +2,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, RefreshControl, Ac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettingsStore, MetadataConfig } from '../../store/settings';
 import { useState, useEffect, useMemo } from 'react';
+import { useSwipeTabs } from '../../hooks/useSwipeTabs';
 import { buxferService, Account, Transaction, Budget } from '../../services/buxferService';
 import { Layout } from '../ui/Layout';
 import { IslandHeader } from '../ui/IslandHeader';
@@ -11,9 +12,129 @@ import { Colors } from '../ui/design-tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert, showError } from '../../utils/alert';
 import dayjs from 'dayjs';
-import { MoneySettingsModal } from './MoneySettingsModal';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SpendingChart } from './SpendingChart';
+import { TransactionEditModal } from '../TransactionEditModal';
+
+// ── BudgetItem ──────────────────────────────────────────────────────────────
+interface BudgetItemProps {
+    budget: Budget;
+    transactions: Transaction[];
+    formatCurrency: (amount: number, currency?: string) => string;
+    tagConfig: Record<string, any>;
+    onLongPressTransaction?: (tx: Transaction) => void;
+}
+
+function BudgetItem({ budget, transactions, formatCurrency, tagConfig, onLongPressTransaction }: BudgetItemProps) {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    const limit = Number(budget.limit) || 0;
+    const spent = Number(budget.spent) || 0;
+    const percent = limit > 0 ? (spent / limit) * 100 : 0;
+    const remaining = limit - spent;
+    const isOver = remaining < 0;
+
+    // Filter transactions matching this budget's name as a tag
+    const matchedTransactions = useMemo(() => {
+        const budgetTag = budget.name.toLowerCase();
+        return transactions.filter(tx => {
+            if (!tx.tags) return false;
+            return tx.tags.split(',').some(t => t.trim().toLowerCase() === budgetTag);
+        });
+    }, [budget.name, transactions]);
+
+    return (
+        <View className="bg-surface rounded-xl border border-border overflow-hidden">
+            {/* Header row — tappable */}
+            <TouchableOpacity
+                onPress={() => setIsExpanded(prev => !prev)}
+                activeOpacity={0.7}
+                className="p-4"
+            >
+                <View className="flex-row justify-between items-start mb-2">
+                    <View className="flex-1 mr-2">
+                        <Text className="text-white font-medium text-lg">{budget.name}</Text>
+                        <Text className="text-text-tertiary text-xs">{budget.currentPeriod}</Text>
+                    </View>
+                    <View className="items-end">
+                        <Text
+                            className="font-bold text-lg"
+                            style={{ color: remaining >= 0 ? Colors.status.healthy : Colors.error }}
+                        >
+                            {formatCurrency(remaining)}
+                        </Text>
+                        <Text className="text-text-tertiary text-xs">remaining of {formatCurrency(limit)}</Text>
+                    </View>
+                </View>
+
+                {/* Progress Bar */}
+                <View className="h-2 bg-background rounded-full overflow-hidden mt-2 mb-2">
+                    <View
+                        className="h-full rounded-full"
+                        style={{
+                            width: `${Math.min(Math.max(percent, 0), 100)}%`,
+                            backgroundColor: isOver ? Colors.error : (percent > 80 ? Colors.warning : Colors.status.healthy)
+                        }}
+                    />
+                </View>
+
+                {/* Expand toggle hint */}
+                <View className="flex-row items-center justify-between mt-1">
+                    <Text className="text-text-tertiary text-xs">
+                        {matchedTransactions.length} transaction{matchedTransactions.length !== 1 ? 's' : ''}
+                    </Text>
+                    <Ionicons
+                        name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                        size={14}
+                        color={Colors.text.tertiary}
+                    />
+                </View>
+            </TouchableOpacity>
+
+            {/* Expanded transaction list */}
+            {isExpanded && (
+                <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }}>
+                    {matchedTransactions.length === 0 ? (
+                        <View className="px-4 py-6 items-center">
+                            <Ionicons name="receipt-outline" size={24} color={Colors.text.tertiary} style={{ marginBottom: 8 }} />
+                            <Text className="text-text-tertiary text-sm italic">No transactions found for this budget</Text>
+                        </View>
+                    ) : (
+                        matchedTransactions.map(tx => {
+                            const config = tx.tags ? tagConfig[tx.tags.split(',')[0].trim()] : undefined;
+                            return (
+                                <TouchableOpacity
+                                    key={tx.id}
+                                    className="px-4 py-3"
+                                    style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' }}
+                                    onLongPress={() => onLongPressTransaction?.(tx)}
+                                    delayLongPress={400}
+                                    activeOpacity={0.7}
+                                >
+                                    <View className="flex-row justify-between items-start">
+                                        <Text className="text-white text-sm flex-1 mr-3" numberOfLines={2}>
+                                            {tx.description}
+                                        </Text>
+                                        <Text
+                                            className="text-sm font-semibold"
+                                            style={{ color: tx.type === 'income' ? Colors.status.healthy : Colors.error }}
+                                        >
+                                            {tx.type === 'expense' ? '-' : '+'}{formatCurrency(Math.abs(tx.amount), tx.currency)}
+                                        </Text>
+                                    </View>
+                                    <Text className="text-text-tertiary text-xs mt-1">
+                                        {dayjs(tx.date).format('MMM D, YYYY')}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })
+                    )}
+                </View>
+            )}
+        </View>
+    );
+}
+// ────────────────────────────────────────────────────────────────────────────
 
 export default function MoneyScreen() {
     const insets = useSafeAreaInsets();
@@ -22,14 +143,15 @@ export default function MoneyScreen() {
     const [loading, setLoading] = useState(false);
     const [token, setToken] = useState<string | null>(null);
     const [accounts, setAccounts] = useState<Account[]>([]);
+    const [editingTx, setEditingTx] = useState<Transaction | null>(null);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [budgets, setBudgets] = useState<Budget[]>([]);
     const [activeTab, setActiveTab] = useState('overview');
+    const MONEY_TAB_KEYS = ['overview', 'transactions', 'budgets'];
 
     // Search & Settings State
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
-    const [showSettings, setShowSettings] = useState(false);
     const [scrollX, setScrollX] = useState(0);
 
     // Login form state
@@ -84,13 +206,22 @@ export default function MoneyScreen() {
 
     // Extract unique tags from transactions
     const uniqueTags = useMemo(() => {
-        const tags = new Set<string>();
+        const counts: Record<string, number> = {};
         transactions.forEach(tx => {
             if (tx.tags) {
-                tx.tags.split(',').forEach(t => tags.add(t.trim()));
+                tx.tags.split(',').forEach(t => {
+                    const tag = t.trim();
+                    if (tag) {
+                        counts[tag] = (counts[tag] || 0) + 1;
+                    }
+                });
             }
         });
-        return Array.from(tags).sort();
+        return Object.keys(counts).sort((a, b) => {
+            const diff = counts[b] - counts[a];
+            if (diff !== 0) return diff;
+            return a.localeCompare(b);
+        });
     }, [transactions]);
 
     const handleLoginSubmit = async () => {
@@ -124,26 +255,7 @@ export default function MoneyScreen() {
         }
     };
 
-    const handleLogout = () => {
-        showAlert("Logout", "Are you sure you want to remove your Buxfer credentials?", [
-            { text: "Cancel", style: "cancel" },
-            {
-                text: "Logout",
-                style: "destructive",
-                onPress: () => {
-                    setBuxferEmail(null);
-                    setBuxferPassword(null);
-                    setToken(null);
-                    setAccounts([]);
-                    setTransactions([]);
-                    setBudgets([]);
-                    setEmailInput('');
-                    setPasswordInput('');
-                    setShowSettings(false);
-                }
-            }
-        ]);
-    };
+
 
     const formatCurrency = (amount: number, currency: string = 'CZK') => {
         // Fallback to CZK if undefined, per user request "at least main is czk"
@@ -222,7 +334,7 @@ export default function MoneyScreen() {
 
     const renderOverview = () => (
         <ScrollView
-            contentContainerStyle={{ paddingTop: 140, paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
+            contentContainerStyle={{ paddingTop: 80, paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
             refreshControl={
                 <RefreshControl
                     refreshing={loading}
@@ -245,16 +357,16 @@ export default function MoneyScreen() {
             </View>
 
             {/* Spending Chart */}
-            <SpendingChart transactions={transactions} />
+            {/* <SpendingChart transactions={transactions} /> */}
 
             {/* Accounts Section */}
-            <View className="mb-6">
-                <Text className="text-white font-bold text-lg mb-4">Accounts</Text>
+            <View className="mb-6 flex-col gap-2">
+                <Text className="text-white font-bold text-lg">Accounts</Text>
                 {accounts.length === 0 ? (
                     <Text className="text-text-tertiary italic">No accounts found.</Text>
                 ) : (
                     accounts.map(acc => (
-                        <View key={acc.id} className="bg-surface p-4 rounded-xl border border-border mb-3 flex-row justify-between items-center">
+                        <View key={acc.id} className="bg-surface p-4 rounded-xl border border-border flex-row justify-between items-center">
                             <View>
                                 <Text className="text-white font-medium mb-1">{acc.name}</Text>
                                 <MetadataChip label={acc.bank} size="sm" variant="outline" color={Colors.text.tertiary} />
@@ -331,7 +443,12 @@ export default function MoneyScreen() {
                     </Text>
                 }
                 renderItem={({ item: tx }) => (
-                    <View className="bg-surface p-4 rounded-xl border border-border mb-3">
+                    <TouchableOpacity
+                        className="bg-surface p-4 rounded-xl border border-border mb-3"
+                        onLongPress={() => setEditingTx(tx)}
+                        delayLongPress={400}
+                        activeOpacity={1}
+                    >
                         <View className="flex-row justify-between items-start mb-2">
                             <Text className="text-white font-medium flex-1 mr-2" numberOfLines={2}>{tx.description}</Text>
                             <Text
@@ -368,15 +485,25 @@ export default function MoneyScreen() {
                                 color={Colors.text.tertiary}
                             />
                         </View>
-                    </View>
+                    </TouchableOpacity>
                 )}
             />
         );
     };
 
+    const handleEditSave = async (tx: Transaction, tags: string[]) => {
+        try {
+            await buxferService.editTransaction(token!, tx.id, { tags: tags.join(',') });
+            setEditingTx(null);
+            await loadData();
+        } catch (e: any) {
+            showError('Edit Error', e.message || 'Failed to update transaction.');
+        }
+    };
+
     const renderBudgets = () => (
         <ScrollView
-            contentContainerStyle={{ paddingTop: 140, paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
+            contentContainerStyle={{ paddingTop: 80, paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
             refreshControl={
                 <RefreshControl
                     refreshing={loading}
@@ -387,55 +514,21 @@ export default function MoneyScreen() {
                 />
             }
         >
-            <View className="mb-6">
-                <Text className="text-white font-bold text-lg mb-4">Your Budgets</Text>
+            <View className="mb-6 flex-col gap-2">
+                <Text className="text-white font-bold text-lg">Your Budgets</Text>
                 {budgets.length === 0 ? (
                     <Text className="text-text-tertiary italic">No budgets found.</Text>
                 ) : (
-                    budgets.map(budget => {
-                        const limit = Number(budget.limit) || 0;
-                        const remaining = Number(budget.remaining) || 0;
-                        const spent = limit - remaining;
-                        const percent = limit > 0 ? ((limit - remaining) / limit) * 100 : 0;
-                        const isOver = remaining < 0;
-
-                        return (
-                            <View key={budget.id} className="bg-surface p-4 rounded-xl border border-border mb-3">
-                                <View className="flex-row justify-between items-start mb-2">
-                                    <View>
-                                        <Text className="text-white font-medium text-lg">{budget.name}</Text>
-                                        <Text className="text-text-tertiary text-xs">{budget.currentPeriod}</Text>
-                                    </View>
-                                    <View className="items-end">
-                                        <Text
-                                            className="font-bold text-lg"
-                                            style={{ color: remaining >= 0 ? Colors.status.healthy : Colors.error }}
-                                        >
-                                            {formatCurrency(remaining)}
-                                        </Text>
-                                        <Text className="text-text-tertiary text-xs">remaining of {formatCurrency(limit)}</Text>
-                                    </View>
-                                </View>
-
-                                {/* Progress Bar */}
-                                <View className="h-2 bg-background rounded-full overflow-hidden mt-2 mb-2">
-                                    <View
-                                        className="h-full rounded-full"
-                                        style={{
-                                            width: `${Math.min(Math.max(percent, 0), 100)}%`,
-                                            backgroundColor: isOver ? Colors.error : (percent > 80 ? Colors.warning : Colors.status.healthy)
-                                        }}
-                                    />
-                                </View>
-
-                                {budget.period && (
-                                    <View className="flex-row items-center mt-1">
-                                         <MetadataChip label={budget.period} size="sm" variant="outline" color={Colors.text.tertiary} />
-                                    </View>
-                                )}
-                            </View>
-                        );
-                    })
+                    budgets.map(budget => (
+                        <BudgetItem
+                            key={budget.id}
+                            budget={budget}
+                            transactions={transactions}
+                            formatCurrency={formatCurrency}
+                            tagConfig={tagConfig}
+                            onLongPressTransaction={setEditingTx}
+                        />
+                    ))
                 )}
             </View>
         </ScrollView>
@@ -453,26 +546,26 @@ export default function MoneyScreen() {
         setSearchQuery('');
     };
 
+    const { panHandlers } = useSwipeTabs({
+        tabs: token ? MONEY_TAB_KEYS : [],
+        activeTab,
+        onTabChange: handleTabChange,
+    });
+
     return (
         <Layout>
-            <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
+            <View style={{ flex: 1 }} {...panHandlers}>
+            <View style={{ position: 'absolute', top: 4, left: 16, right: 16, zIndex: 10 }}>
                 <IslandHeader
                     title="Money"
-                    rightActions={[
-                        ...(token ? [
-                            {
-                                icon: 'settings-outline',
-                                onPress: () => setShowSettings(true),
-                            }
-                        ] : [])
-                    ]}
+                    rightActions={[]}
                     tabs={token ? tabs : undefined}
                     activeTab={activeTab}
                     onTabChange={handleTabChange}
                 >
                     {/* Tag Filter Panel - Only for Transactions tab */}
                     {activeTab === 'transactions' && token && uniqueTags.length > 0 && (
-                         <View style={[islandBaseStyle, { marginTop: 8, paddingLeft: 4, position: 'relative', marginLeft: 4, marginRight: 4 }]}>
+                         <View style={[islandBaseStyle, { marginTop: 8, paddingLeft: 4, position: 'relative', marginLeft: 6, marginRight: 6 }]}>
                             <ScrollView
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
@@ -533,12 +626,15 @@ export default function MoneyScreen() {
                 </>
             )}
 
-            <MoneySettingsModal
-                visible={showSettings}
-                onClose={() => setShowSettings(false)}
-                onLogout={handleLogout}
-                email={buxferEmail}
+            <TransactionEditModal
+                visible={!!editingTx}
+                transaction={editingTx}
+                availableTags={uniqueTags}
+                onSave={handleEditSave}
+                onCancel={() => setEditingTx(null)}
             />
+
+            </View>
         </Layout>
     );
 }

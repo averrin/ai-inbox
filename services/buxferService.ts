@@ -40,7 +40,7 @@ export interface Budget {
   name: string;
   limit: number;
   amount: number; // Amount spent so far in the current period
-  remaining?: number;
+  spent: number;
   period: string;
   currentPeriod?: string;
   balance?: number; // For rollover budgets
@@ -71,18 +71,18 @@ class BuxferService {
     const response = await fetch(url.toString(), options);
     const data = await response.json();
 
-    if (data.response && data.response.status !== 'OK') {
+    if (data.response && typeof data.response.status === 'string' && data.response.status.startsWith('ERROR:')) {
       throw new Error(data.response.status.replace('ERROR: ', ''));
     }
 
     // Logging specific responses for debugging
-    if (endpoint === 'budgets') {
-        console.log('[Buxfer Debug] Raw Budgets Response:', JSON.stringify(data.response.budgets, null, 2));
-    }
-    if (endpoint === 'transactions') {
-        // Log first few transactions to keep it concise but useful
-        console.log('[Buxfer Debug] First 3 Transactions:', JSON.stringify((data.response.transactions || []).slice(0, 3), null, 2));
-    }
+    // if (endpoint === 'budgets') {
+    //   console.log('[Buxfer Debug] Raw Budgets Response:', JSON.stringify(data.response.budgets, null, 2));
+    // }
+    // if (endpoint === 'transactions') {
+    //   // Log first few transactions to keep it concise but useful
+    //   console.log('[Buxfer Debug] First 3 Transactions:', JSON.stringify((data.response.transactions || []).slice(0, 3), null, 2));
+    // }
 
     return data.response;
   }
@@ -90,7 +90,7 @@ class BuxferService {
   async login(userid: string, password: string): Promise<string> {
     const response = await this.request<{ token: string }>('login', 'POST', { userid, password });
     if (!response.token) {
-        throw new Error("No token returned from login");
+      throw new Error("No token returned from login");
     }
     return response.token;
   }
@@ -108,6 +108,10 @@ class BuxferService {
   async getBudgets(token: string): Promise<Budget[]> {
     const response = await this.request<{ budgets: Budget[] }>('budgets', 'GET', { token });
     return response.budgets || [];
+  }
+
+  async editTransaction(token: string, id: string, params: { tags: string }): Promise<void> {
+    await this.request('transaction_edit', 'POST', { token, id, ...params });
   }
 }
 

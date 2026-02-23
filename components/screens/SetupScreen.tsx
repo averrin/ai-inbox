@@ -43,8 +43,9 @@ import { WalkSettings } from '../settings/WalkSettings';
 import { SyncDebugView } from '../settings/SyncDebugView';
 import { Colors } from '../ui/design-tokens';
 import { AppButton } from '../ui/AppButton';
+import { MoneySettings } from '../settings/MoneySettings';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile' | 'walk' | 'sync-debug';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile' | 'walk' | 'sync-debug' | 'money';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -734,6 +735,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "AI Walk Planner"
             )}
             {renderMenuButton(
+                "Money",
+                "cash-outline",
+                () => setActiveSection('money'),
+                "Buxfer credentials"
+            )}
+            {renderMenuButton(
                 "Advanced",
                 "construct-outline",
                 () => setActiveSection('advanced'),
@@ -972,6 +979,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                 <>
                                     {renderHeader("Weather", () => setActiveSection('root'))}
                                     <View className="px-0"><WeatherSettings /></View>
+                                </>
+                            )}
+                            {activeSection === 'money' && (
+                                <>
+                                    {renderHeader("Money Settings", () => setActiveSection('root'))}
+                                    <View className="px-0"><MoneySettings /></View>
                                 </>
                             )}
                             {activeSection === 'advanced' && (

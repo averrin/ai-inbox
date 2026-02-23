@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Image } from 'react-native';
+import { useSwipeTabs } from '../../hooks/useSwipeTabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
@@ -38,6 +39,8 @@ export default function ProfileScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isImageFull, setIsImageFull] = useState(false);
     const [activeTab, setActiveTab] = useState('home');
+    const PROFILE_TAB_KEYS = ['home', 'details'];
+    const { panHandlers } = useSwipeTabs({ tabs: PROFILE_TAB_KEYS, activeTab, onTabChange: setActiveTab });
     const [detailsTab, setDetailsTab] = useState<'facts' | 'traits'>('facts');
     const [showDepthModal, setShowDepthModal] = useState(false);
     const [isAddingFact, setIsAddingFact] = useState(false);
@@ -367,6 +370,7 @@ export default function ProfileScreen() {
 
     return (
         <Layout>
+            <View style={{ flex: 1 }} {...panHandlers}>
             <IslandHeader
                 title="Profile"
                 tabs={[
@@ -1039,6 +1043,7 @@ export default function ProfileScreen() {
                     </View>
                 </GestureHandlerRootView>
             </Modal>
+            </View>
         </Layout>
     );
 }

@@ -13,9 +13,10 @@ interface TagEditorProps {
     onAddTag: (tag: string) => void;
     onRemoveTag: (index: number) => void;
     label?: string;
+    availableTags?: string[];
 }
 
-export function TagEditor({ tags, onAddTag, onRemoveTag, label }: TagEditorProps) {
+export function TagEditor({ tags, onAddTag, onRemoveTag, label, availableTags }: TagEditorProps) {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [inputValue, setInputValue] = useState('');
 
@@ -24,15 +25,19 @@ export function TagEditor({ tags, onAddTag, onRemoveTag, label }: TagEditorProps
     const allTags = useMemo(() => getTagsFromCache(vaultCache), [vaultCache]);
     
     const suggestions = useMemo(() => {
+        const sourceTags = availableTags || allTags;
         if (!inputValue.trim()) {
+            if (availableTags) {
+                return availableTags.filter(t => !tags.includes(t)).sort();
+            }
             return Object.keys(tagConfig)
                 .filter(t => !tags.includes(t))
                 .sort();
         }
-        return allTags
+        return sourceTags
             .filter(t => !tags.includes(t) && t.toLowerCase().includes(inputValue.toLowerCase()))
             .slice(0, 10);
-    }, [allTags, tags, inputValue, tagConfig]);
+    }, [allTags, tags, inputValue, tagConfig, availableTags]);
 
     const handleConfirm = () => {
         const trimmed = inputValue.trim();
