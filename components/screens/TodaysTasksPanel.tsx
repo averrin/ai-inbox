@@ -432,11 +432,21 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                 }
             } else {
                 // Event Logic
-                const durationMins = dayjs(item.end).diff(dayjs(item.start), 'minute') || 30;
+                const eventId = item.originalEvent?.id || item.id;
+
+                // Lookup fresh event to ensure duration is correct (avoid stale props)
+                const freshEvent = calendarEvents.find(e => {
+                    const eId = e.originalEvent?.id || e.id;
+                    return eId === eventId;
+                });
+
+                const targetEvent = freshEvent || item;
+
+                let durationMins = dayjs(targetEvent.end).diff(dayjs(targetEvent.start), 'minute');
+                if (!durationMins || durationMins <= 0) durationMins = 30;
+
                 const slot = await findNextFreeSlot(searchStart, durationMins);
                 const slotEnd = dayjs(slot).add(durationMins, 'minute').toDate();
-
-                const eventId = item.originalEvent?.id || item.id;
 
                 await updateCalendarEvent(eventId, {
                     title: item.title,
