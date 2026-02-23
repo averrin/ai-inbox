@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator, TextInput } from 'react-native';
+import { useSwipeTabs } from '../../hooks/useSwipeTabs';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
 import { IslandHeader } from '../ui/IslandHeader';
@@ -21,6 +22,13 @@ export default function LinksScreen() {
     const [activeFolder, setActiveFolder] = useState<string>('');
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearch, setShowSearch] = useState(false);
+
+    const folderTabKeys = folders.map(f => f.path);
+    const { panHandlers } = useSwipeTabs({
+        tabs: folderTabKeys,
+        activeTab: activeFolder,
+        onTabChange: setActiveFolder,
+    });
 
     const loadFolders = useCallback(async () => {
         if (!vaultUri || !linksRoot) {
@@ -90,6 +98,7 @@ export default function LinksScreen() {
 
     return (
         <Layout fullBleed={true}>
+            <View style={{ flex: 1 }} {...panHandlers}>
             <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
                 <IslandHeader
                     title="Links"
@@ -123,6 +132,7 @@ export default function LinksScreen() {
                     listPaddingTop={insets.top + 60}
                 />
             )}
+            </View>
         </Layout>
     );
 }
