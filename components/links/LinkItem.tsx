@@ -101,7 +101,7 @@ export function LinkItem({ link, onDelete, onTagPress }: LinkItemProps) {
                                         className="bg-surface-highlight px-1.5 py-0.5 rounded text-xs border border-primary"
                                         style={customStyle}
                                     >
-                                        <Text className="text-text-secondary text-[10px]" style={textStyle} numberOfLines={1}>#{tag}</Text>
+                                        <Text className="text-text-secondary text-[10px]" style={textStyle} numberOfLines={1}>{config?.rewrite || `#${tag}`}</Text>
                                     </TouchableOpacity>
                                 );
                             })}

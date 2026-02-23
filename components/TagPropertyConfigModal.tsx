@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, Modal, TouchableOpacity, ScrollView, Switch } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ScrollView, Switch, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore, MetadataConfig } from '../store/settings';
 import { Colors, Palette } from './ui/design-tokens';
@@ -97,6 +97,21 @@ export function TagPropertyConfigModal({ visible, onClose, item, type, knownValu
                                     thumbColor={!config.hidden ? '#e0e7ff' : Colors.text.tertiary}
                                 />
                             </View>
+                        </View>
+
+                        {/* Rewrite Label */}
+                        <View className="bg-surface p-4 rounded-xl mb-4 border border-border">
+                            <Text className="text-white font-medium text-base mb-2">Rewrite Label</Text>
+                            <Text className="text-text-tertiary text-sm mb-2">
+                                Display this {type === 'tags' ? 'tag' : 'property'} with a different name.
+                            </Text>
+                            <TextInput
+                                className="bg-surface-highlight text-white p-3 rounded-lg border border-border"
+                                placeholder={type === 'tags' ? `#${item}` : item}
+                                placeholderTextColor={Colors.text.tertiary}
+                                value={config.rewrite || ''}
+                                onChangeText={(val) => updateFn(item, { ...config, rewrite: val })}
+                            />
                         </View>
 
                         {/* Property Type */}
