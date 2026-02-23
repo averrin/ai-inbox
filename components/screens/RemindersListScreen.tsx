@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
 import { useState, useEffect } from 'react';
+import { useSwipeTabs } from '../../hooks/useSwipeTabs';
 import { scanForReminders, Reminder, formatRecurrenceForReminder } from '../../services/reminderService';
 import { useSettingsStore } from '../../store/settings';
 import Toast from 'react-native-toast-message';
@@ -24,7 +25,9 @@ export default function RemindersListScreen() {
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
 
+  const TAB_KEYS = ['Upcoming', 'Overdue', 'All'];
   const [activeTab, setActiveTab] = useState('Upcoming');
+  const { panHandlers } = useSwipeTabs({ tabs: TAB_KEYS, activeTab, onTabChange: setActiveTab });
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
 
@@ -120,6 +123,7 @@ export default function RemindersListScreen() {
 
   return (
     <Layout>
+      <View style={{ flex: 1 }} {...panHandlers}>
       <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
         <IslandHeader
           title="Reminders"
@@ -248,6 +252,7 @@ export default function RemindersListScreen() {
         onCancel={() => setIsCreateModalVisible(false)}
         timeFormat={timeFormat}
       />
+      </View>
     </Layout>
   );
 }

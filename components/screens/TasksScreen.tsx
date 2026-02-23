@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
+import { useSwipeTabs } from '../../hooks/useSwipeTabs';
 import { Ionicons } from '@expo/vector-icons';
 import { Layout } from '../ui/Layout';
 import { IslandHeader } from '../ui/IslandHeader';
@@ -35,6 +36,13 @@ export default function TasksScreen() {
         setActiveFolder(folder);
         setSearch('');
     }, []);
+
+    const folderTabKeys = folders.map(f => f.name);
+    const { panHandlers } = useSwipeTabs({
+        tabs: folderTabKeys,
+        activeTab: activeFolder,
+        onTabChange: handleFolderChange,
+    });
 
     const loadFolders = useCallback(async () => {
         if (!vaultUri || !tasksRoot) {
@@ -99,6 +107,7 @@ export default function TasksScreen() {
 
     return (
         <Layout fullBleed={true}>
+            <View style={{ flex: 1 }} {...panHandlers}>
             <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
                 <IslandHeader
                     title="Tasks"
@@ -189,6 +198,7 @@ export default function TasksScreen() {
                         listPaddingTop={insets.top + (showFilters ? 100 : 50)}
                     />
                 )}
+            </View>
             </View>
         </Layout>
     );
