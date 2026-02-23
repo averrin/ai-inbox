@@ -680,15 +680,35 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                             {item.email && <Text className="text-secondary text-xs mt-0.5">{item.email}</Text>}
                                         </View>
                                         {item.status && (
-                                            <View className={`px-2.5 py-1 rounded-md ${item.status === 'accepted' ? 'bg-success border border-success' :
-                                                item.status === 'declined' ? 'bg-error border border-error' : 'bg-surface-highlight/50'
-                                                }`}>
-                                                <Text className={`text-[10px] font-bold ${item.status === 'accepted' ? 'text-success' :
-                                                    item.status === 'declined' ? 'text-error' : 'text-text-tertiary'
-                                                    }`}>
-                                                    {item.status.toUpperCase()}
-                                                </Text>
-                                            </View>
+                                            <MetadataChip
+                                                label={
+                                                    item.status === 'accepted' ? 'Accepted' :
+                                                    item.status === 'declined' ? 'Declined' :
+                                                    item.status === 'tentative' ? 'Tentative' :
+                                                    item.status === 'needsAction' ? 'Needs Action' :
+                                                    item.status.charAt(0).toUpperCase() + item.status.slice(1)
+                                                }
+                                                color={
+                                                    item.status === 'accepted' ? Colors.success :
+                                                    item.status === 'declined' ? Colors.error :
+                                                    item.status === 'tentative' ? Colors.warning :
+                                                    item.status === 'needsAction' ? Colors.text.tertiary :
+                                                    Colors.text.tertiary
+                                                }
+                                                variant={
+                                                    item.status === 'accepted' || item.status === 'declined' || item.status === 'tentative'
+                                                        ? 'solid'
+                                                        : 'outline'
+                                                }
+                                                icon={
+                                                    item.status === 'accepted' ? 'checkmark-circle' :
+                                                    item.status === 'declined' ? 'close-circle' :
+                                                    item.status === 'tentative' ? 'help-circle' :
+                                                    item.status === 'needsAction' ? 'alert-circle' :
+                                                    'help-circle'
+                                                }
+                                                size="sm"
+                                            />
                                         )}
                                     </View>
                                 );
