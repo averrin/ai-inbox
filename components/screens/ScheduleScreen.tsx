@@ -214,6 +214,22 @@ export default function ScheduleScreen() {
                 const meSet = new Set(meEmails.map(normalize));
                 const isMe = (email: string) => meSet.has(normalize(email));
 
+                // Logic to check if all other human attendees declined
+                const otherHumanAttendees = attendees.filter((a: any) => {
+                    const email = normalize(a.email || '');
+                    if (!email) return false;
+
+                    // Filter out Me
+                    if (a.isCurrentUser || isMe(email)) return false;
+
+                    // Filter out resources
+                    if (email.endsWith('resource.calendar.google.com')) return false;
+
+                    return true;
+                });
+
+                const allOthersDeclined = otherHumanAttendees.length > 0 && otherHumanAttendees.every((a: any) => a.status === 'declined');
+
                 const uniqueAttendees = new Map();
                 attendees.forEach((a: any) => {
                     if (a.email) {
@@ -316,6 +332,7 @@ export default function ScheduleScreen() {
                     completable: !!flags?.completable || (evt as any).notes?.includes('[completable:: true]') || (evt as any).description?.includes('[completable:: true]'),
                     isRecurrent: !!evt.recurrenceRule,
                     hasRSVPNo: currentUserRSVP === 'declined',
+                    allOthersDeclined,
                     hideBadges: assignedType?.hideBadges,
                     isInverted: assignedType?.isInverted,
                     icon: iconOverride || assignedType?.icon,

@@ -159,6 +159,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
     const isCompletable = evt.completable;
     const completedKey = `${evt.title}::${dayjs(evt.start).format('YYYY-MM-DD')}`;
     const isCompleted = isCompletable && !!completedEvents[completedKey];
+    const isAllOthersDeclined = evt.allOthersDeclined;
 
     const textColor = evt.isInverted ? evt.color : 'white';
     const subTextColor = evt.isInverted ? evt.color : 'rgba(255, 255, 255, 0.8)';
@@ -214,15 +215,15 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
                     className={`font-semibold ${isUltraCompact ? 'text-[10px]' : 'text-[13px]'}`}
                     style={{
                         color: textColor,
-                        textDecorationLine: isCompleted ? 'line-through' : 'none',
-                        opacity: isCompleted ? 0.6 : 1
+                        textDecorationLine: isCompleted || isAllOthersDeclined ? 'line-through' : 'none',
+                        opacity: isCompleted || isAllOthersDeclined ? 0.6 : 1
                     }}
                     numberOfLines={1}
                 >
                     {evt.title}
                 </Text>
                 {isCompact && (
-                    <Text className={isUltraCompact ? 'text-[9px]' : 'text-[12px]'} style={{ color: subTextColor, opacity: isCompleted ? 0.5 : 1 }} numberOfLines={1}>
+                    <Text className={isUltraCompact ? 'text-[9px]' : 'text-[12px]'} style={{ color: subTextColor, opacity: isCompleted || isAllOthersDeclined ? 0.5 : 1 }} numberOfLines={1}>
                         {dayjs(evt.start).format(timeFormatStr)} {isUltraCompact ? '' : `- ${dayjs(evt.end).format(timeFormatStr)}`}
                     </Text>
                 )}
@@ -237,6 +238,11 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
             {/* Hide badges if event type has hideBadges enabled or if ultra-compact */}
             {!evt.hideBadges && !isUltraCompact && (
                 <View className="absolute top-1 right-1 flex-row gap-1 items-center">
+                    {isAllOthersDeclined && (
+                        <View className="bg-error px-1 py-0.5 rounded">
+                            <Ionicons name="person-remove" size={10} color="white" />
+                        </View>
+                    )}
                     {evt.movable && (
                         <View className="bg-success px-1 py-0.5 rounded">
                             <Ionicons name="move" size={10} color="white" />
