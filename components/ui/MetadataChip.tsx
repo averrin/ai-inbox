@@ -95,7 +95,7 @@ export function MetadataChip(props: MetadataChipProps) {
 
     if (!displayLabel) {
         if (type === 'tag') {
-            displayLabel = config?.rewrite || `#${name}`;
+            displayLabel = config?.rewrite || name;
         } else {
             // Property
             const valStr = value ? String(value) : '';

@@ -58,7 +58,7 @@ export function TagEditor({ tags, onAddTag, onRemoveTag, label, availableTags }:
         return (
             <MetadataChip
                 key={`${tag}-${index}`}
-                label={`#${tag}`}
+                label={tag}
                 color={config?.color}
                 variant="solid"
                 onRemove={() => onRemoveTag(index)}
@@ -77,7 +77,7 @@ export function TagEditor({ tags, onAddTag, onRemoveTag, label, availableTags }:
                         return (
                             <MetadataChip
                                 key={tag}
-                                label={`#${tag}`}
+                                label={tag}
                                 color={config?.color}
                                 onPress={() => setInputValue(tag)}
                                 variant="outline"

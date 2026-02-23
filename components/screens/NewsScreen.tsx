@@ -359,7 +359,7 @@ export default function NewsScreen() {
                         onSubmit: handleCustomSubmit
                     }}
                 >
-                    <View style={[islandBaseStyle, { marginTop: 8, paddingLeft: 4, position: 'relative', marginLeft: 4, marginRight: 4 }]}>
+                    <View style={[islandBaseStyle, { marginTop: 8, paddingLeft: 4, position: 'relative', marginLeft: 8, marginRight: 8 }]}>
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}

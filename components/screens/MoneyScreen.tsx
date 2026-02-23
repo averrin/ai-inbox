@@ -553,7 +553,7 @@ export default function MoneyScreen() {
     return (
         <Layout>
             <View style={{ flex: 1 }} {...panHandlers}>
-            <View style={{ position: 'absolute', top: 4, left: 16, right: 16, zIndex: 10 }}>
+            <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
                 <IslandHeader
                     title="Money"
                     rightActions={[]}
@@ -563,7 +563,7 @@ export default function MoneyScreen() {
                 >
                     {/* Tag Filter Panel - Only for Transactions tab */}
                     {activeTab === 'transactions' && token && uniqueTags.length > 0 && (
-                         <View style={[islandBaseStyle, { marginTop: 8, paddingLeft: 4, position: 'relative', marginLeft: 6, marginRight: 6 }]}>
+                         <View style={[islandBaseStyle, { marginTop: 8, paddingLeft: 4, position: 'relative', marginLeft: 8, marginRight: 8 }]}>
                             <ScrollView
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
