@@ -464,17 +464,13 @@ export default function MoneyScreen() {
                                 <Text className="text-text-secondary text-xs mr-1">{dayjs(tx.date).format('MMM D')}</Text>
                                 {tx.tags && tx.tags.split(',').map(tag => {
                                     const trimmedTag = tag.trim();
-                                    const config = tagConfig[trimmedTag];
                                     return (
                                         <MetadataChip
                                             key={trimmedTag}
-                                            label={trimmedTag}
+                                            type="tag"
+                                            name={trimmedTag}
                                             size="sm"
                                             style={{ marginRight: 2 }}
-                                            icon={config?.icon}
-                                            color={config?.color}
-                                            variant={config?.variant}
-                                            rounding={config?.rounding}
                                         />
                                     );
                                 })}
@@ -581,19 +577,15 @@ export default function MoneyScreen() {
                                     color={Colors.status.healthy}
                                     onPress={() => setSelectedTag(null)}
                                 />
-                                {uniqueTags.map(tag => {
-                                    const config = tagConfig[tag];
-                                    return (
-                                        <MetadataChip
-                                            key={tag}
-                                            label={tag}
-                                            variant={selectedTag === tag ? "solid" : "outline"}
-                                            color={config?.color || Colors.primary}
-                                            icon={config?.icon}
-                                            onPress={() => setSelectedTag(tag === selectedTag ? null : tag)}
-                                        />
-                                    );
-                                })}
+                                {uniqueTags.map(tag => (
+                                    <MetadataChip
+                                        key={tag}
+                                        type="tag"
+                                        name={tag}
+                                        variant={selectedTag === tag ? "solid" : "outline"}
+                                        onPress={() => setSelectedTag(tag === selectedTag ? null : tag)}
+                                    />
+                                ))}
                             </ScrollView>
 
                             {/* Left Gradient Fade */}
