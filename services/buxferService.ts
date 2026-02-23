@@ -75,6 +75,15 @@ class BuxferService {
       throw new Error(data.response.status.replace('ERROR: ', ''));
     }
 
+    // Logging specific responses for debugging
+    if (endpoint === 'budgets') {
+        console.log('[Buxfer Debug] Raw Budgets Response:', JSON.stringify(data.response.budgets, null, 2));
+    }
+    if (endpoint === 'transactions') {
+        // Log first few transactions to keep it concise but useful
+        console.log('[Buxfer Debug] First 3 Transactions:', JSON.stringify((data.response.transactions || []).slice(0, 3), null, 2));
+    }
+
     return data.response;
   }
 
