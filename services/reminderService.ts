@@ -5,7 +5,7 @@ import { useSettingsStore } from '../store/settings';
 import { useEventTypesStore } from '../store/eventTypes';
 import { useMoodStore } from '../store/moodStore';
 import { Platform } from 'react-native';
-import { scheduleNativeAlarm, stopNativeAlarm, cancelAllNativeAlarms } from './alarmModule';
+import { scheduleNativeAlarm, stopNativeAlarm } from './alarmModule';
 import dayjs from 'dayjs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -28,6 +28,8 @@ export const REMINDER_PROPERTY_KEY = 'reminder';
 export const ALARM_PROPERTY_KEY = 'alarm';
 export const PERSISTENT_PROPERTY_KEY = 'persistent';
 export const RECURRENT_PROPERTY_KEY = 'recurrent';
+
+const TRACKED_ALARMS_KEY = 'tracked-alarms';
 
 export function getHash(str: string): number {
     let hash = 0;
@@ -480,11 +482,82 @@ TaskManager.defineTask(REMINDER_TASK_NAME, async () => {
     return await syncAllReminders();
 });
 
+async function getTrackedAlarms(): Promise<Record<string, { title: string, time: number }>> {
+    try {
+        const json = await AsyncStorage.getItem(TRACKED_ALARMS_KEY);
+        return json ? JSON.parse(json) : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+async function saveTrackedAlarms(alarms: Record<string, { title: string, time: number }>) {
+    try {
+        await AsyncStorage.setItem(TRACKED_ALARMS_KEY, JSON.stringify(alarms));
+    } catch (e) {
+        console.error("Failed to save tracked alarms", e);
+    }
+}
+
 async function manageNotifications(activeReminders: Reminder[]) {
-    // 1. Get all currently scheduled notifications
+    // 1. Manage Native Alarms (System AlarmClock)
+    // We maintain a local record of what we have set in AsyncStorage, as system alarms cannot be queried.
+    const trackedAlarms = await getTrackedAlarms();
+    const nextTrackedAlarms: Record<string, { title: string, time: number }> = {};
+    const remindersHandledByAlarm = new Set<string>();
+
+    for (const reminder of activeReminders) {
+        if (reminder.alarm) {
+            const timestamp = new Date(reminder.reminderTime).getTime();
+            const title = reminder.title || reminder.fileName || 'Reminder';
+
+            const existing = trackedAlarms[reminder.id];
+
+            let isSet = false;
+
+            // Check if we need to update/set
+            // If existing matches perfectly, we assume it is still set.
+            if (existing && existing.time === timestamp && existing.title === title) {
+                isSet = true;
+                nextTrackedAlarms[reminder.id] = existing;
+            } else {
+                // If changed, dismiss old one first (if title changed, old title alarm exists)
+                if (existing) {
+                    await stopNativeAlarm(existing.title);
+                }
+
+                // Try to schedule new native alarm
+                // scheduleNativeAlarm returns true only if the date is imminent (within ~24h)
+                // If it returns false (too far in future), we fall back to notification below.
+                const success = await scheduleNativeAlarm(title, reminder.content || "Alarm Reminder", timestamp, 0);
+                if (success) {
+                    nextTrackedAlarms[reminder.id] = { title, time: timestamp };
+                    isSet = true;
+                }
+            }
+
+            if (isSet) {
+                remindersHandledByAlarm.add(reminder.id);
+            }
+        }
+    }
+
+    // Cleanup alarms that were tracked but are no longer active/handled
+    for (const id in trackedAlarms) {
+        if (!nextTrackedAlarms[id]) {
+            // Was tracked, now gone or rescheduled. Dismiss using old title.
+            await stopNativeAlarm(trackedAlarms[id].title);
+        }
+    }
+
+    await saveTrackedAlarms(nextTrackedAlarms);
+
+
+    // 2. Manage Notifications (Expo Notifications)
+    // 2.1. Get all currently scheduled notifications
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
 
-    // 1.5. Check for missed/ignored notifications and resend if enabled
+    // 2.2. Check for missed/ignored notifications and resend if enabled
     const presented = await Notifications.getPresentedNotificationsAsync();
     const now = Date.now();
 
@@ -509,17 +582,6 @@ async function manageNotifications(activeReminders: Reminder[]) {
 
                 // Re-fetch reminder data if we didn't have it (fallback logic)
                 if (!reminderData) {
-                    // Fallback attempt: Fetch by ID
-                    try {
-                        const user = firebaseAuth.currentUser;
-                        if (user) {
-                            const docRef = doc(firebaseDb, 'users', user.uid, 'reminders', fileUri);
-                            // We don't have async fetch here easily without complicating logic.
-                            // But usually activeReminders has latest.
-                        }
-                    } catch (e) {
-                        // ignore
-                    }
                     if (!reminderData) {
                         reminderData = notification.request.content.data?.reminder as Reminder;
                     }
@@ -532,23 +594,18 @@ async function manageNotifications(activeReminders: Reminder[]) {
         }
     }
 
-    // 2. Cleanup stale notifications
+    // 2.3. Cleanup stale notifications
     const activeReminderIds = new Set<string>();
-
-    // Map active reminders to their expected IDs
     const expectedIds = new Map<string, string>(); // id -> deterministic Notification ID
-    const expectedNativeIds = new Map<string, number>(); // id -> deterministic Alarm ID
 
     activeReminders.forEach(r => {
-        // Notification ID (string) depends on ID AND time
-        const id = `reminder-${getHash(r.id)}-${getHash(r.reminderTime)}`;
-        expectedIds.set(r.id, id);
-
-        // Native Alarm ID (int) depends ONLY on ID
-        const nativeId = Math.abs(getHash(r.id)) % 2147483647;
-        expectedNativeIds.set(r.id, nativeId);
-
-        activeReminderIds.add(id);
+        // Only schedule notification if NOT handled by alarm
+        if (!remindersHandledByAlarm.has(r.id)) {
+            // Notification ID (string) depends on ID AND time
+            const id = `reminder-${getHash(r.id)}-${getHash(r.reminderTime)}`;
+            expectedIds.set(r.id, id);
+            activeReminderIds.add(id);
+        }
     });
 
     for (const notification of scheduled) {
@@ -558,13 +615,11 @@ async function manageNotifications(activeReminders: Reminder[]) {
 
         if (!activeReminderIds.has(notification.identifier)) {
             await Notifications.cancelScheduledNotificationAsync(notification.identifier);
-
-            const nativeId = expectedNativeIds.get(fileUri) || (Math.abs(getHash(fileUri)) % 2147483647);
-            await stopNativeAlarm(nativeId);
+            // We no longer handle native alarm cleanup here as it's done in step 1
         }
     }
 
-    // 3. Schedule missing notifications
+    // 2.4. Schedule missing notifications
     const nowTime = new Date();
 
     const sortedReminders = [...activeReminders].sort((a, b) =>
@@ -574,9 +629,11 @@ async function manageNotifications(activeReminders: Reminder[]) {
     let scheduledCount = 0;
 
     for (const reminder of sortedReminders) {
+        // Skip if handled by alarm
+        if (remindersHandledByAlarm.has(reminder.id)) continue;
+
         const remDate = new Date(reminder.reminderTime);
         const expectedId = expectedIds.get(reminder.id);
-        const expectedNativeId = expectedNativeIds.get(reminder.id);
 
         if (remDate <= nowTime) {
             // Check if it was recent (within 15 mins) and NOT already notified
@@ -601,29 +658,17 @@ async function manageNotifications(activeReminders: Reminder[]) {
                 break;
             }
 
-            await scheduleNotification(reminder, false, expectedId, expectedNativeId);
+            await scheduleNotification(reminder, false, expectedId);
             scheduledCount++;
         }
     }
 }
 
-async function scheduleNotification(reminder: Reminder, immediate = false, identifier?: string, nativeId?: number) {
-    if (reminder.alarm) {
-        const timestamp = immediate ? Date.now() + 1000 : new Date(reminder.reminderTime).getTime();
-        const activeNativeId = nativeId || (Math.abs(getHash(reminder.id)) % 2147483647);
+async function scheduleNotification(reminder: Reminder, immediate = false, identifier?: string) {
+    // Only schedule Notification here. Native alarms are handled in manageNotifications (step 1).
+    // This function is purely for Notifications.scheduleNotificationAsync wrapper.
 
-        const success = await scheduleNativeAlarm(
-            reminder.title || reminder.fileName || 'Reminder',
-            reminder.content || "Alarm Reminder",
-            timestamp,
-            activeNativeId
-        );
-        if (success) {
-            return;
-        }
-    }
-
-    const id = await Notifications.scheduleNotificationAsync({
+    await Notifications.scheduleNotificationAsync({
         identifier: identifier,
         content: {
             title: "🔔 Reminder",
