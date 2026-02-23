@@ -76,8 +76,8 @@ class BuxferService {
     return data.response;
   }
 
-  async login(email: string, password: string): Promise<string> {
-    const response = await this.request<{ token: string }>('login', 'POST', { email, password });
+  async login(userid: string, password: string): Promise<string> {
+    const response = await this.request<{ token: string }>('login', 'POST', { userid, password });
     if (!response.token) {
         throw new Error("No token returned from login");
     }

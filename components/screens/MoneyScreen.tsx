@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { buxferService, Account, Transaction } from '../../services/buxferService';
 import { Layout } from '../ui/Layout';
 import { IslandHeader } from '../ui/IslandHeader';
+import { MetadataChip } from '../ui/MetadataChip';
 import { Colors, Palette } from '../ui/design-tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert, showError } from '../../utils/alert';
@@ -18,7 +19,7 @@ export default function MoneyScreen() {
     const [token, setToken] = useState<string | null>(null);
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [activeTab, setActiveTab] = useState<'overview' | 'transactions'>('overview');
+    const [activeTab, setActiveTab] = useState('overview');
 
     // Login form state
     const [emailInput, setEmailInput] = useState(buxferEmail || '');
@@ -33,7 +34,7 @@ export default function MoneyScreen() {
             return t;
         } catch (e: any) {
             console.error("Login failed", e);
-            if (e.message) showError(e.message);
+            if (e.message) showError("Login Error", e.message);
             return null;
         }
     };
@@ -56,7 +57,7 @@ export default function MoneyScreen() {
             }
         } catch (e: any) {
             console.error("Failed to load data", e);
-            showError("Failed to load data: " + (e.message || "Unknown error"));
+            showError("Data Load Error", "Failed to load data: " + (e.message || "Unknown error"));
         } finally {
             setLoading(false);
         }
@@ -91,7 +92,7 @@ export default function MoneyScreen() {
             setAccounts(accs);
             setTransactions(txs);
         } catch (e: any) {
-            showError("Login failed: " + (e.message || "Unknown error"));
+            showError("Login Error", "Login failed: " + (e.message || "Unknown error"));
         } finally {
             setLoading(false);
         }
@@ -193,21 +194,24 @@ export default function MoneyScreen() {
 
     const renderOverview = () => (
         <ScrollView
-            contentContainerStyle={{ paddingTop: 180, paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
+            contentContainerStyle={{ paddingTop: 140, paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
             refreshControl={
                 <RefreshControl
                     refreshing={loading}
                     onRefresh={() => loadData(true)}
                     tintColor={Colors.primary}
                     colors={[Colors.primary]}
-                    progressViewOffset={180}
+                    progressViewOffset={140}
                 />
             }
         >
             {/* Total Balance Card */}
             <View className="bg-surface p-6 rounded-2xl border border-border mb-6 items-center">
                 <Text className="text-text-secondary font-medium mb-2">Total Net Worth</Text>
-                <Text className={`text-4xl font-bold ${totalBalance >= 0 ? 'text-status-healthy' : 'text-error'}`}>
+                <Text
+                    className="text-4xl font-bold"
+                    style={{ color: totalBalance >= 0 ? Colors.status.healthy : Colors.error }}
+                >
                     {formatCurrency(totalBalance)}
                 </Text>
             </View>
@@ -221,10 +225,13 @@ export default function MoneyScreen() {
                     accounts.map(acc => (
                         <View key={acc.id} className="bg-surface p-4 rounded-xl border border-border mb-3 flex-row justify-between items-center">
                             <View>
-                                <Text className="text-white font-medium">{acc.name}</Text>
-                                <Text className="text-text-secondary text-xs">{acc.bank}</Text>
+                                <Text className="text-white font-medium mb-1">{acc.name}</Text>
+                                <MetadataChip label={acc.bank} size="sm" variant="outline" color={Colors.text.tertiary} />
                             </View>
-                            <Text className={`font-bold ${acc.balance >= 0 ? 'text-status-healthy' : 'text-error'}`}>
+                            <Text
+                                className="font-bold"
+                                style={{ color: acc.balance >= 0 ? Colors.status.healthy : Colors.error }}
+                            >
                                 {formatCurrency(acc.balance, acc.currency)}
                             </Text>
                         </View>
@@ -238,14 +245,14 @@ export default function MoneyScreen() {
         <FlatList
             data={transactions}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingTop: 180, paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
+            contentContainerStyle={{ paddingTop: 140, paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
             refreshControl={
                 <RefreshControl
                     refreshing={loading}
                     onRefresh={() => loadData(true)}
                     tintColor={Colors.primary}
                     colors={[Colors.primary]}
-                    progressViewOffset={180}
+                    progressViewOffset={140}
                 />
             }
             ListEmptyComponent={
@@ -253,25 +260,45 @@ export default function MoneyScreen() {
             }
             renderItem={({ item: tx }) => (
                 <View className="bg-surface p-4 rounded-xl border border-border mb-3">
-                    <View className="flex-row justify-between items-start mb-1">
-                        <Text className="text-white font-medium flex-1 mr-2" numberOfLines={1}>{tx.description}</Text>
-                        <Text className={`font-bold ${tx.type === 'income' ? 'text-status-healthy' : 'text-error'}`}>
+                    <View className="flex-row justify-between items-start mb-2">
+                        <Text className="text-white font-medium flex-1 mr-2" numberOfLines={2}>{tx.description}</Text>
+                        <Text
+                            className="font-bold"
+                            style={{ color: tx.type === 'income' ? Colors.status.healthy : Colors.error }}
+                        >
                             {tx.type === 'expense' ? '-' : '+'}{formatCurrency(Math.abs(tx.amount), tx.currency)}
                         </Text>
                     </View>
-                    <View className="flex-row justify-between items-center">
-                        <View className="flex-row gap-2">
-                            <Text className="text-text-secondary text-xs">{dayjs(tx.date).format('MMM D, YYYY')}</Text>
+
+                    <View className="flex-row justify-between items-center flex-wrap gap-y-2">
+                        <View className="flex-row items-center gap-2 flex-wrap flex-1 mr-2">
+                            <Text className="text-text-secondary text-xs mr-1">{dayjs(tx.date).format('MMM D')}</Text>
                             {tx.tags && tx.tags.split(',').map(tag => (
-                                <Text key={tag} className="text-text-tertiary text-xs bg-surface-highlight px-1 rounded">{tag.trim()}</Text>
+                                <MetadataChip
+                                    key={tag}
+                                    label={tag.trim()}
+                                    size="sm"
+                                    style={{ marginRight: 2 }}
+                                />
                             ))}
                         </View>
-                        <Text className="text-text-tertiary text-xs italic">{tx.accountName}</Text>
+                        <MetadataChip
+                            label={tx.accountName}
+                            size="sm"
+                            variant="outline"
+                            icon="wallet-outline"
+                            color={Colors.text.tertiary}
+                        />
                     </View>
                 </View>
             )}
         />
     );
+
+    const tabs = [
+        { key: 'overview', label: 'Overview' },
+        { key: 'transactions', label: 'Transactions' }
+    ];
 
     return (
         <Layout>
@@ -287,25 +314,10 @@ export default function MoneyScreen() {
                             onPress: () => loadData(true),
                         }] : [])
                     ]}
-                >
-                   {/* Tab Switcher inside Header */}
-                   {token && (
-                        <View className="flex-row bg-surface-highlight p-1 rounded-lg mt-2 mx-1">
-                            <TouchableOpacity
-                                className={`flex-1 py-2 items-center rounded-md ${activeTab === 'overview' ? 'bg-primary' : 'bg-transparent'}`}
-                                onPress={() => setActiveTab('overview')}
-                            >
-                                <Text className={`text-xs font-bold ${activeTab === 'overview' ? 'text-white' : 'text-text-secondary'}`}>Overview</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                className={`flex-1 py-2 items-center rounded-md ${activeTab === 'transactions' ? 'bg-primary' : 'bg-transparent'}`}
-                                onPress={() => setActiveTab('transactions')}
-                            >
-                                <Text className={`text-xs font-bold ${activeTab === 'transactions' ? 'text-white' : 'text-text-secondary'}`}>Transactions</Text>
-                            </TouchableOpacity>
-                        </View>
-                   )}
-                </IslandHeader>
+                    tabs={token ? tabs : undefined}
+                    activeTab={activeTab}
+                    onTabChange={setActiveTab}
+                />
             </View>
 
             {!buxferEmail || !buxferPassword ? renderLoginForm() : (
