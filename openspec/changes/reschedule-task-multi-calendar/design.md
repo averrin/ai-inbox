@@ -1,6 +1,6 @@
 ## Context
 
-Tasks in AI Inbox can be linked to multiple calendar events (e.g., a "Sync" task blocking time on both personal Google and work O365 calendars). This linkage is stored in the task's `event_id` property as a comma-separated list of IDs. 
+Tasks in Architect can be linked to multiple calendar events (e.g., a "Sync" task blocking time on both personal Google and work O365 calendars). This linkage is stored in the task's `event_id` property as a comma-separated list of IDs.
 
 Currently, `TodaysTasksPanel.tsx`'s `executeReschedule` function only processes the first ID in this list. While `ScheduleScreen.tsx` correctly handles multiple IDs when dragging events, the task panel actions ("Later", "Tomorrow") result in partial updates, leaving stale events on other calendars.
 

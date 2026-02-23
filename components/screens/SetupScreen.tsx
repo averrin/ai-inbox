@@ -756,7 +756,7 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
         <View>
             <View className="justify-center mt-10 mb-8">
                 <Text className="text-3xl font-bold text-white mb-2 text-center">Welcome</Text>
-                <Text className="text-text-secondary text-center">Setup your AI Inbox</Text>
+                <Text className="text-text-secondary text-center">Setup your Architect</Text>
             </View>
             <Text className="text-xl font-bold text-white px-4 mt-6 mb-2">General</Text>
             {renderGeneralSettings()}
