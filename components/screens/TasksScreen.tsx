@@ -131,7 +131,7 @@ export default function TasksScreen() {
                     }}
                 >
                     {showFilters && (
-                        <View style={[islandBaseStyle, { marginTop: 8, marginLeft: 4, marginRight: 4, flexDirection: 'column', alignItems: 'stretch' }]}>
+                        <View style={[islandBaseStyle, { marginTop: 8, marginLeft: 8, marginRight: 8, flexDirection: 'column', alignItems: 'stretch' }]}>
                             {/* Filter buttons row */}
                             <View className="flex-row items-center justify-between p-2 flex-1 w-full">
                                 <View className="flex-row gap-2">
