@@ -212,7 +212,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
                     />
                 )}
                 <Text
-                    className={`font-semibold ${isUltraCompact ? 'text-[10px]' : 'text-[13px]'}`}
+                    className={`font-semibold shrink ${isUltraCompact ? 'text-[10px]' : 'text-[13px]'}`}
                     style={{
                         color: textColor,
                         textDecorationLine: isCompleted || isAllOthersDeclined ? 'line-through' : 'none',
