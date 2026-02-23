@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "AI Inbox",
+    "name": "Architect",
     "slug": "ai-inbox",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -89,13 +89,13 @@
       [
         "expo-calendar",
         {
-          "calendarPermission": "Allow AI Inbox to access your calendar to provide schedule context."
+          "calendarPermission": "Allow Architect to access your calendar to provide schedule context."
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow AI Inbox to use your location to provide local weather forecasts."
+          "locationAlwaysAndWhenInUsePermission": "Allow Architect to use your location to provide local weather forecasts."
         }
       ],
       "@react-native-community/datetimepicker",

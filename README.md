@@ -1,4 +1,4 @@
-# AI Inbox Mobile Client
+# Architect Mobile Client
 
 An aesthetic Android receiver application that processes shared content using Google Gemini and saves it as formatted markdown to your Obsidian vault.
 

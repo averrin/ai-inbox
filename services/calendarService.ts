@@ -38,7 +38,7 @@ export const getWritableCalendars = async (): Promise<Calendar.Calendar[]> => {
         }
     }));
 
-    const filtered = calendars.filter(cal => cal.source?.name !== 'AI Inbox');
+    const filtered = calendars.filter(cal => cal.source?.name !== 'AI Inbox' && cal.source?.name !== 'Architect');
     return filtered;
 };
 
