@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, Animated, StyleSheet, useWindowDimensions, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Animated, StyleSheet, useWindowDimensions, ScrollView, LayoutChangeEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NavItemConfig } from '../../store/settings';
 import { useNavigation } from '@react-navigation/native';
@@ -20,11 +20,16 @@ export function GroupMenuOverlay({ visible, config, targetX, onClose }: Props) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [showModal, setShowModal] = useState(false);
   const [contentWidth, setContentWidth] = useState(0);
+  const cachedWidths = useRef<Record<string, number>>({});
 
   // Reset measurement when config changes
   useEffect(() => {
     if (config) {
-      setContentWidth(0);
+      if (cachedWidths.current[config.id]) {
+        setContentWidth(cachedWidths.current[config.id]);
+      } else {
+        setContentWidth(0);
+      }
     }
   }, [config]);
 
@@ -41,7 +46,7 @@ export function GroupMenuOverlay({ visible, config, targetX, onClose }: Props) {
         toValue: 0,
         duration: 100,
         useNativeDriver: true,
-      }).start(({ finished }) => {
+      }).start(({ finished }: { finished: boolean }) => {
         if (finished) {
           setShowModal(false);
         }
@@ -125,10 +130,13 @@ export function GroupMenuOverlay({ visible, config, targetX, onClose }: Props) {
                 scrollEnabled={!isMeasuring && contentWidth > (effectiveWidth || 0)}
               >
                 <View
-                  onLayout={(e) => {
+                  onLayout={(e: LayoutChangeEvent) => {
                     const w = e.nativeEvent.layout.width;
                     if (Math.abs(w - contentWidth) > 2) {
                       setContentWidth(w);
+                      if (config) {
+                        cachedWidths.current[config.id] = w;
+                      }
                     }
                   }}
                   style={{
