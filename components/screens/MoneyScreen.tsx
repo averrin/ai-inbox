@@ -473,6 +473,8 @@ export default function MoneyScreen() {
                                             style={{ marginRight: 2 }}
                                             icon={config?.icon}
                                             color={config?.color}
+                                            variant={config?.variant}
+                                            rounding={config?.rounding}
                                         />
                                     );
                                 })}
