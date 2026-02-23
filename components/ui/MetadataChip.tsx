@@ -1,182 +1,144 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleProp, ViewStyle, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text } from 'react-native';
+import { Chip, ChipProps } from './Chip';
+import { useSettingsStore } from '../../store/settings';
 import { Colors } from './design-tokens';
-import { UniversalIcon } from './UniversalIcon';
+import dayjs from 'dayjs';
 
-export interface MetadataChipProps {
-    label: string | React.ReactNode;
-    color?: string; // Hex color
-    onPress?: () => void;
-    onRemove?: () => void;
-    variant?: 'default' | 'outline' | 'solid'; // default = subtle
-    rounding?: 'none' | 'sm' | 'md' | 'lg' | 'full';
-    icon?: string;
-    size?: 'sm' | 'md'; // sm = 10px text (RichTaskItem), md = 12-14px text (Editor)
-    style?: StyleProp<ViewStyle>;
-    progress?: number; // 0 to 1
-    progressColor?: string;
-    loading?: boolean;
-    disabled?: boolean;
+// Extend ChipProps but make label optional because it can be derived from config
+export interface MetadataChipProps extends Omit<ChipProps, 'label'> {
+    label?: string | React.ReactNode;
+    type?: 'tag' | 'property';
+    name?: string; // The tag name or property key
+    value?: string; // The property value (for properties)
 }
 
-export function MetadataChip({
-    label,
-    color,
-    onPress,
-    onRemove,
-    variant = 'default',
-    rounding = 'sm',
-    icon,
-    size = 'sm',
-    style,
-    progress,
-    progressColor,
-    loading,
-    disabled
-}: MetadataChipProps) {
-    const isSolid = variant === 'solid';
-    const isOutline = variant === 'outline';
+export function MetadataChip(props: MetadataChipProps) {
+    const {
+        type,
+        name,
+        value,
+        label,
+        color,
+        variant,
+        icon,
+        rounding,
+        style,
+        ...rest
+    } = props;
 
-    // Base styles
-    const baseColor = color || Colors.primary;
+    const { tagConfig, propertyConfig } = useSettingsStore();
 
-    // Background
-    let backgroundColor = 'transparent';
-    if (isSolid) {
-        backgroundColor = baseColor;
-    } else if (isOutline) {
-        backgroundColor = 'transparent';
-    } else {
-        // Default / Subtle (tinted)
-        // If color provided, tint it. If not, use generic surface highlight
-        backgroundColor = color ? `${baseColor}26` : Colors.surfaceHighlight; // ~15% opacity for tinted
+    // If type or name is missing, behave like a dumb Chip
+    if (!type || !name) {
+        if (!label) return null; // Should have at least a label in dumb mode
+        return (
+            <Chip
+                label={label}
+                color={color}
+                variant={variant}
+                icon={icon}
+                rounding={rounding}
+                style={style}
+                {...rest}
+            />
+        );
     }
 
-    // Border
-    let borderColor = 'transparent';
-    if (isSolid) {
-        borderColor = baseColor;
-    } else if (isOutline) {
-         borderColor = baseColor;
+    // Smart Mode Logic
+    let config;
+    if (type === 'tag') {
+        config = tagConfig[name];
     } else {
-        // Default subtle might have a very light border or none
-        borderColor = color ? `${baseColor}4D` : Colors.border; // ~30% opacity
+        config = propertyConfig[name];
     }
 
-    // Text Color
-    let textColor = Colors.text.primary;
-    if (isSolid) {
-        textColor = '#FFFFFF';
-    } else if (isOutline) {
-        textColor = baseColor;
-    } else {
-        // Default / Subtle
-        textColor = color ? baseColor : Colors.text.secondary;
+    // 1. Check Visibility
+    if (config?.hidden) {
+        return null;
     }
 
-    // Size specific
-    const paddingHorizontal = size === 'sm' ? 8 : 12;
-    const paddingVertical = size === 'sm' ? 4 : 8;
-    const fontSize = size === 'sm' ? 10 : 13;
+    // 2. Determine Styling
+    let activeColor = color || config?.color;
+    let activeVariant = variant || config?.variant || 'default';
+    let activeIcon = icon || config?.icon;
+    let activeRounding = rounding || config?.rounding;
+    let customStyle = style;
 
-    // Rounding
-    let borderRadius = 6;
-    if (rounding === 'none') borderRadius = 2;
-    if (rounding === 'sm') borderRadius = 6;
-    if (rounding === 'md') borderRadius = 8;
-    if (rounding === 'lg') borderRadius = 12;
-    if (rounding === 'full') borderRadius = 999;
+    // Property-specific value overrides
+    if (type === 'property' && value) {
+        const valStr = String(value);
+        const valueConfig = config?.valueConfigs?.[valStr];
 
-    const iconSize = size === 'sm' ? 12 : 16;
-    const displayIconSize = size === 'sm' ? 10 : 14;
+        if (valueConfig?.color) activeColor = valueConfig.color;
 
-    const Container = onPress ? TouchableOpacity : View;
+        // Date Logic (isPassed)
+        if (config?.type === 'date') {
+            const isPassed = dayjs(valStr).isValid() && dayjs(valStr).isBefore(dayjs(), 'day');
+            if (isPassed) {
+                // Change solid to outline if passed
+                if (activeVariant === 'solid') activeVariant = 'outline';
+                // Add dashed border style
+                customStyle = [style, { borderStyle: 'dashed' }];
+            }
+        }
+    }
 
-    // Determine border width
-    const borderWidth = (isOutline || isSolid || color) ? 1 : 1;
+    // Tag-specific styling default
+    if (type === 'tag' && !activeColor) {
+        // Default style for tags without color
+        customStyle = [style, { borderColor: Colors.primary, backgroundColor: Colors.surfaceHighlight }];
+    }
 
-    const isInteractionDisabled = disabled || loading;
+    // 3. Determine Label
+    let displayLabel = label;
+
+    if (!displayLabel) {
+        if (type === 'tag') {
+            displayLabel = config?.rewrite || `#${name}`;
+        } else {
+            // Property
+            const valStr = value ? String(value) : '';
+            const displayValue = (name === 'date' && valStr === dayjs().format('YYYY-MM-DD')) ? 'Today' : valStr;
+
+            // Determine text colors for the composite label
+            const isSolid = activeVariant === 'solid';
+            const isOutline = activeVariant === 'outline';
+            let textColorStyle: any = undefined;
+
+            if (isSolid) {
+                textColorStyle = { color: '#FFFFFF' };
+            } else if (activeColor) {
+                // If colored and not solid, text takes color
+                textColorStyle = { color: activeColor };
+            }
+
+            if (activeIcon) {
+                // If icon exists, only show value
+                 displayLabel = (
+                    <Text className="text-text-primary text-[10px]" style={textColorStyle}>{displayValue}</Text>
+                 );
+            } else {
+                // Show "Key: Value" or "RewrittenKey: Value"
+                displayLabel = (
+                    <>
+                        <Text className="text-text-tertiary text-[10px] mr-1" style={textColorStyle}>{config?.rewrite || name}:</Text>
+                        <Text className="text-text-primary text-[10px]" style={textColorStyle}>{displayValue}</Text>
+                    </>
+                );
+            }
+        }
+    }
 
     return (
-        <Container
-            onPress={isInteractionDisabled ? undefined : onPress}
-            disabled={isInteractionDisabled}
-            // @ts-ignore
-            style={[{
-                backgroundColor,
-                borderColor,
-                borderWidth,
-                borderRadius,
-                paddingHorizontal,
-                paddingVertical,
-                flexDirection: 'row',
-                alignItems: 'center',
-                alignSelf: 'flex-start',
-                overflow: 'hidden', // Required for progress bar clipping
-            }, style]}
-            hitSlop={onPress ? { top: 4, bottom: 4, left: 4, right: 4 } : undefined}
-        >
-            {/* Progress Bar */}
-            {progress !== undefined && progress !== null && (
-                <View style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: `${Math.min(Math.max(progress, 0), 1) * 100}%`,
-                    backgroundColor: progressColor || '#4ade80', // Default green
-                    opacity: 0.3,
-                }} />
-            )}
-
-            {/* Loading Spinner or Icon */}
-            {loading ? (
-                 <View style={{ marginRight: 4 }}>
-                    <ActivityIndicator
-                        size="small"
-                        color={textColor}
-                        style={{ transform: [{ scale: size === 'sm' ? 0.7 : 0.8 }] }}
-                    />
-                </View>
-            ) : icon ? (
-                <View style={{ marginRight: 4 }}>
-                    <UniversalIcon
-                        name={icon}
-                        size={displayIconSize}
-                        color={textColor}
-                    />
-                </View>
-            ) : null}
-
-            {typeof label === 'string' ? (
-                <Text style={{
-                    color: textColor,
-                    fontSize,
-                    fontWeight: '700', // Making text slightly bolder for better readability on chips
-                    marginRight: onRemove ? 4 : 0,
-                    letterSpacing: 0.5
-                }}>
-                    {label}
-                </Text>
-            ) : (
-                <View style={{ marginRight: onRemove ? 4 : 0, flexDirection: 'row', alignItems: 'center' }}>
-                    {label}
-                </View>
-            )}
-
-            {onRemove && (
-                <TouchableOpacity
-                    onPress={onRemove}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                    <Ionicons
-                        name="close"
-                        size={iconSize}
-                        color={isSolid ? 'rgba(255,255,255,0.7)' : (color || Colors.text.tertiary)}
-                    />
-                </TouchableOpacity>
-            )}
-        </Container>
+        <Chip
+            label={displayLabel}
+            color={activeColor}
+            variant={activeVariant}
+            icon={activeIcon}
+            rounding={activeRounding}
+            style={customStyle}
+            {...rest}
+        />
     );
 }

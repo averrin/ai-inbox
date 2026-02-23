@@ -4,10 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { BaseListItem } from '../ui/BaseListItem';
 import { ActionButton } from '../ui/ActionButton';
 import { RichTask } from '../../utils/taskParser';
-import { useSettingsStore } from '../../store/settings';
 import { REMINDER_PROPERTY_KEY } from '../../services/reminderService';
 import { TaskStatusIcon } from '../ui/TaskStatusIcon';
-import dayjs from 'dayjs';
 import { Colors, Palette } from '../ui/design-tokens';
 import { MetadataChip } from '../ui/MetadataChip';
 
@@ -74,8 +72,6 @@ export function RichTaskItem({
     highlightColor,
     dragHandle
 }: RichTaskItemProps) {
-    const { tagConfig, propertyConfig } = useSettingsStore();
-
     const highlightStyle = isHighlighted ? {
         borderWidth: 2,
         borderColor: highlightColor || '#818cf8',
@@ -150,64 +146,25 @@ export function RichTaskItem({
             )}
             {Object.entries(task.properties).map(([key, value]) => {
                 if (key === 'event_id' || key === 'event_title') return null;
-                const config = propertyConfig[key];
-                if (config?.hidden) return null;
-
-                const valStr = String(value);
-                const valueConfig = config?.valueConfigs?.[valStr];
-
-                const activeColor = valueConfig?.color || config?.color;
-                const activeVariant = config?.variant || 'default';
-
-                const isPassed = config?.type === 'date' && dayjs(String(value)).isValid() && dayjs(String(value)).isBefore(dayjs(), 'day');
-                const effectiveVariant = isPassed && activeVariant === 'solid' ? 'outline' : activeVariant;
-
-                const isSolid = effectiveVariant === 'solid';
-
-                const textColorStyle = isSolid ? { color: '#FFFFFF' } : (activeColor ? { color: activeColor } : undefined);
-
-                const displayValue = key === 'date' && String(value) === dayjs().format('YYYY-MM-DD') ? 'Today' : String(value);
-
                 return (
                     <MetadataChip
                         key={`prop-${key}`}
-                        label={
-                            config?.icon ? (
-                                <Text className="text-text-primary text-[10px]" style={textColorStyle}>{displayValue}</Text>
-                            ) : (
-                                <>
-                                    <Text className="text-text-tertiary text-[10px] mr-1" style={textColorStyle}>{config?.rewrite || key}:</Text>
-                                    <Text className="text-text-primary text-[10px]" style={textColorStyle}>{displayValue}</Text>
-                                </>
-                            )
-                        }
-                        color={activeColor}
-                        variant={effectiveVariant}
-                        icon={config?.icon}
-                        rounding={config?.rounding}
+                        type="property"
+                        name={key}
+                        value={String(value)}
                         size="sm"
-                        style={isPassed ? { borderStyle: 'dashed' } : undefined}
                     />
                 );
             })}
-            {task.tags.map(tag => {
-                const config = tagConfig[tag];
-                if (config?.hidden) return null;
-
-                return (
-                    <MetadataChip
-                        key={`tag-${tag}`}
-                        label={config?.rewrite || `#${tag}`}
-                        color={config?.color}
-                        variant={config?.variant || 'default'}
-                        icon={config?.icon}
-                        rounding={config?.rounding}
-                        size="sm"
-                        onPress={() => onTagPress?.(tag)}
-                        style={!config?.color ? { borderColor: Colors.primary, backgroundColor: Colors.surfaceHighlight } : undefined}
-                    />
-                );
-            })}
+            {task.tags.map(tag => (
+                <MetadataChip
+                    key={`tag-${tag}`}
+                    type="tag"
+                    name={tag}
+                    onPress={() => onTagPress?.(tag)}
+                    size="sm"
+                />
+            ))}
         </View>
     );
 
