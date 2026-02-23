@@ -122,7 +122,7 @@ export function TagPropertySettings() {
         const type = activeTab;
         const config = type === 'tags' ? (tagConfig?.[item] || {}) : (propertyConfig?.[item] || {});
         const updateFn = type === 'tags' ? setTagConfig : setPropertyConfig;
-        const prefix = type === 'tags' ? '#' : '';
+        const prefix = type === 'tags' ? '' : '';
 
         return (
             <SettingsListItem 
