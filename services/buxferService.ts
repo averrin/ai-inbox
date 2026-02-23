@@ -38,10 +38,12 @@ export interface Transaction {
 export interface Budget {
   id: string;
   name: string;
-  limit: string;
-  remaining: number;
+  limit: number;
+  amount: number; // Amount spent so far in the current period
+  remaining?: number;
   period: string;
-  currentPeriod: string;
+  currentPeriod?: string;
+  balance?: number; // For rollover budgets
 }
 
 class BuxferService {

@@ -1,12 +1,12 @@
 import { View, Text, TextInput, TouchableOpacity, ScrollView, RefreshControl, ActivityIndicator, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettingsStore } from '../../store/settings';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { buxferService, Account, Transaction, Budget } from '../../services/buxferService';
 import { Layout } from '../ui/Layout';
 import { IslandHeader } from '../ui/IslandHeader';
 import { MetadataChip } from '../ui/MetadataChip';
-import { Colors, Palette } from '../ui/design-tokens';
+import { Colors } from '../ui/design-tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert, showError } from '../../utils/alert';
 import dayjs from 'dayjs';
@@ -25,7 +25,6 @@ export default function MoneyScreen() {
 
     // Search & Settings State
     const [searchQuery, setSearchQuery] = useState('');
-    const [showSearch, setShowSearch] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
 
     // Login form state
@@ -280,6 +279,25 @@ export default function MoneyScreen() {
                         progressViewOffset={140}
                     />
                 }
+                ListHeaderComponent={
+                    <View className="mb-4">
+                        <View className="bg-surface p-3 rounded-xl border border-border flex-row items-center">
+                            <Ionicons name="search" size={20} color={Colors.text.tertiary} style={{ marginRight: 8 }} />
+                            <TextInput
+                                className="flex-1 text-white text-base"
+                                placeholder="Search transactions..."
+                                placeholderTextColor={Colors.text.tertiary}
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                            />
+                            {searchQuery.length > 0 && (
+                                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                    <Ionicons name="close-circle" size={20} color={Colors.text.tertiary} />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
+                }
                 ListEmptyComponent={
                     <Text className="text-text-tertiary italic text-center mt-10">
                         {searchQuery ? "No transactions found matching your search." : "No recent transactions."}
@@ -342,9 +360,9 @@ export default function MoneyScreen() {
                     <Text className="text-text-tertiary italic">No budgets found.</Text>
                 ) : (
                     budgets.map(budget => {
-                        const limit = parseFloat(budget.limit);
-                        const remaining = budget.remaining;
-                        const spent = limit - remaining;
+                        const limit = Number(budget.limit) || 0;
+                        const spent = Number(budget.amount) || 0;
+                        const remaining = limit - spent;
                         const percent = limit > 0 ? (spent / limit) * 100 : 0;
                         const isOver = remaining < 0;
 
@@ -398,7 +416,7 @@ export default function MoneyScreen() {
 
     const handleTabChange = (tab: string) => {
         setActiveTab(tab);
-        setShowSearch(false);
+        // Reset search when changing tabs
         setSearchQuery('');
     };
 
@@ -409,11 +427,6 @@ export default function MoneyScreen() {
                     title="Money"
                     rightActions={[
                         ...(token ? [
-                            ...(activeTab === 'transactions' ? [{
-                                icon: 'search-outline',
-                                onPress: () => setShowSearch(!showSearch),
-                                color: showSearch ? Colors.primary : undefined
-                            }] : []),
                             {
                                 icon: 'settings-outline',
                                 onPress: () => setShowSettings(true),
@@ -423,13 +436,6 @@ export default function MoneyScreen() {
                     tabs={token ? tabs : undefined}
                     activeTab={activeTab}
                     onTabChange={handleTabChange}
-                    showSearch={showSearch}
-                    onCloseSearch={() => setShowSearch(false)}
-                    searchBar={{
-                        value: searchQuery,
-                        onChangeText: setSearchQuery,
-                        placeholder: "Search transactions...",
-                    }}
                 />
             </View>
 
