@@ -135,6 +135,7 @@ export function TagPropertySettings() {
                         <Text className="text-secondary text-xs">
                             {config.hidden ? 'Hidden' : 'Visible'}
                             {config.color ? ' • Custom Color' : ''}
+                            {config.rewrite ? ` • Rewritten as ${config.rewrite}` : ''}
                         </Text>
                     </View>
                     
