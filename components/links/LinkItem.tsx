@@ -8,6 +8,7 @@ import Toast from 'react-native-toast-message';
 import { useSettingsStore } from '../../store/settings';
 import { Colors } from '../ui/design-tokens';
 import { showAlert } from '../../utils/alert';
+import { MetadataChip } from '../ui/MetadataChip';
 
 interface LinkItemProps {
     link: LinkWithSource;
@@ -86,25 +87,15 @@ export function LinkItem({ link, onDelete, onTagPress }: LinkItemProps) {
                     {/* Tags */}
                     {visibleTags.length > 0 && (
                         <View className="flex-row flex-wrap gap-1 mt-1">
-                            {visibleTags.slice(0, 3).map(tag => {
-                                const config = tagConfig[tag];
-                                const customStyle = config?.color ? {
-                                    backgroundColor: `${config.color}33`,
-                                    borderColor: `${config.color}66`,
-                                } : undefined;
-                                const textStyle = config?.color ? { color: config.color } : undefined;
-
-                                return (
-                                    <TouchableOpacity
-                                        key={tag}
-                                        onPress={() => onTagPress(tag)}
-                                        className="bg-surface-highlight px-1.5 py-0.5 rounded text-xs border border-primary"
-                                        style={customStyle}
-                                    >
-                                        <Text className="text-text-secondary text-[10px]" style={textStyle} numberOfLines={1}>{config?.rewrite || `#${tag}`}</Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
+                            {visibleTags.slice(0, 3).map(tag => (
+                                <MetadataChip
+                                    key={tag}
+                                    type="tag"
+                                    name={tag}
+                                    onPress={() => onTagPress(tag)}
+                                    size="sm"
+                                />
+                            ))}
                             {visibleTags.length > 3 && (
                                 <Text className="text-secondary text-[10px] self-center">+{visibleTags.length - 3}</Text>
                             )}
