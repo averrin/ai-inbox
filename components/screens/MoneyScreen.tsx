@@ -2,7 +2,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, RefreshControl, Ac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettingsStore } from '../../store/settings';
 import { useState, useEffect, useCallback } from 'react';
-import { buxferService, Account, Transaction } from '../../services/buxferService';
+import { buxferService, Account, Transaction, Budget } from '../../services/buxferService';
 import { Layout } from '../ui/Layout';
 import { IslandHeader } from '../ui/IslandHeader';
 import { MetadataChip } from '../ui/MetadataChip';
@@ -10,6 +10,7 @@ import { Colors, Palette } from '../ui/design-tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert, showError } from '../../utils/alert';
 import dayjs from 'dayjs';
+import { MoneySettingsModal } from './MoneySettingsModal';
 
 export default function MoneyScreen() {
     const insets = useSafeAreaInsets();
@@ -19,7 +20,13 @@ export default function MoneyScreen() {
     const [token, setToken] = useState<string | null>(null);
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [budgets, setBudgets] = useState<Budget[]>([]);
     const [activeTab, setActiveTab] = useState('overview');
+
+    // Search & Settings State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showSearch, setShowSearch] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
 
     // Login form state
     const [emailInput, setEmailInput] = useState(buxferEmail || '');
@@ -48,12 +55,14 @@ export default function MoneyScreen() {
             }
 
             if (currentToken) {
-                const [accs, txs] = await Promise.all([
+                const [accs, txs, bdgts] = await Promise.all([
                     buxferService.getAccounts(currentToken),
-                    buxferService.getTransactions(currentToken)
+                    buxferService.getTransactions(currentToken),
+                    buxferService.getBudgets(currentToken)
                 ]);
                 setAccounts(accs);
                 setTransactions(txs);
+                setBudgets(bdgts);
             }
         } catch (e: any) {
             console.error("Failed to load data", e);
@@ -85,12 +94,14 @@ export default function MoneyScreen() {
             setToken(t);
 
             // Load data
-            const [accs, txs] = await Promise.all([
+            const [accs, txs, bdgts] = await Promise.all([
                 buxferService.getAccounts(t),
-                buxferService.getTransactions(t)
+                buxferService.getTransactions(t),
+                buxferService.getBudgets(t)
             ]);
             setAccounts(accs);
             setTransactions(txs);
+            setBudgets(bdgts);
         } catch (e: any) {
             showError("Login Error", "Login failed: " + (e.message || "Unknown error"));
         } finally {
@@ -110,8 +121,10 @@ export default function MoneyScreen() {
                     setToken(null);
                     setAccounts([]);
                     setTransactions([]);
+                    setBudgets([]);
                     setEmailInput('');
                     setPasswordInput('');
+                    setShowSettings(false);
                 }
             }
         ]);
@@ -241,10 +254,77 @@ export default function MoneyScreen() {
         </ScrollView>
     );
 
-    const renderTransactions = () => (
-        <FlatList
-            data={transactions}
-            keyExtractor={(item) => item.id}
+    const renderTransactions = () => {
+        const filteredTransactions = transactions.filter(tx => {
+            if (!searchQuery) return true;
+            const q = searchQuery.toLowerCase();
+            return (
+                tx.description.toLowerCase().includes(q) ||
+                (tx.tags && tx.tags.toLowerCase().includes(q)) ||
+                (tx.accountName && tx.accountName.toLowerCase().includes(q)) ||
+                tx.amount.toString().includes(q)
+            );
+        });
+
+        return (
+            <FlatList
+                data={filteredTransactions}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={{ paddingTop: 140, paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={loading}
+                        onRefresh={() => loadData(true)}
+                        tintColor={Colors.primary}
+                        colors={[Colors.primary]}
+                        progressViewOffset={140}
+                    />
+                }
+                ListEmptyComponent={
+                    <Text className="text-text-tertiary italic text-center mt-10">
+                        {searchQuery ? "No transactions found matching your search." : "No recent transactions."}
+                    </Text>
+                }
+                renderItem={({ item: tx }) => (
+                    <View className="bg-surface p-4 rounded-xl border border-border mb-3">
+                        <View className="flex-row justify-between items-start mb-2">
+                            <Text className="text-white font-medium flex-1 mr-2" numberOfLines={2}>{tx.description}</Text>
+                            <Text
+                                className="font-bold"
+                                style={{ color: tx.type === 'income' ? Colors.status.healthy : Colors.error }}
+                            >
+                                {tx.type === 'expense' ? '-' : '+'}{formatCurrency(Math.abs(tx.amount), tx.currency)}
+                            </Text>
+                        </View>
+
+                        <View className="flex-row justify-between items-center flex-wrap gap-y-2">
+                            <View className="flex-row items-center gap-2 flex-wrap flex-1 mr-2">
+                                <Text className="text-text-secondary text-xs mr-1">{dayjs(tx.date).format('MMM D')}</Text>
+                                {tx.tags && tx.tags.split(',').map(tag => (
+                                    <MetadataChip
+                                        key={tag}
+                                        label={tag.trim()}
+                                        size="sm"
+                                        style={{ marginRight: 2 }}
+                                    />
+                                ))}
+                            </View>
+                            <MetadataChip
+                                label={tx.accountName}
+                                size="sm"
+                                variant="outline"
+                                icon="wallet-outline"
+                                color={Colors.text.tertiary}
+                            />
+                        </View>
+                    </View>
+                )}
+            />
+        );
+    };
+
+    const renderBudgets = () => (
+        <ScrollView
             contentContainerStyle={{ paddingTop: 140, paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
             refreshControl={
                 <RefreshControl
@@ -255,50 +335,72 @@ export default function MoneyScreen() {
                     progressViewOffset={140}
                 />
             }
-            ListEmptyComponent={
-                <Text className="text-text-tertiary italic text-center mt-10">No recent transactions.</Text>
-            }
-            renderItem={({ item: tx }) => (
-                <View className="bg-surface p-4 rounded-xl border border-border mb-3">
-                    <View className="flex-row justify-between items-start mb-2">
-                        <Text className="text-white font-medium flex-1 mr-2" numberOfLines={2}>{tx.description}</Text>
-                        <Text
-                            className="font-bold"
-                            style={{ color: tx.type === 'income' ? Colors.status.healthy : Colors.error }}
-                        >
-                            {tx.type === 'expense' ? '-' : '+'}{formatCurrency(Math.abs(tx.amount), tx.currency)}
-                        </Text>
-                    </View>
+        >
+            <View className="mb-6">
+                <Text className="text-white font-bold text-lg mb-4">Your Budgets</Text>
+                {budgets.length === 0 ? (
+                    <Text className="text-text-tertiary italic">No budgets found.</Text>
+                ) : (
+                    budgets.map(budget => {
+                        const limit = parseFloat(budget.limit);
+                        const remaining = budget.remaining;
+                        const spent = limit - remaining;
+                        const percent = limit > 0 ? (spent / limit) * 100 : 0;
+                        const isOver = remaining < 0;
 
-                    <View className="flex-row justify-between items-center flex-wrap gap-y-2">
-                        <View className="flex-row items-center gap-2 flex-wrap flex-1 mr-2">
-                            <Text className="text-text-secondary text-xs mr-1">{dayjs(tx.date).format('MMM D')}</Text>
-                            {tx.tags && tx.tags.split(',').map(tag => (
-                                <MetadataChip
-                                    key={tag}
-                                    label={tag.trim()}
-                                    size="sm"
-                                    style={{ marginRight: 2 }}
-                                />
-                            ))}
-                        </View>
-                        <MetadataChip
-                            label={tx.accountName}
-                            size="sm"
-                            variant="outline"
-                            icon="wallet-outline"
-                            color={Colors.text.tertiary}
-                        />
-                    </View>
-                </View>
-            )}
-        />
+                        return (
+                            <View key={budget.id} className="bg-surface p-4 rounded-xl border border-border mb-3">
+                                <View className="flex-row justify-between items-start mb-2">
+                                    <View>
+                                        <Text className="text-white font-medium text-lg">{budget.name}</Text>
+                                        <Text className="text-text-tertiary text-xs">{budget.currentPeriod}</Text>
+                                    </View>
+                                    <View className="items-end">
+                                        <Text
+                                            className="font-bold text-lg"
+                                            style={{ color: remaining >= 0 ? Colors.status.healthy : Colors.error }}
+                                        >
+                                            {formatCurrency(remaining)}
+                                        </Text>
+                                        <Text className="text-text-tertiary text-xs">remaining of {formatCurrency(limit)}</Text>
+                                    </View>
+                                </View>
+
+                                {/* Progress Bar */}
+                                <View className="h-2 bg-background rounded-full overflow-hidden mt-2 mb-2">
+                                    <View
+                                        className="h-full rounded-full"
+                                        style={{
+                                            width: `${Math.min(percent, 100)}%`,
+                                            backgroundColor: isOver ? Colors.error : (percent > 80 ? Colors.warning : Colors.status.healthy)
+                                        }}
+                                    />
+                                </View>
+
+                                {budget.period && (
+                                    <View className="flex-row items-center mt-1">
+                                         <MetadataChip label={budget.period} size="sm" variant="outline" color={Colors.text.tertiary} />
+                                    </View>
+                                )}
+                            </View>
+                        );
+                    })
+                )}
+            </View>
+        </ScrollView>
     );
 
     const tabs = [
         { key: 'overview', label: 'Overview' },
-        { key: 'transactions', label: 'Transactions' }
+        { key: 'transactions', label: 'Transactions' },
+        { key: 'budgets', label: 'Budgets' }
     ];
+
+    const handleTabChange = (tab: string) => {
+        setActiveTab(tab);
+        setShowSearch(false);
+        setSearchQuery('');
+    };
 
     return (
         <Layout>
@@ -306,23 +408,45 @@ export default function MoneyScreen() {
                 <IslandHeader
                     title="Money"
                     rightActions={[
-                        ...(token ? [{
-                            icon: 'log-out-outline',
-                            onPress: handleLogout,
-                        }, {
-                            icon: 'refresh-outline',
-                            onPress: () => loadData(true),
-                        }] : [])
+                        ...(token ? [
+                            ...(activeTab === 'transactions' ? [{
+                                icon: 'search-outline',
+                                onPress: () => setShowSearch(!showSearch),
+                                color: showSearch ? Colors.primary : undefined
+                            }] : []),
+                            {
+                                icon: 'settings-outline',
+                                onPress: () => setShowSettings(true),
+                            }
+                        ] : [])
                     ]}
                     tabs={token ? tabs : undefined}
                     activeTab={activeTab}
-                    onTabChange={setActiveTab}
+                    onTabChange={handleTabChange}
+                    showSearch={showSearch}
+                    onCloseSearch={() => setShowSearch(false)}
+                    searchBar={{
+                        value: searchQuery,
+                        onChangeText: setSearchQuery,
+                        placeholder: "Search transactions...",
+                    }}
                 />
             </View>
 
             {!buxferEmail || !buxferPassword ? renderLoginForm() : (
-                activeTab === 'overview' ? renderOverview() : renderTransactions()
+                <>
+                    {activeTab === 'overview' && renderOverview()}
+                    {activeTab === 'transactions' && renderTransactions()}
+                    {activeTab === 'budgets' && renderBudgets()}
+                </>
             )}
+
+            <MoneySettingsModal
+                visible={showSettings}
+                onClose={() => setShowSettings(false)}
+                onLogout={handleLogout}
+                email={buxferEmail}
+            />
         </Layout>
     );
 }
