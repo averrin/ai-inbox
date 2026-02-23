@@ -13,6 +13,7 @@ import { showAlert, showError } from '../../utils/alert';
 import dayjs from 'dayjs';
 import { MoneySettingsModal } from './MoneySettingsModal';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SpendingChart } from './SpendingChart';
 
 export default function MoneyScreen() {
     const insets = useSafeAreaInsets();
@@ -242,6 +243,9 @@ export default function MoneyScreen() {
                     {formatCurrency(totalBalance)}
                 </Text>
             </View>
+
+            {/* Spending Chart */}
+            <SpendingChart transactions={transactions} />
 
             {/* Accounts Section */}
             <View className="mb-6">
