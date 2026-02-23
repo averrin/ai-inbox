@@ -1,20 +1,22 @@
 import { View, Text, TextInput, TouchableOpacity, ScrollView, RefreshControl, ActivityIndicator, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSettingsStore } from '../../store/settings';
-import { useState, useEffect } from 'react';
+import { useSettingsStore, MetadataConfig } from '../../store/settings';
+import { useState, useEffect, useMemo } from 'react';
 import { buxferService, Account, Transaction, Budget } from '../../services/buxferService';
 import { Layout } from '../ui/Layout';
 import { IslandHeader } from '../ui/IslandHeader';
+import { islandBaseStyle } from '../ui/IslandBar';
 import { MetadataChip } from '../ui/MetadataChip';
 import { Colors } from '../ui/design-tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert, showError } from '../../utils/alert';
 import dayjs from 'dayjs';
 import { MoneySettingsModal } from './MoneySettingsModal';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function MoneyScreen() {
     const insets = useSafeAreaInsets();
-    const { buxferEmail, buxferPassword, setBuxferEmail, setBuxferPassword } = useSettingsStore();
+    const { buxferEmail, buxferPassword, setBuxferEmail, setBuxferPassword, tagConfig } = useSettingsStore();
 
     const [loading, setLoading] = useState(false);
     const [token, setToken] = useState<string | null>(null);
@@ -25,7 +27,9 @@ export default function MoneyScreen() {
 
     // Search & Settings State
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedTag, setSelectedTag] = useState<string | null>(null);
     const [showSettings, setShowSettings] = useState(false);
+    const [scrollX, setScrollX] = useState(0);
 
     // Login form state
     const [emailInput, setEmailInput] = useState(buxferEmail || '');
@@ -76,6 +80,17 @@ export default function MoneyScreen() {
             loadData();
         }
     }, []); // Initial load if credentials exist
+
+    // Extract unique tags from transactions
+    const uniqueTags = useMemo(() => {
+        const tags = new Set<string>();
+        transactions.forEach(tx => {
+            if (tx.tags) {
+                tx.tags.split(',').forEach(t => tags.add(t.trim()));
+            }
+        });
+        return Array.from(tags).sort();
+    }, [transactions]);
 
     const handleLoginSubmit = async () => {
         if (!emailInput || !passwordInput) {
@@ -255,6 +270,14 @@ export default function MoneyScreen() {
 
     const renderTransactions = () => {
         const filteredTransactions = transactions.filter(tx => {
+            // Tag filtering
+            if (selectedTag) {
+                if (!tx.tags) return false;
+                const txTags = tx.tags.split(',').map(t => t.trim());
+                if (!txTags.includes(selectedTag)) return false;
+            }
+
+            // Search query filtering
             if (!searchQuery) return true;
             const q = searchQuery.toLowerCase();
             return (
@@ -300,7 +323,7 @@ export default function MoneyScreen() {
                 }
                 ListEmptyComponent={
                     <Text className="text-text-tertiary italic text-center mt-10">
-                        {searchQuery ? "No transactions found matching your search." : "No recent transactions."}
+                        {searchQuery || selectedTag ? "No transactions found matching your filters." : "No recent transactions."}
                     </Text>
                 }
                 renderItem={({ item: tx }) => (
@@ -318,14 +341,20 @@ export default function MoneyScreen() {
                         <View className="flex-row justify-between items-center flex-wrap gap-y-2">
                             <View className="flex-row items-center gap-2 flex-wrap flex-1 mr-2">
                                 <Text className="text-text-secondary text-xs mr-1">{dayjs(tx.date).format('MMM D')}</Text>
-                                {tx.tags && tx.tags.split(',').map(tag => (
-                                    <MetadataChip
-                                        key={tag}
-                                        label={tag.trim()}
-                                        size="sm"
-                                        style={{ marginRight: 2 }}
-                                    />
-                                ))}
+                                {tx.tags && tx.tags.split(',').map(tag => {
+                                    const trimmedTag = tag.trim();
+                                    const config = tagConfig[trimmedTag];
+                                    return (
+                                        <MetadataChip
+                                            key={trimmedTag}
+                                            label={trimmedTag}
+                                            size="sm"
+                                            style={{ marginRight: 2 }}
+                                            icon={config?.icon}
+                                            color={config?.color}
+                                        />
+                                    );
+                                })}
                             </View>
                             <MetadataChip
                                 label={tx.accountName}
@@ -361,9 +390,9 @@ export default function MoneyScreen() {
                 ) : (
                     budgets.map(budget => {
                         const limit = Number(budget.limit) || 0;
-                        const spent = Number(budget.amount) || 0;
-                        const remaining = limit - spent;
-                        const percent = limit > 0 ? (spent / limit) * 100 : 0;
+                        const remaining = Number(budget.remaining) || 0;
+                        const spent = limit - remaining;
+                        const percent = limit > 0 ? ((limit - remaining) / limit) * 100 : 0;
                         const isOver = remaining < 0;
 
                         return (
@@ -389,7 +418,7 @@ export default function MoneyScreen() {
                                     <View
                                         className="h-full rounded-full"
                                         style={{
-                                            width: `${Math.min(percent, 100)}%`,
+                                            width: `${Math.min(Math.max(percent, 0), 100)}%`,
                                             backgroundColor: isOver ? Colors.error : (percent > 80 ? Colors.warning : Colors.status.healthy)
                                         }}
                                     />
@@ -416,7 +445,7 @@ export default function MoneyScreen() {
 
     const handleTabChange = (tab: string) => {
         setActiveTab(tab);
-        // Reset search when changing tabs
+        // Reset search/filters when changing tabs
         setSearchQuery('');
     };
 
@@ -436,7 +465,60 @@ export default function MoneyScreen() {
                     tabs={token ? tabs : undefined}
                     activeTab={activeTab}
                     onTabChange={handleTabChange}
-                />
+                >
+                    {/* Tag Filter Panel - Only for Transactions tab */}
+                    {activeTab === 'transactions' && token && uniqueTags.length > 0 && (
+                         <View style={[islandBaseStyle, { marginTop: 8, paddingLeft: 4, position: 'relative', marginLeft: 4, marginRight: 4 }]}>
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={{ gap: 8, paddingLeft: 12, paddingRight: 32, paddingVertical: 4 }}
+                                onScroll={(e) => setScrollX(e.nativeEvent.contentOffset.x)}
+                                scrollEventThrottle={16}
+                            >
+                                <MetadataChip
+                                    label="All"
+                                    variant={selectedTag === null ? "solid" : "outline"}
+                                    color={Colors.status.healthy}
+                                    onPress={() => setSelectedTag(null)}
+                                />
+                                {uniqueTags.map(tag => {
+                                    const config = tagConfig[tag];
+                                    return (
+                                        <MetadataChip
+                                            key={tag}
+                                            label={tag}
+                                            variant={selectedTag === tag ? "solid" : "outline"}
+                                            color={config?.color || Colors.primary}
+                                            icon={config?.icon}
+                                            onPress={() => setSelectedTag(tag === selectedTag ? null : tag)}
+                                        />
+                                    );
+                                })}
+                            </ScrollView>
+
+                            {/* Left Gradient Fade */}
+                            {scrollX > 10 && (
+                                <LinearGradient
+                                    colors={['rgba(30, 41, 59, 1)', 'rgba(30, 41, 59, 0)']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 24, borderTopLeftRadius: 30, borderBottomLeftRadius: 30 }}
+                                    pointerEvents="none"
+                                />
+                            )}
+
+                            {/* Right Gradient Fade */}
+                            <LinearGradient
+                                colors={['rgba(30, 41, 59, 0)', 'rgba(30, 41, 59, 1)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 32, borderTopRightRadius: 30, borderBottomRightRadius: 30 }}
+                                pointerEvents="none"
+                            />
+                        </View>
+                    )}
+                </IslandHeader>
             </View>
 
             {!buxferEmail || !buxferPassword ? renderLoginForm() : (
