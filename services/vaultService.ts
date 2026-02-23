@@ -51,7 +51,7 @@ export const useVaultStore = create<VaultState>()(
                     // Pass existing cache to readVaultStructure to optimize reads
                     const { structure, updatedCache } = await readVaultStructure(
                         targetUri,
-                        2,
+                        4,
                         get().metadataCache
                     );
 
