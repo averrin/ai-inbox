@@ -1,11 +1,11 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, RefreshControl, ActivityIndicator, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettingsStore } from '../../store/settings';
 import { useState, useEffect, useCallback } from 'react';
 import { buxferService, Account, Transaction } from '../../services/buxferService';
 import { Layout } from '../ui/Layout';
 import { IslandHeader } from '../ui/IslandHeader';
-import { Colors } from '../ui/design-tokens';
+import { Colors, Palette } from '../ui/design-tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { showAlert, showError } from '../../utils/alert';
 import dayjs from 'dayjs';
@@ -18,6 +18,7 @@ export default function MoneyScreen() {
     const [token, setToken] = useState<string | null>(null);
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [activeTab, setActiveTab] = useState<'overview' | 'transactions'>('overview');
 
     // Login form state
     const [emailInput, setEmailInput] = useState(buxferEmail || '');
@@ -115,6 +116,16 @@ export default function MoneyScreen() {
         ]);
     };
 
+    const formatCurrency = (amount: number, currency: string = 'CZK') => {
+        // Fallback to CZK if undefined, per user request "at least main is czk"
+        return new Intl.NumberFormat('cs-CZ', {
+            style: 'currency',
+            currency: currency || 'CZK',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(amount);
+    };
+
     const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
 
     const renderLoginForm = () => (
@@ -180,16 +191,16 @@ export default function MoneyScreen() {
         </View>
     );
 
-    const renderDashboard = () => (
+    const renderOverview = () => (
         <ScrollView
-            contentContainerStyle={{ paddingTop: 140, paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
+            contentContainerStyle={{ paddingTop: 180, paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
             refreshControl={
                 <RefreshControl
                     refreshing={loading}
                     onRefresh={() => loadData(true)}
                     tintColor={Colors.primary}
                     colors={[Colors.primary]}
-                    progressViewOffset={140}
+                    progressViewOffset={180}
                 />
             }
         >
@@ -197,7 +208,7 @@ export default function MoneyScreen() {
             <View className="bg-surface p-6 rounded-2xl border border-border mb-6 items-center">
                 <Text className="text-text-secondary font-medium mb-2">Total Net Worth</Text>
                 <Text className={`text-4xl font-bold ${totalBalance >= 0 ? 'text-status-healthy' : 'text-error'}`}>
-                    {totalBalance < 0 ? '-' : ''}${Math.abs(totalBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(totalBalance)}
                 </Text>
             </View>
 
@@ -214,41 +225,52 @@ export default function MoneyScreen() {
                                 <Text className="text-text-secondary text-xs">{acc.bank}</Text>
                             </View>
                             <Text className={`font-bold ${acc.balance >= 0 ? 'text-status-healthy' : 'text-error'}`}>
-                                {acc.balance < 0 ? '-' : ''}${Math.abs(acc.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {formatCurrency(acc.balance, acc.currency)}
                             </Text>
                         </View>
                     ))
                 )}
             </View>
-
-            {/* Recent Transactions Section */}
-            <View className="mb-6">
-                <Text className="text-white font-bold text-lg mb-4">Recent Transactions</Text>
-                {transactions.length === 0 ? (
-                    <Text className="text-text-tertiary italic">No recent transactions.</Text>
-                ) : (
-                    transactions.map(tx => (
-                        <View key={tx.id} className="bg-surface p-4 rounded-xl border border-border mb-3">
-                            <View className="flex-row justify-between items-start mb-1">
-                                <Text className="text-white font-medium flex-1 mr-2" numberOfLines={1}>{tx.description}</Text>
-                                <Text className={`font-bold ${tx.type === 'income' ? 'text-status-healthy' : 'text-white'}`}>
-                                    {tx.type === 'expense' ? '-' : '+'}${Math.abs(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </Text>
-                            </View>
-                            <View className="flex-row justify-between items-center">
-                                <View className="flex-row gap-2">
-                                    <Text className="text-text-secondary text-xs">{dayjs(tx.date).format('MMM D, YYYY')}</Text>
-                                    {tx.tags && tx.tags.split(',').map(tag => (
-                                        <Text key={tag} className="text-text-tertiary text-xs bg-surface-highlight px-1 rounded">{tag.trim()}</Text>
-                                    ))}
-                                </View>
-                                <Text className="text-text-tertiary text-xs italic">{tx.accountName}</Text>
-                            </View>
-                        </View>
-                    ))
-                )}
-            </View>
         </ScrollView>
+    );
+
+    const renderTransactions = () => (
+        <FlatList
+            data={transactions}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ paddingTop: 180, paddingBottom: insets.bottom + 100, paddingHorizontal: 16 }}
+            refreshControl={
+                <RefreshControl
+                    refreshing={loading}
+                    onRefresh={() => loadData(true)}
+                    tintColor={Colors.primary}
+                    colors={[Colors.primary]}
+                    progressViewOffset={180}
+                />
+            }
+            ListEmptyComponent={
+                <Text className="text-text-tertiary italic text-center mt-10">No recent transactions.</Text>
+            }
+            renderItem={({ item: tx }) => (
+                <View className="bg-surface p-4 rounded-xl border border-border mb-3">
+                    <View className="flex-row justify-between items-start mb-1">
+                        <Text className="text-white font-medium flex-1 mr-2" numberOfLines={1}>{tx.description}</Text>
+                        <Text className={`font-bold ${tx.type === 'income' ? 'text-status-healthy' : 'text-error'}`}>
+                            {tx.type === 'expense' ? '-' : '+'}{formatCurrency(Math.abs(tx.amount), tx.currency)}
+                        </Text>
+                    </View>
+                    <View className="flex-row justify-between items-center">
+                        <View className="flex-row gap-2">
+                            <Text className="text-text-secondary text-xs">{dayjs(tx.date).format('MMM D, YYYY')}</Text>
+                            {tx.tags && tx.tags.split(',').map(tag => (
+                                <Text key={tag} className="text-text-tertiary text-xs bg-surface-highlight px-1 rounded">{tag.trim()}</Text>
+                            ))}
+                        </View>
+                        <Text className="text-text-tertiary text-xs italic">{tx.accountName}</Text>
+                    </View>
+                </View>
+            )}
+        />
     );
 
     return (
@@ -265,10 +287,30 @@ export default function MoneyScreen() {
                             onPress: () => loadData(true),
                         }] : [])
                     ]}
-                />
+                >
+                   {/* Tab Switcher inside Header */}
+                   {token && (
+                        <View className="flex-row bg-surface-highlight p-1 rounded-lg mt-2 mx-1">
+                            <TouchableOpacity
+                                className={`flex-1 py-2 items-center rounded-md ${activeTab === 'overview' ? 'bg-primary' : 'bg-transparent'}`}
+                                onPress={() => setActiveTab('overview')}
+                            >
+                                <Text className={`text-xs font-bold ${activeTab === 'overview' ? 'text-white' : 'text-text-secondary'}`}>Overview</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                className={`flex-1 py-2 items-center rounded-md ${activeTab === 'transactions' ? 'bg-primary' : 'bg-transparent'}`}
+                                onPress={() => setActiveTab('transactions')}
+                            >
+                                <Text className={`text-xs font-bold ${activeTab === 'transactions' ? 'text-white' : 'text-text-secondary'}`}>Transactions</Text>
+                            </TouchableOpacity>
+                        </View>
+                   )}
+                </IslandHeader>
             </View>
 
-            {!buxferEmail || !buxferPassword ? renderLoginForm() : renderDashboard()}
+            {!buxferEmail || !buxferPassword ? renderLoginForm() : (
+                activeTab === 'overview' ? renderOverview() : renderTransactions()
+            )}
         </Layout>
     );
 }
