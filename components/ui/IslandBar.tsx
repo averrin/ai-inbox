@@ -23,7 +23,6 @@ export const islandBaseStyle: ViewStyle = {
     minHeight: 48,
     overflow: 'hidden',
     ...Shadows.default,
-    opacity: 0.95
 };
 
 /**
