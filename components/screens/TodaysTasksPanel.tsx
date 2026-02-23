@@ -358,8 +358,33 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                     // --- HAS EVENT: Move Event & Update Task Date ---
 
                     // Calculate Duration
-                    let durationMins = 30;
-                    if (task.properties.start && task.properties.end) {
+                    // Try to find the event in calendarEvents to get the REAL duration first
+                    const eventIds = (task.properties.event_id || '').split(',').map(id => id.trim()).filter(Boolean);
+                    let foundEventDuration = null;
+
+                    if (eventIds.length > 0) {
+                        const linkedEvent = calendarEvents.find(e => {
+                            const eId = e.originalEvent?.id || e.id;
+                            if (eventIds.includes(eId)) return true;
+                            // Check merged IDs
+                            const mergedIds = e.originalEvent?.ids || (e as any).ids;
+                            if (mergedIds && Array.isArray(mergedIds)) {
+                                return mergedIds.some((mid: string) => eventIds.includes(mid));
+                            }
+                            return false;
+                        });
+
+                        if (linkedEvent) {
+                            const start = dayjs(linkedEvent.start);
+                            const end = dayjs(linkedEvent.end);
+                            const diff = end.diff(start, 'minute');
+                            if (diff > 0) foundEventDuration = diff;
+                        }
+                    }
+
+                    let durationMins = foundEventDuration || 30;
+
+                    if (!foundEventDuration && task.properties.start && task.properties.end) {
                         const s = dayjs(`2000-01-01T${task.properties.start}`);
                         const e = dayjs(`2000-01-01T${task.properties.end}`);
                         if (s.isValid() && e.isValid()) {
@@ -373,7 +398,6 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                     const slotEnd = dayjs(slot).add(durationMins, 'minute').toDate();
 
                     // Update Calendar Event(s)
-                    const eventIds = (task.properties.event_id || '').split(',').map(id => id.trim()).filter(Boolean);
                     if (eventIds.length > 0) {
                         await Promise.all(eventIds.map(async (eventId) => {
                             try {
@@ -390,9 +414,14 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                         }
                     }
 
-                    // Update Task Date (Sync)
+                    // Update Task Date & Time (Sync)
                     const newDate = dayjs(slot).format('YYYY-MM-DD');
-                    const newProps = { ...task.properties, date: newDate };
+                    const newProps = {
+                        ...task.properties,
+                        date: newDate,
+                        start: dayjs(slot).format('HH:mm'),
+                        end: dayjs(slotEnd).format('HH:mm')
+                    };
 
                     handleTaskUpdate(task, { ...task, properties: newProps });
                     Toast.show({
