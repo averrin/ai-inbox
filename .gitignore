@@ -52,3 +52,12 @@ local-modules/*/dist/
 
 # Firebase
 google-services.json
+
+# Agent & AI tools
+.agent/
+.opencode/
+*-instructions.json
+repomix-output.md
+tw-classes-found.txt
+errors.txt
+openspec/changes/
