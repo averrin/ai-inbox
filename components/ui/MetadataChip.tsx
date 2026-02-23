@@ -46,9 +46,15 @@ export function MetadataChip(props: MetadataChipProps) {
     }
 
     // Smart Mode Logic
+    // Normalize name for tags (remove leading #)
+    let lookupName = name;
+    if (type === 'tag' && name.charAt(0) === '#') {
+        lookupName = name.substring(1);
+    }
+
     let config;
     if (type === 'tag') {
-        config = tagConfig[name];
+        config = tagConfig[lookupName];
     } else {
         config = propertyConfig[name];
     }
@@ -95,7 +101,7 @@ export function MetadataChip(props: MetadataChipProps) {
 
     if (!displayLabel) {
         if (type === 'tag') {
-            displayLabel = config?.rewrite || name;
+            displayLabel = config?.rewrite || lookupName;
         } else {
             // Property
             const valStr = value ? String(value) : '';

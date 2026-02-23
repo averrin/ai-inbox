@@ -551,7 +551,7 @@ export default function MoneyScreen() {
     });
 
     return (
-        <Layout>
+        <Layout fullBleed={true}>
             <View style={{ flex: 1 }} {...panHandlers}>
             <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
                 <IslandHeader
