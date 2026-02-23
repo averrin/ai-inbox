@@ -1,10 +1,9 @@
 import React, { useMemo } from 'react';
 import { View, Text, useWindowDimensions } from 'react-native';
-import { BarChart, LineChart } from 'react-native-gifted-charts';
+import { LineChart } from 'react-native-gifted-charts';
 import { Colors } from '../ui/design-tokens';
 import dayjs from 'dayjs';
 import { Transaction } from '../../services/buxferService';
-import { LinearGradient } from 'expo-linear-gradient';
 
 interface SpendingChartProps {
     transactions: Transaction[];
@@ -16,12 +15,10 @@ export function SpendingChart({ transactions }: SpendingChartProps) {
     const chartData = useMemo(() => {
         // Filter for expenses in the current month
         const currentMonth = dayjs().startOf('month');
-        const endOfMonth = dayjs().endOf('month');
 
         const expenses = transactions.filter(tx =>
             tx.type === 'expense' &&
-            dayjs(tx.date).isAfter(currentMonth) &&
-            dayjs(tx.date).isBefore(endOfMonth.add(1, 'day')) // Include today
+            dayjs(tx.date).isSame(currentMonth, 'month')
         );
 
         // Aggregate by day
@@ -47,35 +44,42 @@ export function SpendingChart({ transactions }: SpendingChartProps) {
                 value: amount,
                 label: d.date() % 5 === 0 || d.date() === 1 ? d.format('D') : '', // Label every 5th day
                 labelTextStyle: { color: Colors.text.tertiary, fontSize: 10 },
-                frontColor: Colors.primary,
-                topLabelComponent: () => (
-                    amount > 0 ? <Text style={{ color: Colors.text.secondary, fontSize: 9, marginBottom: 2 }}>{Math.round(amount)}</Text> : null
-                ),
+                dataPointText: amount > 0 ? Math.round(amount).toString() : '',
             };
         });
     }, [transactions]);
 
-    const maxVal = Math.max(...chartData.map(d => d.value), 100); // Minimum scale to avoid flat line on 0
+    const maxVal = Math.max(...chartData.map(d => d.value), 100); // Minimum scale
 
     return (
         <View className="bg-surface p-4 rounded-xl border border-border mb-6">
             <Text className="text-white font-bold text-lg mb-4">Monthly Spending</Text>
             <View style={{ overflow: 'hidden' }}>
-                <BarChart
+                <LineChart
                     data={chartData}
-                    barWidth={6}
-                    spacing={4}
-                    roundedTop
-                    roundedBottom
+                    color={Colors.primary}
+                    thickness={3}
+                    curved
                     hideRules
+                    hideYAxisText
                     xAxisThickness={0}
                     yAxisThickness={0}
-                    yAxisTextStyle={{ color: Colors.text.tertiary, fontSize: 10 }}
                     noOfSections={4}
-                    maxValue={maxVal * 1.2} // Add some headroom
-                    width={width - 80} // Adjust for padding
+                    maxValue={maxVal * 1.2}
+                    width={width - 80}
                     height={180}
                     isAnimated
+                    dataPointsColor={Colors.primary}
+                    dataPointsRadius={4}
+                    textColor={Colors.text.secondary}
+                    textShiftY={-8}
+                    textFontSize={10}
+                    hideDataPoints={false} // Show points so we can see daily values
+                    startFillColor={Colors.primary}
+                    endFillColor={Colors.primary}
+                    startOpacity={0.2}
+                    endOpacity={0.0}
+                    areaChart
                 />
             </View>
         </View>
