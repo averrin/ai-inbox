@@ -100,8 +100,8 @@ class BuxferService {
     return response.accounts || [];
   }
 
-  async getTransactions(token: string, page: number = 1): Promise<Transaction[]> {
-    const response = await this.request<{ transactions: Transaction[] }>('transactions', 'GET', { token, page });
+  async getTransactions(token: string, page: number = 1, params: Record<string, any> = {}): Promise<Transaction[]> {
+    const response = await this.request<{ transactions: Transaction[] }>('transactions', 'GET', { token, page, ...params });
     return response.transactions || [];
   }
 
