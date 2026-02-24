@@ -10,6 +10,7 @@ import android.os.Build;
 import android.os.IBinder;
 import android.os.Handler;
 import android.os.PowerManager;
+import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
@@ -17,9 +18,10 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class BuildWatcherService extends Service {
-    public static final String CHANNEL_ID = "watcher_progress_native_service";
+    public static final String CHANNEL_ID = "watcher_progress_native_service_v2";
     public static final String CHANNEL_NAME = "Build Watcher Service";
     public static final String HEARTBEAT_ACTION = "com.aiinbox.mobile.apkinstaller.HEARTBEAT";
+    private static final String TAG = "BuildWatcherService";
 
     // Heartbeat
     private Handler heartbeatHandler = new Handler();
@@ -50,7 +52,7 @@ public class BuildWatcherService extends Service {
             }
         } catch (Exception e) {
             // Log failure but don't crash the service
-            System.err.println("BuildWatcherService: Failed to acquire WakeLock: " + e.getMessage());
+            Log.e(TAG, "Failed to acquire WakeLock: " + e.getMessage());
         }
 
         createNotificationChannel();
@@ -151,6 +153,7 @@ public class BuildWatcherService extends Service {
         }
 
         // Use platform Notification.Builder for API 35+ to access new features (Live Updates)
+        // Note: Reflection is used because compileSdkVersion is 34, while these features are API 35+.
         if (Build.VERSION.SDK_INT >= 35) {
              Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID)
                      .setSmallIcon(iconId)
@@ -166,11 +169,15 @@ public class BuildWatcherService extends Service {
 
              try {
                  if (chipText != null && !chipText.isEmpty()) {
+                     Log.d(TAG, "Setting status chip text: " + chipText);
+                     // setShortCriticalText is a new API 35 method for status chips
                      builder.getClass().getMethod("setShortCriticalText", CharSequence.class).invoke(builder, chipText);
                  }
+                 Log.d(TAG, "Requesting promoted ongoing");
+                 // setRequestPromotedOngoing is a new API 35 method to promote notifications to Live Updates
                  builder.getClass().getMethod("setRequestPromotedOngoing", boolean.class).invoke(builder, true);
              } catch (Exception e) {
-                 // Ignore reflection errors
+                 Log.e(TAG, "Failed to set promoted ongoing or chip text: " + e.getMessage());
              }
 
              if (progress >= 0) {
@@ -208,9 +215,10 @@ public class BuildWatcherService extends Service {
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
-            // Ensure channel exists with LOW importance for silent updates
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW);
+            // Ensure channel exists with DEFAULT importance for promotion, but silent
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT);
             channel.setDescription("Background service for watching builds");
+            channel.setSound(null, null); // Silent
             notificationManager.createNotificationChannel(channel);
         }
     }
