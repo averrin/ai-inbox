@@ -3,6 +3,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useEffect } from "react";
 import { router } from "expo-router";
 import { Colors } from '../components/ui/design-tokens';
+import { useSettingsStore } from "../store/settings";
 
 export default function OAuthRedirect() {
     useEffect(() => {
@@ -10,10 +11,11 @@ export default function OAuthRedirect() {
         WebBrowser.maybeCompleteAuthSession();
         
         // Auto-redirect back to settings/home after a short delay
+        const { oauthRedirectDelay } = useSettingsStore.getState();
         const timer = setTimeout(() => {
             console.log('[OAuthRedirect] session completion timed out/finished, redirecting home...');
             router.replace('/');
-        }, 2000);
+        }, oauthRedirectDelay);
         return () => clearTimeout(timer);
     }, []);
 
