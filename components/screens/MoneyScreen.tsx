@@ -181,9 +181,40 @@ export default function MoneyScreen() {
             }
 
             if (currentToken) {
+                const startOfMonth = dayjs().startOf('month').format('YYYY-MM-DD');
+                const endOfMonth = dayjs().endOf('month').format('YYYY-MM-DD');
+
+                // Try to load all transactions for the current month
+                // Assuming page size is large enough or implementing loop
+                // Since I cannot verify pagination limit, I'll fetch with a wide page (if supported) or just multiple pages
+                // Buxfer default page size is often 25 or 50. I'll try to fetch a few pages or until empty.
+                // However, with dates, maybe it returns all? I'll assume standard pagination and fetch a reasonable amount.
+                // Let's implement a loop to be safe.
+
+                const fetchMonthTransactions = async (t: string) => {
+                    let allTxs: Transaction[] = [];
+                    let page = 1;
+                    let hasMore = true;
+                    while (hasMore) {
+                        const txs = await buxferService.getTransactions(t, page, {
+                            startDate: startOfMonth,
+                            endDate: endOfMonth
+                        });
+                        if (txs.length === 0) {
+                            hasMore = false;
+                        } else {
+                            allTxs = [...allTxs, ...txs];
+                            page++;
+                            // Safety break to prevent infinite loops if API behaves weirdly
+                            if (page > 20) hasMore = false;
+                        }
+                    }
+                    return allTxs;
+                };
+
                 const [accs, txs, bdgts] = await Promise.all([
                     buxferService.getAccounts(currentToken),
-                    buxferService.getTransactions(currentToken),
+                    fetchMonthTransactions(currentToken),
                     buxferService.getBudgets(currentToken)
                 ]);
                 setAccounts(accs);
@@ -269,6 +300,23 @@ export default function MoneyScreen() {
 
     const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
 
+    const monthlyStats = useMemo(() => {
+        const now = dayjs();
+        let income = 0;
+        let expense = 0;
+
+        transactions.forEach(tx => {
+            if (dayjs(tx.date).isSame(now, 'month')) {
+                if (tx.type === 'income') {
+                    income += Math.abs(tx.amount);
+                } else if (tx.type === 'expense') {
+                    expense += Math.abs(tx.amount);
+                }
+            }
+        });
+        return { income, expense };
+    }, [transactions]);
+
     const renderLoginForm = () => (
         <View className="flex-1 justify-center px-6 pt-20">
             <View className="bg-surface p-6 rounded-2xl border border-border">
@@ -346,18 +394,36 @@ export default function MoneyScreen() {
             }
         >
             {/* Total Balance Card */}
-            <View className="bg-surface p-6 rounded-2xl border border-border mb-6 items-center">
-                <Text className="text-text-secondary font-medium mb-2">Total Net Worth</Text>
-                <Text
-                    className="text-4xl font-bold"
-                    style={{ color: totalBalance >= 0 ? Colors.status.healthy : Colors.error }}
-                >
-                    {formatCurrency(totalBalance)}
-                </Text>
+            <View className="bg-surface p-6 rounded-2xl border border-border mb-6">
+                <View className="items-center mb-4">
+                    <Text className="text-text-secondary font-medium mb-2">Total Net Worth</Text>
+                    <Text
+                        className="text-4xl font-bold"
+                        style={{ color: totalBalance >= 0 ? Colors.status.healthy : Colors.error }}
+                    >
+                        {formatCurrency(totalBalance)}
+                    </Text>
+                </View>
+
+                {/* Monthly Summary */}
+                <View className="flex-row justify-between border-t border-border pt-4">
+                    <View className="items-center flex-1 border-r border-border">
+                        <Text className="text-text-tertiary text-xs uppercase mb-1">Income</Text>
+                        <Text className="text-lg font-bold" style={{ color: Colors.status.healthy }}>
+                            +{formatCurrency(monthlyStats.income)}
+                        </Text>
+                    </View>
+                    <View className="items-center flex-1">
+                        <Text className="text-text-tertiary text-xs uppercase mb-1">Expenses</Text>
+                        <Text className="text-lg font-bold" style={{ color: Colors.error }}>
+                            -{formatCurrency(monthlyStats.expense)}
+                        </Text>
+                    </View>
+                </View>
             </View>
 
             {/* Spending Chart */}
-            {/* <SpendingChart transactions={transactions} /> */}
+            <SpendingChart transactions={transactions} />
 
             {/* Accounts Section */}
             <View className="mb-6 flex-col gap-2">
@@ -404,6 +470,12 @@ export default function MoneyScreen() {
             );
         });
 
+        const filteredBalance = filteredTransactions.reduce((acc, tx) => {
+            if (tx.type === 'income') return acc + Math.abs(tx.amount);
+            if (tx.type === 'expense') return acc - Math.abs(tx.amount);
+            return acc;
+        }, 0);
+
         return (
             <FlatList
                 data={filteredTransactions}
@@ -420,6 +492,15 @@ export default function MoneyScreen() {
                 }
                 ListHeaderComponent={
                     <View className="mb-4">
+                        <View className="flex-row justify-between items-center mb-4 bg-surface p-4 rounded-xl border border-border">
+                            <Text className="text-text-secondary text-sm font-medium">Shown Balance</Text>
+                            <Text
+                                className="text-xl font-bold"
+                                style={{ color: filteredBalance >= 0 ? Colors.status.healthy : Colors.error }}
+                            >
+                                {formatCurrency(filteredBalance)}
+                            </Text>
+                        </View>
                         <View className="bg-surface p-3 rounded-xl border border-border flex-row items-center">
                             <Ionicons name="search" size={20} color={Colors.text.tertiary} style={{ marginRight: 8 }} />
                             <TextInput
