@@ -198,7 +198,7 @@ export function IslandHeader({
     };
 
     return (
-        <View className={`${noMargin ? '' : 'mb-2'} pt-2`}>
+        <View>
             {/* Top Row: Left and Right Islands */}
             <IslandBar
                 leftContent={renderLeft()}

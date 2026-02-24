@@ -1,13 +1,17 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Image } from 'react-native';
-import { useSwipeTabs } from '../../hooks/useSwipeTabs';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Layout } from '../ui/Layout';
-import { IslandHeader } from '../ui/IslandHeader';
-import { MessageDialog } from '../ui/MessageDialog';
-import { ImageAttachmentButton } from '../ui/ImageAttachmentButton';
-import { JulesLoader } from '../ui/JulesLoader';
+import { BaseScreen } from '../BaseScreen';
+import { ImageAttachmentButton } from '../../ui/ImageAttachmentButton';
+import { JulesLoader } from '../../ui/JulesLoader';
+import { DepthPreferenceModal } from './DepthPreferenceModal';
+import { EditFactModal } from './EditFactModal';
+import { AddFactModal } from './AddFactModal';
+import { AddTraitModal } from './AddTraitModal';
+import { EditTraitModal } from './EditTraitModal';
+import { ProfileImageModal } from './ProfileImageModal';
+import { getDepthLabel, getLevelChipProps } from './profileUtils';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -17,7 +21,8 @@ import Animated, {
 import {
     Gesture,
     GestureDetector,
-    GestureHandlerRootView
+    GestureHandlerRootView,
+    ScrollView
 } from 'react-native-gesture-handler';
 import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
@@ -25,13 +30,13 @@ import * as FileSystem from 'expo-file-system/legacy';
 import Toast from 'react-native-toast-message';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { useProfileStore } from '../../store/profileStore';
-import { analyzeImage } from '../../services/gemini';
-import { useSettingsStore } from '../../store/settings';
-import { useUIStore } from '../../store/ui';
-import { Colors, Palette } from '../ui/design-tokens';
-import { MetadataChip } from '../ui/MetadataChip';
-import { showAlert, showError } from '../../utils/alert';
+import { useProfileStore } from '../../../store/profileStore';
+import { analyzeImage } from '../../../services/gemini';
+import { useSettingsStore } from '../../../store/settings';
+import { useUIStore } from '../../../store/ui';
+import { Colors, Palette } from '../../ui/design-tokens';
+import { MetadataChip } from '../../ui/MetadataChip';
+import { showAlert, showError } from '../../../utils/alert';
 
 export default function ProfileScreen() {
     const insets = useSafeAreaInsets();
@@ -40,7 +45,6 @@ export default function ProfileScreen() {
     const [isImageFull, setIsImageFull] = useState(false);
     const [activeTab, setActiveTab] = useState('home');
     const PROFILE_TAB_KEYS = ['home', 'details'];
-    const { panHandlers } = useSwipeTabs({ tabs: PROFILE_TAB_KEYS, activeTab, onTabChange: setActiveTab });
     const [detailsTab, setDetailsTab] = useState<'facts' | 'traits'>('facts');
     const [showDepthModal, setShowDepthModal] = useState(false);
     const [isAddingFact, setIsAddingFact] = useState(false);
@@ -356,39 +360,28 @@ export default function ProfileScreen() {
     };
 
 
-    const getLevelChipProps = (level: number) => {
-        if (level <= 0.3) return { label: 'Fact', color: Colors.primary, variant: 'outline' as const };
-        if (level <= 0.7) return { label: 'Routine', color: Colors.primary, variant: 'solid' as const };
-        return { label: 'Value', color: Colors.warning, variant: 'solid' as const };
-    };
 
-    const getDepthLabel = (level: number) => {
-        if (level < 0.35) return "Concrete Facts";
-        if (level < 0.65) return "Habits & Routine";
-        return "Deep Philosophy";
-    };
 
     return (
-        <Layout>
-            <View style={{ flex: 1 }} {...panHandlers}>
-            <IslandHeader
-                title="Profile"
-                tabs={[
-                    { key: 'home', label: 'Home', icon: 'home-outline', activeIcon: 'home' },
-                    { key: 'details', label: 'Details', icon: 'list-outline', activeIcon: 'list' },
-                ]}
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-                rightActions={[
-                    { icon: 'share-outline', onPress: handleCopyContext }
-                ]}
-            />
-
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                className="flex-1"
-            >
-                <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+        <BaseScreen
+            title="Profile"
+            tabs={[
+                { key: 'home', label: 'Home', icon: 'home-outline', activeIcon: 'home' },
+                { key: 'details', label: 'Details', icon: 'list-outline', activeIcon: 'list' },
+            ]}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            rightActions={[
+                { icon: 'share-outline', onPress: handleCopyContext }
+            ]}
+        >
+            {({ insets, headerHeight }) => (
+                <>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === "ios" ? "padding" : "height"}
+                        className="flex-1"
+                    >
+                        <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingTop: headerHeight, paddingBottom: insets.bottom + 100 }}>
 
                     {/* Status / Welcome */}
                     <View className="mb-6">
@@ -730,320 +723,63 @@ export default function ProfileScreen() {
                 </ScrollView>
             </KeyboardAvoidingView>
 
-            {/* Depth Preference Modal */}
-            <Modal
+            <DepthPreferenceModal
                 visible={showDepthModal}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowDepthModal(false)}
-            >
-                <View className="flex-1 bg-black/60 justify-center px-6">
-                    <View className="bg-background border border-border rounded-2xl p-6 shadow-2xl">
-                        <Text className="text-text-tertiary text-xs uppercase font-bold tracking-widest mb-4">
-                            Configure Questions
-                        </Text>
-
-                        <View className="bg-slate-950/50 rounded-xl border border-border p-4 mb-4">
-                            <View className="mb-2">
-                                <Text className="text-text-secondary font-semibold">Focus Topic (Optional)</Text>
-                                <Text className="text-secondary text-xs">Guide the conversation</Text>
-                            </View>
-                            <TextInput
-                                className="text-text-primary bg-background border border-border rounded-lg p-3"
-                                placeholder="e.g. Childhood, Career, Dreams..."
-                                placeholderTextColor={Colors.text.tertiary}
-                                value={config.targetTopic || ''}
-                                onChangeText={(text) => updateConfig({ targetTopic: text })}
-                            />
-                        </View>
-
-                        <View className="bg-slate-950/50 rounded-xl border border-border p-4 mb-6">
-                            <View className="flex-row justify-between items-center mb-4">
-                                <View>
-                                    <Text className="text-text-secondary font-semibold">Depth Preference</Text>
-                                    <Text className="text-secondary text-xs">AI curiosity level</Text>
-                                </View>
-                                <MetadataChip
-                                    label={getDepthLabel(config.abstractionLevel)}
-                                    color={getLevelChipProps(config.abstractionLevel).color}
-                                    variant={getLevelChipProps(config.abstractionLevel).variant}
-                                    size="sm"
-                                    rounding="full"
-                                />
-                            </View>
-
-                            <View className="flex-row items-center gap-3">
-                                <Text className="text-[10px] text-secondary font-bold uppercase tracking-wider">Low</Text>
-                                <View className="flex-1 h-1.5 bg-slate-950 rounded-full flex-row overflow-hidden border border-border">
-                                    <TouchableOpacity
-                                        className={`flex-1 ${config.abstractionLevel <= 0.33 ? 'bg-primary' : 'bg-transparent'}`}
-                                        onPress={() => updateConfig({ abstractionLevel: 0.2 })}
-                                    />
-                                    <TouchableOpacity
-                                        className={`flex-1 border-x border-border ${config.abstractionLevel > 0.33 && config.abstractionLevel <= 0.66 ? 'bg-primary' : 'bg-transparent'}`}
-                                        onPress={() => updateConfig({ abstractionLevel: 0.5 })}
-                                    />
-                                    <TouchableOpacity
-                                        className={`flex-1 ${config.abstractionLevel > 0.66 ? 'bg-primary' : 'bg-transparent'}`}
-                                        onPress={() => updateConfig({ abstractionLevel: 0.8 })}
-                                    />
-                                </View>
-                                <Text className="text-[10px] text-secondary font-bold uppercase tracking-wider">High</Text>
-                            </View>
-                        </View>
-
-                        <View className="flex-row gap-3">
-                            <TouchableOpacity
-                                className="flex-1 bg-surface py-4 rounded-xl items-center"
-                                onPress={() => setShowDepthModal(false)}
-                            >
-                                <Text className="text-text-secondary font-bold">Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                className="flex-1 bg-primary py-4 rounded-xl items-center"
-                                onPress={() => {
-                                    setShowDepthModal(false);
-                                    generateQuestions(true);
-                                }}
-                            >
-                                <Text className="text-white font-bold">Generate</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-
-            {/* Edit Fact Modal */}
-            <Modal
-                visible={!!editingFact}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setEditingFact(null)}
-            >
-                <View className="flex-1 bg-black/60 justify-center px-6">
-                    <View className="bg-background border border-border rounded-2xl p-6 shadow-2xl">
-                        <Text className="text-text-tertiary text-xs uppercase font-bold tracking-widest mb-1">
-                            Edit Property
-                        </Text>
-                        <Text className="text-text-primary text-lg font-bold mb-4">
-                            {editingFact?.key}
-                        </Text>
-
-                        <TextInput
-                            className="bg-slate-950 text-text-primary p-4 rounded-xl border border-border min-h-[120px]"
-                            multiline
-                            textAlignVertical="top"
-                            value={editingFact?.value || ''}
-                            onChangeText={(text) => setEditingFact(prev => prev ? { ...prev, value: text } : null)}
-                            autoFocus
-                        />
-
-                        <View className="flex-row gap-3 mt-6">
-                            <TouchableOpacity
-                                className="flex-1 bg-surface py-4 rounded-xl items-center"
-                                onPress={() => setEditingFact(null)}
-                            >
-                                <Text className="text-text-secondary font-bold">Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                className="flex-1 bg-primary py-4 rounded-xl items-center"
-                                onPress={handleSaveEdit}
-                            >
-                                <Text className="text-white font-bold">Save Changes</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-
-            {/* Add Fact Modal */}
-            <MessageDialog
-                visible={isAddingFact}
-                onClose={() => setIsAddingFact(false)}
-                onSend={async (text) => {
-                    try {
-                        await addFactFromText(text);
-                        setIsAddingFact(false);
-                        Toast.show({
-                            type: 'success',
-                            text1: 'Fact Added',
-                            text2: 'Profile updated successfully'
-                        });
-                    } catch (e) {
-                        Toast.show({
-                            type: 'error',
-                            text1: 'Error',
-                            text2: 'Failed to add fact'
-                        });
-                    }
-                }}
-                sending={isLoading}
-                title="Add New Fact"
-                placeholder="Describe a new fact, preference, or trait..."
-                sendLabel="Add Fact"
-                enableImageAttachment={true}
-                imagePrompt="Analyze this image to extract facts, habits, or preferences about the user."
+                onClose={() => setShowDepthModal(false)}
+                config={config}
+                updateConfig={updateConfig}
+                onGenerate={() => generateQuestions(true)}
             />
 
-            {/* Add Trait Modal */}
-            <Modal
+            <EditFactModal
+                editingFact={editingFact}
+                onClose={() => setEditingFact(null)}
+                onSave={handleSaveEdit}
+                onChangeValue={(text) => setEditingFact(prev => prev ? { ...prev, value: text } : null)}
+            />
+
+            <AddFactModal
+                visible={isAddingFact}
+                onClose={() => setIsAddingFact(false)}
+                onAddFact={addFactFromText}
+                isLoading={isLoading}
+            />
+
+            <AddTraitModal
                 visible={isAddingTrait}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setIsAddingTrait(false)}
-            >
-                <View className="flex-1 bg-black/60 justify-center px-6">
-                    <View className="bg-background border border-border rounded-2xl p-6 shadow-2xl">
-                        <Text className="text-text-tertiary text-xs uppercase font-bold tracking-widest mb-4">
-                            Add New Trait
-                        </Text>
-                        <TextInput
-                            className="bg-slate-950 text-text-primary p-4 rounded-xl border border-border mb-6"
-                            placeholder="E.g., Creative, Analytical, Early Bird..."
-                            placeholderTextColor="#475569"
-                            value={newTraitText}
-                            onChangeText={setNewTraitText}
-                            onSubmitEditing={handleAddTraitSubmit}
-                            autoFocus
-                        />
-                        <View className="flex-row gap-3">
-                            <TouchableOpacity
-                                className="flex-1 bg-surface py-4 rounded-xl items-center"
-                                onPress={() => {
-                                    setIsAddingTrait(false);
-                                    setNewTraitText('');
-                                }}
-                            >
-                                <Text className="text-text-secondary font-bold">Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                className="flex-1 bg-primary py-4 rounded-xl items-center"
-                                onPress={handleAddTraitSubmit}
-                            >
-                                <Text className="text-white font-bold">Add</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
+                onClose={() => {
+                    setIsAddingTrait(false);
+                    setNewTraitText('');
+                }}
+                onSubmit={handleAddTraitSubmit}
+                value={newTraitText}
+                onChangeValue={setNewTraitText}
+            />
 
-            {/* Edit Trait Modal */}
-            <Modal
-                visible={!!editingTrait}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setEditingTrait(null)}
-            >
-                <View className="flex-1 bg-black/60 justify-center px-6">
-                    <View className="bg-background border border-border rounded-2xl p-6 shadow-2xl">
-                        <Text className="text-text-tertiary text-xs uppercase font-bold tracking-widest mb-1">
-                            Edit Trait
-                        </Text>
-                        <Text className="text-text-secondary text-xs mb-4">
-                            Update or remove this personality trait.
-                        </Text>
+            <EditTraitModal
+                editingTrait={editingTrait}
+                onClose={() => setEditingTrait(null)}
+                onSave={handleSaveEditTrait}
+                onDelete={() => editingTrait && handleDeleteTrait(editingTrait.original)}
+                onChangeValue={(text) => setEditingTrait(prev => prev ? { ...prev, value: text } : null)}
+            />
 
-                        <TextInput
-                            className="bg-slate-950 text-text-primary p-4 rounded-xl border border-border mb-6"
-                            value={editingTrait?.value || ''}
-                            onChangeText={(text) => setEditingTrait(prev => prev ? { ...prev, value: text } : null)}
-                            autoFocus
-                        />
-
-                        <View className="flex-row gap-3">
-                            <TouchableOpacity
-                                className="bg-surface p-4 rounded-xl items-center justify-center aspect-square"
-                                onPress={() => editingTrait && handleDeleteTrait(editingTrait.original)}
-                            >
-                                <Ionicons name="trash-outline" size={24} color={Colors.error} />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                className="flex-1 bg-surface py-4 rounded-xl items-center"
-                                onPress={() => setEditingTrait(null)}
-                            >
-                                <Text className="text-text-secondary font-bold">Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                className="flex-1 bg-primary py-4 rounded-xl items-center"
-                                onPress={handleSaveEditTrait}
-                            >
-                                <Text className="text-white font-bold">Save</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-
-            {/* Full Screen Image Modal - closing tag for Layout below */}
-            <Modal
+            <ProfileImageModal
                 visible={isImageFull}
-                transparent
-                animationType="fade"
-                onRequestClose={() => {
+                onClose={() => {
                     setIsImageFull(false);
                     resetGestures();
                 }}
-            >
-                <GestureHandlerRootView style={{ flex: 1 }}>
-                    <View className="flex-1 bg-black/95 justify-center overflow-hidden">
-                        <TouchableOpacity
-                            className="absolute top-12 right-6 z-10 p-2 bg-background/50 rounded-full border border-border"
-                            onPress={() => {
-                                setIsImageFull(false);
-                                resetGestures();
-                            }}
-                        >
-                            <Ionicons name="close" size={24} color="white" />
-                        </TouchableOpacity>
-
-                        {profile.profileImage && (
-                            <GestureDetector gesture={composedGesture}>
-                                <Animated.View style={[animatedStyle, { width: '100%', height: '80%', justifyContent: 'center' }]}>
-                                    <Image
-                                        source={{ uri: profile.profileImage }}
-                                        style={{ width: '100%', height: '100%' }}
-                                        resizeMode="contain"
-                                    />
-                                </Animated.View>
-                            </GestureDetector>
-                        )}
-
-                        <View className="absolute bottom-10 left-0 right-0 items-center">
-                            <View className="flex-row gap-4">
-                                <TouchableOpacity
-                                    className="bg-background px-4 py-3 rounded-full border border-border flex-row items-center gap-2"
-                                    onPress={handleShareImage}
-                                >
-                                    <Ionicons name="share-outline" size={18} color="#818cf8" />
-                                    <Text className="text-text-primary font-medium">Share</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    className="bg-background px-4 py-3 rounded-full border border-border flex-row items-center gap-2"
-                                    onPress={handleCopyImage}
-                                >
-                                    <Ionicons name="copy-outline" size={18} color="#818cf8" />
-                                    <Text className="text-text-primary font-medium">Copy</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    className="bg-background px-4 py-3 rounded-full border border-border flex-row items-center gap-2"
-                                    onPress={() => {
-                                        generateProfileImage();
-                                        resetGestures();
-                                    }}
-                                    disabled={isGeneratingImage}
-                                >
-                                    <Ionicons name="refresh" size={18} color="#818cf8" />
-                                    <Text className="text-text-primary font-medium">Regenerate</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-
-                    </View>
-                </GestureHandlerRootView>
-            </Modal>
-            </View>
-        </Layout>
+                imageUrl={profile.profileImage || null}
+                onShare={handleShareImage}
+                onCopy={handleCopyImage}
+                onRegenerate={generateProfileImage}
+                isGenerating={isGeneratingImage}
+                animatedStyle={animatedStyle}
+                gesture={composedGesture}
+            />
+                </>
+            )}
+        </BaseScreen>
     );
 }

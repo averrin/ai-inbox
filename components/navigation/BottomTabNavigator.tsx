@@ -1,4 +1,4 @@
-import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import ProcessingScreen from '../screens/ProcessingScreen';
@@ -10,7 +10,7 @@ import SetupScreen from '../screens/SetupScreen';
 import NewsScreen from '../screens/NewsScreen';
 import CanvasScreen from '../screens/CanvasScreen';
 import JulesScreen from '../screens/JulesScreen';
-import ProfileScreen from '../screens/ProfileScreen';
+import ProfileScreen from '../screens/profile/ProfileScreen';
 import MoneyScreen from '../screens/MoneyScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect, useState } from 'react';
@@ -31,7 +31,7 @@ const TransparentTheme = {
   },
 };
 
-const Tab = createMaterialTopTabNavigator();
+const Tab = createBottomTabNavigator();
 
 function NavigationHandler({ shareIntent }: { shareIntent: ShareIntent }) {
   const navigation = useNavigation();
@@ -228,13 +228,13 @@ function InnerTabNavigator({
   const [activeGroup, setActiveGroup] = useState<{ config: NavItemConfig, x: number } | null>(null);
 
   const SCREEN_CONFIG: Record<string, any> = {
-    Schedule: { component: ScheduleScreen, options: { swipeEnabled: false } },
+    Schedule: { component: ScheduleScreen },
     Input: { children: () => <ProcessingScreen shareIntent={shareIntent} onReset={onReset} />, options: { tabBarLabel: 'Note' } },
     Tasks: { component: TasksScreen },
     Links: { component: LinksScreen },
     Money: { component: MoneyScreen },
     Reminders: { component: RemindersListScreen },
-    Canvas: { component: CanvasScreen, options: { swipeEnabled: false } },
+    Canvas: { component: CanvasScreen },
     Jules: { component: JulesScreen },
     News: { component: NewsScreen },
     Profile: { component: ProfileScreen },
@@ -247,11 +247,10 @@ function InnerTabNavigator({
   return (
     <View style={{ flex: 1 }}>
       <Tab.Navigator
-        tabBarPosition="bottom"
         tabBar={(props) => <CustomTabBar {...props} navConfig={activeConfig} onOpenGroup={(group: NavItemConfig, x: number) => setActiveGroup({ config: group, x })} activeGroupId={activeGroup?.config.id} />}
         screenOptions={{
-          swipeEnabled: false, // Disable swipe globally to prevent leaking into hidden tabs
-          animationEnabled: true,
+          headerShown: false,
+          animation: 'fade',
         }}
         initialRouteName="Schedule"
       >
