@@ -27,12 +27,13 @@ interface FabState {
     onLongPress?: (() => void) | null;
     color?: string; // Optional custom color
     iconColor?: string; // Optional custom icon color
+    id?: string; // Optional unique ID for ownership check
 }
 
 interface UIState {
     fab: FabState;
     setFab: (fab: Partial<FabState>) => void;
-    clearFab: () => void;
+    clearFab: (id?: string) => void;
 
     alert: AlertState;
     setAlert: (alert: Partial<AlertState>) => void;
@@ -51,7 +52,13 @@ export const useUIStore = create<UIState>((set) => ({
         onLongPress: null,
     },
     setFab: (fab) => set((state) => ({ fab: { ...state.fab, ...fab } })),
-    clearFab: () => set({ fab: { visible: false, icon: 'add', onPress: null, onLongPress: null, color: undefined, iconColor: undefined } }),
+    clearFab: (id) => set((state) => {
+        // If an ID is provided, only clear if it matches the current FAB's ID
+        if (id && state.fab.id && state.fab.id !== id) {
+            return state;
+        }
+        return { fab: { visible: false, icon: 'add', onPress: null, onLongPress: null, color: undefined, iconColor: undefined, id: undefined } };
+    }),
 
     alert: {
         visible: false,

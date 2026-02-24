@@ -15,9 +15,9 @@ import Toast from 'react-native-toast-message';
 
 WebBrowser.maybeCompleteAuthSession();
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 
-import { useUIStore } from '../../../store/ui';
+import { useFab } from '../../../hooks/useFab';
 import { Colors } from '../../ui/design-tokens';
 import { MetadataChip } from '../../ui/MetadataChip';
 
@@ -42,25 +42,17 @@ export default function JulesScreen() {
     const [showRepoSelector, setShowRepoSelector] = useState(false);
     const [defaultBranch, setDefaultBranch] = useState('main');
 
-    const { setFab, clearFab } = useUIStore();
+    const handleFabPress = useCallback(() => {
+        Linking.openURL('https://jules.google.com/session');
+    }, []);
 
-    useFocusEffect(
-        useCallback(() => {
-            if (julesGoogleApiKey) {
-                setFab({
-                    visible: true,
-                    icon: 'add',
-                    onPress: () => Linking.openURL('https://jules.google.com/session'),
-                    color: '#4f46e5',
-                    iconColor: 'white'
-                });
-            } else {
-                clearFab();
-            }
-
-            return () => clearFab();
-        }, [julesGoogleApiKey])
-    );
+    useFab({
+        visible: !!julesGoogleApiKey,
+        icon: 'add',
+        onPress: handleFabPress,
+        color: '#4f46e5',
+        iconColor: 'white'
+    });
 
     const [request, response, promptAsync] = useAuthRequest(
         {
