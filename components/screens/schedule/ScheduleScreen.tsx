@@ -4,7 +4,6 @@ import { serializeTaskLine } from '../../../utils/taskParser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BaseScreen } from '../BaseScreen';
 import { HeaderAction } from '../../ui/IslandHeader';
-import { Layout } from '../../ui/Layout';
 import Toast from 'react-native-toast-message';
 import { Calendar as BigCalendar, CalendarRef } from '../../ui/calendar';
 import dayjs from 'dayjs';
@@ -800,9 +799,6 @@ export const ScheduleScreen = () => {
                                 />
                             </View>
                         )}
-                    </View>
-                )}
-            </BaseScreen>
 
             {/* Context Menu Modal */}
                     <EventContextModal
