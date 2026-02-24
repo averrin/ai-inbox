@@ -1,5 +1,5 @@
-import React, { ReactNode } from 'react';
-import { View, StyleProp, ViewStyle, ScrollView } from 'react-native';
+import React, { ReactNode, useState, useRef, useEffect } from 'react';
+import { View, StyleProp, ViewStyle, ScrollView, Animated, Dimensions, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layout } from '../ui/Layout';
 import { IslandHeader, HeaderAction } from '../ui/IslandHeader';
@@ -39,6 +39,93 @@ export interface BaseScreenProps {
     noPadding?: boolean;
 }
 
+interface TabTransitionProps {
+    children: ReactNode;
+    activeTab: string;
+    tabs: TabItem[];
+    style?: StyleProp<ViewStyle>;
+}
+
+function TabTransition({ children, activeTab, tabs, style }: TabTransitionProps) {
+    const [displayTab, setDisplayTab] = useState(activeTab);
+    const [renderedChildren, setRenderedChildren] = useState(children);
+    const [previousChildren, setPreviousChildren] = useState<ReactNode | null>(null);
+    const [direction, setDirection] = useState(0); // 1 = right-to-left (next), -1 = left-to-right (prev)
+
+    const progress = useRef(new Animated.Value(0)).current;
+    const isFirstRender = useRef(true);
+
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+
+        if (activeTab !== displayTab) {
+            const oldIndex = tabs.findIndex(t => t.key === displayTab);
+            const newIndex = tabs.findIndex(t => t.key === activeTab);
+            // If tab not found, default to forward
+            const dir = (newIndex >= 0 && oldIndex >= 0)
+                ? (newIndex > oldIndex ? 1 : -1)
+                : 1;
+
+            setPreviousChildren(renderedChildren);
+            setRenderedChildren(children);
+            setDisplayTab(activeTab);
+            setDirection(dir);
+
+            progress.setValue(0);
+            Animated.timing(progress, {
+                toValue: 1,
+                duration: 250,
+                useNativeDriver: true,
+                easing: Easing.out(Easing.ease),
+            }).start(() => {
+                setPreviousChildren(null);
+            });
+        } else {
+             // Just update content if tab hasn't changed (e.g. loading -> data)
+             setRenderedChildren(children);
+        }
+    }, [activeTab, children, tabs, displayTab]); // Added displayTab to deps to be safe
+
+    const screenWidth = Dimensions.get('window').width;
+
+    const enterTranslateX = progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [direction * screenWidth, 0]
+    });
+
+    const exitTranslateX = progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, -direction * screenWidth]
+    });
+
+    return (
+        <View style={[style, { overflow: 'hidden', flex: 1 }]}>
+            {previousChildren && (
+                <Animated.View
+                    style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                        transform: [{ translateX: exitTranslateX }],
+                        zIndex: 1
+                    }}
+                    pointerEvents="none" // Disable interaction on leaving view
+                >
+                    {previousChildren}
+                </Animated.View>
+            )}
+            <Animated.View style={{
+                flex: 1,
+                transform: [{ translateX: previousChildren ? enterTranslateX : 0 }],
+                zIndex: 2
+            }}>
+                {renderedChildren}
+            </Animated.View>
+        </View>
+    );
+}
+
 /**
  * BaseScreen provides a standardized layout shell for main screens.
  * It offers a positioned IslandHeader and optional drag/swipe navigation between tabs.
@@ -71,6 +158,11 @@ export function BaseScreen({
     
     const headerHeight = 60;
 
+    // Resolve children content
+    const content = typeof children === 'function'
+        ? children({ insets, headerHeight })
+        : children;
+
     return (
         <Layout fullBleed={fullBleed} noPadding={noPadding}>
             <View style={[{ flex: 1 }, style]} {...swipeProps}>
@@ -87,10 +179,17 @@ export function BaseScreen({
                     </IslandHeader>
                 </View>
 
-                {typeof children === 'function' 
-                    ? children({ insets, headerHeight }) 
-                    : children
-                }
+                {tabs && activeTab ? (
+                    <TabTransition
+                        activeTab={activeTab}
+                        tabs={tabs}
+                        style={{ flex: 1 }}
+                    >
+                        {content}
+                    </TabTransition>
+                ) : (
+                    content
+                )}
             </View>
         </Layout>
     );
