@@ -2,7 +2,7 @@ import React, { ReactNode } from 'react';
 import { View, StyleProp, ViewStyle, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layout } from '../ui/Layout';
-import { IslandHeader, HeaderAction } from '../ui/IslandHeader';
+import { IslandHeader, HeaderAction, SearchBarConfig } from '../ui/IslandHeader';
 import { useSwipeTabs } from '../../hooks/useSwipeTabs';
 
 export interface TabItem {
@@ -27,6 +27,12 @@ export interface BaseScreenProps {
     rightActions?: HeaderAction[];
     /** Custom nodes to render inside the IslandHeader below the main title */
     headerChildren?: ReactNode;
+    /** Configuration for the search bar */
+    searchBar?: SearchBarConfig;
+    /** Whether the search bar is currently visible */
+    showSearch?: boolean;
+    /** Callback to close the search bar */
+    onCloseSearch?: () => void;
     /** The main content of the screen. Supports passing a render function to receive layout context. */
     children: ReactNode | ((props: { insets: any, headerHeight: number }) => ReactNode);
     /** Style applied to the content wrapper view */
@@ -51,6 +57,9 @@ export function BaseScreen({
     onTabChange,
     rightActions = [],
     headerChildren,
+    searchBar,
+    showSearch,
+    onCloseSearch,
     children,
     style,
     disableSwipe = false,
@@ -82,6 +91,9 @@ export function BaseScreen({
                         tabs={tabs}
                         activeTab={activeTab}
                         onTabChange={onTabChange}
+                        searchBar={searchBar}
+                        showSearch={showSearch}
+                        onCloseSearch={onCloseSearch}
                     >
                         {headerChildren}
                     </IslandHeader>

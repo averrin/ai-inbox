@@ -1,10 +1,9 @@
-import { View, Text, FlatList, Image, TouchableOpacity, RefreshControl, TextInput, ScrollView, Modal } from 'react-native';
+import { View, Text, FlatList, Image, TouchableOpacity, RefreshControl, ScrollView, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettingsStore } from '../../store/settings';
 import { useEffect, useState, useCallback } from 'react';
 import { Article, fetchNews } from '../../services/newsService';
-import { Layout } from '../ui/Layout';
-import { IslandHeader } from '../ui/IslandHeader';
+import { BaseScreen } from './BaseScreen';
 import { islandBaseStyle } from '../ui/IslandBar';
 import { MetadataChip } from '../ui/MetadataChip';
 import { BaseListItem } from '../ui/BaseListItem';
@@ -24,6 +23,7 @@ import { NewsSettings } from '../settings/NewsSettings';
 dayjs.extend(relativeTime);
 
 export default function NewsScreen() {
+    // keeping useSafeAreaInsets for consistency if needed, but BaseScreen passes it too.
     const insets = useSafeAreaInsets();
     const {
         newsTopics, rssFeeds, newsApiKey,
@@ -333,182 +333,181 @@ export default function NewsScreen() {
     };
 
     return (
-        <Layout>
-            <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
-                <IslandHeader
-                    title="News Feed"
-                    rightActions={[
-                        {
-                            icon: viewMode === 'list' ? 'grid-outline' : 'list-outline',
-                            onPress: () => setViewMode(prev => prev === 'list' ? 'card' : 'list'),
-                        },
-                        ...(selectedFilter && rssFeeds.includes(selectedFilter) && visibleArticles.length > 0
-                            ? [{
-                                icon: 'checkmark-done-outline',
-                                onPress: handleReadAll,
-                            }]
-                            : []
-                        )
-                    ]}
-                    showSearch={showCustomInput}
-                    onCloseSearch={() => setShowCustomInput(false)}
-                    searchBar={{
-                        value: customQuery,
-                        onChangeText: setCustomQuery,
-                        placeholder: "Enter custom query...",
-                        onSubmit: handleCustomSubmit
-                    }}
-                >
-                    <View style={[islandBaseStyle, { marginTop: 8, paddingLeft: 4, position: 'relative', marginLeft: 4, marginRight: 4 }]}>
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={{ gap: 8, paddingLeft: 12, paddingRight: 32, paddingVertical: 4 }}
-                            onScroll={(e) => setScrollX(e.nativeEvent.contentOffset.x)}
-                            scrollEventThrottle={16}
-                        >
+        <BaseScreen
+            title="News Feed"
+            rightActions={[
+                {
+                    icon: viewMode === 'list' ? 'grid-outline' : 'list-outline',
+                    onPress: () => setViewMode(prev => prev === 'list' ? 'card' : 'list'),
+                },
+                ...(selectedFilter && rssFeeds.includes(selectedFilter) && visibleArticles.length > 0
+                    ? [{
+                        icon: 'checkmark-done-outline',
+                        onPress: handleReadAll,
+                    }]
+                    : []
+                )
+            ]}
+            searchBar={{
+                value: customQuery,
+                onChangeText: setCustomQuery,
+                placeholder: "Enter custom query...",
+                onSubmit: handleCustomSubmit
+            }}
+            showSearch={showCustomInput}
+            onCloseSearch={() => setShowCustomInput(false)}
+            headerChildren={
+                <View style={[islandBaseStyle, { marginTop: 8, paddingLeft: 4, position: 'relative', marginLeft: 4, marginRight: 4 }]}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ gap: 8, paddingLeft: 12, paddingRight: 32, paddingVertical: 4 }}
+                        onScroll={(e) => setScrollX(e.nativeEvent.contentOffset.x)}
+                        scrollEventThrottle={16}
+                    >
+                        <MetadataChip
+                            label="All"
+                            variant={(selectedFilter === null && !showCustomInput) ? "solid" : "outline"}
+                            color={Colors.status.healthy}
+                            onPress={() => {
+                                setSelectedFilter(null);
+                                setShowCustomInput(false);
+                            }}
+                        />
+                        {newsTopics.map(topic => (
                             <MetadataChip
-                                label="All"
-                                variant={(selectedFilter === null && !showCustomInput) ? "solid" : "outline"}
-                                color={Colors.status.healthy}
+                                key={topic}
+                                label={topic}
+                                variant={(selectedFilter === topic && !showCustomInput) ? "solid" : "outline"}
+                                color={Colors.primary}
                                 onPress={() => {
-                                    setSelectedFilter(null);
+                                    setSelectedFilter(topic);
                                     setShowCustomInput(false);
                                 }}
                             />
-                            {newsTopics.map(topic => (
+                        ))}
+                        {rssFeeds.map(feed => {
+                            const label = (() => {
+                                try {
+                                    return new URL(feed).hostname.replace('www.', '');
+                                } catch {
+                                    return feed;
+                                }
+                            })();
+                            return (
                                 <MetadataChip
-                                    key={topic}
-                                    label={topic}
-                                    variant={(selectedFilter === topic && !showCustomInput) ? "solid" : "outline"}
-                                    color={Colors.primary}
+                                    key={feed}
+                                    label={label}
+                                    icon="logo-rss"
+                                    variant={(selectedFilter === feed && !showCustomInput) ? "solid" : "outline"}
+                                    color={Colors.warning}
                                     onPress={() => {
-                                        setSelectedFilter(topic);
+                                        setSelectedFilter(feed);
                                         setShowCustomInput(false);
                                     }}
                                 />
-                            ))}
-                            {rssFeeds.map(feed => {
-                                const label = (() => {
-                                    try {
-                                        return new URL(feed).hostname.replace('www.', '');
-                                    } catch {
-                                        return feed;
-                                    }
-                                })();
-                                return (
-                                    <MetadataChip
-                                        key={feed}
-                                        label={label}
-                                        icon="logo-rss"
-                                        variant={(selectedFilter === feed && !showCustomInput) ? "solid" : "outline"}
-                                        color={Colors.warning}
-                                        onPress={() => {
-                                            setSelectedFilter(feed);
-                                            setShowCustomInput(false);
-                                        }}
-                                    />
-                                );
-                            })}
-                        </ScrollView>
+                            );
+                        })}
+                    </ScrollView>
 
-                        {/* Left Gradient Fade */}
-                        {scrollX > 10 && (
-                            <LinearGradient
-                                colors={['rgba(30, 41, 59, 1)', 'rgba(30, 41, 59, 0)']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 0 }}
-                                style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 24, borderTopLeftRadius: 30, borderBottomLeftRadius: 30 }}
-                                pointerEvents="none"
-                            />
-                        )}
-
-                        {/* Right Gradient Fade */}
+                    {/* Left Gradient Fade */}
+                    {scrollX > 10 && (
                         <LinearGradient
-                            colors={['rgba(30, 41, 59, 0)', 'rgba(30, 41, 59, 1)']}
+                            colors={['rgba(30, 41, 59, 1)', 'rgba(30, 41, 59, 0)']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
-                            style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 32, borderTopRightRadius: 30, borderBottomRightRadius: 30 }}
+                            style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 24, borderTopLeftRadius: 30, borderBottomLeftRadius: 30 }}
                             pointerEvents="none"
                         />
-                    </View>
-                </IslandHeader>
-            </View>
+                    )}
 
-            <View className="flex-1 px-4">
-                {((!newsApiKey && !process.env.NEWSAPI_KEY) && rssFeeds.length === 0) ? (
-                    <View className="flex-1 justify-center items-center">
-                        <Ionicons name="newspaper-outline" size={64} color="#475569" />
-                        <Text className="text-text-tertiary mt-4 text-center">News Configuration Missing.</Text>
-                        <Text className="text-secondary text-sm mt-1 text-center">Please configure a News API Key or add RSS feeds in Settings.</Text>
-                    </View>
-                ) : (
-                    <>
-                        {newsTopics.length === 0 && rssFeeds.length === 0 && !showCustomInput ? (
-                            <View className="flex-1 justify-center items-center" style={{ paddingTop: 140 }}>
-                                <Ionicons name="newspaper-outline" size={64} color="#475569" />
-                                <Text className="text-text-tertiary mt-4 text-center">No topics or feeds configured.</Text>
-                                <Text className="text-secondary text-sm mt-1 text-center">Go to Settings to add topics or RSS feeds.</Text>
-                            </View>
-                        ) : (
-                            <FlatList
-                                data={visibleArticles}
-                                renderItem={renderItem}
-                                keyExtractor={(item, index) => `${item.url}-${index}`}
-                                contentContainerStyle={{ paddingTop: 140, paddingBottom: insets.bottom + 80 }}
-                                refreshControl={
-                                    <RefreshControl
-                                        refreshing={loading}
-                                        onRefresh={() => loadNews(true)}
-                                        tintColor="#818cf8"
-                                        colors={["#818cf8"]}
-                                        progressViewOffset={140}
-                                    />
-                                }
-                                ListFooterComponent={
-                                    articles.length > 0 ? (
-                                        <View className="p-4 items-center">
-                                            <TouchableOpacity
-                                                onPress={() => loadNews(false)}
-                                                className="bg-surface px-6 py-3 rounded-full border border-border active:bg-surface-highlight"
-                                                disabled={loading}
-                                            >
-                                                <Text className="text-text-secondary font-medium">
-                                                    {loading ? 'Loading...' : 'Load More'}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    ) : null
-                                }
-                                ListEmptyComponent={
-                                    !loading ? (
-                                        <View className="mt-10 items-center">
-                                            <Text className="text-secondary">No articles found.</Text>
-                                        </View>
-                                    ) : null
-                                }
-                            />
-                        )}
-                    </>
-                )}
-            </View>
-
-            <Modal
-                visible={showSettings}
-                animationType="slide"
-                presentationStyle="pageSheet"
-                onRequestClose={() => setShowSettings(false)}
-            >
-                <View className="flex-1 bg-background">
-                    <View className="flex-row justify-between items-center p-4 border-b border-border bg-surface">
-                        <Text className="text-white font-bold text-lg">News Settings</Text>
-                        <CloseButton onPress={() => setShowSettings(false)} />
-                    </View>
-                    <ScrollView contentContainerStyle={{ padding: 16 }}>
-                        <NewsSettings />
-                    </ScrollView>
+                    {/* Right Gradient Fade */}
+                    <LinearGradient
+                        colors={['rgba(30, 41, 59, 0)', 'rgba(30, 41, 59, 1)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 32, borderTopRightRadius: 30, borderBottomRightRadius: 30 }}
+                        pointerEvents="none"
+                    />
                 </View>
-            </Modal>
-        </Layout>
+            }
+        >
+            {({ insets }) => (
+                <View className="flex-1">
+                    {((!newsApiKey && !process.env.NEWSAPI_KEY) && rssFeeds.length === 0) ? (
+                        <View className="flex-1 justify-center items-center">
+                            <Ionicons name="newspaper-outline" size={64} color="#475569" />
+                            <Text className="text-text-tertiary mt-4 text-center">News Configuration Missing.</Text>
+                            <Text className="text-secondary text-sm mt-1 text-center">Please configure a News API Key or add RSS feeds in Settings.</Text>
+                        </View>
+                    ) : (
+                        <>
+                            {newsTopics.length === 0 && rssFeeds.length === 0 && !showCustomInput ? (
+                                <View className="flex-1 justify-center items-center" style={{ paddingTop: 140 }}>
+                                    <Ionicons name="newspaper-outline" size={64} color="#475569" />
+                                    <Text className="text-text-tertiary mt-4 text-center">No topics or feeds configured.</Text>
+                                    <Text className="text-secondary text-sm mt-1 text-center">Go to Settings to add topics or RSS feeds.</Text>
+                                </View>
+                            ) : (
+                                <FlatList
+                                    data={visibleArticles}
+                                    renderItem={renderItem}
+                                    keyExtractor={(item, index) => `${item.url}-${index}`}
+                                    contentContainerStyle={{ paddingTop: 140, paddingBottom: insets.bottom + 80 }}
+                                    refreshControl={
+                                        <RefreshControl
+                                            refreshing={loading}
+                                            onRefresh={() => loadNews(true)}
+                                            tintColor="#818cf8"
+                                            colors={["#818cf8"]}
+                                            progressViewOffset={140}
+                                        />
+                                    }
+                                    ListFooterComponent={
+                                        articles.length > 0 ? (
+                                            <View className="p-4 items-center">
+                                                <TouchableOpacity
+                                                    onPress={() => loadNews(false)}
+                                                    className="bg-surface px-6 py-3 rounded-full border border-border active:bg-surface-highlight"
+                                                    disabled={loading}
+                                                >
+                                                    <Text className="text-text-secondary font-medium">
+                                                        {loading ? 'Loading...' : 'Load More'}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        ) : null
+                                    }
+                                    ListEmptyComponent={
+                                        !loading ? (
+                                            <View className="mt-10 items-center">
+                                                <Text className="text-secondary">No articles found.</Text>
+                                            </View>
+                                        ) : null
+                                    }
+                                />
+                            )}
+                        </>
+                    )}
+
+                    <Modal
+                        visible={showSettings}
+                        animationType="slide"
+                        presentationStyle="pageSheet"
+                        onRequestClose={() => setShowSettings(false)}
+                    >
+                        <View className="flex-1 bg-background">
+                            <View className="flex-row justify-between items-center p-4 border-b border-border bg-surface">
+                                <Text className="text-white font-bold text-lg">News Settings</Text>
+                                <CloseButton onPress={() => setShowSettings(false)} />
+                            </View>
+                            <ScrollView contentContainerStyle={{ padding: 16 }}>
+                                <NewsSettings />
+                            </ScrollView>
+                        </View>
+                    </Modal>
+                </View>
+            )}
+        </BaseScreen>
     );
 }
