@@ -15,6 +15,7 @@ interface TransactionEditModalProps {
     availableTags: string[];
     onSave: (transaction: Transaction, tags: string[]) => Promise<void>;
     onCancel: () => void;
+    currency?: string;
 }
 
 export function TransactionEditModal({
@@ -23,6 +24,7 @@ export function TransactionEditModal({
     availableTags,
     onSave,
     onCancel,
+    currency,
 }: TransactionEditModalProps) {
     const [tags, setTags] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
@@ -87,7 +89,7 @@ export function TransactionEditModal({
                                     {transaction.accountName ? ` · ${transaction.accountName}` : ''}
                                 </Text>
                                 <Text className="font-bold text-sm" style={{ color: amountColor }}>
-                                    {amountSign}{Math.abs(transaction.amount).toFixed(2)} {transaction.currency || 'CZK'}
+                                    {amountSign}{Math.abs(transaction.amount).toFixed(2)} {currency || transaction.currency || 'CZK'}
                                 </Text>
                             </View>
                         </View>
