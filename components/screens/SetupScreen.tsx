@@ -44,6 +44,7 @@ import { SyncDebugView } from '../settings/SyncDebugView';
 import { Colors } from '../ui/design-tokens';
 import { AppButton } from '../ui/AppButton';
 import { MoneySettings } from '../settings/MoneySettings';
+import { TimeoutsSettings } from '../settings/TimeoutsSettings';
 
 type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile' | 'walk' | 'sync-debug' | 'money';
 
@@ -549,84 +550,89 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
     };
 
     const renderAdvancedSettings = () => (
-        <Card>
-            <View className="mb-4">
-                <Text className="text-text-secondary mb-2 font-semibold">Data Management</Text>
-                <Text className="text-text-tertiary text-sm mb-4">
-                    Clear locally cached data (reminders, event types). This does not delete any files from your vault, but forces a reload from disk.
-                </Text>
-                <Button
-                    title="Flush All Local Caches"
-                    onPress={async () => {
-                        try {
-                            // 1. Clear Reminders Cache
-                            useSettingsStore.getState().setCachedReminders([]);
-
-                            // 2. Refresh Reminders
-                            await scanForReminders();
-
-                            // 3. Reload Event Types
-                            await useEventTypesStore.getState().loadConfig();
-
-                            Toast.show({
-                                type: 'success',
-                                text1: 'Caches Flushed',
-                                text2: 'Local data has been refreshed from vault.'
-                            });
-                        } catch (e) {
-                            console.error(e);
-                            Toast.show({
-                                type: 'error',
-                                text1: 'Failed to flush caches',
-                                text2: 'Check logs for details.'
-                            });
-                        }
-                    }}
-                    variant="secondary"
-                />
-
-                <View className="mt-6 mb-2 pt-4 border-t border-border">
-                    <Text className="text-text-secondary mb-2 font-semibold">Debug Tools</Text>
+        <View>
+            <Card>
+                <View className="mb-4">
+                    <Text className="text-text-secondary mb-2 font-semibold">Data Management</Text>
                     <Text className="text-text-tertiary text-sm mb-4">
-                        Export a snapshot of all internal application state (settings, event types, moods, habits, etc.) to a JSON file for debugging.
+                        Clear locally cached data (reminders, event types). This does not delete any files from your vault, but forces a reload from disk.
                     </Text>
                     <Button
-                        title={isGeneratingSnapshot ? "Generating..." : "Export State Snapshot"}
+                        title="Flush All Local Caches"
                         onPress={async () => {
-                            if (isGeneratingSnapshot) return;
-                            setIsGeneratingSnapshot(true);
                             try {
-                                await generateDebugSnapshot();
+                                // 1. Clear Reminders Cache
+                                useSettingsStore.getState().setCachedReminders([]);
+
+                                // 2. Refresh Reminders
+                                await scanForReminders();
+
+                                // 3. Reload Event Types
+                                await useEventTypesStore.getState().loadConfig();
+
+                                Toast.show({
+                                    type: 'success',
+                                    text1: 'Caches Flushed',
+                                    text2: 'Local data has been refreshed from vault.'
+                                });
                             } catch (e) {
                                 console.error(e);
                                 Toast.show({
                                     type: 'error',
-                                    text1: 'Snapshot Failed',
+                                    text1: 'Failed to flush caches',
                                     text2: 'Check logs for details.'
                                 });
-                            } finally {
-                                setIsGeneratingSnapshot(false);
                             }
                         }}
                         variant="secondary"
                     />
-                    <View className="mt-4">
+
+                    <View className="mt-6 mb-2 pt-4 border-t border-border">
+                        <Text className="text-text-secondary mb-2 font-semibold">Debug Tools</Text>
+                        <Text className="text-text-tertiary text-sm mb-4">
+                            Export a snapshot of all internal application state (settings, event types, moods, habits, etc.) to a JSON file for debugging.
+                        </Text>
                         <Button
-                            title="View Console Logs"
-                            onPress={() => setActiveSection('logs')}
+                            title={isGeneratingSnapshot ? "Generating..." : "Export State Snapshot"}
+                            onPress={async () => {
+                                if (isGeneratingSnapshot) return;
+                                setIsGeneratingSnapshot(true);
+                                try {
+                                    await generateDebugSnapshot();
+                                } catch (e) {
+                                    console.error(e);
+                                    Toast.show({
+                                        type: 'error',
+                                        text1: 'Snapshot Failed',
+                                        text2: 'Check logs for details.'
+                                    });
+                                } finally {
+                                    setIsGeneratingSnapshot(false);
+                                }
+                            }}
                             variant="secondary"
                         />
-                    </View>
-                    <View className="mt-4">
-                        <Button
-                            title="Debug Cloud Sync"
-                            onPress={() => setActiveSection('sync-debug')}
-                            variant="secondary"
-                        />
+                        <View className="mt-4">
+                            <Button
+                                title="View Console Logs"
+                                onPress={() => setActiveSection('logs')}
+                                variant="secondary"
+                            />
+                        </View>
+                        <View className="mt-4">
+                            <Button
+                                title="Debug Cloud Sync"
+                                onPress={() => setActiveSection('sync-debug')}
+                                variant="secondary"
+                            />
+                        </View>
                     </View>
                 </View>
+            </Card>
+            <View className="mt-4">
+                <TimeoutsSettings />
             </View>
-        </Card>
+        </View>
     );
 
     const renderMenuButton = (title: string, icon: keyof typeof Ionicons.glyphMap, onPress: () => void, subtitle?: string) => (

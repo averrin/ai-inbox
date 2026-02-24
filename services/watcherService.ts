@@ -129,8 +129,9 @@ class WatcherService {
         try {
             const isRegistered = await TaskManager.isTaskRegisteredAsync(WATCHER_TASK);
             if (!isRegistered) {
+                const { watcherMinInterval } = useSettingsStore.getState();
                 await BackgroundFetch.registerTaskAsync(WATCHER_TASK, {
-                    minimumInterval: 60 * 15, // 15 minutes
+                    minimumInterval: watcherMinInterval,
                     stopOnTerminate: false,
                     startOnBoot: true,
                 });
@@ -142,7 +143,7 @@ class WatcherService {
 
     async watchRun(run: WorkflowRun, token: string, owner: string, repo: string) {
         // Calculate estimated duration
-        let avgDuration = 300000; // Default 5 mins
+        let avgDuration = useSettingsStore.getState().watcherEstDuration;
         try {
             // Fetch recent runs to estimate duration
             // Fetching 20 should be enough to find some successful ones
@@ -255,7 +256,8 @@ class WatcherService {
 
     start() {
         if (this.interval) clearInterval(this.interval);
-        this.interval = setInterval(() => this.checkRuns(), 30000); // Check every 30s
+        const { watcherCheckInterval } = useSettingsStore.getState();
+        this.interval = setInterval(() => this.checkRuns(), watcherCheckInterval);
         this.updateHeartbeatState();
     }
 
