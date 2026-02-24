@@ -35,7 +35,13 @@ export function TagEditor({ tags, onAddTag, onRemoveTag, label, availableTags }:
                 .sort();
         }
         return sourceTags
-            .filter(t => !tags.includes(t) && t.toLowerCase().includes(inputValue.toLowerCase()))
+            .filter(t => {
+                if (tags.includes(t)) return false;
+                const matchesTag = t.toLowerCase().includes(inputValue.toLowerCase());
+                const rewrite = tagConfig[t]?.rewrite;
+                const matchesRewrite = rewrite && rewrite.toLowerCase().includes(inputValue.toLowerCase());
+                return matchesTag || matchesRewrite;
+            })
             .slice(0, 10);
     }, [allTags, tags, inputValue, tagConfig, availableTags]);
 
@@ -54,15 +60,12 @@ export function TagEditor({ tags, onAddTag, onRemoveTag, label, availableTags }:
     };
 
     const renderItem = (tag: string, index: number) => {
-        const config = tagConfig[tag];
         return (
             <MetadataChip
                 key={`${tag}-${index}`}
-                label={`#${tag}`}
-                color={config?.color}
-                variant="solid"
+                type="tag"
+                name={tag}
                 onRemove={() => onRemoveTag(index)}
-                size="md"
             />
         );
     };
@@ -73,15 +76,12 @@ export function TagEditor({ tags, onAddTag, onRemoveTag, label, availableTags }:
             <ScrollView style={{ maxHeight: 150 }} keyboardShouldPersistTaps="handled">
                 <View className="flex-row flex-wrap gap-2">
                     {suggestions.map(tag => {
-                        const config = tagConfig[tag];
                         return (
                             <MetadataChip
                                 key={tag}
-                                label={`#${tag}`}
-                                color={config?.color}
+                                type="tag"
+                                name={tag}
                                 onPress={() => setInputValue(tag)}
-                                variant="outline"
-                                size="md"
                             />
                         );
                     })}
