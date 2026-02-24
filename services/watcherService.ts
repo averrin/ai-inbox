@@ -192,7 +192,7 @@ class WatcherService {
         const body = `${run.head_branch} • ${percent}% • ~${remainingMins}m left\nRepo: ${owner}/${repo}\nCommit: ${commitMsg}`;
 
         // Fire and forget notification
-        this.updateNotification(watchedRun, body, percent, false, smallText).catch(console.error);
+        this.updateNotification(watchedRun, body, percent, false, smallText, `${percent}%`).catch(console.error);
 
         this.checkRuns(); // Immediate check
     }
@@ -312,7 +312,7 @@ class WatcherService {
                         this.notifyDownloadListeners(parseInt(id), true, 0);
 
                         // Initial notification for download start
-                        await this.updateNotification(item, `Downloading artifact... 0%\nCommit: ${commitMsg}`, 0);
+                        await this.updateNotification(item, `Downloading artifact... 0%\nCommit: ${commitMsg}`, 0, false, undefined, "0%");
 
                         try {
                             path = await downloadAndInstallArtifact(
@@ -326,7 +326,7 @@ class WatcherService {
                                     const percent = Math.round(p * 100);
                                     const smallText = `Downloading: ${percent}%`;
                                     // Update notification with progress and commit message
-                                    this.updateNotification(item, `Downloading artifact... ${percent}%\nCommit: ${commitMsg}`, percent, false, smallText).catch(console.error);
+                                    this.updateNotification(item, `Downloading artifact... ${percent}%\nCommit: ${commitMsg}`, percent, false, smallText, `${percent}%`).catch(console.error);
                                 },
                                 artifactDeps,
                                 undefined,
@@ -374,7 +374,7 @@ class WatcherService {
                 const commitMsg = item.run.head_commit?.message?.split('\n')[0] || 'No commit message';
                 const smallText = `${item.run.head_branch} • ${percent}% • ~${remainingMins}m left`;
                 const body = `${item.run.head_branch} • ${percent}% • ~${remainingMins}m left\nRepo: ${item.owner}/${item.repo}\nCommit: ${commitMsg}`;
-                await this.updateNotification(item, body, percent, false, smallText);
+                await this.updateNotification(item, body, percent, false, smallText, `${percent}%`);
             }
 
             await this.save();
@@ -384,7 +384,7 @@ class WatcherService {
         }
     }
 
-    private async updateNotification(item: WatchedRun, body: string, progress?: number, readyToInstall = false, smallText?: string) {
+    private async updateNotification(item: WatchedRun, body: string, progress?: number, readyToInstall = false, smallText?: string, chipText?: string) {
         const isImportant = readyToInstall || body.includes('Failed') || body.includes('Build Success');
 
         // Suppress non-important notifications if in an invisible range
@@ -400,7 +400,7 @@ class WatcherService {
             try {
                 // Using the run ID as notification ID
                 const title = `Build: ${item.run.name}`;
-                await NativeModules.ApkInstaller.updateProgress(item.run.id.toString(), title, body, smallText || body, progress);
+                await NativeModules.ApkInstaller.updateProgress(item.run.id.toString(), title, body, smallText || body, chipText || "", progress);
                 return;
             } catch (e) {
                 console.warn("Failed to update native progress", e);

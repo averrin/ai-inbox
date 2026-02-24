@@ -68,7 +68,7 @@ public class ApkInstallerModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void updateProgress(String id, String title, String body, String smallText, int progress, Promise promise) {
+    public void updateProgress(String id, String title, String body, String smallText, String chipText, int progress, Promise promise) {
         try {
             Context context = getReactApplicationContext();
             Intent intent = new Intent(context, BuildWatcherService.class);
@@ -78,6 +78,7 @@ public class ApkInstallerModule extends ReactContextBaseJavaModule {
             intent.putExtra("title", title);
             intent.putExtra("body", body);
             intent.putExtra("smallText", smallText);
+            intent.putExtra("chipText", chipText);
             intent.putExtra("progress", progress);
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
