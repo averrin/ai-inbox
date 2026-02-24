@@ -1,23 +1,14 @@
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Dimensions, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, FlatList, Dimensions } from 'react-native';
 import dayjs from 'dayjs';
 import { DayStatusLevel } from '../utils/difficultyUtils';
-import { Colors, Shadows, Sizes, Spacing } from './ui/design-tokens';
-import { IslandHeader } from './ui/IslandHeader';
+import { Colors, Sizes } from './ui/design-tokens';
 
 interface DateRulerProps {
     date: Date;
     onDateChange: (date: Date) => void;
-    onSettingsPress?: () => void;
-    // Programmatic navigation callbacks (use these for smooth animations)
-    onNext?: () => void;
-    onPrev?: () => void;
-    onToday?: () => void;
     // Day status markers (keyed by date string YYYY-MM-DD)
     dayStatuses?: Record<string, DayStatusLevel>;
-    onSync?: () => void;
-    isSyncing?: boolean;
 }
 
 const ITEM_WIDTH = Sizes.dateRulerItemWidth; // Width (48)n+ Margin (4*2)
@@ -86,7 +77,7 @@ const DateRulerItem = React.memo(({ item, isSelected, isToday, onPress, status }
     );
 });
 
-export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSettingsPress, onNext, onPrev, onToday, dayStatuses, onSync, isSyncing }) => {
+export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, dayStatuses }) => {
     const flatListRef = useRef<FlatList>(null);
 
     const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
@@ -149,37 +140,6 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
         }
     }, [selectedDateStr, dates]); // Trigger on day change or list regeneration
 
-    const handleNextDay = () => {
-        if (onNext) {
-            onNext();
-        } else {
-            const nextDate = dayjs(date).add(1, 'day').toDate();
-            onDateChange(nextDate);
-        }
-    };
-
-    const handlePrevDay = () => {
-        if (onPrev) {
-            onPrev();
-        } else {
-            const prevDate = dayjs(date).subtract(1, 'day').toDate();
-            onDateChange(prevDate);
-        }
-    };
-
-    const handleTodayPress = () => {
-        scrollToCenter(dates.findIndex(d => d.dayjs.isSame(dayjs(), 'day')), true);
-        if (onToday) {
-            onToday();
-        } else {
-            onDateChange(new Date());
-        }
-    };
-
-    const handleDatePress = useCallback((newDate: Date) => {
-        onDateChange(newDate);
-    }, [onDateChange, dates]);
-
     const todayDateStr = useMemo(() => dayjs().format('YYYY-MM-DD'), []);
 
     const renderItem = useCallback(({ item }: { item: DateItemData }) => {
@@ -192,77 +152,14 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
                 item={item}
                 isSelected={isSelected}
                 isToday={isToday}
-                onPress={handleDatePress}
+                onPress={onDateChange}
                 status={status}
             />
         );
-    }, [selectedDateStr, todayDateStr, dayStatuses, handleDatePress]);
-
-    const isTodaySelected = dayjs(date).isSame(dayjs(), 'day');
+    }, [selectedDateStr, todayDateStr, dayStatuses, onDateChange]);
 
     return (
         <View className="border-b border-border pb-4" style={{ backgroundColor: Colors.transparent }}>
-            <IslandHeader
-                title="Schedule"
-                subtitle={dayjs(date).format('MMMM YYYY')}
-                rightActions={[
-                    ...(onSync ? [{
-                        render: () => (
-                            <TouchableOpacity
-                                key="sync"
-                                onPress={onSync}
-                                disabled={isSyncing}
-                                style={{
-                                    width: 44,
-                                    height: 44,
-                                    borderRadius: 22,
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    opacity: isSyncing ? 0.5 : 1,
-                                    marginHorizontal: 2
-                                }}
-                            >
-                                <Ionicons name="sync-outline" size={22} color={Colors.text.tertiary} />
-                            </TouchableOpacity>
-                        )
-                    }] : []),
-                    {
-                        icon: 'chevron-back',
-                        onPress: handlePrevDay,
-                        color: Colors.text.tertiary,
-                    },
-                    {
-                        render: () => (
-                            <TouchableOpacity
-                                key="today"
-                                onPress={handleTodayPress}
-                                style={{
-                                    width: 44,
-                                    height: 44,
-                                    borderRadius: 22,
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    backgroundColor: isTodaySelected ? Colors.surfaceHighlight : Colors.transparent,
-                                    marginHorizontal: 2
-                                }}
-                            >
-                                <Ionicons name="today" size={22} color={isTodaySelected ? Colors.primary : Colors.text.tertiary} />
-                            </TouchableOpacity>
-                        )
-                    },
-                    {
-                        icon: 'chevron-forward',
-                        onPress: handleNextDay,
-                        color: Colors.text.tertiary,
-                    },
-                    ...(onSettingsPress ? [{
-                        icon: 'options-outline',
-                        onPress: onSettingsPress,
-                        color: Colors.text.tertiary,
-                    }] : [])
-                ]}
-            />
-
             {/* Scrollable Date Strip */}
             <View className="mt-2" onLayout={(e) => setScreenWidth(e.nativeEvent.layout.width)}>
                 <FlatList
@@ -286,9 +183,3 @@ export const DateRuler: React.FC<DateRulerProps> = ({ date, onDateChange, onSett
         </View>
     );
 };
-
-const styles = StyleSheet.create({
-    container: {
-        // purely for structure, tailwind does the rest
-    }
-});
