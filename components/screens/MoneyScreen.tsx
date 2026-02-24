@@ -23,9 +23,10 @@ interface BudgetItemProps {
     formatCurrency: (amount: number, currency?: string) => string;
     tagConfig: Record<string, any>;
     onLongPressTransaction?: (tx: Transaction) => void;
+    getTxCurrency: (tx: Transaction) => string;
 }
 
-function BudgetItem({ budget, transactions, formatCurrency, tagConfig, onLongPressTransaction }: BudgetItemProps) {
+function BudgetItem({ budget, transactions, formatCurrency, tagConfig, onLongPressTransaction, getTxCurrency }: BudgetItemProps) {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const limit = Number(budget.limit) || 0;
@@ -119,7 +120,7 @@ function BudgetItem({ budget, transactions, formatCurrency, tagConfig, onLongPre
                                             className="text-sm font-semibold"
                                             style={{ color: tx.type === 'income' ? Colors.status.healthy : Colors.error }}
                                         >
-                                            {tx.type === 'expense' ? '-' : '+'}{formatCurrency(Math.abs(tx.amount), tx.currency)}
+                                            {tx.type === 'expense' ? '-' : '+'}{formatCurrency(Math.abs(tx.amount), getTxCurrency(tx))}
                                         </Text>
                                     </View>
                                     <Text className="text-text-tertiary text-xs mt-1">
@@ -287,6 +288,12 @@ export default function MoneyScreen() {
     };
 
 
+
+    const getTxCurrency = (tx: Transaction): string => {
+        if (tx.currency) return tx.currency;
+        const acc = accounts.find(a => String(a.id) === String(tx.accountId));
+        return acc?.currency || 'CZK';
+    };
 
     const formatCurrency = (amount: number, currency: string = 'CZK') => {
         // Fallback to CZK if undefined, per user request "at least main is czk"
@@ -536,7 +543,7 @@ export default function MoneyScreen() {
                                 className="font-bold"
                                 style={{ color: tx.type === 'income' ? Colors.status.healthy : Colors.error }}
                             >
-                                {tx.type === 'expense' ? '-' : '+'}{formatCurrency(Math.abs(tx.amount), tx.currency)}
+                                {tx.type === 'expense' ? '-' : '+'}{formatCurrency(Math.abs(tx.amount), getTxCurrency(tx))}
                             </Text>
                         </View>
 
@@ -606,6 +613,7 @@ export default function MoneyScreen() {
                             formatCurrency={formatCurrency}
                             tagConfig={tagConfig}
                             onLongPressTransaction={setEditingTx}
+                            getTxCurrency={getTxCurrency}
                         />
                     ))
                 )}
@@ -707,6 +715,7 @@ export default function MoneyScreen() {
                 availableTags={uniqueTags}
                 onSave={handleEditSave}
                 onCancel={() => setEditingTx(null)}
+                currency={editingTx ? getTxCurrency(editingTx) : undefined}
             />
 
             </View>
