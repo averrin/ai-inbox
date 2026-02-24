@@ -1,20 +1,16 @@
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Animated, TextInput } from 'react-native';
+import { View, Text, ActivityIndicator, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Layout } from '../ui/Layout';
 import { useState, useEffect } from 'react';
-import { useSwipeTabs } from '../../hooks/useSwipeTabs';
 import { scanForReminders, Reminder, formatRecurrenceForReminder } from '../../services/reminderService';
 import { useSettingsStore } from '../../store/settings';
-import Toast from 'react-native-toast-message';
 import { useReminderModal } from '../../utils/reminderModalContext';
 import { ReminderItem } from '../ui/ReminderItem';
 import { EventFormModal, EventSaveData, DeleteOptions } from '../EventFormModal';
 import { useOptimisticReminders } from '../../hooks/useOptimisticReminders';
 import { useFab } from '../../hooks/useFab';
 import { Colors } from '../ui/design-tokens';
-import { IslandHeader } from '../ui/IslandHeader';
-import { islandBaseStyle } from '../ui/IslandBar';
+import { BaseScreen } from './BaseScreen';
 
 export default function RemindersListScreen() {
   const insets = useSafeAreaInsets();
@@ -25,9 +21,7 @@ export default function RemindersListScreen() {
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
 
-  const TAB_KEYS = ['Upcoming', 'Overdue', 'All'];
   const [activeTab, setActiveTab] = useState('Upcoming');
-  const { panHandlers } = useSwipeTabs({ tabs: TAB_KEYS, activeTab, onTabChange: setActiveTab });
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
 
@@ -122,137 +116,96 @@ export default function RemindersListScreen() {
   } : null;
 
   return (
-    <Layout>
-      <View style={{ flex: 1 }} {...panHandlers}>
-      <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
-        <IslandHeader
-          title="Reminders"
-          tabs={[
-            { key: 'Upcoming', label: 'Upcoming' },
-            { key: 'Overdue', label: 'Overdue' },
-            { key: 'All', label: 'All' },
-          ]}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          tabsScrollable={false}
-          rightActions={[
-            {
-              icon: 'search',
-              onPress: () => setShowSearch(!showSearch),
-              color: showSearch ? Colors.primary : Colors.text.tertiary
-            },
-            ...(isSyncing ? [{ icon: 'sync', onPress: () => { }, render: () => <ActivityIndicator size="small" color="#818cf8" /> }] : []),
-            { icon: 'refresh', onPress: loadReminders, disabled: loading || isSyncing },
-          ]}
-          showSearch={showSearch}
-          onCloseSearch={() => setShowSearch(false)}
-          searchBar={{
-            value: searchQuery,
-            onChangeText: setSearchQuery,
-            placeholder: "Search reminders..."
-          }}
-        />
-      </View>
-
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingTop: insets.top + 80, paddingBottom: insets.bottom + 80 }}>
-        {reminders.length === 0 ? (
-          <View className="bg-surface/50 p-8 rounded-xl border border-border items-center mt-4">
-            <Ionicons name="alarm-outline" size={64} color={Colors.secondary} />
-            <Text className="text-text-tertiary italic text-center mt-4 text-lg">No reminders found.</Text>
-            <Text className="text-secondary text-sm text-center mt-4">
-              Tap the + button to create a reminder!
-            </Text>
-          </View>
-        ) : displayedReminders.length === 0 ? (
-          <View className="bg-surface/50 p-8 rounded-xl border border-border items-center mt-4">
-            <Ionicons name="search-outline" size={64} color={Colors.secondary} />
-            <Text className="text-text-tertiary italic text-center mt-4 text-lg">No matches found.</Text>
-          </View>
-        ) : (
-          <View className="gap-6">
-            {activeTab === 'All' && (
-              <View>
-                <View className="gap-0">
-                  {displayedReminders.map((reminder) => (
-                    <ReminderItem
-                      key={reminder.fileUri}
-                      reminder={reminder}
-                      relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
-                      onEdit={() => handleEditReminder(reminder)}
-                      onDelete={() => deleteReminder(reminder)}
-                      onShow={() => showReminder(reminder)}
-                      timeFormat={timeFormat}
-                    />
-                  ))}
+    <BaseScreen
+      title="Reminders"
+      tabs={[
+        { key: 'Upcoming', label: 'Upcoming' },
+        { key: 'Overdue', label: 'Overdue' },
+        { key: 'All', label: 'All' },
+      ]}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      rightActions={[
+        {
+          icon: 'search',
+          onPress: () => setShowSearch(!showSearch),
+          color: showSearch ? Colors.primary : Colors.text.tertiary
+        },
+        ...(isSyncing ? [{ icon: 'sync', onPress: () => { }, render: () => <ActivityIndicator size="small" color="#818cf8" /> }] : []),
+        { icon: 'refresh', onPress: loadReminders, disabled: loading || isSyncing },
+      ]}
+      showSearch={showSearch}
+      onCloseSearch={() => setShowSearch(false)}
+      searchBar={{
+        value: searchQuery,
+        onChangeText: setSearchQuery,
+        placeholder: "Search reminders..."
+      }}
+    >
+      {({ headerHeight }) => (
+        <View style={{ flex: 1 }}>
+          <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingTop: headerHeight + 20, paddingBottom: insets.bottom + 80 }}>
+            {reminders.length === 0 ? (
+              <View className="bg-surface/50 p-8 rounded-xl border border-border items-center mt-4">
+                <Ionicons name="alarm-outline" size={64} color={Colors.secondary} />
+                <Text className="text-text-tertiary italic text-center mt-4 text-lg">No reminders found.</Text>
+                <Text className="text-secondary text-sm text-center mt-4">
+                  Tap the + button to create a reminder!
+                </Text>
+              </View>
+            ) : displayedReminders.length === 0 ? (
+              <View className="bg-surface/50 p-8 rounded-xl border border-border items-center mt-4">
+                <Ionicons name="search-outline" size={64} color={Colors.secondary} />
+                <Text className="text-text-tertiary italic text-center mt-4 text-lg">No matches found.</Text>
+              </View>
+            ) : (
+              <View className="gap-6">
+                <View>
+                  <View className="gap-0">
+                    {displayedReminders.map((reminder) => (
+                      <ReminderItem
+                        key={reminder.fileUri}
+                        reminder={reminder}
+                        relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
+                        onEdit={() => handleEditReminder(reminder)}
+                        onDelete={() => deleteReminder(reminder)}
+                        onShow={() => showReminder(reminder)}
+                        timeFormat={timeFormat}
+                      />
+                    ))}
+                  </View>
                 </View>
               </View>
             )}
+          </ScrollView>
 
-            {activeTab === 'Upcoming' && upcoming.length > 0 && (
-              <View>
-                <View className="gap-0">
-                  {upcoming.map((reminder) => (
-                    <ReminderItem
-                      key={reminder.fileUri}
-                      reminder={reminder}
-                      relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
-                      onEdit={() => handleEditReminder(reminder)}
-                      onDelete={() => deleteReminder(reminder)}
-                      onShow={() => showReminder(reminder)}
-                      timeFormat={timeFormat}
-                    />
-                  ))}
-                </View>
-              </View>
-            )}
+          {/* Edit Modal */}
+          {editingReminder && (
+            <EventFormModal
+              visible={isEditModalVisible}
+              initialEvent={editingEvent}
+              initialType={editingReminder.alarm ? 'alarm' : 'reminder'}
+              onSave={handleSaveEdit}
+              onCancel={() => {
+                setIsEditModalVisible(false);
+                setEditingReminder(null);
+              }}
+              onDelete={handleDeleteReminder}
+              timeFormat={timeFormat}
+            />
+          )}
 
-            {activeTab === 'Overdue' && overdue.length > 0 && (
-              <View>
-                <View className="gap-0">
-                  {overdue.map((reminder) => (
-                    <ReminderItem
-                      key={reminder.fileUri}
-                      reminder={reminder}
-                      relativeTime={getRelativeTime(new Date(reminder.reminderTime))}
-                      onEdit={() => handleEditReminder(reminder)}
-                      onDelete={() => deleteReminder(reminder)}
-                      onShow={() => showReminder(reminder)}
-                      timeFormat={timeFormat}
-                    />
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Edit Modal */}
-      {editingReminder && (
-        <EventFormModal
-          visible={isEditModalVisible}
-          initialEvent={editingEvent}
-          initialType={editingReminder.alarm ? 'alarm' : 'reminder'}
-          onSave={handleSaveEdit}
-          onCancel={() => {
-            setIsEditModalVisible(false);
-            setEditingReminder(null);
-          }}
-          onDelete={handleDeleteReminder}
-          timeFormat={timeFormat}
-        />
+          {/* Creation Modal */}
+          <EventFormModal
+            visible={isCreateModalVisible}
+            initialDate={new Date(new Date().setHours(new Date().getHours() + 1, 0, 0, 0))} // Default +1h
+            initialType="reminder"
+            onSave={handleCreateReminder}
+            onCancel={() => setIsCreateModalVisible(false)}
+            timeFormat={timeFormat}
+          />
+        </View>
       )}
-
-      {/* Creation Modal */}
-      <EventFormModal
-        visible={isCreateModalVisible}
-        initialDate={new Date(new Date().setHours(new Date().getHours() + 1, 0, 0, 0))} // Default +1h
-        initialType="reminder"
-        onSave={handleCreateReminder}
-        onCancel={() => setIsCreateModalVisible(false)}
-        timeFormat={timeFormat}
-      />
-      </View>
-    </Layout>
+    </BaseScreen>
   );
 }
