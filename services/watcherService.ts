@@ -70,24 +70,28 @@ class WatcherService {
     }
 
     async ensureSettingsHydrated() {
-        if (useSettingsStore.persist && useSettingsStore.persist.hasHydrated && !useSettingsStore.persist.hasHydrated()) {
-            // Wait for hydration
-             await new Promise<void>((resolve) => {
-                 const unsub = useSettingsStore.persist.onFinishHydration(() => {
-                     resolve();
+        try {
+            if (useSettingsStore.persist && useSettingsStore.persist.hasHydrated && !useSettingsStore.persist.hasHydrated()) {
+                // Wait for hydration
+                 await new Promise<void>((resolve) => {
+                     const unsub = useSettingsStore.persist.onFinishHydration(() => {
+                         resolve();
+                     });
+                     // Fallback timeout in case onFinishHydration is flaky or already done
+                     setTimeout(() => resolve(), 2000);
                  });
-                 // Fallback timeout in case onFinishHydration is flaky or already done
-                 setTimeout(() => resolve(), 2000);
-             });
+            }
+        } catch (e) {
+            console.warn("[WatcherService] Failed to ensure settings hydrated", e);
         }
     }
 
     async init() {
-        await this.ensureSettingsHydrated();
-
         if (this.initialized) return;
 
         try {
+            await this.ensureSettingsHydrated();
+
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
             if (stored) {
                 this.watchedRuns = JSON.parse(stored);
