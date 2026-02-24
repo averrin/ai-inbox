@@ -56,7 +56,7 @@ export function WeatherForecastModal({ visible, onClose, weatherData, currentDat
                             return (
                                 <View
                                     key={day.dateStr}
-                                    className={`flex-row items-center justify-between py-3 border-b border-border ${isToday ? 'bg-primary -mx-4 px-4' : ''}`}
+                                    className={`flex-row items-center justify-between py-3 border-b border-border ${isToday ? 'bg-primary/20 -mx-4 px-4' : ''}`}
                                 >
                                     <View className="flex-row items-center gap-4 flex-1">
                                         <View className="w-12">
