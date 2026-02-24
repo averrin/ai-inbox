@@ -61,8 +61,15 @@ export function TransactionEditModal({
 
     if (!transaction) return null;
 
-    const amountColor = transaction.type === 'income' ? Colors.status.healthy : Colors.error;
-    const amountSign = transaction.type === 'expense' ? '-' : '+';
+    let amountColor = Colors.text.secondary;
+    let amountSign = '';
+    if (transaction.type === 'income') {
+        amountColor = Colors.status.healthy;
+        amountSign = '+';
+    } else if (transaction.type === 'expense') {
+        amountColor = Colors.error;
+        amountSign = '-';
+    }
 
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
