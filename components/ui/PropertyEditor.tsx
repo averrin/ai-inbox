@@ -122,7 +122,6 @@ export function PropertyEditor({
                 style={isPassed ? { borderStyle: 'dashed' } : undefined}
                 onPress={() => handleEdit(key, value)}
                 onRemove={() => handleRemove(key)}
-                size="md"
             />
         );
     };
