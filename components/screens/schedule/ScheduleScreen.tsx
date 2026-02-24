@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { View, Text, TouchableOpacity, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, RefreshControl, Platform, ActivityIndicator } from 'react-native';
 import { serializeTaskLine } from '../../../utils/taskParser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BaseScreen } from '../BaseScreen';
+import { HeaderAction } from '../../ui/IslandHeader';
 import { Layout } from '../../ui/Layout';
 import Toast from 'react-native-toast-message';
 import { Calendar as BigCalendar, CalendarRef } from '../../ui/calendar';
@@ -627,114 +629,182 @@ export const ScheduleScreen = () => {
         return base;
     }, [events, timeRangeEvents, focusRanges, freeTimeZones, lunchEvents, walkEvent, assistantEvents, showAdditionalCalendars, personalCalendarIds, workCalendarIds]);
 
+    const isTodaySelected = dayjs(date).isSame(dayjs(), 'day');
+
+    const rightActions: HeaderAction[] = useMemo(() => [
+        {
+            render: () => (
+                <TouchableOpacity
+                    key="sync"
+                    onPress={fetchEvents}
+                    style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        marginHorizontal: 2
+                    }}
+                >
+                    <Ionicons name="sync-outline" size={22} color={Colors.text.tertiary} />
+                </TouchableOpacity>
+            )
+        },
+        {
+            icon: 'chevron-back',
+            onPress: () => {
+                const prev = dayjs(date).subtract(1, 'day').toDate();
+                changeDate(prev);
+                calendarRef.current?.goPrev();
+            },
+            color: Colors.text.tertiary,
+        },
+        {
+            render: () => (
+                <TouchableOpacity
+                    key="today"
+                    onPress={() => {
+                        const now = new Date();
+                        changeDate(now);
+                        calendarRef.current?.goToDate(now);
+                    }}
+                    style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backgroundColor: isTodaySelected ? Colors.surfaceHighlight : Colors.transparent,
+                        marginHorizontal: 2
+                    }}
+                >
+                    <Ionicons name="today" size={22} color={isTodaySelected ? Colors.primary : Colors.text.tertiary} />
+                </TouchableOpacity>
+            )
+        },
+        {
+            icon: 'chevron-forward',
+            onPress: () => {
+                const next = dayjs(date).add(1, 'day').toDate();
+                changeDate(next);
+                calendarRef.current?.goNext();
+            },
+            color: Colors.text.tertiary,
+        }
+    ], [date, fetchEvents, isTodaySelected]);
 
     return (
         <DragDropProvider>
-            <Layout fullBleed noPadding>
-                <View className="flex-1">
+            <BaseScreen
+                title="Schedule"
+                subtitle={dayjs(date).format('MMMM YYYY')}
+                rightActions={rightActions}
+                fullBleed
+                noPadding
+                headerChildren={
                     <DateRuler
                         date={date}
                         onDateChange={changeDate}
-                        onNext={() => calendarRef.current?.goNext()}
-                        onPrev={() => calendarRef.current?.goPrev()}
-                        onToday={() => calendarRef.current?.goToDate(new Date())}
                         dayStatuses={dayStatuses}
-                        onSync={fetchEvents}
                     />
+                }
+            >
+                {({ headerHeight }) => (
+                    <View className="flex-1" style={{ paddingTop: headerHeight + 80 }}>
+                        <TodaysTasksPanel
+                            date={date}
+                            events={events}
+                            onAdd={handleAddTask}
+                            onEditTask={setEditingTask}
+                            onRefresh={fetchEvents}
+                        />
 
-                    <TodaysTasksPanel
-                        date={date}
-                        events={events}
-                        onAdd={handleAddTask}
-                        onEditTask={setEditingTask}
-                        onRefresh={fetchEvents}
-                    />
+                        {/* Calendar View */}
+                        {visibleCalendarIds.length === 0 ? (
+                            <NoCalendarsView />
+                        ) : (
+                            <View className="flex-1 overflow-hidden">
+                                {/* @ts-ignore - onScroll is monkey-patched */}
+                                <BigCalendar
+                                    imperativeRef={calendarRef}
+                                    renderHeader={renderHeader}
+                                    events={allEvents}
+                                    height={height}
+                                    bodyContentContainerStyle={{ paddingBottom: tabBarHeight + 20 }}
+                                    date={date}
+                                    mode={viewMode}
+                                    onEventDrop={handleEventDrop}
+                                    onSwipeEnd={(d) => {
+                                        if (dayjs(d).isSame(date, 'day')) return;
+                                        setDate(d);
+                                    }}
+                                    scrollOffsetMinutes={scrollOffset.current}
+                                    // onScroll={handleScroll}
+                                    theme={{
+                                        palette: {
+                                            primary: {
+                                                main: '#818cf8',
+                                                contrastText: '#fff',
+                                            },
+                                            gray: {
+                                                100: Colors.surfaceHighlight,
+                                                200: Colors.surface,
+                                                300: Colors.text.tertiary,
+                                                500: Colors.text.secondary,
+                                                800: Colors.text.primary,
+                                            },
+                                        },
+                                        typography: {
+                                            xs: {
+                                                fontSize: 14,
+                                                fontWeight: '500',
+                                            },
+                                            sm: {
+                                                fontSize: 17,
+                                                fontWeight: '600',
+                                            },
+                                            xl: {
+                                                fontSize: 26,
+                                                fontWeight: 'bold',
+                                            },
+                                        }
+                                    }}
+                                    eventCellStyle={eventCellStyle}
+                                    onPressEvent={(evt) => {
+                                        const event = evt as any;
+                                        if (event.typeTag === 'ASSISTANT_SUGGESTION') {
+                                            setSelectedEvent(event);
+                                        } else if (event.type === 'marker') {
+                                            setEditingEvent(event);
+                                        } else if (event.type === 'zone') {
+                                            setEditingEvent(event);
+                                        } else {
+                                            setSelectedEvent({ title: event.title, start: event.start, end: event.end, ...event }); // Spread all props to include color/typeTag
+                                        }
+                                    }}
+                                    calendarCellStyle={{ borderColor: Colors.surfaceHighlight, backgroundColor: Colors.background }}
+                                    bodyContainerStyle={{ backgroundColor: Colors.background }}
+                                    renderEvent={(evt, touchableOpacityProps) => (
+                                        <ScheduleEvent
+                                            event={evt}
+                                            touchableOpacityProps={touchableOpacityProps}
+                                            timeFormat={timeFormat}
+                                            onToggleCompleted={handleToggleCompleted}
+                                        />
+                                    )}
+                                    onQuickAction={handleQuickAction}
+                                    onExternalDrop={handleTaskDrop}
+                                    hourComponent={useCallback(({ hour, ampm }: { hour: number, ampm: boolean }) => (
+                                        <WeatherHourGuide hour={hour} ampm={ampm} date={date} />
+                                    ), [date])}
+                                />
+                            </View>
+                        )}
+                    </View>
+                )}
+            </BaseScreen>
 
-                    {/* Calendar View */}
-                    {visibleCalendarIds.length === 0 ? (
-                        <NoCalendarsView />
-                    ) : (
-                        <View className="flex-1 overflow-hidden">
-                            {/* @ts-ignore - onScroll is monkey-patched */}
-                            <BigCalendar
-                                imperativeRef={calendarRef}
-                                renderHeader={renderHeader}
-                                events={allEvents}
-                                height={height}
-                                bodyContentContainerStyle={{ paddingBottom: tabBarHeight + 20 }}
-                                date={date}
-                                mode={viewMode}
-                                onEventDrop={handleEventDrop}
-                                onSwipeEnd={(d) => {
-                                    if (dayjs(d).isSame(date, 'day')) return;
-                                    setDate(d);
-                                }}
-                                scrollOffsetMinutes={scrollOffset.current}
-                                // onScroll={handleScroll}
-                                theme={{
-                                    palette: {
-                                        primary: {
-                                            main: '#818cf8',
-                                            contrastText: '#fff',
-                                        },
-                                        gray: {
-                                            100: Colors.surfaceHighlight,
-                                            200: Colors.surface,
-                                            300: Colors.text.tertiary,
-                                            500: Colors.text.secondary,
-                                            800: Colors.text.primary,
-                                        },
-                                    },
-                                    typography: {
-                                        xs: {
-                                            fontSize: 14,
-                                            fontWeight: '500',
-                                        },
-                                        sm: {
-                                            fontSize: 17,
-                                            fontWeight: '600',
-                                        },
-                                        xl: {
-                                            fontSize: 26,
-                                            fontWeight: 'bold',
-                                        },
-                                    }
-                                }}
-                                eventCellStyle={eventCellStyle}
-                                onPressEvent={(evt) => {
-                                    const event = evt as any;
-                                    if (event.typeTag === 'ASSISTANT_SUGGESTION') {
-                                        setSelectedEvent(event);
-                                    } else if (event.type === 'marker') {
-                                        setEditingEvent(event);
-                                    } else if (event.type === 'zone') {
-                                        setEditingEvent(event);
-                                    } else {
-                                        setSelectedEvent({ title: event.title, start: event.start, end: event.end, ...event }); // Spread all props to include color/typeTag
-                                    }
-                                }}
-                                calendarCellStyle={{ borderColor: Colors.surfaceHighlight, backgroundColor: Colors.background }}
-                                bodyContainerStyle={{ backgroundColor: Colors.background }}
-                                renderEvent={(evt, touchableOpacityProps) => (
-                                    <ScheduleEvent
-                                        event={evt}
-                                        touchableOpacityProps={touchableOpacityProps}
-                                        timeFormat={timeFormat}
-                                        onToggleCompleted={handleToggleCompleted}
-                                    />
-                                )}
-                                onQuickAction={handleQuickAction}
-                                onExternalDrop={handleTaskDrop}
-                                hourComponent={useCallback(({ hour, ampm }: { hour: number, ampm: boolean }) => (
-                                    <WeatherHourGuide hour={hour} ampm={ampm} date={date} />
-                                ), [date])}
-                            />
-                        </View>
-                    )}
-
-
-
-                    {/* Context Menu Modal */}
+            {/* Context Menu Modal */}
                     <EventContextModal
                         visible={!!selectedEvent && !selectedEvent?.typeTag?.includes('LUNCH_SUGGESTION') && !selectedEvent?.typeTag?.includes('WALK_SUGGESTION') && !selectedEvent?.typeTag?.includes('ASSISTANT_SUGGESTION')}
                         onClose={() => setSelectedEvent(null)}
@@ -1047,7 +1117,8 @@ export const ScheduleScreen = () => {
 
                     <DragOverlay />
                 </View>
-            </Layout>
+                )}
+            </BaseScreen>
         </DragDropProvider>
     );
 }
