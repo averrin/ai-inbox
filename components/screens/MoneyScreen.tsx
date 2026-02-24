@@ -642,8 +642,8 @@ export default function MoneyScreen() {
     return (
         <Layout>
             <View style={{ flex: 1 }} {...panHandlers}>
-            <View style={{ position: 'absolute', top: 4, left: 16, right: 16, zIndex: 10 }}>
                 <IslandHeader
+                    floating
                     title="Money"
                     rightActions={[]}
                     tabs={token ? tabs : undefined}
@@ -699,7 +699,6 @@ export default function MoneyScreen() {
                         </View>
                     )}
                 </IslandHeader>
-            </View>
 
             {!buxferEmail || !buxferPassword ? renderLoginForm() : (
                 <>

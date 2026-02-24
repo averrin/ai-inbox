@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from './design-tokens';
 import { IslandBar } from './IslandBar';
 import { TopTabBar, TopTab } from './TopTabBar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export interface HeaderAction {
     icon?: string;
@@ -34,6 +35,8 @@ interface IslandHeaderProps {
     children?: React.ReactNode;
     /** Hide bottom margin */
     noMargin?: boolean;
+    /** Float the header as an absolute overlay in a consistent top position */
+    floating?: boolean;
 
     // ── Unified tab support ──────────────────────────────────────────
     /** Tab definitions – rendered inside the left island next to the title */
@@ -72,7 +75,9 @@ export function IslandHeader({
     searchBar,
     showSearch,
     onCloseSearch,
+    floating = false,
 }: IslandHeaderProps) {
+    const insets = useSafeAreaInsets();
 
     const hasTabs = tabs && tabs.length > 0 && activeTab !== undefined && onTabChange;
     const scrollable = tabsScrollable ?? (tabs ? tabs.length > 3 : false);
@@ -198,7 +203,20 @@ export function IslandHeader({
     };
 
     return (
-        <View className={`${noMargin ? '' : 'mb-2'} pt-2`}>
+        <View
+            className={`${noMargin ? '' : 'mb-2'} pt-2`}
+            style={
+                floating
+                    ? {
+                        position: 'absolute',
+                        top: insets.top + 4,
+                        left: 16,
+                        right: 16,
+                        zIndex: 10,
+                    }
+                    : undefined
+            }
+        >
             {/* Top Row: Left and Right Islands */}
             <IslandBar
                 leftContent={renderLeft()}

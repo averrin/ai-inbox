@@ -99,8 +99,8 @@ export default function LinksScreen() {
     return (
         <Layout fullBleed={true}>
             <View style={{ flex: 1 }} {...panHandlers}>
-            <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
                 <IslandHeader
+                    floating
                     title="Links"
                     tabs={folders.map(f => ({ key: f.path, label: f.name }))}
                     activeTab={activeFolder}
@@ -121,7 +121,6 @@ export default function LinksScreen() {
                         placeholder: "Search links..."
                     }}
                 />
-            </View>
 
             {activeFolderObj && (
                 <LinksFolderView

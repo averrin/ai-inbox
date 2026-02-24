@@ -334,8 +334,8 @@ export default function NewsScreen() {
 
     return (
         <Layout>
-            <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
                 <IslandHeader
+                    floating
                     title="News Feed"
                     rightActions={[
                         {
@@ -433,7 +433,6 @@ export default function NewsScreen() {
                         />
                     </View>
                 </IslandHeader>
-            </View>
 
             <View className="flex-1 px-4">
                 {((!newsApiKey && !process.env.NEWSAPI_KEY) && rssFeeds.length === 0) ? (
