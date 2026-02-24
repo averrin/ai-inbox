@@ -124,8 +124,8 @@ export default function RemindersListScreen() {
   return (
     <Layout>
       <View style={{ flex: 1 }} {...panHandlers}>
-      <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
         <IslandHeader
+          floating
           title="Reminders"
           tabs={[
             { key: 'Upcoming', label: 'Upcoming' },
@@ -152,7 +152,6 @@ export default function RemindersListScreen() {
             placeholder: "Search reminders..."
           }}
         />
-      </View>
 
       <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingTop: insets.top + 80, paddingBottom: insets.bottom + 80 }}>
         {reminders.length === 0 ? (

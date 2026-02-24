@@ -108,8 +108,8 @@ export default function TasksScreen() {
     return (
         <Layout fullBleed={true}>
             <View style={{ flex: 1 }} {...panHandlers}>
-            <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
                 <IslandHeader
+                    floating
                     title="Tasks"
                     tabs={folders.map(f => ({ key: f.name, label: f.name }))}
                     activeTab={activeFolder}
@@ -182,7 +182,6 @@ export default function TasksScreen() {
                         </View>
                     )}
                 </IslandHeader>
-            </View>
             <View className="flex-1 bg-transparent">
                 {activeFolderObj && (
                     <TasksFolderView

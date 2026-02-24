@@ -1388,8 +1388,8 @@ export default function JulesScreen() {
     return (
         <Layout>
             {renderContent()}
-            <View style={{ position: 'absolute', top: insets.top + 4, left: 16, right: 16, zIndex: 10 }}>
                 <IslandHeader
+                    floating
                     title="Jules"
                     subtitle={julesOwner && julesRepo ? `${julesOwner}/${julesRepo}` : undefined}
                     rightActions={[
@@ -1397,7 +1397,6 @@ export default function JulesScreen() {
                         { icon: 'refresh', onPress: onRefresh },
                     ]}
                 />
-            </View>
             <RepoSelector
                 visible={showRepoSelector}
                 onClose={() => setShowRepoSelector(false)}
