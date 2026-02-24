@@ -82,7 +82,6 @@ export function TagEditor({ tags, onAddTag, onRemoveTag, label, availableTags }:
                                 type="tag"
                                 name={tag}
                                 onPress={() => setInputValue(tag)}
-                                variant="outline"
                             />
                         );
                     })}
