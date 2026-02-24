@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ScrollView, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { DayBreakdown, DayStatusLevel } from '../utils/difficultyUtils';
 import { DayStatusMarker } from './DayStatusMarker';
@@ -48,15 +48,14 @@ export function DaySummaryModal({ visible, onClose, breakdown, status, date }: P
             animationType="fade"
             onRequestClose={onClose}
         >
-            <TouchableOpacity
-                className="flex-1 bg-black/70 justify-center items-center p-4"
-                activeOpacity={1}
-                onPress={onClose}
-            >
-                <TouchableOpacity
-                    activeOpacity={1}
-                    className="bg-background w-full max-w-sm rounded-2xl border border-border overflow-hidden"
-                >
+            <View className="flex-1 justify-center items-center p-4">
+                {/* Absolute backdrop to catch taps outside the modal */}
+                <Pressable
+                    className="absolute top-0 bottom-0 left-0 right-0 bg-black/70"
+                    onPress={onClose}
+                />
+                
+                <View className="bg-background w-full rounded-2xl border border-border overflow-hidden max-h-[80%] max-w-sm">
                     {/* Header */}
                     <View className="bg-surface p-4 border-b border-border flex-row justify-between items-center">
                         <View>
@@ -131,8 +130,8 @@ export function DaySummaryModal({ visible, onClose, breakdown, status, date }: P
                             </>
                         )}
                     </ScrollView>
-                </TouchableOpacity>
-            </TouchableOpacity>
+                </View>
+            </View>
         </Modal>
     );
 }

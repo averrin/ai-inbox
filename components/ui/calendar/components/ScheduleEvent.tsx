@@ -143,10 +143,8 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
     const isUltraCompact = duration <= 15;
     const isCompact = duration <= 30;
 
-    // Special styling for generated suggestions (Lunch, Walk)
-    const isLunchSuggestion = evt.type === 'generated' && evt.typeTag === 'LUNCH_SUGGESTION';
-    const isWalkSuggestion = evt.type === 'walk-suggestion' || evt.typeTag === 'WALK_SUGGESTION';
-    const isSuggestion = isLunchSuggestion || isWalkSuggestion;
+    // Special styling for generated suggestions (Lunch, Walk, Assistant)
+    const isSuggestion = evt.type === 'generated' || evt.type === 'walk-suggestion' || evt.type === 'suggestion' || evt.typeTag?.endsWith('SUGGESTION') || evt.typeTag === 'SUGGESTION';
 
     const containerStyle: any = {};
     if (isSuggestion) {
@@ -278,7 +276,7 @@ export const ScheduleEvent = ({ event: evt, touchableOpacityProps, timeFormat, o
                             </Text>
                         </View>
                     )}
-                    {evt.typeTag && !isSuggestion && (
+                    {evt.typeTag && (
                         <View className="bg-black/30 px-1.5 py-0.5 rounded">
                             <Text className="text-white text-[8px] font-bold uppercase tracking-wider">
                                 {evt.typeTag}

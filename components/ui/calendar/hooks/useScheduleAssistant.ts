@@ -33,7 +33,7 @@ export function useScheduleAssistant(apiKey: string) {
                     title: e.title,
                     start: e.start,
                     end: e.end,
-                    isFixed: !e.movable,
+                    isFixed: e.typeTag != "Personal",
                     difficulty: e.difficulty?.total || 0,
                     attendees: e.originalEvent?.attendees?.length || 0,
                     description: e.originalEvent?.notes || ''
@@ -49,6 +49,7 @@ export function useScheduleAssistant(apiKey: string) {
 
             // Map to internal structure
             const newSuggestions = result.map((s, index) => {
+                console.log("Suggestion:", s);
                 // Find original title for better display
                 const original = upcomingEvents.find(e => e.id === s.originalEventId);
                 return {
