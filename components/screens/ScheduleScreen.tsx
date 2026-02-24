@@ -21,7 +21,9 @@ import { useTimeRangeEvents } from '../ui/calendar/hooks/useTimeRangeEvents';
 import { calculateEventDifficulty } from '../../utils/difficultyUtils';
 import { useLunchSuggestion } from '../ui/calendar/hooks/useLunchSuggestion';
 import { useWalkSuggestion } from '../ui/calendar/hooks/useWalkSuggestion';
+import { useScheduleAssistant } from '../ui/calendar/hooks/useScheduleAssistant';
 import { EventContextModal } from '../EventContextModal';
+import { AssistantSuggestionModal } from '../AssistantSuggestionModal';
 import { DaySummaryModal } from '../DaySummaryModal';
 import { calculateDayStatus, aggregateDayStats, DayBreakdown, DayStatusLevel } from '../../utils/difficultyUtils';
 import { DayStatusMarker } from '../DayStatusMarker';
@@ -947,6 +949,8 @@ export default function ScheduleScreen() {
 
     const { lunchEvents, dayDifficulties: lunchDifficulties } = useLunchSuggestion(events, hookDateRange);
 
+    const workRanges = useMemo(() => timeRangeEvents.filter((e: any) => e.isWork), [timeRangeEvents]);
+
     const { walkEvent, dismiss: dismissWalk, refresh: refreshWalk, isLoading: isWalkLoading } = useWalkSuggestion({
         events,
         extraEvents: lunchEvents,
@@ -955,7 +959,7 @@ export default function ScheduleScreen() {
         apiKey: geminiApiKey || ''
     });
 
-
+    const { assistantEvents, generateSuggestions, acceptSuggestion, dismissSuggestion, isLoading: isAssistantLoading } = useScheduleAssistant(geminiApiKey || '');
 
     const dayStatuses = useMemo(() => {
         const map: Record<string, DayStatusLevel> = {};
@@ -1089,29 +1093,39 @@ export default function ScheduleScreen() {
                     </View>
 
                     {/* Right: Stats (Clickable for details) */}
-                    <TouchableOpacity
-                        activeOpacity={0.7}
-                        onPress={() => {
-                            setSummaryData({ breakdown: dayStats, status, date: pageDate.toDate() });
-                            setSummaryModalVisible(true);
-                        }}
-                        className="flex-row items-center gap-4"
-                    >
-                        <View className="flex-row items-center gap-2">
-                            <DayStatusMarker status={status} />
-                            {dayStats.deepWorkMinutes > 0 && (
-                                <Text className="text-text-tertiary text-xs font-semibold uppercase tracking-wider">
-                                    Deep Work: <Text className="text-success text-sm">{deepWorkStr}</Text>
-                                </Text>
-                            )}
-                        </View>
+                    <View className="flex-row items-center gap-2">
+                        <TouchableOpacity
+                            onPress={() => generateSuggestions(events, workRanges)}
+                            className={`mr-2 p-1.5 rounded-full ${isAssistantLoading ? 'bg-primary/20' : 'bg-transparent'}`}
+                            disabled={isAssistantLoading}
+                        >
+                             <Ionicons name="sparkles" size={18} color={isAssistantLoading ? Colors.primary : Colors.text.tertiary} />
+                        </TouchableOpacity>
 
-                        <Text className="text-text-tertiary text-xs font-semibold uppercase tracking-wider">
-                            Day Score: <Text className="text-primary text-sm">{Math.round(dayStats.totalScore)}</Text>
-                        </Text>
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => {
+                                setSummaryData({ breakdown: dayStats, status, date: pageDate.toDate() });
+                                setSummaryModalVisible(true);
+                            }}
+                            className="flex-row items-center gap-4"
+                        >
+                            <View className="flex-row items-center gap-2">
+                                <DayStatusMarker status={status} />
+                                {dayStats.deepWorkMinutes > 0 && (
+                                    <Text className="text-text-tertiary text-xs font-semibold uppercase tracking-wider">
+                                        Deep Work: <Text className="text-success text-sm">{deepWorkStr}</Text>
+                                    </Text>
+                                )}
+                            </View>
 
-                        <Ionicons name="information-circle-outline" size={16} color={Colors.secondary} />
-                    </TouchableOpacity>
+                            <Text className="text-text-tertiary text-xs font-semibold uppercase tracking-wider">
+                                Day Score: <Text className="text-primary text-sm">{Math.round(dayStats.totalScore)}</Text>
+                            </Text>
+
+                            <Ionicons name="information-circle-outline" size={16} color={Colors.secondary} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 {/* All Day Events Row */}
@@ -1136,8 +1150,6 @@ export default function ScheduleScreen() {
         );
     }, [changeDate, events, focusRanges, lunchDifficulties, weatherData, moods]);
 
-    const workRanges = useMemo(() => timeRangeEvents.filter((e: any) => e.isWork), [timeRangeEvents]);
-
     const freeTimeZones = useMemo(() => {
         if (!isEventsLoaded) return [];
         return detectFreeTimeZones(events, workRanges);
@@ -1146,10 +1158,10 @@ export default function ScheduleScreen() {
 
 
     const allEvents = useMemo(() => {
-        const base = [...events, ...timeRangeEvents, ...focusRanges, ...freeTimeZones, ...lunchEvents];
+        const base = [...events, ...timeRangeEvents, ...focusRanges, ...freeTimeZones, ...lunchEvents, ...assistantEvents];
         if (walkEvent) base.push(walkEvent);
         return base;
-    }, [events, timeRangeEvents, focusRanges, freeTimeZones, lunchEvents, walkEvent]);
+    }, [events, timeRangeEvents, focusRanges, freeTimeZones, lunchEvents, walkEvent, assistantEvents]);
 
     const eventCellStyle = useCallback((event: any) => {
         const now = dayjs();
@@ -1553,7 +1565,9 @@ export default function ScheduleScreen() {
                                 eventCellStyle={eventCellStyle}
                                 onPressEvent={(evt) => {
                                     const event = evt as any;
-                                    if (event.type === 'marker') {
+                                    if (event.typeTag === 'ASSISTANT_SUGGESTION') {
+                                        setSelectedEvent(event);
+                                    } else if (event.type === 'marker') {
                                         setEditingEvent(event);
                                     } else if (event.type === 'zone') {
                                         setEditingEvent(event);
@@ -1584,7 +1598,7 @@ export default function ScheduleScreen() {
 
                     {/* Context Menu Modal */}
                     <EventContextModal
-                        visible={!!selectedEvent && !selectedEvent?.typeTag?.includes('LUNCH_SUGGESTION') && !selectedEvent?.typeTag?.includes('WALK_SUGGESTION')}
+                        visible={!!selectedEvent && !selectedEvent?.typeTag?.includes('LUNCH_SUGGESTION') && !selectedEvent?.typeTag?.includes('WALK_SUGGESTION') && !selectedEvent?.typeTag?.includes('ASSISTANT_SUGGESTION')}
                         onClose={() => setSelectedEvent(null)}
                         onRefresh={fetchEvents}
                         onEdit={() => setEditingEvent(selectedEvent)}
@@ -1593,6 +1607,19 @@ export default function ScheduleScreen() {
                             setEditingTask(task);
                         }}
                         event={selectedEvent}
+                    />
+
+                    <AssistantSuggestionModal
+                        visible={!!selectedEvent && selectedEvent?.typeTag === 'ASSISTANT_SUGGESTION'}
+                        suggestion={selectedEvent?.originalSuggestion || null}
+                        onAccept={async (s) => {
+                            const success = await acceptSuggestion(s);
+                            if (success) {
+                                fetchEvents();
+                            }
+                        }}
+                        onDismiss={dismissSuggestion}
+                        onClose={() => setSelectedEvent(null)}
                     />
 
                     <UnifiedSuggestionModal

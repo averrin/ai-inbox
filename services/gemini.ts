@@ -484,3 +484,71 @@ ${JSON.stringify(context.weather)}
         return null;
     }
 }
+
+export interface ScheduleRearrangementSuggestion {
+    originalEventId: string;
+    newStart: string; // ISO string
+    newEnd: string; // ISO string
+    reason: string;
+}
+
+export const REARRANGEMENT_PROMPT = `
+You are an expert scheduler. Analyze the provided schedule and suggest rearrangements to optimize for:
+1.  **Deep Work**: Group meetings together to create long blocks of free time.
+2.  **Productivity**: Move low-energy tasks (chores, emails) to low-energy times (if known) or away from prime time.
+3.  **Balance**: Ensure breaks are possible.
+
+**Rules:**
+-   ONLY suggest moving events that appear flexible (e.g. "Lunch", "Gym", "Focus Time", "1:1" if common, personal tasks).
+-   **DO NOT** move events that look like fixed meetings (e.g. "All Hands", "Client Meeting", events with many attendees).
+-   If "isFixed" is true in the event data, DO NOT move it.
+-   Check for conflicts. Do not suggest a move that overlaps with another event.
+-   Do not move events into the past.
+
+**Input:**
+Current Schedule: {{schedule}}
+Work Hours: {{workRanges}}
+Current Time: {{currentTime}}
+
+**Output:**
+Return a JSON Array of objects:
+[
+    {
+        "originalEventId": "event_id_123",
+        "newStart": "2023-10-27T14:00:00",
+        "newEnd": "2023-10-27T14:30:00",
+        "reason": "Moved to group with other meetings."
+    }
+]
+Return an empty array [] if no good improvements are found.
+`;
+
+export async function suggestScheduleRearrangement(
+    apiKey: string,
+    context: AIRescheduleContext,
+    promptOverride?: string,
+    model?: string
+): Promise<ScheduleRearrangementSuggestion[]> {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const modelName = model || "gemini-3-flash-preview";
+    const genModel = genAI.getGenerativeModel({ model: modelName, generationConfig: { responseMimeType: "application/json" } });
+
+    const prompt = (promptOverride || REARRANGEMENT_PROMPT)
+        .replace('{{schedule}}', JSON.stringify(context.upcomingEvents))
+        .replace('{{workRanges}}', JSON.stringify(context.workRanges))
+        .replace('{{currentTime}}', context.currentTime);
+
+    try {
+        const result = await genModel.generateContent(prompt);
+        const text = result.response.text();
+        const json = JSON5.parse(text);
+
+        if (Array.isArray(json)) {
+            return json as ScheduleRearrangementSuggestion[];
+        }
+        return [];
+    } catch (e) {
+        console.error("[Gemini] Schedule rearrangement failed:", e);
+        return [];
+    }
+}
