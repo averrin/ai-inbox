@@ -2,7 +2,7 @@ import React, { ReactNode } from 'react';
 import { View, StyleProp, ViewStyle, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layout } from '../ui/Layout';
-import { IslandHeader } from '../ui/IslandHeader';
+import { IslandHeader, HeaderAction } from '../ui/IslandHeader';
 import { useSwipeTabs } from '../../hooks/useSwipeTabs';
 
 export interface TabItem {
@@ -24,7 +24,7 @@ export interface BaseScreenProps {
     /** Callback when a tab is pressed or swiped to */
     onTabChange?: (tab: string) => void;
     /** Right side actions for the header */
-    rightActions?: { icon: string; onPress: () => void; color?: string; badge?: number | boolean }[];
+    rightActions?: HeaderAction[];
     /** Custom nodes to render inside the IslandHeader below the main title */
     headerChildren?: ReactNode;
     /** The main content of the screen. Supports passing a render function to receive layout context. */
@@ -33,6 +33,10 @@ export interface BaseScreenProps {
     style?: StyleProp<ViewStyle>;
     /** Disable attaching swipe tab gesture handlers */
     disableSwipe?: boolean;
+    /** Enable full bleed layout (no padding in SafeAreaView) */
+    fullBleed?: boolean;
+    /** Disable default padding in Layout */
+    noPadding?: boolean;
 }
 
 /**
@@ -50,6 +54,8 @@ export function BaseScreen({
     children,
     style,
     disableSwipe = false,
+    fullBleed = false,
+    noPadding = false,
 }: BaseScreenProps) {
     const insets = useSafeAreaInsets();
     
@@ -66,7 +72,7 @@ export function BaseScreen({
     const headerHeight = 60;
 
     return (
-        <Layout>
+        <Layout fullBleed={fullBleed} noPadding={noPadding}>
             <View style={[{ flex: 1 }, style]} {...swipeProps}>
                 <View style={{ position: 'absolute', top: 4, left: 0, right: 0, zIndex: 1000 }}>
                     <IslandHeader
