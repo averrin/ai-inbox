@@ -119,7 +119,7 @@ export const getAttendeesForEvent = async (eventId: string): Promise<Calendar.At
     }
 };
 
-export const createCalendarEvent = async (calendarId: string, eventData: Partial<Calendar.Event>) => {
+export const createCalendarEvent = async (calendarId: string, eventData: Partial<Calendar.Event> & { isWork?: boolean, tags?: string[] }) => {
     const hasPermission = await ensureCalendarPermissions();
     if (!hasPermission) throw new Error("Missing calendar permissions");
 
