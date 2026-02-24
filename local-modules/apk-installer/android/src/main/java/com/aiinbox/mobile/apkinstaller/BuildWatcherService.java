@@ -160,6 +160,8 @@ public class BuildWatcherService extends Service {
                      .setOngoing(true)
                      .setOnlyAlertOnce(true)
                      .setCategory(Notification.CATEGORY_PROGRESS)
+                     .setVisibility(Notification.VISIBILITY_PUBLIC)
+                     .setShowWhen(false)
                      .setAutoCancel(false);
 
              try {
@@ -206,11 +208,10 @@ public class BuildWatcherService extends Service {
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
-            if (notificationManager.getNotificationChannel(CHANNEL_ID) == null) {
-                NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW);
-                channel.setDescription("Background service for watching builds");
-                notificationManager.createNotificationChannel(channel);
-            }
+            // Ensure channel exists with LOW importance for silent updates
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW);
+            channel.setDescription("Background service for watching builds");
+            notificationManager.createNotificationChannel(channel);
         }
     }
 
