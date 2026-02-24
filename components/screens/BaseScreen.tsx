@@ -15,6 +15,8 @@ export interface TabItem {
 export interface BaseScreenProps {
     /** Title displayed in the IslandHeader */
     title: string;
+    /** Optional subtitle displayed in the IslandHeader */
+    subtitle?: string;
     /** Optional tabs to display in the header */
     tabs?: TabItem[];
     /** The currently active tab key */
@@ -39,6 +41,7 @@ export interface BaseScreenProps {
  */
 export function BaseScreen({
     title,
+    subtitle,
     tabs,
     activeTab,
     onTabChange,
@@ -68,6 +71,7 @@ export function BaseScreen({
                 <View style={{ position: 'absolute', top: 4, left: 0, right: 0, zIndex: 1000 }}>
                     <IslandHeader
                         title={title}
+                        subtitle={subtitle}
                         rightActions={rightActions}
                         tabs={tabs}
                         activeTab={activeTab}

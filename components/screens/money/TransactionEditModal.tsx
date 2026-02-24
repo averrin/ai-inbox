@@ -3,10 +3,10 @@ import {
     View, Text, Modal, KeyboardAvoidingView, Platform,
     ScrollView
 } from 'react-native';
-import { Transaction } from '../services/buxferService';
-import { TagEditor } from './ui/TagEditor';
-import { AppButton, CloseButton } from './ui/AppButton';
-import { Colors } from './ui/design-tokens';
+import { Transaction } from '../../../services/buxferService';
+import { TagEditor } from '../../ui/TagEditor';
+import { AppButton, CloseButton } from '../../ui/AppButton';
+import { Colors } from '../../ui/design-tokens';
 import dayjs from 'dayjs';
 
 interface TransactionEditModalProps {
