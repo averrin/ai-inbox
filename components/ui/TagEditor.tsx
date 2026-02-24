@@ -65,9 +65,7 @@ export function TagEditor({ tags, onAddTag, onRemoveTag, label, availableTags }:
                 key={`${tag}-${index}`}
                 type="tag"
                 name={tag}
-                variant="solid"
                 onRemove={() => onRemoveTag(index)}
-                size="md"
             />
         );
     };
@@ -85,7 +83,6 @@ export function TagEditor({ tags, onAddTag, onRemoveTag, label, availableTags }:
                                 name={tag}
                                 onPress={() => setInputValue(tag)}
                                 variant="outline"
-                                size="md"
                             />
                         );
                     })}
