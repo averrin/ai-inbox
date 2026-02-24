@@ -26,6 +26,16 @@ public class BuildWatcherService extends Service {
     private Runnable heartbeatRunnable = new Runnable() {
         @Override
         public void run() {
+            // Start headless task service to ensure JS runs
+            try {
+                Intent serviceIntent = new Intent(getApplicationContext(), WatcherHeadlessTaskService.class);
+                startService(serviceIntent);
+            } catch (Exception e) {
+                // Ignore errors if service fails to start
+                System.err.println("BuildWatcherService: Failed to start WatcherHeadlessTaskService: " + e.getMessage());
+            }
+
+            // Keep broadcast for backward compatibility or when activity is active
             Intent intent = new Intent(HEARTBEAT_ACTION);
             intent.setPackage(getPackageName());
             sendBroadcast(intent);
