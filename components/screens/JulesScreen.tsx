@@ -297,14 +297,16 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
     const [prInactive, setPrInactive] = useState(false);
     const [isWatched, setIsWatched] = useState(watcherService.isWatching(run.id));
     const [isWatcherDownloading, setIsWatcherDownloading] = useState(watcherService.isDownloading(run.id));
+    const [watcherProgress, setWatcherProgress] = useState(watcherService.getDownloadProgress(run.id));
 
     const spinValue = useRef(new Animated.Value(0)).current;
     const isFetchingRef = useRef(false);
 
     useEffect(() => {
-        const onDownloadChange = (runId: number, downloading: boolean) => {
+        const onDownloadChange = (runId: number, downloading: boolean, progress: number) => {
             if (runId === run.id) {
                 setIsWatcherDownloading(downloading);
+                setWatcherProgress(progress);
             }
         };
         watcherService.addDownloadListener(onDownloadChange);
@@ -512,8 +514,8 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                             artifacts={artifacts}
                             loading={artifactsLoading}
                             downloading={isDownloading || isWatcherDownloading}
-                            progress={progress}
-                            status={isDownloading ? status : (isWatcherDownloading ? "Watcher..." : null)}
+                            progress={isDownloading ? progress : watcherProgress}
+                            status={isDownloading ? status : null}
                             cachedPath={cachedArtifactPath}
                             onPress={handleDownloadArtifact}
                             onFetch={fetchArtifactsData}
@@ -603,8 +605,8 @@ function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, ref
                         artifacts={artifacts}
                         loading={artifactsLoading}
                         downloading={isDownloading || isWatcherDownloading}
-                        progress={progress}
-                        status={isDownloading ? status : (isWatcherDownloading ? "Watcher..." : null)}
+                        progress={isDownloading ? progress : watcherProgress}
+                        status={isDownloading ? status : null}
                         cachedPath={cachedArtifactPath}
                         onPress={handleDownloadArtifact}
                         onFetch={fetchArtifactsData}

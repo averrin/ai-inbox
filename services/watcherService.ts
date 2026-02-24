@@ -46,22 +46,27 @@ class WatcherService {
     private isChecking = false;
     private eventEmitter: NativeEventEmitter | null = null;
     private activeDownloads = new Set<number>();
-    private downloadListeners = new Set<(runId: number, isDownloading: boolean) => void>();
+    private activeDownloadProgress = new Map<number, number>();
+    private downloadListeners = new Set<(runId: number, isDownloading: boolean, progress: number) => void>();
 
     isDownloading(runId: number): boolean {
         return this.activeDownloads.has(runId);
     }
 
-    addDownloadListener(callback: (runId: number, isDownloading: boolean) => void) {
+    getDownloadProgress(runId: number): number {
+        return this.activeDownloadProgress.get(runId) || 0;
+    }
+
+    addDownloadListener(callback: (runId: number, isDownloading: boolean, progress: number) => void) {
         this.downloadListeners.add(callback);
     }
 
-    removeDownloadListener(callback: (runId: number, isDownloading: boolean) => void) {
+    removeDownloadListener(callback: (runId: number, isDownloading: boolean, progress: number) => void) {
         this.downloadListeners.delete(callback);
     }
 
-    private notifyDownloadListeners(runId: number, isDownloading: boolean) {
-        this.downloadListeners.forEach(cb => cb(runId, isDownloading));
+    private notifyDownloadListeners(runId: number, isDownloading: boolean, progress: number) {
+        this.downloadListeners.forEach(cb => cb(runId, isDownloading, progress));
     }
 
     async init() {
@@ -295,10 +300,6 @@ class WatcherService {
                     // Download artifact
                     const commitMsg = freshRun.head_commit?.message?.split('\n')[0] || 'No commit message';
 
-                    if (!item.artifactRetries) {
-                        await this.updateNotification(item, `Downloading artifact...\nCommit: ${commitMsg}`, 100);
-                    }
-
                     // Fetch artifacts list
                     const artifacts = await fetchArtifacts(item.token, item.owner, item.repo, parseInt(id));
                     // Select best artifact (reuse logic or simple filter)
@@ -307,21 +308,34 @@ class WatcherService {
                     if (artifact) {
                         let path: string | null = null;
                         this.activeDownloads.add(parseInt(id));
-                        this.notifyDownloadListeners(parseInt(id), true);
+                        this.activeDownloadProgress.set(parseInt(id), 0);
+                        this.notifyDownloadListeners(parseInt(id), true, 0);
+
+                        // Initial notification for download start
+                        await this.updateNotification(item, `Downloading artifact... 0%\nCommit: ${commitMsg}`, 0);
+
                         try {
                             path = await downloadAndInstallArtifact(
                                 artifact,
                                 item.token,
                                 freshRun.head_branch,
                                 () => { },
-                                () => { },
+                                (p) => {
+                                    this.activeDownloadProgress.set(parseInt(id), p);
+                                    this.notifyDownloadListeners(parseInt(id), true, p);
+                                    const percent = Math.round(p * 100);
+                                    const smallText = `Downloading: ${percent}%`;
+                                    // Update notification with progress and commit message
+                                    this.updateNotification(item, `Downloading artifact... ${percent}%\nCommit: ${commitMsg}`, percent, false, smallText).catch(console.error);
+                                },
                                 artifactDeps,
                                 undefined,
                                 true // Only download
                             );
                         } finally {
                             this.activeDownloads.delete(parseInt(id));
-                            this.notifyDownloadListeners(parseInt(id), false);
+                            this.activeDownloadProgress.delete(parseInt(id));
+                            this.notifyDownloadListeners(parseInt(id), false, 0);
                         }
 
                         if (path) {
