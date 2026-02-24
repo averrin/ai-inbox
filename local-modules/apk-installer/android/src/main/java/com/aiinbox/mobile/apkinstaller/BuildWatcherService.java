@@ -10,6 +10,7 @@ import android.os.Build;
 import android.os.IBinder;
 import android.os.Handler;
 import android.os.PowerManager;
+import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
@@ -17,9 +18,10 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class BuildWatcherService extends Service {
-    public static final String CHANNEL_ID = "watcher_progress_native_service";
+    public static final String CHANNEL_ID = "watcher_progress_native_service_v2";
     public static final String CHANNEL_NAME = "Build Watcher Service";
     public static final String HEARTBEAT_ACTION = "com.aiinbox.mobile.apkinstaller.HEARTBEAT";
+    private static final String TAG = "BuildWatcherService";
 
     // Heartbeat
     private Handler heartbeatHandler = new Handler();
@@ -50,7 +52,7 @@ public class BuildWatcherService extends Service {
             }
         } catch (Exception e) {
             // Log failure but don't crash the service
-            System.err.println("BuildWatcherService: Failed to acquire WakeLock: " + e.getMessage());
+            Log.e(TAG, "Failed to acquire WakeLock: " + e.getMessage());
         }
 
         createNotificationChannel();
@@ -166,11 +168,16 @@ public class BuildWatcherService extends Service {
 
              try {
                  if (chipText != null && !chipText.isEmpty()) {
+                     // Native API 35 method
                      builder.getClass().getMethod("setShortCriticalText", CharSequence.class).invoke(builder, chipText);
                  }
-                 builder.getClass().getMethod("setRequestPromotedOngoing", boolean.class).invoke(builder, true);
+
+                 // Request promotion via extra "android.requestPromotedOngoing"
+                 android.os.Bundle extras = new android.os.Bundle();
+                 extras.putBoolean("android.requestPromotedOngoing", true);
+                 builder.addExtras(extras);
              } catch (Exception e) {
-                 // Ignore reflection errors
+                 Log.e(TAG, "Failed to set promoted ongoing or chip text: " + e.getMessage());
              }
 
              if (progress >= 0) {
@@ -208,9 +215,10 @@ public class BuildWatcherService extends Service {
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
-            // Ensure channel exists with LOW importance for silent updates
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW);
+            // Ensure channel exists with DEFAULT importance for promotion, but silent
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT);
             channel.setDescription("Background service for watching builds");
+            channel.setSound(null, null); // Silent
             notificationManager.createNotificationChannel(channel);
         }
     }
