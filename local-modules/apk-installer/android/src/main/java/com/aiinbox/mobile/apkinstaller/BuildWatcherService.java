@@ -81,6 +81,7 @@ public class BuildWatcherService extends Service {
             String title = intent.getStringExtra("title");
             String body = intent.getStringExtra("body");
             String smallText = intent.getStringExtra("smallText");
+            String chipText = intent.getStringExtra("chipText");
             int progress = intent.getIntExtra("progress", -1);
             int id = intent.getIntExtra("id", -1);
             String action = intent.getAction();
@@ -91,16 +92,16 @@ public class BuildWatcherService extends Service {
                 handleStop(id);
             } else {
                 if (title != null) {
-                    handleUpdate(id, title, body, smallText, progress);
+                    handleUpdate(id, title, body, smallText, chipText, progress);
                 }
             }
         }
         return START_NOT_STICKY;
     }
 
-    private void handleUpdate(int id, String title, String body, String smallText, int progress) {
+    private void handleUpdate(int id, String title, String body, String smallText, String chipText, int progress) {
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        Notification notification = buildNotification(title, body, smallText, progress);
+        Notification notification = buildNotification(title, body, smallText, chipText, progress);
         
         activeNotificationIds.add(id);
 
@@ -134,77 +135,54 @@ public class BuildWatcherService extends Service {
                 stopSelf();
                 currentForegroundId = -1;
             } else {
-                // Promote another ID to foreground
-                // We need to rebuild that notification to call startForeground
-                // However, we don't store the content. 
-                // A workaround: We just keep the service alive with the *last* known good notification content?
-                // Or better: effectively checking activeNotificationIds isn't enough without content.
-                // Simplified approach: If we stop the foreground one, we pick an arbitrary remaining one 
-                // and hope the next update call fixes it? 
-                // Actually, for accuracy we should probably store the builder data. 
-                // But typically updates come frequently.
-                
-                // Let's just pick the next available ID and set it as foreground anchor
-                // We can't easily "rebuild" it without stored data.
-                // But `stopForeground(false)` keeps the notification but drops the service foreground state.
-                // We want to KEEP service foreground state but swap the notification ID?
-                // `startForeground` with a new ID replaces the old one as the foreground service notification.
-                
-                // CRITICAL: We don't have the text/progress for the other ID to call startForeground immediately.
-                // Option: We rely on the fact that `stopForeground(false)` demotes the service to background 
-                // but keeps the notification. Then if we don't call `stopSelf`, does it stay alive?
-                // Android 12+ restricts background starts.
-                
-                // Robust solution:
-                // We won't re-promote immediately. We will just `stopForeground(false)` (remove anchor flag but keep notification visible if we wanted, 
-                // but here we actually WANT to remove the notification `id`).
-                
-                // So: `stopForeground(true)` removes the notification `id`. Service enters background.
-                // If there are other notifications, they are standard notifications now.
-                // The service might be killed.
-                // To fix this without complex storage, we can accept that there's a risk of kill until next update comes in.
-                // OR, we assume updates happen every second, so it's fine.
-                
-                // However, to be safe, let's stop foreground only if empty.
-                // If not empty, we are in a tricky spot.
-                
-                // IMPROVED STRATEGY:
-                // We don't remove the foreground state if there are others.
-                // We just let the "foreground notification" die? No, we must detach it.
-                // `stopForeground(STOP_FOREGROUND_REMOVE)` removes the notification `id`.
-                
-                // Best simple bet: 
-                // 1. `stopForeground(STOP_FOREGROUND_DETACH)` -> service is background, notification `id` remains.
-                // 2. `notificationManager.cancel(id)` -> remove it.
-                // 3. Service is now background.
-                // 4. `startForeground(otherId, ...)` -> we need content.
-                
-                // OK, since we don't have content, and we want to avoid complexity:
-                // We will rely on the rapid polling of the watcher (every 30s or less).
-                // Actually usually faster.
-                // AND we will add `activeNotificationIds.isEmpty()` check.
-                
-                if (activeNotificationIds.isEmpty()) {
-                    stopForeground(true);
-                    stopSelf();
-                    currentForegroundId = -1;
-                } else {
-                    // There are others. We can't promote them yet.
-                    // Service becomes background.
-                    // This is acceptable risk for the seconds between updates.
-                    stopForeground(true); 
-                    currentForegroundId = -1;
-                }
+                // There are others. We can't promote them yet as we don't have their content.
+                // Service becomes background but stays alive briefly.
+                // This is acceptable risk for the short time between updates.
+                stopForeground(true);
+                currentForegroundId = -1;
             }
         }
     }
 
-    private Notification buildNotification(String title, String body, String smallText, int progress) {
+    private Notification buildNotification(String title, String body, String smallText, String chipText, int progress) {
         int iconId = getApplicationContext().getResources().getIdentifier("ic_launcher", "mipmap", getPackageName());
         if (iconId == 0) {
              iconId = getApplicationInfo().icon;
         }
 
+        // Use platform Notification.Builder for API 35+ to access new features (Live Updates)
+        if (Build.VERSION.SDK_INT >= 35) {
+             Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID)
+                     .setSmallIcon(iconId)
+                     .setContentTitle(title)
+                     .setContentText(smallText != null ? smallText : body) // Collapsed text
+                     .setStyle(new Notification.BigTextStyle().bigText(body)) // Expanded text
+                     .setOngoing(true)
+                     .setOnlyAlertOnce(true)
+                     .setCategory(Notification.CATEGORY_PROGRESS)
+                     .setVisibility(Notification.VISIBILITY_PUBLIC)
+                     .setShowWhen(false)
+                     .setAutoCancel(false);
+
+             try {
+                 if (chipText != null && !chipText.isEmpty()) {
+                     builder.getClass().getMethod("setShortCriticalText", CharSequence.class).invoke(builder, chipText);
+                 }
+                 builder.getClass().getMethod("setRequestPromotedOngoing", boolean.class).invoke(builder, true);
+             } catch (Exception e) {
+                 // Ignore reflection errors
+             }
+
+             if (progress >= 0) {
+                 builder.setProgress(100, progress, false);
+                 if (smallText != null) {
+                     builder.setSubText(smallText);
+                 }
+             }
+             return builder.build();
+        }
+
+        // Fallback for older versions
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(iconId)
                 .setContentTitle(title)
@@ -212,7 +190,9 @@ public class BuildWatcherService extends Service {
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(body)) // Expanded text
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
-                .setOnlyAlertOnce(true);
+                .setOnlyAlertOnce(true)
+                .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+                .setAutoCancel(false);
 
         if (progress >= 0) {
             builder.setProgress(100, progress, false);
@@ -228,11 +208,10 @@ public class BuildWatcherService extends Service {
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
-            if (notificationManager.getNotificationChannel(CHANNEL_ID) == null) {
-                NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW);
-                channel.setDescription("Background service for watching builds");
-                notificationManager.createNotificationChannel(channel);
-            }
+            // Ensure channel exists with LOW importance for silent updates
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW);
+            channel.setDescription("Background service for watching builds");
+            notificationManager.createNotificationChannel(channel);
         }
     }
 
