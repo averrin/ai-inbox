@@ -27,6 +27,11 @@ interface Props {
         start: Date;
         end: Date;
         originalEvent?: any;
+        movable?: boolean;
+        isEnglish?: boolean;
+        isSkippable?: boolean;
+        needPrep?: boolean;
+        completable?: boolean;
     } | null;
 }
 
@@ -58,6 +63,17 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
     const flags = eventFlags?.[eventTitle];
     const currentIcon = eventIcons?.[eventTitle] || currentType?.icon;
 
+    // Derived flags merging store overrides and event properties
+    const effectiveFlags = useMemo(() => {
+        return {
+            isEnglish: flags?.isEnglish !== undefined ? flags.isEnglish : !!event?.isEnglish,
+            movable: flags?.movable !== undefined ? flags.movable : !!event?.movable,
+            skippable: flags?.skippable !== undefined ? flags.skippable : !!event?.isSkippable,
+            needPrep: flags?.needPrep !== undefined ? flags.needPrep : !!event?.needPrep,
+            completable: flags?.completable !== undefined ? flags.completable : !!event?.completable,
+        };
+    }, [flags, event]);
+
     const { bonus: bonusDifficulty, total: totalDifficulty, reasons } = useMemo(() => {
         if (!event || !visible) return { bonus: 0, total: currentDifficulty, reasons: [] };
 
@@ -65,9 +81,9 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
             event,
             currentDifficulty,
             ranges,
-            flags
+            effectiveFlags as any
         );
-    }, [event, visible, ranges, flags, currentDifficulty]);
+    }, [event, visible, ranges, effectiveFlags, currentDifficulty]);
 
     useEffect(() => {
         const fetchMissingAttendees = async () => {
@@ -250,6 +266,8 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
         setShowTaskPicker(false);
     };
 
+    console.log(JSON.stringify(event, null, 2))
+
     return (
         <Modal visible={visible} transparent animationType="fade">
             <TouchableOpacity
@@ -339,14 +357,14 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                     <MetadataChip
                                         label="English"
                                         color={Colors.primary}
-                                        variant={flags?.isEnglish ? 'solid' : 'default'}
+                                        variant={effectiveFlags.isEnglish ? 'solid' : 'outline'}
                                         onPress={() => handleToggleFlag('isEnglish')}
                                         size="sm"
                                     />
                                     <MetadataChip
                                         label="Movable"
                                         color={Colors.success}
-                                        variant={flags?.movable ? 'solid' : 'default'}
+                                        variant={effectiveFlags.movable ? 'solid' : 'outline'}
                                         icon="move"
                                         onPress={() => handleToggleFlag('movable')}
                                         size="sm"
@@ -354,7 +372,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                     <MetadataChip
                                         label="Skippable"
                                         color={Colors.error}
-                                        variant={flags?.skippable ? 'solid' : 'default'}
+                                        variant={effectiveFlags.skippable ? 'solid' : 'outline'}
                                         icon="return-up-forward"
                                         onPress={() => handleToggleFlag('skippable')}
                                         size="sm"
@@ -362,7 +380,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                     <MetadataChip
                                         label="Prep"
                                         color={Colors.warning}
-                                        variant={flags?.needPrep ? 'solid' : 'default'}
+                                        variant={effectiveFlags.needPrep ? 'solid' : 'outline'}
                                         icon="pricetag-outline"
                                         onPress={() => handleToggleFlag('needPrep')}
                                         size="sm"
@@ -370,7 +388,7 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
                                     <MetadataChip
                                         label="Checkbox"
                                         color={'#22d3ee'}
-                                        variant={flags?.completable ? 'solid' : 'default'}
+                                        variant={effectiveFlags.completable ? 'solid' : 'outline'}
                                         icon="checkbox-outline"
                                         onPress={() => handleToggleFlag('completable')}
                                         size="sm"

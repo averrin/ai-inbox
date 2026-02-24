@@ -7,7 +7,7 @@ import { ActionButton } from '../ui/ActionButton';
 import { SettingsListItem } from '../ui/SettingsListItem';
 import { ColorPicker } from '../ui/ColorPicker';
 import { Palette, Colors } from '../ui/design-tokens';
-import { IconPicker } from '../ui/IconPicker';
+import { IconSelector } from '../ui/IconSelector';
 import { EventTypeBadge } from '../ui/EventTypeBadge';
 import * as Crypto from 'expo-crypto';
 
@@ -163,11 +163,12 @@ export function EventTypesSettings() {
                                 />
                             </View>
 
-                            <View className="mb-6 h-64">
-                                <IconPicker
+                            <View className="mb-6">
+                                <IconSelector
                                     value={icon}
-                                    onChange={setIcon}
-                                    label="Icon (Optional)"
+                                    onChange={(newIcon) => setIcon(newIcon || '')}
+                                    label="Icon"
+                                    description="Optional icon for this event type"
                                 />
                             </View>
 
