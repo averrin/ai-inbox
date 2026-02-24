@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { UniversalIcon } from '../ui/UniversalIcon';
 import { ActionButton } from '../ui/ActionButton';
@@ -522,15 +522,16 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
             </TouchableOpacity>
 
             {expanded && (
-                <View className="mx-4 mt-2 gap-1">
-                    {displayItems.length === 0 ? (
-                        <View className="p-4 items-center justify-center border border-dashed border-border rounded-lg mt-0 mb-2 ml-4 mr-4">
-                            <TouchableOpacity onPress={onAdd} className="">
-                                <Text className="text-primary text-xs font-medium">Add a task</Text>
-                            </TouchableOpacity>
-                        </View>
-                    ) : (
-                        displayItems.map((item: any, index: number) => {
+                <View className="mx-4 mt-2" style={{ maxHeight: 220 }}>
+                    <ScrollView nestedScrollEnabled contentContainerStyle={{ gap: 4 }} showsVerticalScrollIndicator>
+                        {displayItems.length === 0 ? (
+                            <View className="p-4 items-center justify-center border border-dashed border-border rounded-lg mt-0 mb-2 ml-4 mr-4">
+                                <TouchableOpacity onPress={onAdd} className="">
+                                    <Text className="text-primary text-xs font-medium">Add a task</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            displayItems.map((item: any, index: number) => {
                             // Calculate isHighlighted (Now or Overdue)
                             let isHighlighted = false;
                             let highlightColor = '#818cf8'; // Default indigo
@@ -668,8 +669,9 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                                     </View>
                                 );
                             }
-                        })
-                    )}
+                            })
+                        )}
+                    </ScrollView>
 
                     <RescheduleModal
                         visible={rescheduleModalVisible}
