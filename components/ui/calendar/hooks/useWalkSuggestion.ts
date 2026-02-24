@@ -119,7 +119,7 @@ export function useWalkSuggestion({ events, extraEvents = [], selectedDate, weat
     // Convert suggestion to a "Virtual Event" for rendering
     const walkEvent = (isEligibleDate && currentSuggestion && !isDismissed(dateStr) && !hasExistingWalk) ? {
         id: 'walk-suggestion',
-        title: 'Walk (suggested)',
+        title: 'Walk',
         startDate: currentSuggestion.start,
         endDate: dayjs(currentSuggestion.start).add(60, 'minute').toISOString(),
         start: new Date(currentSuggestion.start), // BigCalendar often needs Date objects too

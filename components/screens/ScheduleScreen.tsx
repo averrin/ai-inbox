@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, RefreshControl, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent, RefreshControl, Platform, ActivityIndicator } from 'react-native';
 import { serializeTaskLine } from '../../utils/taskParser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Layout } from '../ui/Layout';
@@ -83,6 +83,7 @@ export default function ScheduleScreen() {
 
     // Recurrence Scope Modal State
     const [recurrenceModalVisible, setRecurrenceModalVisible] = useState(false);
+    const [showAdditionalCalendars, setShowAdditionalCalendars] = useState(true);
     const [pendingEventDrop, setPendingEventDrop] = useState<{ event: any, newDate: Date, executeUpdate: (options?: any) => Promise<void> } | null>(null);
 
     const calendarRef = useRef<CalendarRef>(null);
@@ -1096,12 +1097,22 @@ export default function ScheduleScreen() {
                     <View className="flex-row items-center gap-2">
                         <TouchableOpacity
                             onPress={() => generateSuggestions(events, workRanges)}
-                            className={`mr-2 p-1.5 rounded-full ${isAssistantLoading ? 'bg-primary/20' : 'bg-transparent'}`}
+                            className={`p-1.5 rounded-full ${isAssistantLoading ? 'bg-primary/20' : 'bg-transparent'}`}
                             disabled={isAssistantLoading}
                         >
-                             <Ionicons name="sparkles" size={18} color={isAssistantLoading ? Colors.primary : Colors.text.tertiary} />
+                             {isAssistantLoading ? (
+                                 <ActivityIndicator size="small" color={Colors.primary} />
+                             ) : (
+                                 <Ionicons name="sparkles" size={18} color={Colors.text.tertiary} />
+                             )}
                         </TouchableOpacity>
 
+                        <TouchableOpacity
+                            onPress={() => setShowAdditionalCalendars(!showAdditionalCalendars)}
+                            className={`p-1.5 rounded-full ${!showAdditionalCalendars ? 'opacity-50' : 'bg-primary/10'}`}
+                        >
+                             <Ionicons name={showAdditionalCalendars ? "layers" : "layers-outline"} size={18} color={showAdditionalCalendars ? Colors.primary : Colors.text.tertiary} />
+                        </TouchableOpacity>
                         <TouchableOpacity
                             activeOpacity={0.7}
                             onPress={() => {
@@ -1158,10 +1169,16 @@ export default function ScheduleScreen() {
 
 
     const allEvents = useMemo(() => {
-        const base = [...events, ...timeRangeEvents, ...focusRanges, ...freeTimeZones, ...lunchEvents, ...assistantEvents];
+        const displayedEvents = showAdditionalCalendars ? events : events.filter(e => {
+            if (e.type === 'marker' || e.type === 'zone' || !e.originalEvent?.calendarId) return true;
+            const calId = e.originalEvent.calendarId;
+            return personalCalendarIds.includes(calId) || workCalendarIds.includes(calId);
+        });
+
+        const base = [...displayedEvents, ...timeRangeEvents, ...focusRanges, ...freeTimeZones, ...lunchEvents, ...assistantEvents];
         if (walkEvent) base.push(walkEvent);
         return base;
-    }, [events, timeRangeEvents, focusRanges, freeTimeZones, lunchEvents, walkEvent, assistantEvents]);
+    }, [events, timeRangeEvents, focusRanges, freeTimeZones, lunchEvents, walkEvent, assistantEvents, showAdditionalCalendars, personalCalendarIds, workCalendarIds]);
 
     const eventCellStyle = useCallback((event: any) => {
         const now = dayjs();

@@ -85,7 +85,7 @@ export function useLunchSuggestion(
                 }
 
                 lunchEvents.push({
-                    title: 'Lunch (Suggested)',
+                    title: 'Lunch',
                     start: bestSlot.start.toDate(),
                     end: bestSlot.start.add(60, 'minute').toDate(),
                     color: lunchRangeDef.color,

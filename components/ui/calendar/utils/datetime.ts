@@ -139,9 +139,6 @@ export function isSecondaryEvent<T extends ICalendarEventBase>(e: T): boolean {
   // All day events are secondary
   if (isAllDayEvent(e.start, e.end, e.allDay)) return true
 
-  // Generated suggestions (like Lunch) are secondary
-  if (e.type === 'generated') return true
-
   // Zones and markers are handled elsewhere usually, but if they hit layout, they overlap
   if (e.type === 'zone' || e.type === 'marker') return true
 
