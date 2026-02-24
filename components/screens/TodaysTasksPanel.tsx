@@ -88,16 +88,49 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
 
         // 1. Filter Tasks
         const eventIds = new Set<string>();
+        const eventMap = new Map<string, any>();
+
         calendarEvents.forEach(e => {
             if (dayjs(e.start).isSame(dayjs(date), 'day')) {
-                if (e.originalEvent?.id) eventIds.add(e.originalEvent.id);
-                if (e.id) eventIds.add(e.id);
+                if (e.originalEvent?.id) {
+                    eventIds.add(e.originalEvent.id);
+                    eventMap.set(e.originalEvent.id, e);
+                }
+                if (e.id) {
+                    eventIds.add(e.id);
+                    eventMap.set(e.id, e);
+                }
             }
         });
 
         const filteredTasks = tasks.filter(task => {
             if (task.completed) return false;
             const props = task.properties;
+
+            // Check if task should be hidden because linked event is passed
+            if (props.event_id) {
+                const linkedEventIds = props.event_id.split(',').map((id: string) => id.trim());
+                let hasRelevantEvent = false;
+                let allRelevantEventsPassed = true;
+
+                for (const id of linkedEventIds) {
+                    const event = eventMap.get(id);
+                    // Only consider events that are actually in today's calendar (eventMap)
+                    if (event) {
+                        hasRelevantEvent = true;
+                        // If any linked event is completable OR not passed, we should keep the task
+                        if (event.completable || !dayjs(now).isAfter(dayjs(event.end))) {
+                            allRelevantEventsPassed = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (hasRelevantEvent && allRelevantEventsPassed) {
+                    return false;
+                }
+            }
+
             if (props.date === targetDateStr) return true;
             if (props.start && props.due && dayjs(targetDateStr).isBetween(props.start, props.due, 'day', '[]')) return true;
             if (targetDateStr === todayStr && props.due && dayjs(props.due).isBefore(todayStr, 'day')) return true;
@@ -153,7 +186,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
 
         // Combine and Sort
         return [...dedupedEvents, ...filteredTasks];
-    }, [tasks, date, calendarEvents, completedEvents]);
+    }, [tasks, date, calendarEvents, completedEvents, now]);
 
     const tasksCount = displayItems.filter(i => i.type === 'task').length;
     const eventsCount = displayItems.filter(i => i.type === 'event').length;
