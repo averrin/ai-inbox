@@ -153,7 +153,6 @@ public class BuildWatcherService extends Service {
         }
 
         // Use platform Notification.Builder for API 35+ to access new features (Live Updates)
-        // Note: Reflection is used because compileSdkVersion is 34, while these features are API 35+.
         if (Build.VERSION.SDK_INT >= 35) {
              Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID)
                      .setSmallIcon(iconId)
@@ -169,13 +168,14 @@ public class BuildWatcherService extends Service {
 
              try {
                  if (chipText != null && !chipText.isEmpty()) {
-                     Log.d(TAG, "Setting status chip text: " + chipText);
-                     // setShortCriticalText is a new API 35 method for status chips
+                     // Native API 35 method
                      builder.getClass().getMethod("setShortCriticalText", CharSequence.class).invoke(builder, chipText);
                  }
-                 Log.d(TAG, "Requesting promoted ongoing");
-                 // setRequestPromotedOngoing is a new API 35 method to promote notifications to Live Updates
-                 builder.getClass().getMethod("setRequestPromotedOngoing", boolean.class).invoke(builder, true);
+
+                 // Request promotion via extra "android.requestPromotedOngoing"
+                 android.os.Bundle extras = new android.os.Bundle();
+                 extras.putBoolean("android.requestPromotedOngoing", true);
+                 builder.addExtras(extras);
              } catch (Exception e) {
                  Log.e(TAG, "Failed to set promoted ongoing or chip text: " + e.getMessage());
              }
