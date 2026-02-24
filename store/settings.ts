@@ -178,6 +178,24 @@ interface SettingsState {
     setBuxferEmail: (email: string | null) => void;
     buxferPassword: string | null;
     setBuxferPassword: (password: string | null) => void;
+
+    // Advanced Timeouts
+    syncDebounceTime: number;
+    setSyncDebounceTime: (time: number) => void;
+    firestoreWriteTimeout: number;
+    setFirestoreWriteTimeout: (time: number) => void;
+    firestorePullTimeout: number;
+    setFirestorePullTimeout: (time: number) => void;
+    watcherCheckInterval: number;
+    setWatcherCheckInterval: (interval: number) => void;
+    watcherMinInterval: number;
+    setWatcherMinInterval: (interval: number) => void;
+    watcherEstDuration: number;
+    setWatcherEstDuration: (duration: number) => void;
+    oauthRedirectDelay: number;
+    setOauthRedirectDelay: (delay: number) => void;
+    remoteApplyLockTimeout: number;
+    setRemoteApplyLockTimeout: (timeout: number) => void;
 }
 
 
@@ -384,6 +402,23 @@ export const useSettingsStore = create<SettingsState>()(
             setBuxferEmail: (email) => set({ buxferEmail: email }),
             buxferPassword: null,
             setBuxferPassword: (password) => set({ buxferPassword: password }),
+
+            syncDebounceTime: 2000,
+            setSyncDebounceTime: (time) => set({ syncDebounceTime: time }),
+            firestoreWriteTimeout: 10000,
+            setFirestoreWriteTimeout: (time) => set({ firestoreWriteTimeout: time }),
+            firestorePullTimeout: 10000,
+            setFirestorePullTimeout: (time) => set({ firestorePullTimeout: time }),
+            watcherCheckInterval: 30000,
+            setWatcherCheckInterval: (interval) => set({ watcherCheckInterval: interval }),
+            watcherMinInterval: 900,
+            setWatcherMinInterval: (interval) => set({ watcherMinInterval: interval }),
+            watcherEstDuration: 300000,
+            setWatcherEstDuration: (duration) => set({ watcherEstDuration: duration }),
+            oauthRedirectDelay: 2000,
+            setOauthRedirectDelay: (delay) => set({ oauthRedirectDelay: delay }),
+            remoteApplyLockTimeout: 50,
+            setRemoteApplyLockTimeout: (timeout) => set({ remoteApplyLockTimeout: timeout }),
         }),
 
         {

@@ -211,9 +211,10 @@ export class SyncService {
 
     private debouncedPush(target: SyncTarget, cleanState: any) {
         if (this.debounceTimers[target.name]) clearTimeout(this.debounceTimers[target.name]);
+        const delay = useSettingsStore.getState().syncDebounceTime;
         this.debounceTimers[target.name] = setTimeout(() => {
             this.pushToCloud(target, cleanState);
-        }, 2000);
+        }, delay);
     }
 
     private async pushToCloud(target: SyncTarget, cleanState: any) {
@@ -223,9 +224,10 @@ export class SyncService {
         try {
             const docRef = doc(firebaseDb, target.docPath(user.uid));
             const payload = target.transformOut(cleanState);
+            const timeoutMs = useSettingsStore.getState().firestoreWriteTimeout;
 
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Firestore write TIMEOUT (10s)')), 10000)
+                setTimeout(() => reject(new Error(`Firestore write TIMEOUT (${timeoutMs}ms)`)), timeoutMs)
             );
 
             await Promise.race([
@@ -250,9 +252,10 @@ export class SyncService {
         try {
             const docRef = doc(firebaseDb, target.docPath(user.uid));
             console.log(`[SyncService:${target.name}] Force-checking server...`);
+            const timeoutMs = useSettingsStore.getState().firestorePullTimeout;
 
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Firestore pull TIMEOUT (10s)')), 10000)
+                setTimeout(() => reject(new Error(`Firestore pull TIMEOUT (${timeoutMs}ms)`)), timeoutMs)
             );
 
             const docSnap = await Promise.race([
@@ -306,9 +309,10 @@ export class SyncService {
                 try {
                     target.store.setState(remoteState);
                 } finally {
+                    const lockTimeout = useSettingsStore.getState().remoteApplyLockTimeout;
                     setTimeout(() => {
                         this.isApplyingRemote[target.name] = false;
-                    }, 50);
+                    }, lockTimeout);
                 }
             }
         } catch (e) {
