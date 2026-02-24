@@ -16,6 +16,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SpendingChart } from './SpendingChart';
 import { TransactionEditModal } from '../TransactionEditModal';
 
+const getTransactionStyle = (type: string) => {
+    switch (type) {
+        case 'income':
+            return { color: Colors.status.healthy, prefix: '+' };
+        case 'expense':
+            return { color: Colors.error, prefix: '-' };
+        default:
+            return { color: Colors.text.secondary, prefix: '' };
+    }
+};
+
 // ── BudgetItem ──────────────────────────────────────────────────────────────
 interface BudgetItemProps {
     budget: Budget;
@@ -116,12 +127,17 @@ function BudgetItem({ budget, transactions, formatCurrency, tagConfig, onLongPre
                                         <Text className="text-white text-sm flex-1 mr-3" numberOfLines={2}>
                                             {tx.description}
                                         </Text>
-                                        <Text
-                                            className="text-sm font-semibold"
-                                            style={{ color: tx.type === 'income' ? Colors.status.healthy : Colors.error }}
-                                        >
-                                            {tx.type === 'expense' ? '-' : '+'}{formatCurrency(Math.abs(tx.amount), getTxCurrency(tx))}
-                                        </Text>
+                                        {(() => {
+                                            const { color, prefix } = getTransactionStyle(tx.type);
+                                            return (
+                                                <Text
+                                                    className="text-sm font-semibold"
+                                                    style={{ color }}
+                                                >
+                                                    {prefix}{formatCurrency(Math.abs(tx.amount), getTxCurrency(tx))}
+                                                </Text>
+                                            );
+                                        })()}
                                     </View>
                                     <Text className="text-text-tertiary text-xs mt-1">
                                         {dayjs(tx.date).format('MMM D, YYYY')}
@@ -480,6 +496,7 @@ export default function MoneyScreen() {
         const filteredBalance = filteredTransactions.reduce((acc, tx) => {
             if (tx.type === 'income') return acc + Math.abs(tx.amount);
             if (tx.type === 'expense') return acc - Math.abs(tx.amount);
+            // Transfers are ignored in balance calculation
             return acc;
         }, 0);
 
@@ -539,12 +556,17 @@ export default function MoneyScreen() {
                     >
                         <View className="flex-row justify-between items-start mb-2">
                             <Text className="text-white font-medium flex-1 mr-2" numberOfLines={2}>{tx.description}</Text>
-                            <Text
-                                className="font-bold"
-                                style={{ color: tx.type === 'income' ? Colors.status.healthy : Colors.error }}
-                            >
-                                {tx.type === 'expense' ? '-' : '+'}{formatCurrency(Math.abs(tx.amount), getTxCurrency(tx))}
-                            </Text>
+                            {(() => {
+                                const { color, prefix } = getTransactionStyle(tx.type);
+                                return (
+                                    <Text
+                                        className="font-bold"
+                                        style={{ color }}
+                                    >
+                                        {prefix}{formatCurrency(Math.abs(tx.amount), getTxCurrency(tx))}
+                                    </Text>
+                                );
+                            })()}
                         </View>
 
                         <View className="flex-row justify-between items-center flex-wrap gap-y-2">
