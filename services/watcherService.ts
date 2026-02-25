@@ -73,6 +73,17 @@ class WatcherService {
         this.downloadListeners.forEach(cb => cb(runId, isDownloading, progress));
     }
 
+    async ensureSettingsHydrated() {
+        if (useSettingsStore.persist.hasHydrated()) {
+            return;
+        }
+        return new Promise<void>((resolve) => {
+            useSettingsStore.persist.onFinishHydration(() => {
+                resolve();
+            });
+        });
+    }
+
     async init() {
         if (this.initialized) return;
 
@@ -270,6 +281,7 @@ class WatcherService {
         this.isChecking = true;
 
         try {
+            await this.ensureSettingsHydrated();
             await this.checkForNewRuns();
 
             const runIds = Object.keys(this.watchedRuns);

@@ -13,6 +13,8 @@ import android.os.PowerManager;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
+import com.facebook.react.HeadlessJsTaskService;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -29,6 +31,15 @@ public class BuildWatcherService extends Service {
             Intent intent = new Intent(HEARTBEAT_ACTION);
             intent.setPackage(getPackageName());
             sendBroadcast(intent);
+
+            try {
+                Intent serviceIntent = new Intent(getApplicationContext(), WatcherHeadlessTaskService.class);
+                getApplicationContext().startService(serviceIntent);
+                HeadlessJsTaskService.acquireWakeLockNow(getApplicationContext());
+            } catch (Exception e) {
+                System.err.println("BuildWatcherService: Failed to start headless task: " + e.getMessage());
+            }
+
             heartbeatHandler.postDelayed(this, 30000); // 30 seconds
         }
     };
