@@ -489,32 +489,6 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                         text2: `Moved to ${newDate} at ${dayjs(slot).format('HH:mm')}`
                     });
                 }
-            } else {
-                // Event Logic
-                const eventId = item.originalEvent?.id || item.id;
-
-                // Lookup fresh event to ensure duration is correct (avoid stale props)
-                const freshEvent = calendarEvents.find(e => {
-                    const eId = e.originalEvent?.id || e.id;
-                    return eId === eventId;
-                });
-
-                const targetEvent = freshEvent || item;
-
-                let durationMins = dayjs(targetEvent.end).diff(dayjs(targetEvent.start), 'minute');
-                if (!durationMins || durationMins <= 0) durationMins = 30;
-
-                const slot = await findNextFreeSlot(searchStart, durationMins);
-                const slotEnd = dayjs(slot).add(durationMins, 'minute').toDate();
-
-                await updateCalendarEvent(eventId, {
-                    title: item.title,
-                    startDate: slot,
-                    endDate: slotEnd,
-                    editScope: 'this', // Always move just this instance for reschedule
-                    instanceStartDate: item.start // Required for identifying instance
-                });
-
             } else if (isReminder) {
                 // Reminder Logic
                 const reminderId = item.originalEvent?.id || item.id;
