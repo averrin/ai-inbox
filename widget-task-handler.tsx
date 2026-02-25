@@ -44,10 +44,7 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
             const tomorrow = new Date();
             tomorrow.setDate(now.getDate() + 1);
 
-            const events = await Calendar.getEventsAsync(settings.visibleCalendarIds, {
-                startDate: now,
-                endDate: tomorrow,
-            });
+            const events = await Calendar.getEventsAsync(settings.visibleCalendarIds, now, tomorrow);
 
             const sortedEvents = events.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
             const futureEvents = sortedEvents.filter(e => new Date(e.endDate).getTime() > now.getTime());
@@ -106,7 +103,6 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
 
       console.log('JulesWidget: Update Requesting');
       requestWidgetUpdate({
-        androidWidgetId: widgetInfo.widgetId,
         renderWidget: () => (
           <JulesWidget
             upcomingEvent={upcomingEvent}
@@ -121,7 +117,6 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
        console.error('Widget update failed', error);
        // Ensure something is visible even on error
        requestWidgetUpdate({
-        androidWidgetId: widgetInfo.widgetId,
         renderWidget: () => (
             <JulesWidget error={error.message || 'Unknown error'} />
         ),
