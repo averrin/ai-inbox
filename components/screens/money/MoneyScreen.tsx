@@ -17,7 +17,9 @@ import { TransactionEditModal } from './TransactionEditModal';
 import { BudgetItem } from './BudgetItem';
 import { BuxferLoginForm } from './BuxferLoginForm';
 import { TransactionItem } from './TransactionItem';
-import { getTransactionStyle } from './moneyUtils';
+import { getTransactionStyle, formatCurrency } from './moneyUtils';
+import { SetAmountModal } from './SetAmountModal';
+import { AppButton } from '../../ui/AppButton';
 
 
 
@@ -51,6 +53,7 @@ export default function MoneyScreen() {
     const [token, setToken] = useState<string | null>(null);
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+    const [setAmountAccount, setSetAmountAccount] = useState<Account | null>(null);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [budgets, setBudgets] = useState<Budget[]>([]);
     const [activeTab, setActiveTab] = useState('overview');
@@ -192,16 +195,6 @@ export default function MoneyScreen() {
         return acc?.currency || 'CZK';
     };
 
-    const formatCurrency = (amount: number, currency: string = 'CZK') => {
-        // Fallback to CZK if undefined, per user request "at least main is czk"
-        return new Intl.NumberFormat('cs-CZ', {
-            style: 'currency',
-            currency: currency || 'CZK',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(amount);
-    };
-
     const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
 
     const monthlyStats = useMemo(() => {
@@ -276,7 +269,17 @@ export default function MoneyScreen() {
                         <View key={acc.id} className="bg-surface p-4 rounded-xl border border-border flex-row justify-between items-center">
                             <View>
                                 <Text className="text-white font-medium mb-1">{acc.name}</Text>
-                                <MetadataChip label={acc.bank} size="sm" variant="outline" color={Colors.text.tertiary} />
+                                <View className="flex-row items-center gap-2">
+                                    <MetadataChip label={acc.bank} size="sm" variant="outline" color={Colors.text.tertiary} />
+                                    {acc.type === 'other' && (
+                                        <AppButton
+                                            title="Set Amount"
+                                            size="xs"
+                                            variant="secondary"
+                                            onPress={() => setSetAmountAccount(acc)}
+                                        />
+                                    )}
+                                </View>
                             </View>
                             <Text
                                 className="font-bold"
@@ -384,6 +387,31 @@ export default function MoneyScreen() {
             await loadData();
         } catch (e: any) {
             showError('Edit Error', e.message || 'Failed to update transaction.');
+        }
+    };
+
+    const handleSetAmountConfirm = async (newAmount: number) => {
+        if (!setAmountAccount || !token) return;
+
+        const diff = newAmount - setAmountAccount.balance;
+        if (Math.abs(diff) < 0.01) {
+            setSetAmountAccount(null);
+            return;
+        }
+
+        try {
+            await buxferService.addTransaction(token, {
+                description: 'Balance Adjustment',
+                amount: Math.abs(diff),
+                accountId: setAmountAccount.id,
+                date: dayjs().format('YYYY-MM-DD'),
+                type: diff > 0 ? 'income' : 'expense',
+                status: 'cleared',
+            });
+            setSetAmountAccount(null);
+            await loadData();
+        } catch (e: any) {
+            showError('Update Error', e.message || 'Failed to update account balance.');
         }
     };
 
@@ -514,6 +542,13 @@ export default function MoneyScreen() {
                 onSave={handleEditSave}
                 onCancel={() => setEditingTx(null)}
                 currency={editingTx ? getTxCurrency(editingTx) : undefined}
+            />
+
+            <SetAmountModal
+                visible={!!setAmountAccount}
+                account={setAmountAccount}
+                onConfirm={handleSetAmountConfirm}
+                onCancel={() => setSetAmountAccount(null)}
             />
         </BaseScreen>
     );
