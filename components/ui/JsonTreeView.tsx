@@ -25,7 +25,7 @@ const JsonTreeItem: React.FC<JsonTreeItemProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
 
   const { type, displayValue, isExpandable, parsedValue } = useMemo(() => {
-    let type = typeof value;
+    let type: string = typeof value;
     let displayValue: any = value;
     let isExpandable = false;
     let parsedValue: any = null;

@@ -306,13 +306,13 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
                 currentAttendees = await Calendar.getAttendeesForEventAsync(eventId);
             } else {
                 const evt = await Calendar.getEventAsync(eventId);
-                currentAttendees = evt.attendees || [];
+                currentAttendees = (evt as any).attendees || [];
             }
 
             const alreadyAdded = currentAttendees.some(a => a.email?.toLowerCase() === workAccountId.toLowerCase());
 
             if (!alreadyAdded) {
-                const newAttendee: Calendar.Attendee = {
+                const newAttendee: any = {
                     email: workAccountId,
                     role: 'attendee',
                     status: 'pending',
