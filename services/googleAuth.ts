@@ -1,13 +1,15 @@
 import { refreshAsync, TokenResponse, AuthRequestConfig, ResponseType, makeRedirectUri } from 'expo-auth-session';
 import { useGoogleStore } from '../store/googleStore';
 import { useSettingsStore } from '../store/settings';
+import googleServices from '../app/google-services.json';
 
 const DISCOVERY = {
     authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
     tokenEndpoint: 'https://oauth2.googleapis.com/token',
     revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
 };
-const googleAndroidClientId = "REDACTED_FIREBASE_SENDER_ID-kqgseihn4uua35rr6pk3q5nod5l0ad3h.apps.googleusercontent.com";
+
+const googleAndroidClientId = googleServices.client[0].oauth_client.find(c => c.client_type === 1)?.client_id;
 
 export class GoogleAuthService {
 
