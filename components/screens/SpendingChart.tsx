@@ -7,68 +7,68 @@ import { Transaction } from '../../services/buxferService';
 
 interface SpendingChartProps {
     transactions: Transaction[];
+    previousMonthTransactions?: Transaction[];
 }
 
-export function SpendingChart({ transactions }: SpendingChartProps) {
+export function SpendingChart({ transactions, previousMonthTransactions = [] }: SpendingChartProps) {
     const { width } = useWindowDimensions();
 
-    const { chartData, maxVal } = useMemo(() => {
-        // Filter for expenses in the current month
-        const currentMonth = dayjs().startOf('month');
+    const { chartData, prevChartData, maxVal } = useMemo(() => {
+        const processTransactions = (txs: Transaction[], monthStart: dayjs.Dayjs) => {
+            const expenses = txs.filter(tx =>
+                tx.type === 'expense' &&
+                dayjs(tx.date).isSame(monthStart, 'month')
+            );
 
-        const expenses = transactions.filter(tx =>
-            tx.type === 'expense' &&
-            dayjs(tx.date).isSame(currentMonth, 'month')
-        );
+            const dailySpending: Record<string, number> = {};
+            const daysInMonth = monthStart.daysInMonth();
 
-        // Initialize daily spending map
-        const dailySpending: Record<string, number> = {};
-        const daysInMonth = currentMonth.daysInMonth();
-
-        // Initialize all days of the month with 0
-        for (let i = 1; i <= daysInMonth; i++) {
-            const dateStr = currentMonth.date(i).format('YYYY-MM-DD');
-            dailySpending[dateStr] = 0;
-        }
-
-        // Aggregate daily expenses
-        expenses.forEach(tx => {
-            const dateStr = dayjs(tx.date).format('YYYY-MM-DD');
-            if (dailySpending[dateStr] !== undefined) {
-                dailySpending[dateStr] += Math.abs(tx.amount);
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateStr = monthStart.date(i).format('YYYY-MM-DD');
+                dailySpending[dateStr] = 0;
             }
-        });
 
-        // Compute cumulative sum and format for chart
-        let cumulative = 0;
-        const data = Object.entries(dailySpending).sort((a, b) => a[0].localeCompare(b[0])).map(([date, amount]) => {
-            cumulative += amount;
-            const d = dayjs(date);
+            expenses.forEach(tx => {
+                const dateStr = dayjs(tx.date).format('YYYY-MM-DD');
+                if (dailySpending[dateStr] !== undefined) {
+                    dailySpending[dateStr] += Math.abs(tx.amount);
+                }
+            });
 
-            // Only show labels for every ~5 days to avoid clutter
-            const showLabel = d.date() === 1 || d.date() % 5 === 0;
+            let cumulative = 0;
+            return Object.entries(dailySpending).sort((a, b) => a[0].localeCompare(b[0])).map(([date, amount]) => {
+                cumulative += amount;
+                const d = dayjs(date);
+                const showLabel = d.date() === 1 || d.date() % 5 === 0;
 
-            return {
-                value: cumulative,
-                label: showLabel ? d.format('D') : '',
-                labelTextStyle: { color: Colors.text.tertiary, fontSize: 10 },
-                // Only show data point text for significant jumps or specific intervals if needed
-                // For cumulative, maybe just the value?
-                // dataPointText: cumulative > 0 ? Math.round(cumulative).toString() : '',
-            };
-        });
+                return {
+                    value: cumulative,
+                    label: showLabel ? d.format('D') : '',
+                    labelTextStyle: { color: Colors.text.tertiary, fontSize: 10 },
+                };
+            });
+        };
 
-        const max = Math.max(...data.map(d => d.value), 100);
+        const currentMonth = dayjs().startOf('month');
+        const prevMonth = dayjs().subtract(1, 'month').startOf('month');
 
-        return { chartData: data, maxVal: max };
-    }, [transactions]);
+        const data = processTransactions(transactions, currentMonth);
+        const prevData = processTransactions(previousMonthTransactions, prevMonth);
+
+        const maxCurrent = Math.max(...data.map(d => d.value), 100);
+        const maxPrev = Math.max(...prevData.map(d => d.value), 100);
+        const max = Math.max(maxCurrent, maxPrev);
+
+        return { chartData: data, prevChartData: prevData, maxVal: max };
+    }, [transactions, previousMonthTransactions]);
 
     // Calculate dynamic spacing to fit the screen
     // container width = width - 32 (padding 16*2) - 32 (internal padding) ~ width - 64
     // We have chartData.length points (days in month, e.g., 30 or 31)
     // spacing * (points - 1) = available width
     const availableWidth = width - 80; // Approximate available width inside the card
-    const spacing = availableWidth / (chartData.length || 1);
+    const points = Math.max(chartData.length, prevChartData.length);
+    const spacing = availableWidth / (points || 1);
 
     return (
         <View className="bg-surface p-4 rounded-xl border border-border mb-6">
@@ -76,8 +76,11 @@ export function SpendingChart({ transactions }: SpendingChartProps) {
             <View style={{ overflow: 'hidden' }}>
                 <LineChart
                     data={chartData}
+                    data2={prevChartData}
                     color={Colors.primary}
+                    color2={Colors.text.tertiary}
                     thickness={3}
+                    thickness2={2}
                     curved
                     hideRules
                     hideYAxisText
@@ -92,11 +95,13 @@ export function SpendingChart({ transactions }: SpendingChartProps) {
                     endSpacing={0}
                     isAnimated
                     dataPointsColor={Colors.primary}
+                    dataPointsColor2={Colors.text.tertiary}
                     dataPointsRadius={3}
                     textColor={Colors.text.secondary}
                     textShiftY={-8}
                     textFontSize={10}
                     hideDataPoints={true} // Hide points for cleaner cumulative line
+                    hideDataPoints2={true}
                     startFillColor={Colors.primary}
                     endFillColor={Colors.primary}
                     startOpacity={0.2}
