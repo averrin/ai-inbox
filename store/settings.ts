@@ -196,6 +196,8 @@ interface SettingsState {
     setOauthRedirectDelay: (delay: number) => void;
     remoteApplyLockTimeout: number;
     setRemoteApplyLockTimeout: (timeout: number) => void;
+    focusPanelTaskStatuses: string[];
+    setFocusPanelTaskStatuses: (statuses: string[]) => void;
 }
 
 
@@ -419,6 +421,8 @@ export const useSettingsStore = create<SettingsState>()(
             setOauthRedirectDelay: (delay) => set({ oauthRedirectDelay: delay }),
             remoteApplyLockTimeout: 50,
             setRemoteApplyLockTimeout: (timeout) => set({ remoteApplyLockTimeout: timeout }),
+            focusPanelTaskStatuses: [' ', '/', '>', '?'],
+            setFocusPanelTaskStatuses: (statuses) => set({ focusPanelTaskStatuses: statuses }),
         }),
 
         {
