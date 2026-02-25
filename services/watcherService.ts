@@ -26,7 +26,7 @@ TaskManager.defineTask(WATCHER_TASK, async () => {
     }
 });
 
-interface WatchedRun {
+export interface WatchedRun {
     run: WorkflowRun;
     token: string;
     owner: string;
@@ -48,6 +48,10 @@ class WatcherService {
     private activeDownloads = new Set<number>();
     private activeDownloadProgress = new Map<number, number>();
     private downloadListeners = new Set<(runId: number, isDownloading: boolean, progress: number) => void>();
+
+    getWatchedRun(runId: number): WatchedRun | undefined {
+        return this.watchedRuns[runId];
+    }
 
     isDownloading(runId: number): boolean {
         return this.activeDownloads.has(runId);
