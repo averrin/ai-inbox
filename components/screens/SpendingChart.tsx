@@ -4,6 +4,7 @@ import { LineChart } from 'react-native-gifted-charts';
 import { Colors } from '../ui/design-tokens';
 import dayjs from 'dayjs';
 import { Transaction } from '../../services/buxferService';
+import { formatCurrency } from './money/moneyUtils';
 
 interface SpendingChartProps {
     transactions: Transaction[];
@@ -55,6 +56,26 @@ export function SpendingChart({ transactions, previousMonthTransactions = [] }: 
         const data = processTransactions(transactions, currentMonth);
         const prevData = processTransactions(previousMonthTransactions, prevMonth);
 
+        if (data.length > 0) {
+            const last = data[data.length - 1];
+            // @ts-ignore
+            last.dataPointText = formatCurrency(last.value);
+            // @ts-ignore
+            last.textColor = Colors.primary;
+            // @ts-ignore
+            last.hideDataPoint = false;
+        }
+
+        if (prevData.length > 0) {
+            const last = prevData[prevData.length - 1];
+            // @ts-ignore
+            last.dataPointText = formatCurrency(last.value);
+            // @ts-ignore
+            last.textColor = Colors.text.tertiary;
+            // @ts-ignore
+            last.hideDataPoint = false;
+        }
+
         const maxCurrent = Math.max(...data.map(d => d.value), 100);
         const maxPrev = Math.max(...prevData.map(d => d.value), 100);
         const max = Math.max(maxCurrent, maxPrev);
@@ -81,7 +102,6 @@ export function SpendingChart({ transactions, previousMonthTransactions = [] }: 
                     color2={Colors.text.tertiary}
                     thickness={3}
                     thickness2={2}
-                    curved
                     hideRules
                     hideYAxisText
                     xAxisThickness={0}
