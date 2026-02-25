@@ -12,6 +12,7 @@ import CanvasScreen from '../screens/CanvasScreen';
 import JulesScreen from '../screens/jules/JulesScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import MoneyScreen from '../screens/money/MoneyScreen';
+import ProxmoxScreen from '../screens/ProxmoxScreen';
 import { FocusSettingsScreen } from '../screens/FocusSettingsScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect, useState } from 'react';
@@ -221,6 +222,7 @@ function InnerTabNavigator({
     Jules: { component: JulesScreen },
     News: { component: NewsScreen },
     Profile: { component: ProfileScreen },
+    Proxmox: { component: ProxmoxScreen },
     Settings: { children: () => <SetupScreen canClose={true} /> },
     FocusSettings: { component: FocusSettingsScreen },
   };
