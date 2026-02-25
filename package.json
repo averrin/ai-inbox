@@ -23,6 +23,7 @@
     "calendarize": "^1.1.1",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.19",
+    "expensify-common": "^2.0.171",
     "expo": "~54.0.33",
     "expo-alarm": "^0.2.2",
     "expo-auth-session": "~7.0.10",
@@ -53,6 +54,7 @@
     "expo-system-ui": "~6.0.9",
     "expo-task-manager": "~14.0.9",
     "expo-web-browser": "~15.0.10",
+    "html-entities": "^2.5.3",
     "json5": "^2.2.3",
     "marked": "^17.0.1",
     "nativewind": "^4.2.1",
@@ -92,7 +94,6 @@
     "@types/turndown": "^5.0.6",
     "babel-plugin-module-resolver": "^5.0.2",
     "babel-preset-expo": "^54.0.10",
-    "html-entities": "^2.5.3",
     "patch-package": "^8.0.1",
     "playwright": "^1.57.0",
     "typescript": "~5.9.2"

@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from './ui/design-tokens';
+import { MarkdownTextInput, parseExpensiMark } from '@expensify/react-native-live-markdown';
+import { markdownStyle } from './markdown/markdownStyle';
 
 interface SimpleTextEditorProps {
     value?: string;
@@ -44,7 +46,7 @@ export function SimpleTextEditor({
     return (
         <View style={[styles.container, containerStyle]}>
             <View style={styles.editorContainer}>
-                <TextInput
+                <MarkdownTextInput
                     style={[styles.input, inputStyle]}
                     value={value}
                     onChangeText={onChangeText}
@@ -56,6 +58,8 @@ export function SimpleTextEditor({
                     onFocus={onFocus}
                     onBlur={onBlur}
                     textAlignVertical="top"
+                    parser={parseExpensiMark}
+                    markdownStyle={markdownStyle}
                 />
 
                 {/* Toolbar */}
@@ -114,6 +118,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontFamily: 'System', // Ensures consistent font with rich editor
         lineHeight: 24, // Matches 1.5/1.6 approx
+        textAlignVertical: 'top',
     },
     toolbar: {
         width: 44,
