@@ -14,6 +14,7 @@ import { DraggableTaskItem } from '../DraggableTaskItem';
 import { RichTask } from '../../utils/taskParser';
 import { TaskService } from '../../services/taskService';
 import { findNextFreeSlot, updateCalendarEvent, deleteCalendarEvent } from '../../services/calendarService';
+import { updateReminder } from '../../services/reminderService';
 import { RescheduleModal } from '../RescheduleModal';
 import { useNow } from '../ui/calendar/hooks/useNow';
 import { Colors, Palette } from '../ui/design-tokens';
@@ -184,16 +185,17 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
             return !shouldHide;
         });
 
+        // 4. Add Reminders (Markers)
+        const reminders = calendarEvents.filter(e => e.type === 'marker' && dayjs(e.start).isSame(dayjs(date), 'day'))
+            .map(r => ({ type: 'reminder' as const, data: r }));
+
         // Combine and Sort
-        return [...dedupedEvents, ...filteredTasks];
+        return [...dedupedEvents, ...filteredTasks, ...reminders];
     }, [tasks, date, calendarEvents, completedEvents, now]);
 
     const tasksCount = displayItems.filter(i => i.type === 'task').length;
     const eventsCount = displayItems.filter(i => i.type === 'event').length;
-
-    const remindersCount = useMemo(() => {
-        return calendarEvents.filter(e => e.type === 'marker' && dayjs(e.start).isSame(dayjs(date), 'day')).length;
-    }, [calendarEvents, date]);
+    const remindersCount = displayItems.filter(i => i.type === 'reminder').length;
 
     const handleTaskUpdate = async (original: TaskWithSource, updated: RichTask) => {
         if (!vaultUri) return;
@@ -335,9 +337,24 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
         }
     };
 
-    const handleReschedule = (item: TaskWithSource | any, type: 'task' | 'event') => {
+    const handleReschedule = (item: TaskWithSource | any, type: 'task' | 'event' | 'reminder') => {
         setTaskToReschedule({ ...item, _type: type });
         setRescheduleModalVisible(true);
+    };
+
+    const handleDeleteReminder = async (item: any) => {
+        try {
+            const reminderId = item.originalEvent?.id || item.id;
+            if (!reminderId) return;
+            await updateReminder(reminderId, null);
+            Toast.show({ type: 'success', text1: 'Reminder Removed' });
+            if (onRefresh) {
+                setTimeout(() => onRefresh(), 500);
+            }
+        } catch (e) {
+            console.error("Failed to delete reminder:", e);
+            showError("Error", "Failed to delete reminder");
+        }
     };
 
     const executeReschedule = async (option: 'later' | 'tomorrow') => {
@@ -346,11 +363,20 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
         setRescheduleModalVisible(false);
 
         const isTask = item._type === 'task';
+        const isReminder = item._type === 'reminder';
         const hasEvent = isTask ? !!item.properties.event_id : true;
 
         try {
             const now = dayjs();
-            const currentStart = isTask ? (item.properties.date ? dayjs(item.properties.date) : now) : dayjs(item.start);
+            let currentStart = dayjs();
+
+            if (isTask) {
+                currentStart = item.properties.date ? dayjs(item.properties.date) : now;
+            } else if (isReminder) {
+                currentStart = dayjs(item.start);
+            } else {
+                currentStart = dayjs(item.start);
+            }
 
             // 1. Determine Search Start Time
             let searchStart: Date;
@@ -493,11 +519,58 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                     setTimeout(() => onRefresh(), 500);
                 }
                 Toast.show({ type: 'success', text1: 'Rescheduled', text2: `Moved to ${dayjs(slot).format('MMM D HH:mm')}` });
+            } else if (isReminder) {
+                // Reminder Logic
+                const reminderId = item.originalEvent?.id || item.id;
+
+                // Logic for new time
+                let newTime = searchStart;
+
+                // If "later", searchStart is already set to +30m or start of day + 30m.
+                // If "tomorrow", searchStart is set to tomorrow morning.
+                // For reminders, we just use this time directly.
+
+                await updateReminder(reminderId, newTime.toISOString());
+
+                if (onRefresh) {
+                    setTimeout(() => onRefresh(), 500);
+                }
+                Toast.show({ type: 'success', text1: 'Rescheduled', text2: `Moved to ${dayjs(newTime).format('MMM D HH:mm')}` });
+            } else {
+                // Event Logic
+                const eventId = item.originalEvent?.id || item.id;
+
+                // Lookup fresh event to ensure duration is correct (avoid stale props)
+                const freshEvent = calendarEvents.find(e => {
+                    const eId = e.originalEvent?.id || e.id;
+                    return eId === eventId;
+                });
+
+                const targetEvent = freshEvent || item;
+
+                let durationMins = dayjs(targetEvent.end).diff(dayjs(targetEvent.start), 'minute');
+                if (!durationMins || durationMins <= 0) durationMins = 30;
+
+                const slot = await findNextFreeSlot(searchStart, durationMins);
+                const slotEnd = dayjs(slot).add(durationMins, 'minute').toDate();
+
+                await updateCalendarEvent(eventId, {
+                    title: item.title,
+                    startDate: slot,
+                    endDate: slotEnd,
+                    editScope: 'this', // Always move just this instance for reschedule
+                    instanceStartDate: item.start // Required for identifying instance
+                });
+
+                if (onRefresh) {
+                    setTimeout(() => onRefresh(), 500);
+                }
+                Toast.show({ type: 'success', text1: 'Rescheduled', text2: `Moved to ${dayjs(slot).format('MMM D HH:mm')}` });
             }
 
         } catch (e) {
             console.error('Reschedule failed', e);
-            showError("Error", "Failed to reschedule task/event");
+            showError("Error", "Failed to reschedule task/event/reminder");
         }
     };
 
@@ -641,6 +714,33 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                                         />
                                     </View>
                                 );
+                            } else if (item.type === 'reminder') {
+                                return (
+                                    <View key={`reminder-${index}`} className="mb-2 flex-row items-center p-2 pl-3 bg-surface/30 rounded-xl border border-border">
+                                        <View className="w-5 h-5 rounded border border-border items-center justify-center mr-3 bg-warning/10">
+                                            <Ionicons name="notifications" size={12} color={Colors.warning} />
+                                        </View>
+                                        <View className="flex-1">
+                                            <Text className="text-sm font-medium text-text-primary" numberOfLines={1}>{item.data.title}</Text>
+                                            <Text className="text-[10px] text-secondary">{dayjs(item.data.start).format('HH:mm')}</Text>
+                                        </View>
+
+                                        <View className="flex-row items-center gap-1 ml-2">
+                                            <ActionButton
+                                                onPress={() => handleReschedule(item.data, 'reminder')}
+                                                icon="time-outline"
+                                                variant="neutral"
+                                                size={16}
+                                            />
+                                            <ActionButton
+                                                onPress={() => handleDeleteReminder(item.data)}
+                                                icon="trash-outline"
+                                                variant="neutral"
+                                                size={16}
+                                            />
+                                        </View>
+                                    </View>
+                                );
                             } else {
                                 const highlightStyle = isHighlighted ? {
                                     borderWidth: 2,
@@ -710,7 +810,7 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                         visible={rescheduleModalVisible}
                         onClose={() => setRescheduleModalVisible(false)}
                         onSelect={executeReschedule}
-                        showLater={taskToReschedule?._type === 'event' || !!taskToReschedule?.properties?.event_id}
+                        showLater={taskToReschedule?._type === 'event' || taskToReschedule?._type === 'reminder' || !!taskToReschedule?.properties?.event_id}
                     />
 
                     <SelectionSheet
