@@ -12,7 +12,8 @@ import CanvasScreen from '../screens/CanvasScreen';
 import JulesScreen from '../screens/jules/JulesScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import MoneyScreen from '../screens/money/MoneyScreen';
-import ProxmoxScreen from '../screens/ProxmoxScreen';
+import ProxmoxScreen from '../screens/proxmox/ProxmoxScreen';
+import ProxmoxSettingsScreen from '../screens/proxmox/ProxmoxSettingsScreen';
 import { FocusSettingsScreen } from '../screens/FocusSettingsScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect, useState } from 'react';
@@ -223,6 +224,7 @@ function InnerTabNavigator({
     News: { component: NewsScreen },
     Profile: { component: ProfileScreen },
     Proxmox: { component: ProxmoxScreen },
+    ProxmoxSettings: { component: ProxmoxSettingsScreen },
     Settings: { children: () => <SetupScreen canClose={true} /> },
     FocusSettings: { component: FocusSettingsScreen },
   };

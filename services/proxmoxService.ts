@@ -7,11 +7,23 @@ export async function fetchProxmoxData(server: ProxmoxServer): Promise<{ nodes: 
     };
 
     console.log(`[Proxmox] Fetching nodes from ${server.url}`);
-    const nodesResp = await fetch(`${server.url}/api2/json/nodes`, { headers });
+
+    let nodesResp: Response;
+    try {
+        nodesResp = await fetch(`${server.url}/api2/json/nodes`, { headers });
+    } catch (e: any) {
+        throw new Error(`Connection failed: ${e.message || 'Check URL/Network'}`);
+    }
 
     if (!nodesResp.ok) {
+        if (nodesResp.status === 401) {
+            throw new Error("Authentication failed: Check Token ID and Secret");
+        }
+        if (nodesResp.status === 404) {
+            throw new Error("API not found: Check Server URL");
+        }
         const text = await nodesResp.text();
-        throw new Error(`Failed to fetch nodes: ${nodesResp.status} ${text}`);
+        throw new Error(`API Error ${nodesResp.status}: ${text}`);
     }
 
     const nodesJson = await nodesResp.json();
@@ -19,7 +31,8 @@ export async function fetchProxmoxData(server: ProxmoxServer): Promise<{ nodes: 
 
     let allServices: ProxmoxService[] = [];
 
-    for (const node of nodes) {
+    // Parallel fetch for all nodes
+    await Promise.all(nodes.map(async (node) => {
         // Fetch LXC
         try {
             const lxcResp = await fetch(`${server.url}/api2/json/nodes/${node.node}/lxc`, { headers });
@@ -31,10 +44,11 @@ export async function fetchProxmoxData(server: ProxmoxServer): Promise<{ nodes: 
                     type: 'lxc',
                     node: node.node,
                 }));
-                allServices = [...allServices, ...lxcData];
+                // Thread-safe push? JS is single threaded event loop, so yes.
+                allServices.push(...lxcData);
             }
         } catch (e) {
-            console.error(`Failed to fetch LXC for node ${node.node}`, e);
+            console.warn(`[Proxmox] Failed to fetch LXC for node ${node.node}`, e);
         }
 
         // Fetch QEMU
@@ -48,12 +62,12 @@ export async function fetchProxmoxData(server: ProxmoxServer): Promise<{ nodes: 
                     type: 'qemu',
                     node: node.node
                 }));
-                allServices = [...allServices, ...qemuData];
+                allServices.push(...qemuData);
             }
         } catch (e) {
-            console.error(`Failed to fetch QEMU for node ${node.node}`, e);
+             console.warn(`[Proxmox] Failed to fetch QEMU for node ${node.node}`, e);
         }
-    }
+    }));
 
     // Enhance with IPs (parallel)
     await Promise.all(allServices.map(async (service) => {
