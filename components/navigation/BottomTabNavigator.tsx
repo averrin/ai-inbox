@@ -99,44 +99,10 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup, 
       }
     };
 
-    // Custom Render: Jules (Gradient Ring)
-    // Only if icon is default 'logo-github'
-    if (item.id === 'Jules' && item.icon === 'logo-github') {
-      return (
-        <TouchableOpacity
-          key={item.id}
-          onPress={onPress}
-          style={{
-            width: 44,
-            height: 44,
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginHorizontal: 2
-          }}
-        >
-          <LinearGradient
-            colors={[Palette[11], Palette[2], Palette[5]]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 17,
-              padding: 3,
-              justifyContent: 'center',
-              alignItems: 'center'
-            }}
-          >
-            <View style={{ flex: 1, backgroundColor: Colors.surface, borderRadius: 15, width: '100%', height: '100%' }} />
-          </LinearGradient>
-        </TouchableOpacity>
-      );
-    }
-
     // Custom Render: Input / FAB (Plus Button)
     // If showing FAB, use FAB icon. If Input and icon is 'add', use white circle style.
     // Otherwise use standard styling.
-    if (showFab || (item.id === 'Input' && item.icon === 'add')) {
+    if (showFab || item.id === 'Input') {
       const displayIcon = showFab ? fab.icon : item.icon;
       const displayIconColor = showFab && fab.iconColor ? fab.iconColor : "black";
 
@@ -153,16 +119,33 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup, 
             marginHorizontal: 2
           }}
         >
-          <View style={{
-            width: 34,
-            height: 34,
-            borderRadius: 17,
-            backgroundColor: showFab && fab.color ? fab.color : 'white', // Use FAB color if provided
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}>
-            <Ionicons name={displayIcon as any} size={24} color={displayIconColor} />
-          </View>
+          {!showFab ? (
+            <LinearGradient
+              colors={[Palette[11], Palette[2], Palette[5]]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 17,
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
+              <Ionicons name="add" size={24} color="white" />
+            </LinearGradient>
+          ) : (
+            <View style={{
+              width: 34,
+              height: 34,
+              borderRadius: 17,
+              backgroundColor: showFab && fab.color ? fab.color : 'white', // Use FAB color if provided
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}>
+              <Ionicons name={displayIcon as any} size={24} color={displayIconColor} />
+            </View>
+          )}
         </TouchableOpacity>
       );
     }
