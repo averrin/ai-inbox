@@ -6,6 +6,7 @@ import { ActionButton } from '../ui/ActionButton';
 import Toast from 'react-native-toast-message';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
+import { useNavigation } from '@react-navigation/native';
 import { useTasksStore, TaskWithSource } from '../../store/tasks';
 import { useSettingsStore } from '../../store/settings';
 import { useEventTypesStore } from '../../store/eventTypes';
@@ -46,7 +47,7 @@ const PRIORITY_ORDER: Record<string, number> = {
     none: 0,
 };
 
-const STATUS_OPTIONS: SelectionOption[] = [
+export const STATUS_OPTIONS: SelectionOption[] = [
     { id: ' ', label: 'Pending', icon: 'square-outline', color: Colors.text.tertiary },
     { id: '/', label: 'In Progress', icon: 'play-circle-outline', color: '#818cf8' },
     { id: 'x', label: 'Done', icon: 'checkbox', color: Colors.success },
@@ -64,8 +65,9 @@ const PRIORITY_OPTIONS: SelectionOption[] = [
 
 export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTask, onRefresh }: TodaysTasksPanelProps) => {
     const { tasks, setTasks } = useTasksStore();
-    const { vaultUri } = useSettingsStore();
+    const { vaultUri, focusPanelTaskStatuses } = useSettingsStore();
     const { completedEvents, toggleCompleted, assignments, eventTypes, eventIcons } = useEventTypesStore();
+    const navigation = useNavigation<any>();
     const { now } = useNow(true);
     const [expanded, setExpanded] = useState(true);
 
@@ -105,7 +107,8 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
         });
 
         const filteredTasks = tasks.filter(task => {
-            if (task.completed) return false;
+            if (!focusPanelTaskStatuses.includes(task.status)) return false;
+
             const props = task.properties;
 
             // Check if task should be hidden because linked event is passed
@@ -590,6 +593,9 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                     </View>
                 </View>
                 <View className="flex-row items-center gap-3">
+                    <TouchableOpacity onPress={(e) => { e.stopPropagation(); navigation.navigate('FocusSettings'); }}>
+                        <Ionicons name="settings-outline" size={18} color={Colors.secondary} />
+                    </TouchableOpacity>
                     <TouchableOpacity onPress={(e) => { e.stopPropagation(); onAdd(); }}>
                         <Ionicons name="add" size={20} color="#818cf8" />
                     </TouchableOpacity>

@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { WorkflowRun, CheckRun, Artifact, fetchChecks, fetchArtifacts, fetchPullRequest } from '../../../services/jules';
 import { downloadAndInstallArtifact, isArtifactCached, installCachedArtifact } from '../../../utils/artifactHandler';
 import { artifactDeps } from '../../../utils/artifactDeps';
-import { watcherService } from '../../../services/watcherService';
+import { watcherService, WatchedRun } from '../../../services/watcherService';
 import { Colors } from '../../ui/design-tokens';
 import { MetadataChip } from '../../ui/MetadataChip';
 import { Card } from '../../ui/Card';
@@ -57,6 +57,7 @@ export function WorkflowRunItem({ run, token, owner, repo, initialExpanded = fal
     const [isWatched, setIsWatched] = useState(watcherService.isWatching(run.id));
     const [isWatcherDownloading, setIsWatcherDownloading] = useState(watcherService.isDownloading(run.id));
     const [watcherProgress, setWatcherProgress] = useState(watcherService.getDownloadProgress(run.id));
+    const [watchedRunData, setWatchedRunData] = useState<WatchedRun | undefined>(undefined);
 
     const spinValue = useRef(new Animated.Value(0)).current;
     const isFetchingRef = useRef(false);
@@ -71,6 +72,22 @@ export function WorkflowRunItem({ run, token, owner, repo, initialExpanded = fal
         watcherService.addDownloadListener(onDownloadChange);
         return () => watcherService.removeDownloadListener(onDownloadChange);
     }, [run.id]);
+
+    useEffect(() => {
+        if (!isWatched) {
+            setWatchedRunData(undefined);
+            return;
+        }
+
+        const updateData = () => {
+            const data = watcherService.getWatchedRun(run.id);
+            setWatchedRunData(data ? { ...data } : undefined);
+        };
+
+        updateData();
+        const interval = setInterval(updateData, 1000);
+        return () => clearInterval(interval);
+    }, [isWatched, run.id]);
 
     const pr = run.pull_requests && run.pull_requests.length > 0 ? run.pull_requests[0] : null;
 
@@ -235,6 +252,17 @@ export function WorkflowRunItem({ run, token, owner, repo, initialExpanded = fal
     // Hide PR button if embedded (because parent session card has it)
     const showPrButton = prUrl && !embedded;
 
+    let progressString = "";
+    if (watchedRunData && (run.status === 'in_progress' || run.status === 'queued')) {
+        const now = Date.now();
+        const elapsed = now - watchedRunData.startTime;
+        const progress = Math.min(0.99, elapsed / watchedRunData.estimatedDuration);
+        const percent = Math.round(progress * 100);
+        const remainingMs = Math.max(0, watchedRunData.estimatedDuration - elapsed);
+        const remainingMins = Math.ceil(remainingMs / 60000);
+        progressString = ` • ${percent}% (~${remainingMins}m left)`;
+    }
+
     const stripeColors: string[] = [];
     const stripeLocations: number[] = [];
     if (prInactive) {
@@ -263,7 +291,7 @@ export function WorkflowRunItem({ run, token, owner, repo, initialExpanded = fal
                                 <Text className="text-white font-bold text-sm flex-1" numberOfLines={1}>{run.name}</Text>
                             </View>
                             <Text className="text-secondary text-[10px]">
-                                {dayjs(run.created_at).fromNow()} • {run.head_branch}
+                                {dayjs(run.created_at).fromNow()} • {run.head_branch}{progressString}
                             </Text>
                         </View>
                     </TouchableOpacity>
@@ -354,7 +382,7 @@ export function WorkflowRunItem({ run, token, owner, repo, initialExpanded = fal
                             <Text className="text-white font-bold text-base flex-1" numberOfLines={1}>{run.name}</Text>
                         </View>
                         <Text className="text-text-tertiary text-xs">
-                            {dayjs(run.created_at).fromNow()} • {run.head_branch}
+                            {dayjs(run.created_at).fromNow()} • {run.head_branch}{progressString}
                         </Text>
                     </View>
                 </TouchableOpacity>
