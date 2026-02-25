@@ -271,7 +271,7 @@ export default function MoneyScreen() {
                                 <Text className="text-white font-medium mb-1">{acc.name}</Text>
                                 <View className="flex-row items-center gap-2">
                                     <MetadataChip label={acc.bank} size="sm" variant="outline" color={Colors.text.tertiary} />
-                                    {acc.type === 'other' && (
+                                    {acc.bank === 'Other' && (
                                         <AppButton
                                             title="Set Amount"
                                             size="xs"
