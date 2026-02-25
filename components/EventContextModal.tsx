@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, FlatList, Linking, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, FlatList, Linking, Platform, Alert } from 'react-native';
 import { useEventTypesStore } from '../store/eventTypes';
 import { useSettingsStore } from '../store/settings';
 import { updateEventRSVP, getAttendeesForEvent } from '../services/calendarService';
@@ -193,34 +193,63 @@ export function EventContextModal({ visible, onClose, onRefresh, onEdit, onOpenT
 
     const handleRSVP = async (status: string) => {
         if (!event?.originalEvent?.ids) return;
-        try {
-            // Ensure we have a valid attendee marked as current user
-            let targetAttendees = [...attendees];
 
-            // If no user is identified natively, use our derived one
-            if (!attendees.find((a: any) => a.isCurrentUser) && currentUserAttendee) {
-                targetAttendees = attendees.map((a: any) =>
-                    (a.email === currentUserAttendee.email || (a.name === currentUserAttendee.name && a.name))
-                        ? { ...a, isCurrentUser: true }
-                        : a
-                );
-            }
+        const performUpdate = async (options?: { editScope: 'this' | 'future' | 'all', instanceStartDate: Date }) => {
+            try {
+                // Ensure we have a valid attendee marked as current user
+                let targetAttendees = [...attendees];
 
-            // Fallback: If still no user is identified natively or by us, force the first attendee
-            if (!targetAttendees.find((a: any) => a.isCurrentUser) && targetAttendees.length > 0) {
-                targetAttendees[0] = { ...targetAttendees[0], isCurrentUser: true };
-            }
+                // If no user is identified natively, use our derived one
+                if (!attendees.find((a: any) => a.isCurrentUser) && currentUserAttendee) {
+                    targetAttendees = attendees.map((a: any) =>
+                        (a.email === currentUserAttendee.email || (a.name === currentUserAttendee.name && a.name))
+                            ? { ...a, isCurrentUser: true }
+                            : a
+                    );
+                }
 
-            for (const id of event.originalEvent.ids) {
-                await updateEventRSVP(id, status, targetAttendees);
+                // Fallback: If still no user is identified natively or by us, force the first attendee
+                if (!targetAttendees.find((a: any) => a.isCurrentUser) && targetAttendees.length > 0) {
+                    targetAttendees[0] = { ...targetAttendees[0], isCurrentUser: true };
+                }
+
+                for (const id of event.originalEvent.ids) {
+                    await updateEventRSVP(id, status, targetAttendees, options);
+                }
+                // Add a small delay to allow native calendar to process the update
+                await new Promise(resolve => setTimeout(resolve, 500));
+                if (onRefresh) await onRefresh();
+                onClose();
+            } catch (e) {
+                console.error("RSVP failed", e);
+                alert("Failed to update RSVP");
             }
-            // Add a small delay to allow native calendar to process the update
-            await new Promise(resolve => setTimeout(resolve, 500));
-            if (onRefresh) await onRefresh();
-            onClose();
-        } catch (e) {
-            console.error("RSVP failed", e);
-            alert("Failed to update RSVP");
+        };
+
+        // Check for recurrence
+        const isRecurring = !!event.originalEvent.recurrenceRule;
+
+        if (isRecurring) {
+            Alert.alert(
+                "Update RSVP",
+                "Apply to this event only or the entire series?",
+                [
+                    {
+                        text: "Cancel",
+                        style: "cancel"
+                    },
+                    {
+                        text: "This event only",
+                        onPress: () => performUpdate({ editScope: 'this', instanceStartDate: event.start })
+                    },
+                    {
+                        text: "Entire series",
+                        onPress: () => performUpdate({ editScope: 'all', instanceStartDate: event.start })
+                    }
+                ]
+            );
+        } else {
+            await performUpdate();
         }
     };
 
