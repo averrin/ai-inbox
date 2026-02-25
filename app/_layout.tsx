@@ -170,10 +170,9 @@ function AppContent() {
       }
     });
 
-    // Check for Native Alarm Launch
     if (Platform.OS === 'android') {
       import('../services/alarmModule').then(async ({ getLaunchAlarmDetails, dismissNativeNotification }) => {
-        const details = await getLaunchAlarmDetails();
+        const details = await getLaunchAlarmDetails() as { title: string, id: number, message: string } | null;
         if (details) {
           console.log("[App] Launched via Native Alarm:", details.title);
           // Dismiss the persistent notification

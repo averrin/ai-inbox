@@ -23,7 +23,7 @@ export const scheduleNativeAlarm = async (title: string, message: string, timest
 
         // If candidate time is before now (passed today), the system will schedule for tomorrow
         if (candidate.isBefore(now)) {
-             candidate = candidate.add(1, 'day');
+            candidate = candidate.add(1, 'day');
         }
 
         // Compare candidate with targetDate
@@ -60,7 +60,7 @@ export const stopNativeAlarm = async (title: string) => {
             searchMode: 'android.label',
             message: title,
             skipUi: true,
-        });
+        } as any);
     } catch (e) {
         console.warn("[AlarmModule] Failed to stop native alarm:", e);
     }

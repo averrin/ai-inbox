@@ -1,9 +1,10 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import { getAuth, initializeAuth } from 'firebase/auth';
+// @ts-ignore - Ignore type error for getReactNativePersistence as it might be missing in this firebase version's types
+import { getReactNativePersistence } from 'firebase/auth';
 import { getFirestore, initializeFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Your Firebase configuration
 // Extracted from google-services.json
 export const firebaseConfig = {
     apiKey: "REDACTED_FIREBASE_API_KEY",

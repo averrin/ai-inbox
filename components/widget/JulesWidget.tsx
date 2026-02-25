@@ -42,11 +42,11 @@ export function JulesWidget({ upcomingEvent, pendingTask, githubRuns, error }: J
     >
       {/* Upcoming Event */}
       <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-        <IconWidget icon="event" size={24} style={{ color: '#ffffff', marginRight: 16 }} />
+        <IconWidget icon="event" size={24} font="material" style={{ color: '#ffffff', marginRight: 16 }} />
         <FlexWidget style={{ flexDirection: 'column', flex: 1 }}>
            <TextWidget
             text={upcomingEvent ? upcomingEvent.time : "Today"}
-            style={{ color: '#ffffff', fontSize: 12, opacity: 0.8 }}
+            style={{ color: '#cccccc', fontSize: 12 }}
           />
           <TextWidget
             text={upcomingEvent ? upcomingEvent.title : "No upcoming events"}
@@ -58,21 +58,25 @@ export function JulesWidget({ upcomingEvent, pendingTask, githubRuns, error }: J
 
       {/* Pending Task */}
       <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-        <IconWidget icon="check_box_outline_blank" size={24} style={{ color: '#ffffff', marginRight: 16 }} />
-        <TextWidget
-          text={pendingTask ? pendingTask.title : "No pending tasks"}
-          style={{ color: '#ffffff', fontSize: 16, flex: 1 }}
-          maxLines={1}
-        />
+        <IconWidget icon="check_box_outline_blank" size={24} font="material" style={{ color: '#ffffff', marginRight: 16 }} />
+        <FlexWidget style={{ flex: 1 }}>
+          <TextWidget
+            text={pendingTask ? pendingTask.title : "No pending tasks"}
+            style={{ color: '#ffffff', fontSize: 16 }}
+            maxLines={1}
+          />
+        </FlexWidget>
       </FlexWidget>
 
       {/* GitHub Runs */}
       <FlexWidget style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <IconWidget icon="sync" size={24} style={{ color: '#ffffff', marginRight: 16 }} />
-        <TextWidget
-          text={githubRuns && githubRuns.running ? `${githubRuns.count} Workflow${githubRuns.count > 1 ? 's' : ''} Running` : "All Systems Go"}
-          style={{ color: '#ffffff', fontSize: 16, flex: 1 }}
-        />
+        <IconWidget icon="sync" size={24} font="material" style={{ color: '#ffffff', marginRight: 16 }} />
+        <FlexWidget style={{ flex: 1 }}>
+          <TextWidget
+            text={githubRuns && githubRuns.running ? `${githubRuns.count} Workflow${githubRuns.count > 1 ? 's' : ''} Running` : "All Systems Go"}
+            style={{ color: '#ffffff', fontSize: 16 }}
+          />
+        </FlexWidget>
       </FlexWidget>
     </FlexWidget>
   );

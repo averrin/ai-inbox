@@ -70,7 +70,6 @@ export const useScheduleActions = ({
             setEditingEvent(null);
 
             setCachedReminders(cachedReminders.filter((r: any) => r.fileUri !== targetUri));
-            setEvents(prev => prev.filter(e => e.originalEvent?.fileUri !== targetUri));
 
             try {
                 await updateReminder(targetUri, null);
@@ -150,28 +149,6 @@ export const useScheduleActions = ({
                     setCachedReminders(newCache);
                 }
 
-                const tempEvent = {
-                    title: data.title || (isNew ? 'Reminder' : 'Untitled'),
-                    start: data.startDate,
-                    end: data.startDate,
-                    color: data.alarm ? Colors.error : Palette[5],
-                    type: 'marker',
-                    originalEvent: updatedReminder,
-                    typeTag: 'REMINDER'
-                };
-
-                if (isNew) {
-                    setEvents([...events, tempEvent]);
-                } else {
-                    const newEvents = events.map(e => {
-                        if (e.originalEvent && e.originalEvent.fileUri === targetUri) {
-                            return { ...e, ...tempEvent, title: data.title || e.title };
-                        }
-                        return e;
-                    });
-                    setEvents(newEvents);
-                }
-
                 try {
                     if (isNew) {
                         const result = await createStandaloneReminder(reminderTime, data.title, recurrenceStr, data.alarm, data.persistent, {}, [], undefined, content);
@@ -205,17 +182,6 @@ export const useScheduleActions = ({
                 };
 
                 setCachedReminders([...(cachedReminders || []), tempReminder]);
-
-                const tempEvent = {
-                    title: data.title || 'Reminder',
-                    start: data.startDate,
-                    end: data.startDate,
-                    color: data.alarm ? Colors.error : Palette[5],
-                    type: 'marker',
-                    originalEvent: tempReminder,
-                    typeTag: 'REMINDER'
-                };
-                setEvents([...events, tempEvent]);
 
                 try {
                     const result = await createStandaloneReminder(reminderTime, data.title, recurrenceStr, data.alarm, data.persistent, {}, [], undefined, content);
