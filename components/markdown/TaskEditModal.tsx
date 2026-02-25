@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { MarkdownTextInput, parseExpensiMark } from '@expensify/react-native-live-markdown';
+import { markdownStyle } from './markdownStyle';
 import * as Calendar from 'expo-calendar';
 import dayjs from 'dayjs';
 import { RichTask } from '../../utils/taskParser';
@@ -377,13 +379,24 @@ export function TaskEditModal({
                     <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                         <View className="mb-4">
                             <Text className="text-text-secondary mb-2 font-medium text-xs uppercase tracking-wider">Title</Text>
-                            <TextInput
-                                className="bg-surface text-white p-4 rounded-xl border border-border font-medium"
+                            <MarkdownTextInput
+                                style={{
+                                    backgroundColor: Colors.surface,
+                                    color: Colors.white,
+                                    padding: 16,
+                                    borderRadius: 12,
+                                    borderWidth: 1,
+                                    borderColor: Colors.border,
+                                    fontWeight: '500',
+                                    textAlignVertical: 'top'
+                                }}
                                 value={title}
                                 onChangeText={setTitle}
                                 placeholder="Task title..."
                                 placeholderTextColor={Colors.secondary}
                                 multiline
+                                parser={parseExpensiMark}
+                                markdownStyle={markdownStyle}
                             />
                         </View>
 
