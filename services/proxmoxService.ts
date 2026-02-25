@@ -12,7 +12,15 @@ export async function fetchProxmoxData(server: ProxmoxServer): Promise<{ nodes: 
     try {
         nodesResp = await fetch(`${server.url}/api2/json/nodes`, { headers });
     } catch (e: any) {
-        throw new Error(`Connection failed: ${e.message || 'Check URL/Network'}`);
+        console.error(`[Proxmox] Connection error for ${server.url}:`, e);
+
+        // Enhance error message for common issues
+        let msg = e.message || 'Unknown network error';
+        if (msg === 'Network request failed') {
+            msg += ' (Possible SSL/Cert mismatch or unreachable host)';
+        }
+
+        throw new Error(`Connection failed: ${msg}`);
     }
 
     if (!nodesResp.ok) {
