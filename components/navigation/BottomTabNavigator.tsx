@@ -102,7 +102,7 @@ function CustomTabBar({ state, descriptors, navigation, navConfig, onOpenGroup, 
     // Custom Render: Input / FAB (Plus Button)
     // If showing FAB, use FAB icon. If Input and icon is 'add', use white circle style.
     // Otherwise use standard styling.
-    if (showFab || (item.id === 'Input' && item.icon === 'add')) {
+    if (showFab || item.id === 'Input') {
       const displayIcon = showFab ? fab.icon : item.icon;
       const displayIconColor = showFab && fab.iconColor ? fab.iconColor : "black";
 
