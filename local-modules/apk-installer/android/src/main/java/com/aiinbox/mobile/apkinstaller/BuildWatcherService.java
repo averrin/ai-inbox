@@ -32,7 +32,7 @@ public class BuildWatcherService extends Service {
             heartbeatHandler.postDelayed(this, 30000); // 30 seconds
         }
     };
-    
+
     // Track active notification IDs
     private Set<Integer> activeNotificationIds = new HashSet<>();
     private int currentForegroundId = -1;
@@ -86,7 +86,8 @@ public class BuildWatcherService extends Service {
             int id = intent.getIntExtra("id", -1);
             String action = intent.getAction();
 
-            if (id == -1) return START_NOT_STICKY;
+            if (id == -1)
+                return START_NOT_STICKY;
 
             if ("STOP".equals(action)) {
                 handleStop(id);
@@ -102,10 +103,11 @@ public class BuildWatcherService extends Service {
     private void handleUpdate(int id, String title, String body, String smallText, String chipText, int progress) {
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         Notification notification = buildNotification(title, body, smallText, chipText, progress);
-        
+
         activeNotificationIds.add(id);
 
-        // If we don't have a foreground ID, or this is the first one, make it foreground
+        // If we don't have a foreground ID, or this is the first one, make it
+        // foreground
         if (currentForegroundId == -1) {
             currentForegroundId = id;
             startForeground(id, notification);
@@ -120,10 +122,10 @@ public class BuildWatcherService extends Service {
 
     private void handleStop(int id) {
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        
+
         // Remove from active set
         activeNotificationIds.remove(id);
-        
+
         // Cancel this specific notification
         notificationManager.cancel(id);
 
@@ -145,41 +147,46 @@ public class BuildWatcherService extends Service {
     }
 
     private Notification buildNotification(String title, String body, String smallText, String chipText, int progress) {
-        int iconId = getApplicationContext().getResources().getIdentifier("ic_launcher", "mipmap", getPackageName());
+        int iconId = getApplicationContext().getResources().getIdentifier("notification_icon", "drawable",
+                getPackageName());
         if (iconId == 0) {
-             iconId = getApplicationInfo().icon;
+            iconId = getApplicationContext().getResources().getIdentifier("ic_launcher", "mipmap", getPackageName());
+        }
+        if (iconId == 0) {
+            iconId = getApplicationInfo().icon;
         }
 
-        // Use platform Notification.Builder for API 35+ to access new features (Live Updates)
+        // Use platform Notification.Builder for API 35+ to access new features (Live
+        // Updates)
         if (Build.VERSION.SDK_INT >= 35) {
-             Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID)
-                     .setSmallIcon(iconId)
-                     .setContentTitle(title)
-                     .setContentText(smallText != null ? smallText : body) // Collapsed text
-                     .setStyle(new Notification.BigTextStyle().bigText(body)) // Expanded text
-                     .setOngoing(true)
-                     .setOnlyAlertOnce(true)
-                     .setCategory(Notification.CATEGORY_PROGRESS)
-                     .setVisibility(Notification.VISIBILITY_PUBLIC)
-                     .setShowWhen(false)
-                     .setAutoCancel(false);
+            Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID)
+                    .setSmallIcon(iconId)
+                    .setContentTitle(title)
+                    .setContentText(smallText != null ? smallText : body) // Collapsed text
+                    .setStyle(new Notification.BigTextStyle().bigText(body)) // Expanded text
+                    .setOngoing(true)
+                    .setOnlyAlertOnce(true)
+                    .setCategory(Notification.CATEGORY_PROGRESS)
+                    .setVisibility(Notification.VISIBILITY_PUBLIC)
+                    .setShowWhen(false)
+                    .setAutoCancel(false);
 
-             try {
-                 if (chipText != null && !chipText.isEmpty()) {
-                     builder.getClass().getMethod("setShortCriticalText", CharSequence.class).invoke(builder, chipText);
-                 }
-                 builder.getClass().getMethod("setRequestPromotedOngoing", boolean.class).invoke(builder, true);
-             } catch (Exception e) {
-                 // Ignore reflection errors
-             }
+            try {
+                if (chipText != null && !chipText.isEmpty()) {
+                    builder.getClass().getMethod("setShortCriticalText", CharSequence.class).invoke(builder, chipText);
+                }
+                builder.getClass().getMethod("setRequestPromotedOngoing", boolean.class).invoke(builder, true);
+            } catch (Exception e) {
+                // Ignore reflection errors
+            }
 
-             if (progress >= 0) {
-                 builder.setProgress(100, progress, false);
-                 if (smallText != null) {
-                     builder.setSubText(smallText);
-                 }
-             }
-             return builder.build();
+            if (progress >= 0) {
+                builder.setProgress(100, progress, false);
+                if (smallText != null) {
+                    builder.setSubText(smallText);
+                }
+            }
+            return builder.build();
         }
 
         // Fallback for older versions
@@ -201,7 +208,7 @@ public class BuildWatcherService extends Service {
                 builder.setSubText(smallText);
             }
         }
-        
+
         return builder.build();
     }
 
@@ -209,7 +216,8 @@ public class BuildWatcherService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
             // Ensure channel exists with LOW importance for silent updates
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW);
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_LOW);
             channel.setDescription("Background service for watching builds");
             notificationManager.createNotificationChannel(channel);
         }

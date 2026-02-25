@@ -44,6 +44,10 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "notification": {
+      "icon": "./assets/monochrome-icon.png",
+      "color": "#023c69"
+    },
     "plugins": [
       "expo-router",
       "@react-native-firebase/app",
