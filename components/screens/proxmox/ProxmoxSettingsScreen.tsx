@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, TextInput, FlatList, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
-import { BaseScreen } from '../../BaseScreen';
+import { BaseScreen } from '../BaseScreen';
 import { useProxmoxStore, ProxmoxServer } from '../../../store/proxmoxStore';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../ui/design-tokens';

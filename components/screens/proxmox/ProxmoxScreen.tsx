@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert, RefreshControl } from 'react-native';
-import { BaseScreen } from '../../BaseScreen';
+import { BaseScreen } from '../BaseScreen';
 import { useProxmoxStore, ProxmoxServer, ProxmoxNode, ProxmoxService } from '../../../store/proxmoxStore';
 import { fetchProxmoxData } from '../../../services/proxmoxService';
 import { Ionicons } from '@expo/vector-icons';
