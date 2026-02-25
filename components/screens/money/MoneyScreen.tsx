@@ -17,7 +17,7 @@ import { TransactionEditModal } from './TransactionEditModal';
 import { BudgetItem } from './BudgetItem';
 import { BuxferLoginForm } from './BuxferLoginForm';
 import { TransactionItem } from './TransactionItem';
-import { getTransactionStyle } from './moneyUtils';
+import { getTransactionStyle, formatCurrency } from './moneyUtils';
 
 
 
@@ -190,16 +190,6 @@ export default function MoneyScreen() {
         if (tx.currency) return tx.currency;
         const acc = accounts.find(a => String(a.id) === String(tx.accountId));
         return acc?.currency || 'CZK';
-    };
-
-    const formatCurrency = (amount: number, currency: string = 'CZK') => {
-        // Fallback to CZK if undefined, per user request "at least main is czk"
-        return new Intl.NumberFormat('cs-CZ', {
-            style: 'currency',
-            currency: currency || 'CZK',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(amount);
     };
 
     const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
