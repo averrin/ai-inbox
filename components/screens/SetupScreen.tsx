@@ -45,8 +45,9 @@ import { Colors } from '../ui/design-tokens';
 import { AppButton } from '../ui/AppButton';
 import { MoneySettings } from '../settings/MoneySettings';
 import { TimeoutsSettings } from '../settings/TimeoutsSettings';
+import { FocusPanelSettings } from '../settings/FocusPanelSettings';
 
-type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile' | 'walk' | 'sync-debug' | 'money';
+type SettingsSection = 'root' | 'general' | 'calendars' | 'event-types' | 'time-ranges' | 'reminders' | 'tasks-tags' | 'contacts' | 'weather' | 'checks-mood' | 'advanced' | 'jules' | 'forecast' | 'cloud-sync' | 'integrations' | 'logs' | 'news' | 'navigation' | 'profile' | 'walk' | 'sync-debug' | 'money' | 'focus';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -716,6 +717,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                 "Dashboard & Properties"
             )}
             {renderMenuButton(
+                "Focus Panel",
+                "filter-outline",
+                () => setActiveSection('focus'),
+                "Task status visibility"
+            )}
+            {renderMenuButton(
                 "Contacts & Attendees",
                 "people-outline",
                 () => setActiveSection('contacts'),
@@ -972,6 +979,12 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                                         <View className="mb-6"><TasksSettings /></View>
                                         <View><TagPropertySettings /></View>
                                     </View>
+                                </>
+                            )}
+                            {activeSection === 'focus' && (
+                                <>
+                                    {renderHeader("Focus Panel", () => setActiveSection('root'))}
+                                    <View className="px-0"><FocusPanelSettings /></View>
                                 </>
                             )}
                             {activeSection === 'contacts' && (

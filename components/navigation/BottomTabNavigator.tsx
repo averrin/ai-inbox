@@ -12,6 +12,7 @@ import CanvasScreen from '../screens/CanvasScreen';
 import JulesScreen from '../screens/jules/JulesScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import MoneyScreen from '../screens/money/MoneyScreen';
+import { FocusSettingsScreen } from '../screens/FocusSettingsScreen';
 import { ShareIntent } from 'expo-share-intent';
 import { useEffect, useState } from 'react';
 import { useNavigation, NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
@@ -238,7 +239,8 @@ function InnerTabNavigator({
     Jules: { component: JulesScreen },
     News: { component: NewsScreen },
     Profile: { component: ProfileScreen },
-    Settings: { children: () => <SetupScreen canClose={true} /> }
+    Settings: { children: () => <SetupScreen canClose={true} /> },
+    FocusSettings: { component: FocusSettingsScreen },
   };
 
   // Fallback if navConfig is empty (migration issue)
