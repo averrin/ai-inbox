@@ -1,6 +1,7 @@
 import { View, Text, TextInput, TouchableOpacity, ScrollView, RefreshControl, ActivityIndicator, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettingsStore, MetadataConfig } from '../../../store/settings';
+import { useMoneyStore } from '../../../store/moneyStore';
 import { useState, useEffect, useMemo } from 'react';
 import { buxferService, Account, Transaction, Budget } from '../../../services/buxferService';
 import { BaseScreen } from '../BaseScreen';
@@ -20,9 +21,31 @@ import { getTransactionStyle } from './moneyUtils';
 
 
 
+const fetchTransactionsForPeriod = async (t: string, start: string, end: string) => {
+    let allTxs: Transaction[] = [];
+    let page: number = 1;
+    let hasMore = true;
+    while (hasMore) {
+        const txs = await buxferService.getTransactions(t, page, {
+            startDate: start,
+            endDate: end
+        });
+        if (txs.length === 0) {
+            hasMore = false;
+        } else {
+            allTxs = [...allTxs, ...txs];
+            page++;
+            // Safety break to prevent infinite loops if API behaves weirdly
+            if (page > 20) hasMore = false;
+        }
+    }
+    return allTxs;
+};
+
 export default function MoneyScreen() {
     const insets = useSafeAreaInsets();
     const { buxferEmail, buxferPassword, setBuxferEmail, setBuxferPassword, tagConfig } = useSettingsStore();
+    const { previousMonthTransactions, previousMonthId, setPreviousMonthTransactions } = useMoneyStore();
 
     const [loading, setLoading] = useState(false);
     const [token, setToken] = useState<string | null>(null);
@@ -75,32 +98,23 @@ export default function MoneyScreen() {
                 // However, with dates, maybe it returns all? I'll assume standard pagination and fetch a reasonable amount.
                 // Let's implement a loop to be safe.
 
-                const fetchMonthTransactions = async (t: string) => {
-                    let allTxs: Transaction[] = [];
-                    let page: number = 1;
-                    let hasMore = true;
-                    while (hasMore) {
-                        const txs = await buxferService.getTransactions(t, page, {
-                            startDate: startOfMonth,
-                            endDate: endOfMonth
-                        });
-                        if (txs.length === 0) {
-                            hasMore = false;
-                        } else {
-                            allTxs = [...allTxs, ...txs];
-                            page++;
-                            // Safety break to prevent infinite loops if API behaves weirdly
-                            if (page > 20) hasMore = false;
-                        }
-                    }
-                    return allTxs;
-                };
+                const prevMonthId = dayjs().subtract(1, 'month').format('YYYY-MM');
+                const fetchPrev = previousMonthId !== prevMonthId || !previousMonthTransactions || previousMonthTransactions.length === 0;
 
-                const [accs, txs, bdgts] = await Promise.all([
+                const prevStart = dayjs().subtract(1, 'month').startOf('month').format('YYYY-MM-DD');
+                const prevEnd = dayjs().subtract(1, 'month').endOf('month').format('YYYY-MM-DD');
+
+                const [accs, txs, bdgts, prevTxs] = await Promise.all([
                     buxferService.getAccounts(currentToken),
-                    fetchMonthTransactions(currentToken),
-                    buxferService.getBudgets(currentToken)
+                    fetchTransactionsForPeriod(currentToken, startOfMonth, endOfMonth),
+                    buxferService.getBudgets(currentToken),
+                    fetchPrev ? fetchTransactionsForPeriod(currentToken, prevStart, prevEnd) : Promise.resolve(null)
                 ]);
+
+                if (prevTxs) {
+                    setPreviousMonthTransactions(prevMonthId, prevTxs);
+                }
+
                 setAccounts(accs);
                 setTransactions(txs);
                 setBudgets(bdgts);
@@ -250,7 +264,7 @@ export default function MoneyScreen() {
                 </View>
             </View>
 
-            <SpendingChart transactions={transactions} />
+            <SpendingChart transactions={transactions} previousMonthTransactions={previousMonthTransactions} />
 
             {/* Accounts Section */}
             <View className="mb-6 flex-col gap-2">
