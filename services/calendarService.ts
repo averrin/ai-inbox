@@ -342,6 +342,10 @@ export const updateCalendarEvent = async (eventId: string, eventData: Partial<Ca
         alarms: eventData.alarms,
     };
 
+    if (eventData.attendees) {
+        nativeEventData.attendees = eventData.attendees;
+    }
+
     if (eventData.startDate) {
         const sDate = new Date(eventData.startDate);
         if (!isNaN(sDate.getTime())) {
@@ -547,7 +551,12 @@ export const getUpcomingEvents = async (days: number = 3): Promise<string> => {
     }
 };
 
-export const updateEventRSVP = async (eventId: string, status: string, currentAttendees: any[]) => {
+export const updateEventRSVP = async (
+    eventId: string,
+    status: string,
+    currentAttendees: any[],
+    options?: { editScope?: 'this' | 'future' | 'all', instanceStartDate?: string | Date }
+) => {
     const hasPermission = await ensureCalendarPermissions();
     if (!hasPermission) throw new Error("Missing calendar permissions");
 
@@ -563,14 +572,20 @@ export const updateEventRSVP = async (eventId: string, status: string, currentAt
     console.log(`[CalendarService] Updating RSVP for ${eventId} to ${status}. Attendee:`, { ...userAttendee, status });
 
     try {
-        if (Platform.OS === 'android' && userAttendee.id) {
-            // Android: attendees are in a separate table, update directly
-            await Calendar.updateAttendeeAsync(userAttendee.id, { status: status as any });
+        // On Android, use direct attendee update for single instance if no scope is provided (legacy/default behavior)
+        // or if explicitly 'this', as updateCalendarEvent (via updateEventAsync) might not handle attendees reliably on Android.
+        // However, if editScope is 'all' or 'future', we MUST try updateCalendarEvent to reach the series.
+        if (Platform.OS === 'android' && (!options?.editScope || options.editScope === 'this') && userAttendee.id) {
+            await Calendar.updateAttendeeAsync(userAttendee.id, { status });
         } else {
             const updatedAttendees = [...currentAttendees];
             updatedAttendees[userAttendeeIndex] = { ...userAttendee, status };
-            // @ts-ignore - 'attendees' is not in the type definition but is required for RSVP updates
-            await Calendar.updateEventAsync(eventId, { attendees: updatedAttendees } as any);
+
+            await updateCalendarEvent(eventId, {
+                attendees: updatedAttendees,
+                editScope: options?.editScope,
+                instanceStartDate: options?.instanceStartDate
+            });
         }
         console.log(`[CalendarService] RSVP update successful for ${eventId}`);
     } catch (e) {
