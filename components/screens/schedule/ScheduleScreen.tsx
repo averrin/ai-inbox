@@ -351,24 +351,8 @@ export const ScheduleScreen = () => {
                 return true;
             });
 
-            // Map reminders to BigCalendar format (markers)
-            // Read from store at call time to avoid stale closure data
-            const latestReminders = useSettingsStore.getState().cachedReminders;
-            const mappedReminders = (latestReminders || [])
-                .filter((r: any) => r.reminderTime)
-                .map((r: any) => ({
-                    title: r.title || r.fileName?.replace('.md', '') || 'Untitled Reminder',
-                    start: new Date(r.reminderTime),
-                    end: new Date(r.reminderTime),
-                    color: r.alarm ? Colors.error : Palette[5],
-                    originalEvent: r,
-                    type: 'marker' as const,
-                    difficulty: undefined,
-                    typeTag: 'REMINDER',
-                    movable: true
-                }));
 
-            const combinedEvents = [...mappedEvents, ...mappedReminders];
+            const combinedEvents = [...mappedEvents];
 
             // Add Zones for All-Day Events
             const allDayZones = mappedEvents
@@ -408,6 +392,25 @@ export const ScheduleScreen = () => {
             setIsEventsLoaded(true);
         }
     }, [visibleCalendarIds, date, viewMode, assignments, eventTypes, difficulties, eventFlags, eventIcons, ranges, defaultOpenCalendarId, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes]);
+
+
+    const mappedReminders = useMemo(() => {
+        return (cachedReminders || [])
+            .filter((r: any) => r.reminderTime)
+            .map((r: any) => ({
+                title: r.title || r.fileName?.replace('.md', '') || 'Untitled Reminder',
+                start: new Date(r.reminderTime),
+                end: new Date(r.reminderTime),
+                color: r.alarm ? Colors.error : Palette[5],
+                originalEvent: r,
+                type: 'marker' as const,
+                difficulty: undefined,
+                typeTag: 'REMINDER',
+                movable: true
+            }));
+    }, [cachedReminders]);
+
+    const eventsWithReminders = useMemo(() => [...events, ...mappedReminders], [events, mappedReminders]);
 
 
     const handleQuickAction = useCallback((action: 'event' | 'reminder' | 'zone', date: Date) => {
@@ -490,13 +493,13 @@ export const ScheduleScreen = () => {
     const timeRangeEvents = useTimeRangeEvents(hookDateRange);
 
     const focusRanges = useMemo(() => {
-        return detectFocusRanges(events);
-    }, [events]);
+        return detectFocusRanges(eventsWithReminders);
+    }, [eventsWithReminders]);
 
-    const { lunchEvents, dayDifficulties: lunchDifficulties } = useLunchSuggestion(events, hookDateRange);
+    const { lunchEvents, dayDifficulties: lunchDifficulties } = useLunchSuggestion(eventsWithReminders, hookDateRange);
 
     const { walkEvent, dismiss: dismissWalk, refresh: refreshWalk, isLoading: isWalkLoading } = useWalkSuggestion({
-        events,
+        events: eventsWithReminders,
         extraEvents: lunchEvents,
         selectedDate: date,
         weather: weatherData[dayjs(date).format('YYYY-MM-DD')]?.hourly || [],
@@ -510,7 +513,7 @@ export const ScheduleScreen = () => {
         const eventsByDay: Record<string, any[]> = {};
 
         // Group events by day
-        events.forEach(e => {
+        eventsWithReminders.forEach(e => {
             if (e.type === 'marker') return;
             const dayStr = dayjs(e.start).format('YYYY-MM-DD');
             if (!eventsByDay[dayStr]) eventsByDay[dayStr] = [];
@@ -548,7 +551,7 @@ export const ScheduleScreen = () => {
         });
 
         return map;
-    }, [events, lunchDifficulties, focusRanges]);
+    }, [eventsWithReminders, lunchDifficulties, focusRanges]);
 
     const workRanges = useMemo(() => timeRangeEvents.filter((e: any) => e.isWork), [timeRangeEvents]);
 
@@ -559,7 +562,7 @@ export const ScheduleScreen = () => {
         handleEventDrop,
         handleToggleCompleted
     } = useScheduleActions({
-        events,
+        events: eventsWithReminders,
         setEvents,
         fetchEvents,
         cachedReminders,
@@ -587,7 +590,7 @@ export const ScheduleScreen = () => {
         return (
             <ScheduleHeader
                 headerProps={headerProps}
-                events={events}
+                events={eventsWithReminders}
                 focusRanges={focusRanges}
                 lunchDifficulties={lunchDifficulties}
                 weatherData={weatherData}
@@ -599,7 +602,7 @@ export const ScheduleScreen = () => {
                     setMoodModalVisible(true);
                 }}
                 onWeatherPress={() => setWeatherModalVisible(true)}
-                onGenerateSuggestions={generateSuggestions}
+                onGenerateSuggestions={() => generateSuggestions(eventsWithReminders, workRanges)}
                 onToggleAdditionalCalendars={() => setShowAdditionalCalendars(!showAdditionalCalendars)}
                 onShowSummary={(data) => {
                     setSummaryData(data);
@@ -607,17 +610,17 @@ export const ScheduleScreen = () => {
                 }}
             />
         );
-    }, [events, focusRanges, lunchDifficulties, weatherData, moods, isAssistantLoading, showAdditionalCalendars, generateSuggestions]);
+    }, [eventsWithReminders, focusRanges, lunchDifficulties, weatherData, moods, isAssistantLoading, showAdditionalCalendars, generateSuggestions]);
 
     const freeTimeZones = useMemo(() => {
         if (!isEventsLoaded) return [];
-        return detectFreeTimeZones(events, workRanges);
-    }, [events, workRanges, isEventsLoaded]);
+        return detectFreeTimeZones(eventsWithReminders, workRanges);
+    }, [eventsWithReminders, workRanges, isEventsLoaded]);
 
 
 
     const allEvents = useMemo(() => {
-        const displayedEvents = showAdditionalCalendars ? events : events.filter(e => {
+        const displayedEvents = showAdditionalCalendars ? eventsWithReminders : eventsWithReminders.filter(e => {
             if (e.type === 'marker' || e.type === 'zone' || !e.originalEvent?.calendarId) return true;
             const calId = e.originalEvent.calendarId;
             return personalCalendarIds.includes(calId) || workCalendarIds.includes(calId);
@@ -626,7 +629,7 @@ export const ScheduleScreen = () => {
         const base = [...displayedEvents, ...timeRangeEvents, ...focusRanges, ...freeTimeZones, ...lunchEvents, ...assistantEvents];
         if (walkEvent) base.push(walkEvent);
         return base;
-    }, [events, timeRangeEvents, focusRanges, freeTimeZones, lunchEvents, walkEvent, assistantEvents, showAdditionalCalendars, personalCalendarIds, workCalendarIds]);
+    }, [eventsWithReminders, timeRangeEvents, focusRanges, freeTimeZones, lunchEvents, walkEvent, assistantEvents, showAdditionalCalendars, personalCalendarIds, workCalendarIds]);
 
     const isTodaySelected = dayjs(date).isSame(dayjs(), 'day');
 
@@ -712,7 +715,7 @@ export const ScheduleScreen = () => {
                     <View className="flex-1" style={{ paddingTop: headerHeight + 80 }}>
                         <TodaysTasksPanel
                             date={date}
-                            events={events}
+                            events={eventsWithReminders}
                             onAdd={handleAddTask}
                             onEditTask={setEditingTask}
                             onRefresh={fetchEvents}

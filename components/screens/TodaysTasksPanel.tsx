@@ -634,12 +634,12 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                                     isHighlighted = true;
                                     highlightColor = item.data.color || highlightColor;
                                 }
-                            } else {
+                            } else if (item.type === 'task') {
                                 // Task
                                 isCompleted = item.data.status === 'x';
                                 // Task: Check all linked events
-                                const taskEventIds = item.data.properties.event_id?.split(',').map((id: string) => id.trim()).filter(Boolean) || [];
-                                const taskEventTitle = item.data.properties.event_title;
+                                const taskEventIds = item.data.properties?.event_id?.split(',').map((id: string) => id.trim()).filter(Boolean) || [];
+                                const taskEventTitle = item.data.properties?.event_title;
 
                                 for (const taskEventId of taskEventIds) {
                                     const linkedEvent = calendarEvents.find(e => {
@@ -664,6 +664,15 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                                             highlightColor = linkedEvent.color || highlightColor;
                                         }
                                     }
+                                }
+                            } else if (item.type === 'reminder') {
+                                isCompleted = false; // Reminders don't have completion yet
+                                const start = dayjs(item.data.start);
+                                // Reminders are "now" if within 5 mins
+                                const isNow = Math.abs(dayjs(now).diff(start, 'minute')) <= 5;
+                                if (isNow) {
+                                    isHighlighted = true;
+                                    highlightColor = item.data.color || Colors.warning;
                                 }
                             }
 
