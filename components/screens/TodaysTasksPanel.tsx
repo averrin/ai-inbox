@@ -515,10 +515,6 @@ export const TodaysTasksPanel = ({ date, events: calendarEvents, onAdd, onEditTa
                     instanceStartDate: item.start // Required for identifying instance
                 });
 
-                if (onRefresh) {
-                    setTimeout(() => onRefresh(), 500);
-                }
-                Toast.show({ type: 'success', text1: 'Rescheduled', text2: `Moved to ${dayjs(slot).format('MMM D HH:mm')}` });
             } else if (isReminder) {
                 // Reminder Logic
                 const reminderId = item.originalEvent?.id || item.id;
