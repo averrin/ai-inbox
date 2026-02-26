@@ -20,6 +20,7 @@
     "@react-navigation/native": "^7.1.8",
     "@xmldom/xmldom": "^0.8.11",
     "apk-installer": "file:./local-modules/apk-installer",
+    "proxmox-network": "file:./local-modules/proxmox-network",
     "calendarize": "^1.1.1",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.19",

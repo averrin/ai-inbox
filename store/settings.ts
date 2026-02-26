@@ -61,6 +61,7 @@ export const DEFAULT_NAV_ITEMS: NavItemConfig[] = [
     { id: 'Canvas', visible: true, title: 'Canvas', icon: 'brush-outline', type: 'screen', segment: 'left' },
     { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline', type: 'screen', segment: 'left' },
     { id: 'Profile', visible: true, title: 'Profile', icon: 'person-outline', type: 'screen', segment: 'left' },
+    { id: 'Proxmox', visible: true, title: 'Proxmox', icon: 'server-outline', type: 'screen', segment: 'left' },
     { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline', type: 'screen', segment: 'left' },
 ];
 
@@ -437,8 +438,26 @@ export const useSettingsStore = create<SettingsState>()(
                 const { cachedReminders, ...rest } = state;
                 return rest;
             },
-            version: 13,
+            version: 14,
             migrate: (persistedState: any, version: number) => {
+                if (version < 14) {
+                    if (persistedState.navConfig && !persistedState.navConfig.some((item: any) => item.id === 'Proxmox')) {
+                        const settingsIndex = persistedState.navConfig.findIndex((item: any) => item.id === 'Settings');
+                        const newItem = {
+                            id: 'Proxmox',
+                            visible: true,
+                            title: 'Proxmox',
+                            icon: 'server-outline',
+                            type: 'screen',
+                            segment: 'left'
+                        };
+                        if (settingsIndex !== -1) {
+                            persistedState.navConfig.splice(settingsIndex, 0, newItem);
+                        } else {
+                            persistedState.navConfig.push(newItem);
+                        }
+                    }
+                }
                 if (version < 13) {
                     if (persistedState.navConfig && !persistedState.navConfig.some((item: any) => item.id === 'Money')) {
                         const settingsIndex = persistedState.navConfig.findIndex((item: any) => item.id === 'Settings');
