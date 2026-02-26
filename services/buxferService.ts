@@ -20,6 +20,7 @@ export interface Account {
   balance: number;
   currency?: string;
   lastSynced?: string;
+  type?: string;
 }
 
 export interface Transaction {
@@ -112,6 +113,18 @@ class BuxferService {
 
   async editTransaction(token: string, id: string, params: { tags: string }): Promise<void> {
     await this.request('transaction_edit', 'POST', { token, id, ...params });
+  }
+
+  async addTransaction(token: string, params: {
+    description: string;
+    amount: number;
+    accountId: string;
+    date: string; // YYYY-MM-DD
+    type: 'expense' | 'income' | 'transfer' | 'refund' | 'paidForFriend' | 'sharedBill' | 'loan' | 'investment_buy' | 'investment_sell';
+    status?: 'cleared' | 'pending';
+    tags?: string;
+  }): Promise<void> {
+    await this.request('transaction_add', 'POST', { token, ...params });
   }
 }
 
