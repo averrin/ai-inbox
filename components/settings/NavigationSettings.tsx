@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, Pressable } from 'react-native';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -13,6 +13,14 @@ import { showAlert } from '../../utils/alert';
 import DraggableFlatList, { ScaleDecorator, RenderItemParams, ShadowDecorator } from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+// Wrapper type for the unified list
+type ListItem =
+    | { type: 'header-left' }
+    | { type: 'header-right' }
+    | { type: 'action-add-left' }
+    | { type: 'action-add-right' }
+    | (NavItemConfig & { isItem: true });
+
 export function NavigationSettings({ onBack }: { onBack?: () => void }) {
     const { navConfig, setNavConfig, savedNavConfig, setSavedNavConfig } = useSettingsStore();
     const [editingGroup, setEditingGroup] = useState<NavItemConfig | null>(null);
@@ -21,6 +29,54 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
     // Filter Config by Segment
     const leftItems = navConfig.filter(i => i.segment !== 'right');
     const rightItems = navConfig.filter(i => i.segment === 'right');
+
+    // Create a unified list for DraggableFlatList
+    const data: ListItem[] = useMemo(() => [
+        { type: 'header-left' },
+        ...leftItems.map(item => ({ ...item, isItem: true } as const)),
+        { type: 'action-add-left' },
+        { type: 'header-right' },
+        ...rightItems.map(item => ({ ...item, isItem: true } as const)),
+        { type: 'action-add-right' }
+    ], [navConfig]);
+
+    // Handle reordering
+    const handleDragEnd = ({ data }: { data: ListItem[] }) => {
+        const newNavConfig: NavItemConfig[] = [];
+        let currentSegment: 'left' | 'right' = 'left';
+
+        // Iterate through the reordered list to reconstruct navConfig
+        for (const item of data) {
+            if ('type' in item && item.type === 'header-right') {
+                currentSegment = 'right';
+                continue;
+            }
+            if ('type' in item && item.type === 'header-left') {
+                currentSegment = 'left'; // Should be start, but just in case
+                continue;
+            }
+            if ('type' in item && (item.type === 'action-add-left' || item.type === 'action-add-right')) {
+                continue;
+            }
+
+            // It's a config item
+            if ('isItem' in item) {
+                // Ensure segment is updated based on position
+                // Create a clean NavItemConfig object
+                const configItem: NavItemConfig = {
+                    id: item.id,
+                    type: item.type,
+                    title: item.title,
+                    icon: item.icon,
+                    visible: item.visible,
+                    segment: currentSegment,
+                    children: item.children
+                };
+                newNavConfig.push(configItem);
+            }
+        }
+        setNavConfig(newNavConfig);
+    };
 
     // Calculate Missing Items (Available to Add)
     // Check if an item from DEFAULT_NAV_ITEMS is present in navConfig (either at root or inside a group)
@@ -34,11 +90,6 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
 
     const missingItems = DEFAULT_NAV_ITEMS.filter(def => !isItemInConfig(def.id, navConfig));
 
-    const updateConfig = (newLeft: NavItemConfig[], newRight: NavItemConfig[]) => {
-        // Reconstruct full config
-        setNavConfig([...newLeft, ...newRight]);
-    };
-
     const handleSwitchSegment = (id: string) => {
         const item = navConfig.find(i => i.id === id);
         if (!item) return;
@@ -46,13 +97,8 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
         const isRight = item.segment === 'right';
         const newSegment = isRight ? 'left' : 'right';
 
-        const newItem = { ...item, segment: newSegment as 'left' | 'right' };
-
-        // Remove from old list, add to new list
-        const newLeft = isRight ? [...leftItems, newItem] : leftItems.filter(i => i.id !== id);
-        const newRight = isRight ? rightItems.filter(i => i.id !== id) : [...rightItems, newItem];
-
-        updateConfig(newLeft, newRight);
+        const newConfig = navConfig.map(i => i.id === id ? { ...i, segment: newSegment as 'left' | 'right' } : i);
+        setNavConfig(newConfig);
     };
 
     const handleUpdate = (id: string, field: keyof NavItemConfig, value: any) => {
@@ -340,16 +386,58 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
         );
     };
 
-    const renderItem = ({ item, drag, isActive }: RenderItemParams<NavItemConfig>) => {
-        const isGroup = item.type === 'group';
-        const isRight = item.segment === 'right';
+    const renderItem = ({ item, drag, isActive }: RenderItemParams<ListItem>) => {
+        // Render Headers
+        if ('type' in item && !('isItem' in item)) {
+            if (item.type === 'header-left') {
+                return (
+                    <View className="mt-4 mb-2">
+                         <Text className="text-text-tertiary text-[10px] font-bold uppercase tracking-wider ml-1">Left Segment</Text>
+                    </View>
+                );
+            }
+            if (item.type === 'header-right') {
+                return (
+                     <View className="mt-4 mb-2 pt-2 border-t border-border">
+                         <Text className="text-text-secondary font-semibold text-xs ml-1">Right Segment</Text>
+                    </View>
+                );
+            }
+            if (item.type === 'action-add-left') {
+                return (
+                    <Button
+                        title="+ Add Group (Left)"
+                        onPress={() => handleAddGroup('left')}
+                        variant="primary"
+                        className="mt-2 py-2"
+                        textStyle="text-xs"
+                    />
+                );
+            }
+             if (item.type === 'action-add-right') {
+                return (
+                    <Button
+                        title="+ Add Group (Right)"
+                        onPress={() => handleAddGroup('right')}
+                        variant="primary"
+                        className="mt-2 py-2"
+                        textStyle="text-xs"
+                    />
+                );
+            }
+            return null;
+        }
+
+        // It is an item (NavConfigItem)
+        const configItem = item as (NavItemConfig & { isItem: true });
+        const isGroup = configItem.type === 'group';
+        const isRight = configItem.segment === 'right';
 
         return (
             <ScaleDecorator>
                 <TouchableOpacity
                     onLongPress={drag}
                     disabled={isActive}
-                    key={item.id}
                     className={`flex-row items-center border rounded-lg p-1.5 mb-1.5 gap-2 ${isGroup ? 'bg-primary/5 border-primary/20' : 'bg-surface border-border/30'} ${isActive ? 'opacity-70' : ''}`}
                 >
                     {/* Drag Handle */}
@@ -359,11 +447,11 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
 
                     {/* Icon */}
                     <TouchableOpacity
-                        onPress={() => setIconPickerTarget({ id: item.id })}
+                        onPress={() => setIconPickerTarget({ id: configItem.id })}
                         className={`w-8 h-8 items-center justify-center rounded-md border ${isGroup ? 'bg-primary/10 border-primary/20' : 'bg-surface-highlight border-border'}`}
                     >
                         <UniversalIcon
-                            name={item.icon}
+                            name={configItem.icon}
                             size={18}
                             color={isGroup ? "#818cf8" : "white"}
                         />
@@ -372,8 +460,8 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
                     {/* Content */}
                     <View className="flex-1">
                         <TextInput
-                            value={item.title}
-                            onChangeText={(text) => handleUpdate(item.id, 'title', text)}
+                            value={configItem.title}
+                            onChangeText={(text) => handleUpdate(configItem.id, 'title', text)}
                             placeholder="Label"
                             placeholderTextColor={Colors.secondary}
                             className="text-white text-xs font-bold p-0 leading-tight"
@@ -381,7 +469,7 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
                         <View className="flex-row items-center gap-1.5 mt-0.5">
                             {isGroup && <Ionicons name="folder" size={10} color="#818cf8" />}
                             <Text className="text-text-tertiary text-[8px] font-mono uppercase tracking-tight leading-none" numberOfLines={1}>
-                                {isGroup ? `Group (${item.children?.length || 0})` : item.id}
+                                {isGroup ? `Group (${configItem.children?.length || 0})` : configItem.id}
                             </Text>
                         </View>
                     </View>
@@ -390,7 +478,7 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
                     <View className="flex-row items-center gap-1">
                         {isGroup && (
                             <TouchableOpacity
-                                onPress={() => setEditingGroup(item)}
+                                onPress={() => setEditingGroup(configItem)}
                                 className="w-7 h-7 items-center justify-center rounded-md bg-primary/10 border border-primary/20"
                             >
                                 <Ionicons name="create-outline" size={14} color="#818cf8" />
@@ -398,14 +486,14 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
                         )}
 
                         <TouchableOpacity
-                            onPress={() => handleSwitchSegment(item.id)}
+                            onPress={() => handleSwitchSegment(configItem.id)}
                             className="w-7 h-7 items-center justify-center rounded-md bg-surface-highlight/30 border border-border/20"
                         >
                             <Ionicons name={isRight ? 'arrow-back' : 'arrow-forward'} size={14} color={Colors.secondary} />
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            onPress={() => handleDelete(item.id)}
+                            onPress={() => handleDelete(configItem.id)}
                             className="w-7 h-7 items-center justify-center rounded-md bg-error/10"
                         >
                             <Ionicons name="trash-outline" size={14} color={Colors.error} />
@@ -417,91 +505,58 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
     };
 
     return (
-        <GestureHandlerRootView className="flex-1">
-            <View className="mt-1 mb-8">
-            <Card>
-                <View className="mb-4">
-                    <Text className="text-text-tertiary text-[10px] font-bold uppercase tracking-wider mb-2 ml-1">Left Segment</Text>
-                    <View style={{ minHeight: 10 }}>
-                        <DraggableFlatList
-                            data={leftItems}
-                            onDragEnd={({ data }) => updateConfig(data, rightItems)}
-                            keyExtractor={(item) => item.id}
-                            renderItem={renderItem}
-                            scrollEnabled={false}
-                        />
-                    </View>
+        <GestureHandlerRootView className="flex-1 px-4">
+            <Card className="flex-1">
+                <DraggableFlatList
+                    data={data}
+                    onDragEnd={handleDragEnd}
+                    keyExtractor={(item, index) => 'isItem' in item ? item.id : `header-${index}`}
+                    renderItem={renderItem}
+                    containerStyle={{ flex: 1 }}
+                    ListFooterComponent={
+                        <>
+                             {missingItems.length > 0 && (
+                                <View className="mb-2 pt-3 border-t border-border">
+                                    <Text className="text-text-secondary mb-2 font-semibold text-xs">Available Screens</Text>
+                                    <View className="flex-row flex-wrap gap-2">
+                                        {missingItems.map(screen => (
+                                            <TouchableOpacity
+                                                key={screen.id}
+                                                onPress={() => handleAddScreen(screen)}
+                                                className="flex-row items-center bg-surface border border-border rounded-md px-2 py-1.5"
+                                            >
+                                                <Ionicons name="add" size={14} color="#818cf8" style={{ marginRight: 4 }} />
+                                                <Text className="text-text-secondary text-xs">{screen.title}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                            )}
 
-                    <Button
-                        title="+ Add Group (Left)"
-                        onPress={() => handleAddGroup('left')}
-                        variant="primary"
-                        className="mt-2 py-2"
-                        textStyle="text-xs"
-                    />
-                </View>
-
-                <View className="mb-2 pt-3 border-t border-border">
-                    <Text className="text-text-secondary mb-2 font-semibold text-xs">Right Segment</Text>
-                    <View style={{ minHeight: 10 }}>
-                         <DraggableFlatList
-                            data={rightItems}
-                            onDragEnd={({ data }) => updateConfig(leftItems, data)}
-                            keyExtractor={(item) => item.id}
-                            renderItem={renderItem}
-                            scrollEnabled={false}
-                        />
-                    </View>
-
-                     <Button
-                        title="+ Add Group (Right)"
-                        onPress={() => handleAddGroup('right')}
-                        variant="primary"
-                        className="mt-2 py-2"
-                        textStyle="text-xs"
-                    />
-                </View>
-
-                {missingItems.length > 0 && (
-                    <View className="mb-2 pt-3 border-t border-border">
-                        <Text className="text-text-secondary mb-2 font-semibold text-xs">Available Screens</Text>
-                        <View className="flex-row flex-wrap gap-2">
-                            {missingItems.map(screen => (
-                                <TouchableOpacity
-                                    key={screen.id}
-                                    onPress={() => handleAddScreen(screen)}
-                                    className="flex-row items-center bg-surface border border-border rounded-md px-2 py-1.5"
-                                >
-                                    <Ionicons name="add" size={14} color="#818cf8" style={{ marginRight: 4 }} />
-                                    <Text className="text-text-secondary text-xs">{screen.title}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-                )}
-
-                <View className="mt-3 pt-3 border-t border-border flex-row gap-2">
-                     <View className="flex-1">
-                        <Button
-                            title="Reset..."
-                            onPress={handleReset}
-                            variant="secondary"
-                            className="py-2"
-                            textStyle="text-xs"
-                        />
-                     </View>
-                     <View className="flex-1">
-                        <Button
-                            title="Save as Default"
-                            onPress={handleSaveAsDefault}
-                            variant="primary"
-                            className="py-2"
-                            textStyle="text-xs"
-                        />
-                     </View>
-                </View>
+                            <View className="mt-3 pt-3 border-t border-border flex-row gap-2 pb-8">
+                                <View className="flex-1">
+                                    <Button
+                                        title="Reset..."
+                                        onPress={handleReset}
+                                        variant="secondary"
+                                        className="py-2"
+                                        textStyle="text-xs"
+                                    />
+                                </View>
+                                <View className="flex-1">
+                                    <Button
+                                        title="Save as Default"
+                                        onPress={handleSaveAsDefault}
+                                        variant="primary"
+                                        className="py-2"
+                                        textStyle="text-xs"
+                                    />
+                                </View>
+                            </View>
+                        </>
+                    }
+                />
             </Card>
-            </View>
 
             {renderGroupEditor()}
 
