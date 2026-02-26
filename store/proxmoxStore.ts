@@ -41,6 +41,7 @@ export interface ProxmoxServer {
     nodes: ProxmoxNode[];
     services: ProxmoxService[];
     lastSync?: number;
+    lastError?: string; // Store last error for debugging
 }
 
 interface ProxmoxState {
@@ -48,7 +49,8 @@ interface ProxmoxState {
     addServer: (server: Omit<ProxmoxServer, 'id' | 'nodes' | 'services'>) => void;
     removeServer: (id: string) => void;
     updateServer: (id: string, updates: Partial<ProxmoxServer>) => void;
-    setServerData: (serverId: string, nodes: ProxmoxNode[], services: ProxmoxService[]) => void;
+    setServerData: (serverId: string, nodes: ProxmoxNode[], services: ProxmoxService[], error?: string) => void;
+    setServerError: (serverId: string, error: string) => void;
 }
 
 export const useProxmoxStore = create<ProxmoxState>()(
@@ -72,10 +74,17 @@ export const useProxmoxStore = create<ProxmoxState>()(
             updateServer: (id, updates) => set((state) => ({
                 servers: state.servers.map((s) => s.id === id ? { ...s, ...updates } : s)
             })),
-            setServerData: (serverId, nodes, services) => set((state) => ({
+            setServerData: (serverId, nodes, services, error) => set((state) => ({
                 servers: state.servers.map((s) =>
                     s.id === serverId
-                        ? { ...s, nodes, services, lastSync: Date.now() }
+                        ? { ...s, nodes, services, lastSync: Date.now(), lastError: error }
+                        : s
+                )
+            })),
+            setServerError: (serverId, error) => set((state) => ({
+                servers: state.servers.map((s) =>
+                    s.id === serverId
+                        ? { ...s, lastError: error }
                         : s
                 )
             })),

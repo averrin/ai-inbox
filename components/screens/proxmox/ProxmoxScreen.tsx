@@ -50,6 +50,11 @@ const ServerItem = ({ server }: { server: ProxmoxServer }) => {
                         )}
                     </View>
                     <Text style={{ color: Colors.text.secondary, fontSize: 12 }}>{server.url}</Text>
+                    {server.lastError && (
+                        <Text style={{ color: Colors.error, fontSize: 11, marginTop: 4 }}>
+                            Error: {server.lastError}
+                        </Text>
+                    )}
                 </View>
                 <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={20} color={Colors.text.tertiary} />
             </TouchableOpacity>
@@ -80,7 +85,7 @@ const ServerItem = ({ server }: { server: ProxmoxServer }) => {
 };
 
 export default function ProxmoxScreen() {
-    const { servers, setServerData } = useProxmoxStore();
+    const { servers, setServerData, setServerError } = useProxmoxStore();
     const [refreshing, setRefreshing] = useState(false);
     const navigation = useNavigation();
 
@@ -88,20 +93,24 @@ export default function ProxmoxScreen() {
         if (servers.length === 0) return;
         setRefreshing(true);
 
-        let errors = [];
+        let errors: string[] = [];
 
         for (const server of servers) {
             try {
                 const data = await fetchProxmoxData(server);
-                setServerData(server.id, data.nodes, data.services);
+                setServerData(server.id, data.nodes, data.services, data.error);
+                if (data.error) errors.push(`${server.name}: ${data.error}`);
             } catch (e: any) {
                 console.error(`Failed to refresh server ${server.name}`, e);
-                errors.push(`${server.name}: ${e.message}`);
+                const msg = e.message || 'Unknown error';
+                setServerError(server.id, msg);
+                errors.push(`${server.name}: ${msg}`);
             }
         }
 
         if (errors.length > 0) {
-            Alert.alert("Sync Errors", errors.join('\n'));
+            // Optional: Alert the user, but maybe the UI text is enough
+             Alert.alert("Sync Issues", errors.join('\n'));
         }
 
         setRefreshing(false);
