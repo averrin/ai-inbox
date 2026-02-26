@@ -1,0 +1,16 @@
+{
+  "name": "proxmox-network",
+  "version": "1.0.0",
+  "description": "Native network client for Proxmox",
+  "main": "index.js",
+  "keywords": [
+    "react-native",
+    "android"
+  ],
+  "author": "",
+  "license": "ISC",
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  }
+}
