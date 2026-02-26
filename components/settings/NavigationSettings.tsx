@@ -246,19 +246,19 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
                         onLongPress={drag}
                         disabled={isActive}
                         key={item.id}
-                        className={`flex-row items-center bg-surface-highlight/50 border border-border/40 rounded-xl p-2 mb-2 gap-3 ${isActive ? 'opacity-70' : ''}`}
+                        className={`flex-row items-center bg-surface-highlight/50 border border-border/40 rounded-lg p-1.5 mb-1.5 gap-2 ${isActive ? 'opacity-70' : ''}`}
                     >
                         <View className="flex-col gap-1 items-center justify-center h-full px-1">
-                            <Ionicons name="menu-outline" size={20} color="white" className="opacity-50" />
+                            <Ionicons name="menu-outline" size={18} color="white" className="opacity-50" />
                         </View>
 
                         <TouchableOpacity
                             onPress={() => setIconPickerTarget({ id: item.id })}
-                            className="w-10 h-10 items-center justify-center bg-background rounded-lg border border-border"
+                            className="w-8 h-8 items-center justify-center bg-background rounded-md border border-border"
                         >
                             <UniversalIcon
                                 name={item.icon}
-                                size={20}
+                                size={18}
                                 color="#818cf8"
                             />
                         </TouchableOpacity>
@@ -269,16 +269,16 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
                                 onChangeText={(text) => handleGroupChildUpdate(item.id, 'title', text)}
                                 placeholder="Tab Title"
                                 placeholderTextColor={Colors.secondary}
-                                className="text-white text-sm font-bold p-0 leading-tight"
+                                className="text-white text-xs font-bold p-0 leading-tight"
                             />
-                            <Text className="text-text-tertiary text-[9px] font-mono leading-none mt-0.5">{item.id}</Text>
+                            <Text className="text-text-tertiary text-[8px] font-mono leading-none mt-0.5">{item.id}</Text>
                         </View>
 
                         <TouchableOpacity
                             onPress={() => handleRemoveFromGroup(item.id)}
-                            className="bg-error/10 w-8 h-8 items-center justify-center rounded-lg"
+                            className="bg-error/10 w-7 h-7 items-center justify-center rounded-md"
                         >
-                            <Ionicons name="trash-outline" size={16} color={Colors.error} />
+                            <Ionicons name="trash-outline" size={14} color={Colors.error} />
                         </TouchableOpacity>
                     </TouchableOpacity>
                 </ScaleDecorator>
@@ -320,10 +320,10 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
                                         <TouchableOpacity
                                             key={screen.id}
                                             onPress={() => handleAddToGroup(screen)}
-                                            className="flex-row items-center bg-surface border border-border rounded-lg px-3 py-2 mb-2"
+                                            className="flex-row items-center bg-surface border border-border rounded-md px-2 py-1.5 mb-2"
                                         >
-                                            <Ionicons name="add" size={16} color="#818cf8" style={{ marginRight: 4 }} />
-                                            <Text className="text-text-secondary text-sm">{screen.title}</Text>
+                                            <Ionicons name="add" size={14} color="#818cf8" style={{ marginRight: 4 }} />
+                                            <Text className="text-text-secondary text-xs">{screen.title}</Text>
                                         </TouchableOpacity>
                                     ))}
                                     {availableItems.length === 0 && (
@@ -350,21 +350,21 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
                     onLongPress={drag}
                     disabled={isActive}
                     key={item.id}
-                    className={`flex-row items-center border rounded-xl p-2 mb-2 gap-3 ${isGroup ? 'bg-primary/5 border-primary/20' : 'bg-surface border-border/30'} ${isActive ? 'opacity-70' : ''}`}
+                    className={`flex-row items-center border rounded-lg p-1.5 mb-1.5 gap-2 ${isGroup ? 'bg-primary/5 border-primary/20' : 'bg-surface border-border/30'} ${isActive ? 'opacity-70' : ''}`}
                 >
                     {/* Drag Handle */}
                     <View className="flex-col gap-1 items-center justify-center h-full px-1">
-                         <Ionicons name="menu-outline" size={24} color={Colors.secondary} className="opacity-50" />
+                         <Ionicons name="menu-outline" size={20} color={Colors.secondary} className="opacity-50" />
                     </View>
 
                     {/* Icon */}
                     <TouchableOpacity
                         onPress={() => setIconPickerTarget({ id: item.id })}
-                        className={`w-10 h-10 items-center justify-center rounded-lg border ${isGroup ? 'bg-primary/10 border-primary/20' : 'bg-surface-highlight border-border'}`}
+                        className={`w-8 h-8 items-center justify-center rounded-md border ${isGroup ? 'bg-primary/10 border-primary/20' : 'bg-surface-highlight border-border'}`}
                     >
                         <UniversalIcon
                             name={item.icon}
-                            size={20}
+                            size={18}
                             color={isGroup ? "#818cf8" : "white"}
                         />
                     </TouchableOpacity>
@@ -376,11 +376,11 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
                             onChangeText={(text) => handleUpdate(item.id, 'title', text)}
                             placeholder="Label"
                             placeholderTextColor={Colors.secondary}
-                            className="text-white text-sm font-bold p-0 leading-tight"
+                            className="text-white text-xs font-bold p-0 leading-tight"
                         />
                         <View className="flex-row items-center gap-1.5 mt-0.5">
                             {isGroup && <Ionicons name="folder" size={10} color="#818cf8" />}
-                            <Text className="text-text-tertiary text-[9px] font-mono uppercase tracking-tight leading-none" numberOfLines={1}>
+                            <Text className="text-text-tertiary text-[8px] font-mono uppercase tracking-tight leading-none" numberOfLines={1}>
                                 {isGroup ? `Group (${item.children?.length || 0})` : item.id}
                             </Text>
                         </View>
@@ -391,24 +391,24 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
                         {isGroup && (
                             <TouchableOpacity
                                 onPress={() => setEditingGroup(item)}
-                                className="w-8 h-8 items-center justify-center rounded-lg bg-primary/10 border border-primary/20"
+                                className="w-7 h-7 items-center justify-center rounded-md bg-primary/10 border border-primary/20"
                             >
-                                <Ionicons name="create-outline" size={16} color="#818cf8" />
+                                <Ionicons name="create-outline" size={14} color="#818cf8" />
                             </TouchableOpacity>
                         )}
 
                         <TouchableOpacity
                             onPress={() => handleSwitchSegment(item.id)}
-                            className="w-8 h-8 items-center justify-center rounded-lg bg-surface-highlight/30 border border-border/20"
+                            className="w-7 h-7 items-center justify-center rounded-md bg-surface-highlight/30 border border-border/20"
                         >
-                            <Ionicons name={isRight ? 'arrow-back' : 'arrow-forward'} size={16} color={Colors.secondary} />
+                            <Ionicons name={isRight ? 'arrow-back' : 'arrow-forward'} size={14} color={Colors.secondary} />
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             onPress={() => handleDelete(item.id)}
-                            className="w-8 h-8 items-center justify-center rounded-lg bg-error/10"
+                            className="w-7 h-7 items-center justify-center rounded-md bg-error/10"
                         >
-                            <Ionicons name="trash-outline" size={16} color={Colors.error} />
+                            <Ionicons name="trash-outline" size={14} color={Colors.error} />
                         </TouchableOpacity>
                     </View>
                 </TouchableOpacity>
@@ -420,8 +420,8 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
         <GestureHandlerRootView className="flex-1">
             <View className="mt-1 mb-8">
             <Card>
-                <View className="mb-5">
-                    <Text className="text-text-tertiary text-[10px] font-bold uppercase tracking-wider mb-2.5 ml-1">Left Segment</Text>
+                <View className="mb-4">
+                    <Text className="text-text-tertiary text-[10px] font-bold uppercase tracking-wider mb-2 ml-1">Left Segment</Text>
                     <View style={{ minHeight: 10 }}>
                         <DraggableFlatList
                             data={leftItems}
@@ -436,12 +436,13 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
                         title="+ Add Group (Left)"
                         onPress={() => handleAddGroup('left')}
                         variant="primary"
-                        className="mt-2"
+                        className="mt-2 py-2"
+                        textStyle="text-xs"
                     />
                 </View>
 
-                <View className="mb-4 pt-4 border-t border-border">
-                    <Text className="text-text-secondary mb-2 font-semibold">Right Segment</Text>
+                <View className="mb-2 pt-3 border-t border-border">
+                    <Text className="text-text-secondary mb-2 font-semibold text-xs">Right Segment</Text>
                     <View style={{ minHeight: 10 }}>
                          <DraggableFlatList
                             data={rightItems}
@@ -456,34 +457,37 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
                         title="+ Add Group (Right)"
                         onPress={() => handleAddGroup('right')}
                         variant="primary"
-                        className="mt-2"
+                        className="mt-2 py-2"
+                        textStyle="text-xs"
                     />
                 </View>
 
                 {missingItems.length > 0 && (
-                    <View className="mb-4 pt-4 border-t border-border">
-                        <Text className="text-text-secondary mb-2 font-semibold">Available Screens</Text>
+                    <View className="mb-2 pt-3 border-t border-border">
+                        <Text className="text-text-secondary mb-2 font-semibold text-xs">Available Screens</Text>
                         <View className="flex-row flex-wrap gap-2">
                             {missingItems.map(screen => (
                                 <TouchableOpacity
                                     key={screen.id}
                                     onPress={() => handleAddScreen(screen)}
-                                    className="flex-row items-center bg-surface border border-border rounded-lg px-3 py-2"
+                                    className="flex-row items-center bg-surface border border-border rounded-md px-2 py-1.5"
                                 >
-                                    <Ionicons name="add" size={16} color="#818cf8" style={{ marginRight: 4 }} />
-                                    <Text className="text-text-secondary text-sm">{screen.title}</Text>
+                                    <Ionicons name="add" size={14} color="#818cf8" style={{ marginRight: 4 }} />
+                                    <Text className="text-text-secondary text-xs">{screen.title}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
                     </View>
                 )}
 
-                <View className="mt-4 pt-4 border-t border-border flex-row gap-2">
+                <View className="mt-3 pt-3 border-t border-border flex-row gap-2">
                      <View className="flex-1">
                         <Button
                             title="Reset..."
                             onPress={handleReset}
                             variant="secondary"
+                            className="py-2"
+                            textStyle="text-xs"
                         />
                      </View>
                      <View className="flex-1">
@@ -491,6 +495,8 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
                             title="Save as Default"
                             onPress={handleSaveAsDefault}
                             variant="primary"
+                            className="py-2"
+                            textStyle="text-xs"
                         />
                      </View>
                 </View>
