@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore, Contact } from '../../store/settings';
-import { useGoogleStore } from '../../store/googleStore';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -13,7 +12,6 @@ import { UniversalIcon } from '../ui/UniversalIcon';
 import { MetadataChip } from '../ui/MetadataChip';
 import { Colors, Palette } from '../ui/design-tokens';
 import { showAlert } from '../../utils/alert';
-import { BaseScrollView } from '../screens/BaseScreen';
 
 export function ContactsSettings({ onBack }: { onBack?: () => void }) {
     const { contacts, addContact, updateContact, deleteContact } = useSettingsStore();
@@ -92,13 +90,7 @@ export function ContactsSettings({ onBack }: { onBack?: () => void }) {
     };
 
     return (
-        <BaseScrollView
-            title="Contacts & Attendees"
-            showBackButton={!!onBack}
-            onBack={onBack}
-        >
-            <View className="px-4 mt-2">
-
+        <View className="px-4 mt-2 mb-8">
             <Card>
                 <View className="flex-row items-center justify-between mb-4">
                     <Text className="text-text-secondary font-semibold">Contacts</Text>
@@ -146,7 +138,6 @@ export function ContactsSettings({ onBack }: { onBack?: () => void }) {
                     ))
                 )}
             </Card>
-            </View>
 
             <Modal visible={modalVisible} animationType="slide" transparent>
                 <View className="flex-1 justify-end bg-black/50">
@@ -228,6 +219,6 @@ export function ContactsSettings({ onBack }: { onBack?: () => void }) {
                     </View>
                 </View>
             </Modal>
-        </BaseScrollView>
+        </View>
     );
 }

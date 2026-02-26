@@ -7,7 +7,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { JsonTreeView } from '../ui/JsonTreeView';
 import { Colors } from '../ui/design-tokens';
 import { showAlert, showError } from '../../utils/alert';
-import { BaseScreen } from '../screens/BaseScreen';
 
 export const SyncDebugView = ({ onBack }: { onBack?: () => void }) => {
     const [targets, setTargets] = useState<string[]>([]);
@@ -202,9 +201,7 @@ export const SyncDebugView = ({ onBack }: { onBack?: () => void }) => {
     };
 
     return (
-        <BaseScreen title="Sync Debugger" showBackButton={!!onBack} onBack={onBack}>
-             {({ insets, headerHeight }) => (
-        <View className="flex-1 px-4" style={{ paddingTop: headerHeight + 8, paddingBottom: insets.bottom }}>
+        <View className="flex-1 px-4 mt-2">
             <Card>
                 <View className="mb-2 flex-row justify-between items-center">
                     <Text className="text-white font-bold text-lg">Sync Status</Text>
@@ -260,7 +257,7 @@ export const SyncDebugView = ({ onBack }: { onBack?: () => void }) => {
 
                     {isLoading && <ActivityIndicator size="small" color="#818cf8" className="mb-2" />}
 
-                    <ScrollView className="flex-1 mb-4">
+                    <View className="flex-1 mb-4">
                         {viewMode === 'tree' ? (
                             isJsonValid ? (
                                 <JsonTreeView
@@ -295,7 +292,7 @@ export const SyncDebugView = ({ onBack }: { onBack?: () => void }) => {
                                 />
                             </View>
                         )}
-                    </ScrollView>
+                    </View>
 
                     <View className="mb-8">
                         <Button
@@ -353,7 +350,5 @@ export const SyncDebugView = ({ onBack }: { onBack?: () => void }) => {
                 </View>
             </Modal>
         </View>
-             )}
-        </BaseScreen>
     );
 };
