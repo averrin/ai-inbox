@@ -24,6 +24,7 @@ interface IntegrationsSettingsProps {
     // Jules
     julesGoogleApiKey: string;
     onChangeJulesGoogleApiKey: (text: string) => void;
+    onBack?: () => void;
 }
 
 export function IntegrationsSettings({
@@ -33,11 +34,13 @@ export function IntegrationsSettings({
     onLoginGithub, onLogoutGithub, githubRequest, isGithubConfigDirty,
     julesApiKey,
     julesGoogleApiKey, onChangeJulesGoogleApiKey,
+    onBack
 }: IntegrationsSettingsProps) {
     const isGithubLoggedIn = !!julesApiKey;
 
     return (
-        <View>
+        <>
+            <View className="px-4 mt-2 mb-8">
             <Card>
                 <View className="mb-4">
                     <Text className="text-text-secondary mb-2 font-semibold text-lg">Gemini AI</Text>
@@ -49,6 +52,7 @@ export function IntegrationsSettings({
                         value={apiKey}
                         onChangeText={onChangeApiKey}
                         placeholder="AIza..."
+                        secureTextEntry
                     />
                 </View>
             </Card>
@@ -98,6 +102,7 @@ export function IntegrationsSettings({
                     />
                 </View>
             </Card>
-        </View>
+            </View>
+        </>
     );
 }

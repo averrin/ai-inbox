@@ -25,7 +25,7 @@ Return valid JSON with:
 If no suitable time is found, return null.
 `;
 
-export function WalkSettings() {
+export function WalkSettings({ onBack }: { onBack?: () => void }) {
     const { walkPrompt, setWalkPrompt, walkLookaheadDays, setWalkLookaheadDays } = useSettingsStore();
     const [lookahead, setLookahead] = useState(walkLookaheadDays.toString());
     const [isLookaheadDirty, setIsLookaheadDirty] = useState(false);
@@ -51,7 +51,8 @@ export function WalkSettings() {
     };
 
     return (
-        <ScrollView>
+        <>
+             <View className="px-4 mt-2 mb-8">
             <Card>
                 <View className="mb-4">
                     <Text className="text-text-secondary mb-2 font-semibold">Walk Suggestion Settings</Text>
@@ -91,6 +92,7 @@ export function WalkSettings() {
                     />
                 </View>
             </Card>
-        </ScrollView>
+             </View>
+        </>
     );
 }

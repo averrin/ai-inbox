@@ -6,8 +6,9 @@ import { getLogs, clearLogs, LogEntry } from '../../utils/logger';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { Colors } from '../ui/design-tokens';
+import { BaseScreen } from '../screens/BaseScreen';
 
-export function LogsSettings() {
+export function LogsSettings({ onBack }: { onBack?: () => void }) {
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
@@ -91,7 +92,9 @@ export function LogsSettings() {
     };
 
     return (
-        <View className="flex-1 bg-background p-4">
+        <BaseScreen title="Console Logs" showBackButton={!!onBack} onBack={onBack}>
+             {({ insets, headerHeight }) => (
+                <View className="flex-1 px-4" style={{ paddingTop: headerHeight + 8, paddingBottom: insets.bottom }}>
             <View className="flex-row justify-end gap-2 mb-4">
                  <TouchableOpacity onPress={handleCopy} className="bg-surface-highlight px-3 py-2 rounded flex-row items-center">
                     <Ionicons name="copy-outline" size={16} color="white" />
@@ -108,6 +111,8 @@ export function LogsSettings() {
                 keyExtractor={getLogKey}
                 contentContainerStyle={{ paddingBottom: 20 }}
             />
-        </View>
+                </View>
+             )}
+        </BaseScreen>
     );
 }

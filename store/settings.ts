@@ -198,6 +198,8 @@ interface SettingsState {
     setRemoteApplyLockTimeout: (timeout: number) => void;
     focusPanelTaskStatuses: string[];
     setFocusPanelTaskStatuses: (statuses: string[]) => void;
+    lastFcmHeartbeat: number | null;
+    setLastFcmHeartbeat: (timestamp: number | null) => void;
 }
 
 
@@ -423,6 +425,8 @@ export const useSettingsStore = create<SettingsState>()(
             setRemoteApplyLockTimeout: (timeout) => set({ remoteApplyLockTimeout: timeout }),
             focusPanelTaskStatuses: [' ', '/', '>', '?'],
             setFocusPanelTaskStatuses: (statuses) => set({ focusPanelTaskStatuses: statuses }),
+            lastFcmHeartbeat: null,
+            setLastFcmHeartbeat: (timestamp) => set({ lastFcmHeartbeat: timestamp }),
         }),
 
         {

@@ -7,7 +7,7 @@ import { HabitItem } from '../ui/calendar/components/HabitItem';
 import { HabitModal } from '../HabitModal';
 import { showAlert } from '../../utils/alert';
 
-export function HabitSettings() {
+export function HabitSettings({ onBack, isEmbedded = false }: { onBack?: () => void, isEmbedded?: boolean }) {
     const { habits, addHabit, updateHabit, deleteHabit, toggleHabit } = useHabitStore();
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [editingHabit, setEditingHabit] = useState<HabitDefinition | undefined>(undefined);
@@ -41,8 +41,8 @@ export function HabitSettings() {
         );
     };
 
-    return (
-        <View>
+    const content = (
+        <View className={`${isEmbedded ? 'px-0' : 'mt-1 mb-10'}`}>
             <Card>
                 <View className="flex-row justify-between items-center mb-4">
                     <Text className="text-text-secondary font-semibold">Checks</Text>
@@ -85,4 +85,6 @@ export function HabitSettings() {
             />
         </View>
     );
+
+    return content;
 }

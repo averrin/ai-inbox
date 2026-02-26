@@ -3,7 +3,7 @@ import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { useSettingsStore } from '../../store/settings';
 
-export function TimeoutsSettings() {
+export function TimeoutsSettings({ onBack }: { onBack?: () => void }) {
     const {
         syncDebounceTime, setSyncDebounceTime,
         firestoreWriteTimeout, setFirestoreWriteTimeout,
@@ -12,7 +12,8 @@ export function TimeoutsSettings() {
         watcherMinInterval, setWatcherMinInterval,
         watcherEstDuration, setWatcherEstDuration,
         oauthRedirectDelay, setOauthRedirectDelay,
-        remoteApplyLockTimeout, setRemoteApplyLockTimeout
+        remoteApplyLockTimeout, setRemoteApplyLockTimeout,
+        lastFcmHeartbeat
     } = useSettingsStore();
 
     const updateNumber = (text: string, setter: (val: number) => void) => {
@@ -25,6 +26,8 @@ export function TimeoutsSettings() {
     };
 
     return (
+        <>
+             <View className="px-4 mt-2 mb-8">
         <Card>
             <View className="mb-4">
                 <Text className="text-text-secondary mb-2 font-semibold">Timeouts & Intervals (Advanced)</Text>
@@ -92,7 +95,15 @@ export function TimeoutsSettings() {
                     keyboardType="numeric"
                     placeholder="50"
                 />
+
+                <View className="mt-4 pt-4 border-t border-border">
+                    <Text className="text-text-secondary text-sm">
+                        Last FCM Heartbeat: {lastFcmHeartbeat ? new Date(lastFcmHeartbeat).toLocaleString() : 'Never'}
+                    </Text>
+                </View>
             </View>
         </Card>
+             </View>
+        </>
     );
 }

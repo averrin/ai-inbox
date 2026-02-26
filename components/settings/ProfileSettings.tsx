@@ -11,7 +11,7 @@ import { DefaultedPrompt } from '../ui/DefaultedPrompt';
 
 import { Button } from '../ui/Button';
 
-export function ProfileSettings() {
+export function ProfileSettings({ onBack }: { onBack?: () => void }) {
     const { config, updateConfig } = useProfileStore();
     const { visualizationPrompt, setVisualizationPrompt } = useSettingsStore();
     const [targetTopic, setTargetTopic] = useState(config.targetTopic || '');
@@ -42,6 +42,8 @@ export function ProfileSettings() {
     };
 
     return (
+        <>
+             <View className="px-4 mt-2 mb-8">
         <Card>
             <View className="space-y-4">
                 <View>
@@ -102,5 +104,7 @@ export function ProfileSettings() {
                 </View>
             </View>
         </Card>
+             </View>
+        </>
     );
 }

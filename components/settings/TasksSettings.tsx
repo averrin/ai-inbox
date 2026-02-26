@@ -6,7 +6,7 @@ import { useTasksStore } from '../../store/tasks';
 import { useSettingsStore } from '../../store/settings';
 import { checkDirectoryExists } from '../../utils/saf';
 
-export function TasksSettings() {
+export function TasksSettings({ onBack, isEmbedded = false }: { onBack?: () => void, isEmbedded?: boolean }) {
     const { vaultUri } = useSettingsStore();
     const { tasksRoot, setTasksRoot } = useTasksStore();
     const [tasksRootInput, setTasksRootInput] = useState(tasksRoot || '');
@@ -34,39 +34,43 @@ export function TasksSettings() {
         setTasksRoot(tasksRootInput);
     }, [tasksRootInput]);
 
-    return (
-        <Card>
-            <View className="mb-4">
-                <Text className="text-text-secondary mb-2 font-semibold">Configuration</Text>
-                <Text className="text-text-tertiary text-sm mb-4">
-                    Select the folder in your vault where your project tasks are stored. 
-                    The dashboard will recursively scan this folder for sub-folders to create tabs.
-                </Text>
-                
-                <FolderInput
-                    label="Tasks Root Folder"
-                    value={tasksRootInput}
-                    onChangeText={setTasksRootInput}
-                    vaultUri={vaultUri}
-                    folderStatus={folderStatus}
-                    onCheckFolder={checkFolder}
-                    placeholder="e.g., Projects or Inbox"
-                />
-            </View>
+    const content = (
+        <View className={`${isEmbedded ? 'px-0' : 'mt-1 mb-8'}`}>
+            <Card>
+                <View className="mb-4">
+                    <Text className="text-text-tertiary text-[10px] font-bold uppercase tracking-wider mb-2 ml-1">Configuration</Text>
+                    <Text className="text-text-tertiary text-sm mb-4">
+                        Select the folder in your vault where your project tasks are stored. 
+                        The dashboard will recursively scan this folder for sub-folders to create tabs.
+                    </Text>
+                    
+                    <FolderInput
+                        label="Tasks Root Folder"
+                        value={tasksRootInput}
+                        onChangeText={setTasksRootInput}
+                        vaultUri={vaultUri}
+                        folderStatus={folderStatus}
+                        onCheckFolder={checkFolder}
+                        placeholder="e.g., Projects or Inbox"
+                    />
+                </View>
 
-            {folderStatus === 'invalid' && (
-                <View className="bg-surface-highlight border border-border p-4 rounded-xl mb-4">
-                    <Text className="text-busy text-sm font-medium">
-                        ⚠️ Folder not found. Make sure the path is relative to your vault root.
+                {folderStatus === 'invalid' && (
+                    <View className="bg-surface-highlight border border-border p-4 rounded-xl mb-4">
+                        <Text className="text-busy text-sm font-medium">
+                            ⚠️ Folder not found. Make sure the path is relative to your vault root.
+                        </Text>
+                    </View>
+                )}
+
+                <View className="bg-surface/50 p-4 rounded-xl border border-border">
+                    <Text className="text-text-secondary text-xs italic">
+                        Tip: Sub-folders of this path (e.g. {tasksRootInput || 'Root'}/Work) will appear as separate tabs in the Tasks screen.
                     </Text>
                 </View>
-            )}
-
-            <View className="bg-surface/50 p-4 rounded-xl border border-border">
-                <Text className="text-text-secondary text-xs italic">
-                    Tip: Sub-folders of this path (e.g. {tasksRootInput || 'Root'}/Work) will appear as separate tabs in the Tasks screen.
-                </Text>
-            </View>
-        </Card>
+            </Card>
+        </View>
     );
+
+    return content;
 }

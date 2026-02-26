@@ -55,6 +55,10 @@ interface IslandHeaderProps {
     showSearch?: boolean;
     /** Callback to close the search bar */
     onCloseSearch?: () => void;
+    /** Whether to show a back button to the left of the title */
+    showBackButton?: boolean;
+    /** Callback when the back button is pressed */
+    onBack?: () => void;
 }
 
 export function IslandHeader({
@@ -72,6 +76,8 @@ export function IslandHeader({
     searchBar,
     showSearch,
     onCloseSearch,
+    showBackButton,
+    onBack,
 }: IslandHeaderProps) {
 
     const hasTabs = tabs && tabs.length > 0 && activeTab !== undefined && onTabChange;
@@ -113,8 +119,16 @@ export function IslandHeader({
 
         return (
             <View className="flex-row items-center" style={{ minWidth: 100, overflow: 'hidden' }}>
+                {showBackButton && (
+                    <TouchableOpacity
+                        onPress={onBack}
+                        style={{ padding: 8, marginLeft: 4, marginRight: -4 }}
+                    >
+                        <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
+                    </TouchableOpacity>
+                )}
                 {/* Title (+ optional subtitle) */}
-                <View className="flex-col px-4 py-1.5" style={{ flexShrink: 0 }}>
+                <View className="flex-col px-4 py-1" style={{ flexShrink: 0 }}>
                     <Text className="text-white font-bold text-lg leading-tight" numberOfLines={1}>
                         {title}
                     </Text>

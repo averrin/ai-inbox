@@ -34,7 +34,8 @@ import { TaskEditModal } from '../../markdown/TaskEditModal';
 import { TaskWithSource, useTasksStore } from '../../../store/tasks';
 import { createCalendarEvent, getWritableCalendars, updateCalendarEvent, deleteCalendarEvent } from '../../../services/calendarService';
 
-import { getWeatherForecast, getWeatherIcon, WeatherData } from '../../../services/weatherService';
+import '../../../services/weatherService'; // Side-effect: registers Firestore weather listener
+import type { WeatherData } from '../../../services/weatherService';
 import { updateUserLocation } from '../../../utils/locationUtils';
 import { useMoodStore } from '../../../store/moodStore';
 import { MoodEvaluationModal } from '../../MoodEvaluationModal';
@@ -57,7 +58,7 @@ import { NoCalendarsView } from './components/NoCalendarsView';
 import { useScheduleActions } from './hooks/useScheduleActions';
 
 export const ScheduleScreen = () => {
-    const { vaultUri, visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, weatherLocation, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes, personalCalendarIds, workCalendarIds, useCurrentLocation, apiKey: geminiApiKey } = useSettingsStore();
+    const { vaultUri, visibleCalendarIds, timeFormat, cachedReminders, setCachedReminders, defaultCreateCalendarId, defaultOpenCalendarId, hideDeclinedEvents, personalAccountId, workAccountId, contacts, calendarDefaultEventTypes, personalCalendarIds, workCalendarIds, useCurrentLocation, apiKey: geminiApiKey } = useSettingsStore();
     const { assignments, difficulties, eventTypes, eventFlags, eventIcons, ranges, loadConfig, completedEvents, toggleCompleted } = useEventTypesStore();
     const { moods } = useMoodStore();
     const { showReminder } = useReminderModal();
@@ -68,7 +69,7 @@ export const ScheduleScreen = () => {
     // Adjusted height accounting for tab bar
     const height = windowHeight;
     const [events, setEvents] = useState<any[]>([]);
-    const [weatherData, setWeatherData] = useState<Record<string, WeatherData>>({});
+    const weatherData = useWeatherStore(s => s.weatherData);
     const [isEventsLoaded, setIsEventsLoaded] = useState(false);
     const [date, setDate] = useState(new Date());
     const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
@@ -96,18 +97,6 @@ export const ScheduleScreen = () => {
 
 
 
-    // Fetch Weather Effect
-    const updateWeatherData = useWeatherStore(s => s.updateWeatherData);
-    useEffect(() => {
-        const start = dayjs(date).startOf('week').subtract(1, 'week').toDate();
-        const end = dayjs(date).endOf('week').add(1, 'week').toDate();
-
-        getWeatherForecast(weatherLocation.lat, weatherLocation.lon, start, end)
-            .then(data => {
-                setWeatherData(prev => ({ ...prev, ...data }));
-                updateWeatherData(data);
-            });
-    }, [date, weatherLocation, updateWeatherData]);
 
 
     // Load event types config on mount
@@ -712,7 +701,7 @@ export const ScheduleScreen = () => {
                 }
             >
                 {({ headerHeight }) => (
-                    <View className="flex-1" style={{ paddingTop: headerHeight + 80 }}>
+                    <View className="flex-1" style={{ paddingTop: headerHeight }}>
                         <TodaysTasksPanel
                             date={date}
                             events={eventsWithReminders}

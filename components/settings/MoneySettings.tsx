@@ -5,7 +5,7 @@ import { useSettingsStore } from '../../store/settings';
 import { showAlert } from '../../utils/alert';
 import { Card } from '../ui/Card';
 
-export function MoneySettings() {
+export function MoneySettings({ onBack }: { onBack?: () => void }) {
     const { buxferEmail, setBuxferEmail, setBuxferPassword } = useSettingsStore();
 
     const handleLogout = () => {
@@ -23,6 +23,8 @@ export function MoneySettings() {
     };
 
     return (
+        <>
+             <View className="px-4 mt-2 mb-8">
         <Card>
             <View className="mb-4">
                 <Text className="text-text-secondary mb-2 font-semibold">Account</Text>
@@ -56,5 +58,7 @@ export function MoneySettings() {
                 </Text>
             </View>
         </Card>
+             </View>
+        </>
     );
 }

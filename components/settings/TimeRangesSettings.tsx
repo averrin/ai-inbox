@@ -4,8 +4,9 @@ import { useEventTypesStore } from '../../store/eventTypes'
 import { TimeRangeItem } from '../ui/calendar/components/TimeRangeItem'
 import { TimeRangeForm } from '../ui/calendar/components/TimeRangeForm'
 import type { TimeRangeDefinition } from '../ui/calendar/interfaces'
+import { BaseScreen } from '../screens/BaseScreen'
 
-export function TimeRangesSettings() {
+export function TimeRangesSettings({ onBack }: { onBack?: () => void }) {
     const { ranges, addRange, updateRange, deleteRange, toggleRange } = useEventTypesStore()
     const [editingRange, setEditingRange] = React.useState<TimeRangeDefinition | null>(
         null
@@ -77,7 +78,9 @@ export function TimeRangesSettings() {
     }
 
     return (
-        <View className="flex-1 px-4">
+        <BaseScreen title="Time Ranges" showBackButton={!!onBack} onBack={onBack}>
+             {({ insets, headerHeight }) => (
+        <View className="flex-1 px-4" style={{ paddingTop: headerHeight + 8, paddingBottom: insets.bottom }}>
             <Text className="text-text-tertiary text-sm mb-4">
                 Manage recurring time blocks that appear on your calendar.
             </Text>
@@ -85,5 +88,7 @@ export function TimeRangesSettings() {
                 {renderContent()}
             </ScrollView>
         </View>
+             )}
+        </BaseScreen>
     )
 }

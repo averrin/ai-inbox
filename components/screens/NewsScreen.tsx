@@ -1,8 +1,10 @@
 import { View, Text, FlatList, Image, TouchableOpacity, RefreshControl, ScrollView, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettingsStore } from '../../store/settings';
-import { useEffect, useState, useCallback } from 'react';
-import { Article, fetchNews } from '../../services/newsService';
+import { useState, useCallback } from 'react';
+import { Article } from '../../services/newsService';
+import { useNewsStore } from '../../store/newsStore';
+import '../../services/newsService';
 import { BaseScreen } from './BaseScreen';
 import { islandBaseStyle } from '../ui/IslandBar';
 import { MetadataChip } from '../ui/MetadataChip';
@@ -26,16 +28,14 @@ export default function NewsScreen() {
     // keeping useSafeAreaInsets for consistency if needed, but BaseScreen passes it too.
     const insets = useSafeAreaInsets();
     const {
-        newsTopics, rssFeeds, newsApiKey,
+        newsTopics, rssFeeds,
         hiddenArticles, readArticles, hideArticle, markArticleAsRead,
         ignoredHostnames, viewedArticles, markArticleAsViewed, hideArticles,
         newsFilterTerms, newsDefaultViewMode
     } = useSettingsStore();
     const { setFab, clearFab } = useUIStore();
 
-    const [articles, setArticles] = useState<Article[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [page, setPage] = useState(1);
+    const { articles: storeArticles, loading } = useNewsStore();
     const [selectedFilter, setSelectedFilter] = useState<string | null>(null); // null = All
     const [customQuery, setCustomQuery] = useState('');
     const [showCustomInput, setShowCustomInput] = useState(false);
@@ -43,8 +43,28 @@ export default function NewsScreen() {
     const [showSettings, setShowSettings] = useState(false);
     const [scrollX, setScrollX] = useState(0);
 
+    // Apply topic/feed filter from chips
+    const filteredArticles = storeArticles.filter(a => {
+        if (!selectedFilter) return true;
+        if (rssFeeds.includes(selectedFilter)) {
+            // Match by source name for RSS feeds
+            return a.source.name === selectedFilter || a.matchedTopic === selectedFilter;
+        }
+        // Match by topic
+        const text = `${a.title} ${a.description || ''}`.toLowerCase();
+        return text.includes(selectedFilter.toLowerCase());
+    });
+
+    // Apply custom query filter
+    const queriedArticles = (showCustomInput && customQuery.trim())
+        ? filteredArticles.filter(a => {
+            const text = `${a.title} ${a.description || ''}`.toLowerCase();
+            return text.includes(customQuery.trim().toLowerCase());
+        })
+        : filteredArticles;
+
     // Derived filtered list to exclude hidden/read articles
-    const visibleArticles = articles.filter(a => {
+    const visibleArticles = queriedArticles.filter(a => {
         const isHidden = hiddenArticles.includes(a.url);
         const isRead = readArticles.some(r => r.url === a.url);
         const isIgnored = ignoredHostnames.some(hostname => {
@@ -73,63 +93,9 @@ export default function NewsScreen() {
         }, [setFab, clearFab, showCustomInput])
     );
 
-    const loadNews = async (reset = false) => {
-        if (loading) return;
-        setLoading(true);
-        const targetPage = reset ? 1 : page + 1;
-
-        try {
-            let topics: string[] = [];
-            let feeds: string[] = [];
-
-            if (showCustomInput && customQuery.trim()) {
-                topics = [customQuery.trim()];
-            } else if (selectedFilter) {
-                if (rssFeeds.includes(selectedFilter)) {
-                    feeds = [selectedFilter];
-                } else {
-                    topics = [selectedFilter];
-                }
-            } else {
-                topics = newsTopics;
-                feeds = rssFeeds;
-            }
-
-            const data = await fetchNews(topics, feeds, newsApiKey, targetPage);
-
-            // Assign badges based on topic matching
-            const processedData = data.map(article => {
-                const combinedText = `${article.title} ${article.description || ''}`.toLowerCase();
-                // Check against newsTopics for badge
-                const matched = newsTopics.find(topic => combinedText.includes(topic.toLowerCase()));
-                // If not matched by topic, maybe it came from RSS? RSS articles usually have matchedTopic set by service.
-                return matched && !article.matchedTopic ? { ...article, matchedTopic: matched } : article;
-            });
-
-            if (reset) {
-                setArticles(processedData);
-                setPage(1);
-            } else {
-                setArticles(prev => [...prev, ...processedData]);
-                setPage(targetPage);
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Reload when filter changes or active query/topics/feeds change
-    useEffect(() => {
-        loadNews(true);
-    }, [newsTopics, rssFeeds, newsApiKey, selectedFilter, showCustomInput]);
-
     // Handle Custom Input submission
     const handleCustomSubmit = () => {
-        if (customQuery.trim()) {
-            loadNews(true);
-        }
+        // Filtering is now reactive via customQuery state
     };
 
     const handleOpenArticle = (url: string) => {
@@ -434,11 +400,11 @@ export default function NewsScreen() {
         >
             {({ insets }) => (
                 <View className="flex-1">
-                    {((!newsApiKey && !process.env.NEWSAPI_KEY) && rssFeeds.length === 0) ? (
+                    {(newsTopics.length === 0 && rssFeeds.length === 0) ? (
                         <View className="flex-1 justify-center items-center">
                             <Ionicons name="newspaper-outline" size={64} color="#475569" />
                             <Text className="text-text-tertiary mt-4 text-center">News Configuration Missing.</Text>
-                            <Text className="text-secondary text-sm mt-1 text-center">Please configure a News API Key or add RSS feeds in Settings.</Text>
+                            <Text className="text-secondary text-sm mt-1 text-center">Please configure topics or RSS feeds in Settings.</Text>
                         </View>
                     ) : (
                         <>
@@ -457,26 +423,11 @@ export default function NewsScreen() {
                                     refreshControl={
                                         <RefreshControl
                                             refreshing={loading}
-                                            onRefresh={() => loadNews(true)}
+                                            onRefresh={() => {}}
                                             tintColor="#818cf8"
                                             colors={["#818cf8"]}
                                             progressViewOffset={140}
                                         />
-                                    }
-                                    ListFooterComponent={
-                                        articles.length > 0 ? (
-                                            <View className="p-4 items-center">
-                                                <TouchableOpacity
-                                                    onPress={() => loadNews(false)}
-                                                    className="bg-surface px-6 py-3 rounded-full border border-border active:bg-surface-highlight"
-                                                    disabled={loading}
-                                                >
-                                                    <Text className="text-text-secondary font-medium">
-                                                        {loading ? 'Loading...' : 'Load More'}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        ) : null
                                     }
                                     ListEmptyComponent={
                                         !loading ? (

@@ -15,6 +15,7 @@ import { firebaseAuth, firebaseDb } from './firebase';
 import { useSettingsStore } from '../store/settings';
 import { useEventTypesStore } from '../store/eventTypes';
 import { StoreApi } from 'zustand';
+import { registerForPushNotificationsAsync } from './pushNotifications';
 
 interface SyncTarget {
     name: string;
@@ -40,6 +41,7 @@ export class SyncService {
                 console.log('[SyncService] User logged in:', user.uid);
                 await this.pullAllFromCloud();
                 this.startSync();
+                registerForPushNotificationsAsync(); // Register and save token when user is available
             } else {
                 console.log('[SyncService] User logged out');
                 this.stopSync();
@@ -269,8 +271,8 @@ export class SyncService {
                 console.log(`[SyncService:${target.name}] No remote data found.`);
                 const localState = target.selector(target.store.getState());
                 if (Object.keys(localState).length > 0) {
-                     console.log(`[SyncService:${target.name}] Pushing local state to empty remote (Migration).`);
-                     this.pushToCloud(target, localState);
+                    console.log(`[SyncService:${target.name}] Pushing local state to empty remote (Migration).`);
+                    this.pushToCloud(target, localState);
                 }
             }
         } catch (e: any) {

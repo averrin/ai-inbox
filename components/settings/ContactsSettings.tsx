@@ -13,8 +13,9 @@ import { UniversalIcon } from '../ui/UniversalIcon';
 import { MetadataChip } from '../ui/MetadataChip';
 import { Colors, Palette } from '../ui/design-tokens';
 import { showAlert } from '../../utils/alert';
+import { BaseScrollView } from '../screens/BaseScreen';
 
-export function ContactsSettings() {
+export function ContactsSettings({ onBack }: { onBack?: () => void }) {
     const { contacts, addContact, updateContact, deleteContact } = useSettingsStore();
 
     // Contact Modal State
@@ -91,7 +92,12 @@ export function ContactsSettings() {
     };
 
     return (
-        <View className="flex-1">
+        <BaseScrollView
+            title="Contacts & Attendees"
+            showBackButton={!!onBack}
+            onBack={onBack}
+        >
+            <View className="px-4 mt-2">
 
             <Card>
                 <View className="flex-row items-center justify-between mb-4">
@@ -140,6 +146,7 @@ export function ContactsSettings() {
                     ))
                 )}
             </Card>
+            </View>
 
             <Modal visible={modalVisible} animationType="slide" transparent>
                 <View className="flex-1 justify-end bg-black/50">
@@ -221,6 +228,6 @@ export function ContactsSettings() {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </BaseScrollView>
     );
 }

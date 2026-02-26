@@ -1,17 +1,7 @@
-export const BASE_URL = 'https://www.buxfer.com/api';
-
-export interface BuxferResponse<T> {
-  response: {
-    status: string;
-    token?: string;
-    accounts?: Account[];
-    transactions?: Transaction[];
-    budgets?: Budget[];
-    numTransactions?: number;
-    error?: string; // Implicit error field if status != OK
-    [key: string]: any;
-  }
-}
+import { doc, collection, addDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { firebaseAuth, firebaseDb } from './firebase';
+import { useBuxferStore } from '../store/buxferStore';
 
 export interface Account {
   id: string;
@@ -47,85 +37,106 @@ export interface Budget {
   balance?: number; // For rollover budgets
 }
 
-class BuxferService {
-  private async request<T>(endpoint: string, method: 'GET' | 'POST', params: Record<string, any> = {}): Promise<T> {
-    const url = new URL(`${BASE_URL}/${endpoint}`);
+let unsubscribers: (() => void)[] = [];
 
-    // For GET requests, append params to URL
-    if (method === 'GET') {
-      Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-    }
+function subscribeToBuxfer(uid: string) {
+    unsubscribeFromBuxfer();
 
-    const options: RequestInit = {
-      method,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    };
+    const store = useBuxferStore.getState();
+    store.setLoading(true);
 
-    // For POST requests, send params in body
-    if (method === 'POST') {
-      const formBody = Object.keys(params).map(key => encodeURIComponent(key) + '=' + encodeURIComponent(params[key])).join('&');
-      options.body = formBody;
-    }
+    // Subscribe to accounts
+    const accountsRef = doc(firebaseDb, `users/${uid}/buxfer/accounts`);
+    const unsubAccounts = onSnapshot(accountsRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.data();
+            useBuxferStore.getState().setAccounts((data?.accounts as Account[]) || []);
+        } else {
+            useBuxferStore.getState().setAccounts([]);
+        }
+    }, (error) => {
+        console.warn('[BuxferService] Accounts listen error:', error);
+    });
 
-    const response = await fetch(url.toString(), options);
-    const data = await response.json();
+    // Subscribe to transactions
+    const transactionsRef = doc(firebaseDb, `users/${uid}/buxfer/transactions`);
+    const unsubTransactions = onSnapshot(transactionsRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.data();
+            useBuxferStore.getState().setTransactions((data?.transactions as Transaction[]) || []);
+        } else {
+            useBuxferStore.getState().setTransactions([]);
+        }
+    }, (error) => {
+        console.warn('[BuxferService] Transactions listen error:', error);
+    });
 
-    if (data.response && typeof data.response.status === 'string' && data.response.status.startsWith('ERROR:')) {
-      throw new Error(data.response.status.replace('ERROR: ', ''));
-    }
+    // Subscribe to budgets
+    const budgetsRef = doc(firebaseDb, `users/${uid}/buxfer/budgets`);
+    const unsubBudgets = onSnapshot(budgetsRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.data();
+            useBuxferStore.getState().setBudgets((data?.budgets as Budget[]) || []);
+        } else {
+            useBuxferStore.getState().setBudgets([]);
+        }
+        useBuxferStore.getState().setLoading(false);
+    }, (error) => {
+        console.warn('[BuxferService] Budgets listen error:', error);
+        useBuxferStore.getState().setLoading(false);
+    });
 
-    // Logging specific responses for debugging
-    // if (endpoint === 'budgets') {
-    //   console.log('[Buxfer Debug] Raw Budgets Response:', JSON.stringify(data.response.budgets, null, 2));
-    // }
-    // if (endpoint === 'transactions') {
-    //   // Log first few transactions to keep it concise but useful
-    //   console.log('[Buxfer Debug] First 3 Transactions:', JSON.stringify((data.response.transactions || []).slice(0, 3), null, 2));
-    // }
+    unsubscribers = [unsubAccounts, unsubTransactions, unsubBudgets];
+    console.log(`[BuxferService] Subscribed to buxfer data for ${uid}`);
+}
 
-    return data.response;
-  }
+function unsubscribeFromBuxfer() {
+    unsubscribers.forEach(unsub => unsub());
+    unsubscribers = [];
+}
 
-  async login(userid: string, password: string): Promise<string> {
-    const response = await this.request<{ token: string }>('login', 'POST', { userid, password });
-    if (!response.token) {
-      throw new Error("No token returned from login");
-    }
-    return response.token;
-  }
+// Send a command to the backend via Firestore
+async function sendBuxferCommand(uid: string, action: string, params: Record<string, any>): Promise<void> {
+    const commandsRef = collection(firebaseDb, `users/${uid}/buxfer/commands`);
+    await addDoc(commandsRef, {
+        action,
+        params,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+    });
+}
 
-  async getAccounts(token: string): Promise<Account[]> {
-    const response = await this.request<{ accounts: Account[] }>('accounts', 'GET', { token });
-    return response.accounts || [];
-  }
+export async function editTransaction(id: string, params: { tags: string }): Promise<void> {
+    const uid = firebaseAuth.currentUser?.uid;
+    if (!uid) throw new Error('Not authenticated');
+    await sendBuxferCommand(uid, 'edit_transaction', { id, ...params });
+}
 
-  async getTransactions(token: string, page: number = 1, params: Record<string, any> = {}): Promise<Transaction[]> {
-    const response = await this.request<{ transactions: Transaction[] }>('transactions', 'GET', { token, page, ...params });
-    return response.transactions || [];
-  }
-
-  async getBudgets(token: string): Promise<Budget[]> {
-    const response = await this.request<{ budgets: Budget[] }>('budgets', 'GET', { token });
-    return response.budgets || [];
-  }
-
-  async editTransaction(token: string, id: string, params: { tags: string }): Promise<void> {
-    await this.request('transaction_edit', 'POST', { token, id, ...params });
-  }
-
-  async addTransaction(token: string, params: {
+export async function addTransaction(params: {
     description: string;
     amount: number;
     accountId: string;
-    date: string; // YYYY-MM-DD
+    date: string;
     type: 'expense' | 'income' | 'transfer' | 'refund' | 'paidForFriend' | 'sharedBill' | 'loan' | 'investment_buy' | 'investment_sell';
     status?: 'cleared' | 'pending';
     tags?: string;
-  }): Promise<void> {
-    await this.request('transaction_add', 'POST', { token, ...params });
-  }
+}): Promise<void> {
+    const uid = firebaseAuth.currentUser?.uid;
+    if (!uid) throw new Error('Not authenticated');
+    await sendBuxferCommand(uid, 'add_transaction', params);
 }
 
-export const buxferService = new BuxferService();
+// Auto-manage subscription based on auth state
+onAuthStateChanged(firebaseAuth, (user) => {
+    if (user) {
+        console.log('[BuxferService] User authenticated, subscribing to buxfer data...');
+        subscribeToBuxfer(user.uid);
+    } else {
+        console.log('[BuxferService] User logged out, unsubscribing from buxfer data.');
+        unsubscribeFromBuxfer();
+        const store = useBuxferStore.getState();
+        store.setAccounts([]);
+        store.setTransactions([]);
+        store.setBudgets([]);
+    }
+});

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { WeatherData } from '../services/weatherService';
+import type { WeatherData } from '../services/weatherService';
 
 interface WeatherState {
     weatherData: Record<string, WeatherData>;

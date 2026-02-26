@@ -6,7 +6,7 @@ import { Colors } from '../ui/design-tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
 
-export const FocusPanelSettings = () => {
+export const FocusPanelSettings = ({ onBack }: { onBack?: () => void }) => {
     const { focusPanelTaskStatuses, setFocusPanelTaskStatuses } = useSettingsStore();
 
     const toggleStatus = (statusId: string) => {
@@ -18,6 +18,8 @@ export const FocusPanelSettings = () => {
     };
 
     return (
+        <>
+            <View className="px-4 mt-2 mb-8">
         <Card>
             <View className="mb-4">
                 <Text className="text-text-secondary mb-4 font-semibold">
@@ -54,5 +56,7 @@ export const FocusPanelSettings = () => {
                 </Text>
             </View>
         </Card>
+            </View>
+        </>
     );
 };

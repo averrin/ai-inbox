@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView } from 'react-native';
+import { View } from 'react-native';
 import { Card } from '../ui/Card';
 import { DefaultedPrompt } from '../ui/DefaultedPrompt';
 import { useSettingsStore } from '../../store/settings';
@@ -20,11 +20,12 @@ Keep it concise, actionable, and personalized.
 Forecast for TODAY (1-2 sentences):
 `;
 
-export function ForecastSettings() {
+export function ForecastSettings({ onBack }: { onBack?: () => void }) {
     const { forecastPrompt, setForecastPrompt } = useSettingsStore();
 
     return (
-        <ScrollView>
+        <>
+            <View className="px-4 mt-2 mb-8">
             <Card>
                 <DefaultedPrompt
                     title="AI Forecast Prompt"
@@ -35,6 +36,7 @@ export function ForecastSettings() {
                     placeholders={['{{context}}', '{{schedule}}']}
                 />
             </Card>
-        </ScrollView>
+            </View>
+        </>
     );
 }

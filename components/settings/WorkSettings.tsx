@@ -9,8 +9,9 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { MetadataChip } from '../ui/MetadataChip';
 import { Colors, Palette } from '../ui/design-tokens';
+import { BaseScreen } from '../screens/BaseScreen';
 
-export function WorkSettings() {
+export function WorkSettings({ onBack }: { onBack?: () => void }) {
     const {
         workCalendarIds, setWorkCalendarIds,
         workAccountId, setWorkAccountId,
@@ -154,8 +155,10 @@ export function WorkSettings() {
     }
 
     return (
-        <View className="flex-1">
-            <View className="bg-surface/50 p-4 rounded-2xl border border-border mb-6">
+        <BaseScreen title="Work Calendar" showBackButton={!!onBack} onBack={onBack}>
+            {({ insets, headerHeight }) => (
+                <View className="flex-1 px-4" style={{ paddingTop: headerHeight, paddingBottom: insets.bottom }}>
+                    <View className="bg-surface/50 p-4 rounded-2xl border border-border mb-6">
                 <Text className="text-text-secondary font-semibold mb-2">Work Account</Text>
                 <Text className="text-text-tertiary text-sm mb-4">
                     Enter your work email. Events tagged as "Work" will automatically invite this address.
@@ -223,6 +226,8 @@ export function WorkSettings() {
                     </View>
                 </View>
             </Modal>
-        </View>
+                </View>
+            )}
+        </BaseScreen>
     );
 }

@@ -10,8 +10,9 @@ import { Palette, Colors } from '../ui/design-tokens';
 import { IconSelector } from '../ui/IconSelector';
 import { EventTypeBadge } from '../ui/EventTypeBadge';
 import * as Crypto from 'expo-crypto';
+import { BaseScreen } from '../screens/BaseScreen';
 
-export function EventTypesSettings() {
+export function EventTypesSettings({ onBack }: { onBack?: () => void }) {
     const { eventTypes, addType, updateType, deleteType } = useEventTypesStore();
     const [editingType, setEditingType] = useState<EventType | null>(null);
     const [title, setTitle] = useState('');
@@ -88,28 +89,33 @@ export function EventTypesSettings() {
     );
 
     return (
-        <View className="flex-1">
-            <FlatList
-                data={eventTypes}
-                renderItem={renderItem}
-                keyExtractor={item => item.id}
-                scrollEnabled={false}
-                ListEmptyComponent={
-                    <Text className="text-secondary text-center mt-10">
-                        No event types defined yet.
-                    </Text>
-                }
-            />
-
-            <View className="mt-4">
-                <TouchableOpacity
-                    onPress={handleCreate}
-                    className="bg-primary p-4 rounded-lg flex-row justify-center items-center gap-2"
-                >
-                    <Ionicons name="add" size={24} color="white" />
-                    <Text className="text-white font-semibold">Create New Type</Text>
-                </TouchableOpacity>
-            </View>
+        <BaseScreen title="Event Types" showBackButton={!!onBack} onBack={onBack}>
+             {({ insets, headerHeight }) => (
+                 <View className="flex-1" style={{ paddingTop: headerHeight, paddingBottom: insets.bottom }}>
+                    <FlatList
+                        className="px-4 mt-2"
+                        data={eventTypes}
+                        renderItem={renderItem}
+                        keyExtractor={item => item.id}
+                        scrollEnabled={true}
+                        contentContainerStyle={{ paddingBottom: 40 }}
+                        ListFooterComponent={
+                            <View className="mt-4">
+                                <TouchableOpacity
+                                    onPress={handleCreate}
+                                    className="bg-primary p-4 rounded-lg flex-row justify-center items-center gap-2"
+                                >
+                                    <Ionicons name="add" size={24} color="white" />
+                                    <Text className="text-white font-semibold">Create New Type</Text>
+                                </TouchableOpacity>
+                            </View>
+                        }
+                        ListEmptyComponent={
+                            <Text className="text-secondary text-center mt-10">
+                                No event types defined yet.
+                            </Text>
+                        }
+                    />
 
             {/* Edit/Create Form Modal */}
             <Modal visible={isFormVisible} transparent animationType="fade">
@@ -190,6 +196,8 @@ export function EventTypesSettings() {
                     </View>
                 </View>
             </Modal>
-        </View>
+                </View>
+            )}
+        </BaseScreen>
     );
 }

@@ -9,7 +9,7 @@ import { SettingsListItem } from '../ui/SettingsListItem';
 import { TagPropertyConfigModal } from '../TagPropertyConfigModal';
 import { Colors, Palette } from '../ui/design-tokens';
 
-export function TagPropertySettings() {
+export function TagPropertySettings({ onBack, isEmbedded = false }: { onBack?: () => void, isEmbedded?: boolean }) {
     const { 
         tagConfig, 
         propertyConfig, 
@@ -150,8 +150,8 @@ export function TagPropertySettings() {
         );
     };
 
-    return (
-        <View className="px-4">
+    const content = (
+        <View className={`${isEmbedded ? 'px-0' : 'mt-1 mb-8'}`}>
              <View className="flex-row mb-4 bg-surface rounded-lg p-1">
                 <TouchableOpacity 
                     onPress={() => setActiveTab('tags')}
@@ -227,4 +227,6 @@ export function TagPropertySettings() {
             )}
         </View>
     );
+
+    return content;
 }

@@ -16,7 +16,7 @@ interface SearchResult {
     admin1?: string; // State/Region
 }
 
-export function WeatherSettings() {
+export function WeatherSettings({ onBack }: { onBack?: () => void }) {
     const { weatherLocation, setWeatherLocation, useCurrentLocation, setUseCurrentLocation } = useSettingsStore();
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState<SearchResult[]>([]);
@@ -77,6 +77,8 @@ export function WeatherSettings() {
     };
 
     return (
+        <>
+             <View className="px-4 mt-2 mb-8">
         <Card>
             <View className="mb-6">
                 <View className="flex-row items-center justify-between mb-4">
@@ -154,5 +156,7 @@ export function WeatherSettings() {
                 </View>
             )}
         </Card>
+             </View>
+        </>
     );
 }

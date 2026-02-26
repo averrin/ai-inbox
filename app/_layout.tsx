@@ -22,6 +22,8 @@ import { LogBox, View, Text, Platform } from 'react-native';
 import { SyncService } from "../services/syncService";
 import { watcherService } from "../services/watcherService";
 import { Colors, Spacing, Typography } from '../components/ui/design-tokens';
+import { registerForPushNotificationsAsync } from '../services/pushNotifications';
+import { useSettingsStore } from '../store/settings';
 
 // Suppress deprecation warnings from dependencies
 LogBox.ignoreLogs([
@@ -39,12 +41,14 @@ Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     // Suppress sound and banner for progress updates to avoid spam
     const isProgress = notification.request.content.data?.type === 'progress';
+    const isHeartbeat = notification.request.content.data?.type === 'heartbeat';
+
     return {
-      shouldPlaySound: !isProgress,
+      shouldPlaySound: !isProgress && !isHeartbeat,
       shouldSetBadge: false,
-      shouldShowBanner: !isProgress,
-      shouldShowList: true, // Keep in tray
-      priority: isProgress ? Notifications.AndroidNotificationPriority.LOW : Notifications.AndroidNotificationPriority.HIGH,
+      shouldShowBanner: !isProgress && !isHeartbeat,
+      shouldShowList: !isHeartbeat, // Keep progress in tray, but not heartbeat
+      priority: isProgress || isHeartbeat ? Notifications.AndroidNotificationPriority.LOW : Notifications.AndroidNotificationPriority.HIGH,
     };
   },
 });
@@ -134,10 +138,19 @@ function AppContent() {
     // Register background task on app launch
     registerReminderTask();
 
+    // Register for push notifications
+    registerForPushNotificationsAsync();
+
     // Listen for notifications when app is in foreground
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-      // When a reminder notification is received while app is open, show modal instead
-      const { fileUri, reminder } = notification.request.content.data || {};
+      // Handle Heartbeat
+      const { fileUri, reminder, type, timestamp } = notification.request.content.data || {};
+
+      if (type === 'heartbeat') {
+        const { setLastFcmHeartbeat } = useSettingsStore.getState();
+        setLastFcmHeartbeat(timestamp ? parseInt(timestamp as string) : Date.now());
+        return; // Early return for silent handling
+      }
 
       if (reminder) {
         // Instant show if we have the data

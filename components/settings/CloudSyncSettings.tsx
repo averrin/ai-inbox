@@ -6,10 +6,11 @@ import * as Google from 'expo-auth-session/providers/google';
 import { GoogleAuthService } from '../../services/googleAuth';
 import { onAuthStateChanged } from 'firebase/auth';
 import * as WebBrowser from 'expo-web-browser';
+import { View } from 'react-native';
 
 WebBrowser.maybeCompleteAuthSession();
 
-export const CloudSyncSettings = () => {
+export const CloudSyncSettings = ({ onBack }: { onBack?: () => void }) => {
     const [user, setUser] = useState(firebaseAuth.currentUser);
     const [request, response, promptAsync] = Google.useAuthRequest(GoogleAuthService.getConfig());
 
@@ -116,18 +117,18 @@ export const CloudSyncSettings = () => {
     };
 
     return (
-        <ServiceAuth
-            title="Cloud Sync (Experimental)"
-            description="Sync your settings and API keys across devices using your Google Account."
-            icon="cloud-circle"
-            isConnected={!!user}
-            connectedText={`Synced as ${user?.email}`}
-            onConnect={handleConnect}
-            onDisconnect={handleSignOut}
-            connectButtonText="Connect Google Account"
-            disconnectButtonText="Sign Out"
-            isDisabled={!request}
-            iconColor="#60a5fa"
-        />
+                <ServiceAuth
+                    title="Cloud Sync (Experimental)"
+                    description="Sync your settings and API keys across devices using your Google Account."
+                    icon="cloud-circle"
+                    isConnected={!!user}
+                    connectedText={`Synced as ${user?.email}`}
+                    onConnect={handleConnect}
+                    onDisconnect={handleSignOut}
+                    connectButtonText="Connect Google Account"
+                    disconnectButtonText="Sign Out"
+                    isDisabled={!request}
+                    iconColor="#60a5fa"
+                />
     );
 }

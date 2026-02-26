@@ -6,7 +6,7 @@ import { Card } from '../ui/Card';
 import { Colors } from '../ui/design-tokens';
 import { MetadataChip } from '../ui/MetadataChip';
 
-export function NewsSettings() {
+export function NewsSettings({ onBack }: { onBack?: () => void }) {
     const {
         newsTopics, setNewsTopics,
         rssFeeds, setRssFeeds,
@@ -68,6 +68,7 @@ export function NewsSettings() {
     };
 
     return (
+             <View className="px-4 mt-2 mb-8">
         <Card>
             <View className="mb-6">
                 <Text className="text-text-secondary mb-2 font-semibold">News API Key</Text>
@@ -267,5 +268,6 @@ export function NewsSettings() {
                 </View>
             </View>
         </Card>
+             </View>
     );
 }

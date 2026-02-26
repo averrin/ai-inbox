@@ -1,6 +1,7 @@
-import React, { ReactNode, useState, useRef, useEffect } from 'react';
-import { View, StyleProp, ViewStyle, ScrollView, Animated, Dimensions, Easing } from 'react-native';
+import React, { ReactNode, useState, useRef, useEffect, useCallback } from 'react';
+import { View, StyleProp, ViewStyle, ScrollView, Animated, Dimensions, Easing, LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Layout } from '../ui/Layout';
 import { IslandHeader, HeaderAction, SearchBarConfig } from '../ui/IslandHeader';
 import { useSwipeTabs } from '../../hooks/useSwipeTabs';
@@ -43,6 +44,12 @@ export interface BaseScreenProps {
     fullBleed?: boolean;
     /** Disable default padding in Layout */
     noPadding?: boolean;
+    /** Whether to show a back button in the header */
+    showBackButton?: boolean;
+    /** Custom callback for back button press. If not provided, navigation.goBack() is used */
+    onBack?: () => void;
+    /** When rendered inside another screen that already has a SafeAreaView, set to true to avoid double insets */
+    embedded?: boolean;
 }
 
 interface TabTransitionProps {
@@ -152,8 +159,16 @@ export function BaseScreen({
     disableSwipe = false,
     fullBleed = false,
     noPadding = false,
+    showBackButton = false,
+    onBack,
+    embedded,
 }: BaseScreenProps) {
     const insets = useSafeAreaInsets();
+    const navigation = useNavigation();
+    // Auto-detect embedded if not explicitly set: when onBack is provided the
+    // component is rendered inside another screen that already has SafeAreaView.
+    const isEmbedded = embedded ?? (onBack !== undefined);
+    const [headerHeight, setHeaderHeight] = useState(56);
     
     // We pass empty array config if tabs aren't provided to satisfy hooks rules
     const hookTabs = tabs ? tabs.map(t => t.key) : [];
@@ -164,8 +179,11 @@ export function BaseScreen({
     });
     
     const swipeProps = (tabs && !disableSwipe) ? panHandlers : {};
-    
-    const headerHeight = 60;
+
+    const onHeaderLayout = useCallback((e: LayoutChangeEvent) => {
+        const h = e.nativeEvent.layout.height;
+        if (h > 0) setHeaderHeight(h);
+    }, []);
 
     // Resolve children content
     const content = typeof children === 'function'
@@ -173,9 +191,9 @@ export function BaseScreen({
         : children;
 
     return (
-        <Layout fullBleed={fullBleed} noPadding={noPadding}>
+        <Layout fullBleed={fullBleed} noPadding={isEmbedded || noPadding} edges={isEmbedded ? [] : ['top', 'left', 'right']}>
             <View style={[{ flex: 1 }, style]} {...swipeProps}>
-                <View style={{ position: 'absolute', top: 4, left: 0, right: 0, zIndex: 1000 }}>
+                <View style={{ position: 'absolute', top: 4, left: isEmbedded ? 16 : 0, right: isEmbedded ? 16 : 0, zIndex: 1000 }} onLayout={onHeaderLayout}>
                     <IslandHeader
                         title={title}
                         subtitle={subtitle}
@@ -186,6 +204,8 @@ export function BaseScreen({
                         searchBar={searchBar}
                         showSearch={showSearch}
                         onCloseSearch={onCloseSearch}
+                        showBackButton={showBackButton}
+                        onBack={onBack || (() => navigation.goBack())}
                     >
                         {headerChildren}
                     </IslandHeader>
@@ -212,6 +232,8 @@ export interface BaseScrollViewProps extends BaseScreenProps {
     contentContainerStyle?: StyleProp<ViewStyle>;
     /** Disable the default horizontal padding (16px) */
     disableHorizontalPadding?: boolean;
+    /** Extra padding added on top of the header height. Defaults to 20. */
+    extraTopPadding?: number;
 }
 
 /**
@@ -220,7 +242,8 @@ export interface BaseScrollViewProps extends BaseScreenProps {
  */
 export function BaseScrollView({ 
     contentContainerStyle, 
-    disableHorizontalPadding = false,
+    disableHorizontalPadding = true,
+    extraTopPadding = 10,
     ...props 
 }: BaseScrollViewProps) {
     return (
@@ -229,9 +252,9 @@ export function BaseScrollView({
                 <ScrollView
                     contentContainerStyle={[
                         { 
-                            paddingTop: headerHeight, 
-                            paddingBottom: insets.bottom + 100, 
-                            paddingHorizontal: disableHorizontalPadding ? 0 : 16 
+                            paddingTop: headerHeight + extraTopPadding, 
+                            paddingBottom: insets.bottom + 60, 
+                            paddingHorizontal: disableHorizontalPadding ? 16 : 16,
                         },
                         contentContainerStyle
                     ]}

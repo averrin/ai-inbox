@@ -7,8 +7,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { JsonTreeView } from '../ui/JsonTreeView';
 import { Colors } from '../ui/design-tokens';
 import { showAlert, showError } from '../../utils/alert';
+import { BaseScreen } from '../screens/BaseScreen';
 
-export const SyncDebugView = () => {
+export const SyncDebugView = ({ onBack }: { onBack?: () => void }) => {
     const [targets, setTargets] = useState<string[]>([]);
     const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
     const [remoteData, setRemoteData] = useState('');
@@ -201,7 +202,9 @@ export const SyncDebugView = () => {
     };
 
     return (
-        <View className="flex-1 px-4">
+        <BaseScreen title="Sync Debugger" showBackButton={!!onBack} onBack={onBack}>
+             {({ insets, headerHeight }) => (
+        <View className="flex-1 px-4" style={{ paddingTop: headerHeight + 8, paddingBottom: insets.bottom }}>
             <Card>
                 <View className="mb-2 flex-row justify-between items-center">
                     <Text className="text-white font-bold text-lg">Sync Status</Text>
@@ -350,5 +353,7 @@ export const SyncDebugView = () => {
                 </View>
             </Modal>
         </View>
+             )}
+        </BaseScreen>
     );
 };

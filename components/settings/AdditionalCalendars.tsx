@@ -9,8 +9,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../ui/Button';
 import { MetadataChip } from '../ui/MetadataChip';
 import { Colors, Palette } from '../ui/design-tokens';
+import { BaseScreen } from '../screens/BaseScreen';
 
-export function AdditionalCalendars() {
+export function AdditionalCalendars({ onBack }: { onBack?: () => void }) {
     const {
         visibleCalendarIds, setVisibleCalendarIds,
         personalCalendarIds, workCalendarIds,
@@ -151,13 +152,18 @@ export function AdditionalCalendars() {
     }
 
     return (
-        <View className="flex-1">
-            <View className="mb-4">
-                <Text className="text-text-secondary font-semibold mb-2">Additional Calendars</Text>
-                <Text className="text-text-tertiary text-sm">
-                    Toggle visibility for calendars not assigned to Personal or Work.
-                </Text>
-            </View>
+        <BaseScreen
+            title="Additional Calendars"
+            showBackButton={!!onBack}
+            onBack={onBack}
+        >
+            {({ insets, headerHeight }) => (
+                <View className="flex-1 px-4" style={{ paddingTop: headerHeight, paddingBottom: insets.bottom }}>
+                    <View className="mb-4">
+                        <Text className="text-text-tertiary text-sm">
+                            Toggle visibility for calendars not assigned to Personal or Work.
+                        </Text>
+                    </View>
 
             {filteredCalendars.length === 0 ? (
                 <Text className="text-text-tertiary text-sm italic py-4">
@@ -214,6 +220,8 @@ export function AdditionalCalendars() {
                     </View>
                 </View>
             </Modal>
-        </View>
+                </View>
+            )}
+        </BaseScreen>
     );
 }

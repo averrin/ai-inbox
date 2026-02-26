@@ -1,4 +1,7 @@
-import dayjs from 'dayjs';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { firebaseAuth, firebaseDb } from './firebase';
+import { useWeatherStore } from '../store/weatherStore';
 
 export interface HourlyWeatherData {
     time: string; // ISO string
@@ -54,68 +57,59 @@ export const getWeatherDetails = (code: number): { icon: string; label: string }
 
 export const getWeatherIcon = (code: number) => getWeatherDetails(code).icon;
 
-export async function getWeatherForecast(
-    lat: number,
-    lon: number,
-    startDate: string | Date,
-    endDate: string | Date
-): Promise<Record<string, WeatherData>> {
-    const startStr = dayjs(startDate).format('YYYY-MM-DD');
-    const endStr = dayjs(endDate).format('YYYY-MM-DD');
+let weatherUnsubscribe: (() => void) | null = null;
 
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min&hourly=temperature_2m,weather_code&timezone=auto&start_date=${startStr}&end_date=${endStr}`;
+function subscribeToWeather(uid: string) {
+    unsubscribeFromWeather();
 
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Weather API Error: ${response.statusText}`);
-        }
-        const data = await response.json();
-
-        // OpenMeteo returns column-oriented data
-        const result: Record<string, WeatherData> = {};
-
-        if (!data.daily || !data.daily.time) {
-            return result;
-        }
-
-        data.daily.time.forEach((time: string, index: number) => {
-            const code = data.daily.weather_code[index];
-            const { icon, label } = getWeatherDetails(code);
-
-            // Group hourly data for this day
-            const hourly: HourlyWeatherData[] = [];
-            if (data.hourly && data.hourly.time) {
-                data.hourly.time.forEach((hTime: string, hIdx: number) => {
-                    if (hTime.startsWith(time)) {
-                        const hCode = data.hourly.weather_code[hIdx];
-                        const { icon: hIcon, label: hLabel } = getWeatherDetails(hCode);
-                        hourly.push({
-                            time: hTime,
-                            temp: data.hourly.temperature_2m[hIdx],
-                            weatherCode: hCode,
-                            icon: hIcon,
-                            label: hLabel
-                        });
-                    }
+    const docRef = doc(firebaseDb, `users/${uid}/weather/forecast`);
+    weatherUnsubscribe = onSnapshot(docRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const raw = snapshot.data();
+            const data = raw?.data as Record<string, WeatherData> | undefined;
+            if (data) {
+                // Normalize data to ensure valid icons/labels
+                const normalizedData: Record<string, WeatherData> = {};
+                Object.entries(data).forEach(([date, dayData]) => {
+                    const details = getWeatherDetails(dayData.weatherCode);
+                    normalizedData[date] = {
+                        ...dayData,
+                        icon: details.icon,
+                        label: details.label,
+                        hourly: (dayData.hourly || []).map(h => {
+                            const hDetails = getWeatherDetails(h.weatherCode);
+                            return {
+                                ...h,
+                                icon: hDetails.icon,
+                                label: hDetails.label
+                            };
+                        })
+                    };
                 });
+                useWeatherStore.getState().setWeatherData(normalizedData);
+                console.log('[WeatherService] Weather data updated and normalized from Firestore');
             }
+        }
+    }, (error) => {
+        console.warn('[WeatherService] Firestore listen error:', error);
+    });
+}
 
-            result[time] = {
-                date: time,
-                minTemp: data.daily.temperature_2m_min[index],
-                maxTemp: data.daily.temperature_2m_max[index],
-                weatherCode: code,
-                icon,
-                label,
-                hourly
-            };
-        });
-
-        return result;
-
-    } catch (error) {
-        console.error('Failed to fetch weather:', error);
-        return {};
+function unsubscribeFromWeather() {
+    if (weatherUnsubscribe) {
+        weatherUnsubscribe();
+        weatherUnsubscribe = null;
     }
 }
+
+// Auto-manage subscription based on auth state
+onAuthStateChanged(firebaseAuth, (user) => {
+    if (user) {
+        console.log('[WeatherService] User authenticated, subscribing to weather...');
+        subscribeToWeather(user.uid);
+    } else {
+        console.log('[WeatherService] User logged out, unsubscribing from weather.');
+        unsubscribeFromWeather();
+        useWeatherStore.getState().setWeatherData({});
+    }
+});

@@ -11,7 +11,7 @@ import { Colors } from '../ui/design-tokens';
 
 type CalendarSubSection = 'none' | 'personal' | 'work' | 'additional';
 
-export function CalendarsMainSettings() {
+export function CalendarsMainSettings({ onBack }: { onBack?: () => void }) {
     const { personalCalendarIds, workCalendarIds, workAccountId, visibleCalendarIds, hideDeclinedEvents, setHideDeclinedEvents } = useSettingsStore();
     const [activeSubSection, setActiveSubSection] = useState<CalendarSubSection>('none');
 
@@ -44,22 +44,13 @@ export function CalendarsMainSettings() {
         </TouchableOpacity>
     );
 
-    const renderModalHeader = (title: string) => (
-        <View className="flex-row items-center justify-between mb-6">
-            <Text className="text-white text-xl font-bold">{title}</Text>
-            <TouchableOpacity onPress={() => setActiveSubSection('none')} className="p-2">
-                <Ionicons name="close" size={24} color="white" />
-            </TouchableOpacity>
-        </View>
-    );
-
     const personalCount = personalCalendarIds.length;
     const workCount = workCalendarIds.length;
     // Count visible calendars that are NOT personal or work
     const additionalCount = visibleCalendarIds.filter(id => !personalCalendarIds.includes(id) && !workCalendarIds.includes(id)).length;
 
     return (
-        <View className="flex-1 px-4 mt-2">
+        <>
             <View className="mb-6">
                 <Text className="text-text-secondary font-semibold mb-2 ml-1">Configuration</Text>
                 {renderMenuButton(
@@ -101,30 +92,11 @@ export function CalendarsMainSettings() {
             </View>
 
             {/* Sub-section Modals */}
-            <Modal visible={activeSubSection !== 'none'} animationType="slide" transparent>
-                <View className="flex-1 justify-end bg-black/50">
-                    <View className="bg-background rounded-t-3xl p-6 h-[90%]">
-                        {activeSubSection === 'personal' && (
-                            <>
-                                {renderModalHeader("Personal Calendar")}
-                                <PersonalSettings />
-                            </>
-                        )}
-                        {activeSubSection === 'work' && (
-                            <>
-                                {renderModalHeader("Work Calendar")}
-                                <WorkSettings />
-                            </>
-                        )}
-                        {activeSubSection === 'additional' && (
-                            <>
-                                {renderModalHeader("Additional Calendars")}
-                                <AdditionalCalendars />
-                            </>
-                        )}
-                    </View>
-                </View>
+            <Modal visible={activeSubSection !== 'none'} animationType="slide">
+                {activeSubSection === 'personal' && <PersonalSettings onBack={() => setActiveSubSection('none')} />}
+                {activeSubSection === 'work' && <WorkSettings onBack={() => setActiveSubSection('none')} />}
+                {activeSubSection === 'additional' && <AdditionalCalendars onBack={() => setActiveSubSection('none')} />}
             </Modal>
-        </View>
+        </>
     );
 }
