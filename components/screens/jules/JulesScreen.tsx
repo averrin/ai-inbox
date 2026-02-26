@@ -6,6 +6,7 @@ import { Card } from '../../ui/Card';
 import { useSettingsStore } from '../../../store/settings';
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { WorkflowRun, fetchWorkflowRuns, JulesSession, fetchJulesSessions, exchangeGithubToken, fetchGithubRepos, fetchGithubUser, GithubRepo, fetchGithubRepoDetails, fetchPullRequest } from '../../../services/jules';
+import { subscribeToJulesSessions, subscribeToWatchedRuns } from '../../../services/julesFirebase';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import * as WebBrowser from 'expo-web-browser';
@@ -112,25 +113,38 @@ export default function JulesScreen() {
         promptAsync();
     };
 
+    // Replace loadData loop with Firebase Subscriptions
+    useEffect(() => {
+        const unsubSessions = subscribeToJulesSessions((sessions) => {
+            setJulesSessions(sessions);
+        });
+
+        const unsubRuns = subscribeToWatchedRuns((runs) => {
+            setAllRuns(runs);
+        });
+
+        return () => {
+            unsubSessions();
+            unsubRuns();
+        };
+    }, []);
+
+    // Manual refresh fallback
     const loadData = useCallback(async () => {
         setError(null);
         try {
-            // 1. Fetch Sessions
-            let sessions: JulesSession[] = [];
-            if (julesGoogleApiKey) {
-                sessions = await fetchJulesSessions(julesGoogleApiKey, 10);
-                setJulesSessions(sessions);
-            }
+            // Fallback: Fetch directly if manual refresh is needed, though Firestore should be live
+            // We can just trigger a re-render or let the backend do its job.
+            // For now, let's keep the manual fetch logic as a "force sync" mechanism
+            // or just rely on the subscription updates.
 
-            // 2. Identify Repos to fetch runs from
-            const reposToFetch = new Map<string, { owner: string, repo: string }>();
+            // If we want to force refresh, we might need to call an endpoint,
+            // but for now, let's assume the user just wants to see if new data arrived.
+            // Since we use Firestore, local state is always up to date with DB.
+            // Maybe we can fetch default branch here if missing.
 
-            // Add current selected repo
             if (julesApiKey && julesOwner && julesRepo) {
-                reposToFetch.set(`${julesOwner}/${julesRepo}`, { owner: julesOwner, repo: julesRepo });
-
-                // Also get default branch for current repo
-                try {
+                 try {
                     const repoDetails = await fetchGithubRepoDetails(julesApiKey, julesOwner, julesRepo);
                     setDefaultBranch(repoDetails.default_branch || 'main');
                 } catch (e) {
@@ -138,19 +152,9 @@ export default function JulesScreen() {
                 }
             }
 
-            // Add repos from sessions
-            sessions.forEach(s => {
-                if (s.githubMetadata?.owner && s.githubMetadata?.repo) {
-                    reposToFetch.set(`${s.githubMetadata.owner}/${s.githubMetadata.repo}`, {
-                        owner: s.githubMetadata.owner,
-                        repo: s.githubMetadata.repo
-                    });
-                }
-            });
-
-            // 4. Fetch PR states for sessions
-            if (julesApiKey) {
-                sessions.forEach(s => {
+            // Also fetch PR states if needed
+             if (julesApiKey && julesSessions.length > 0) {
+                julesSessions.forEach(s => {
                     const m = s.githubMetadata;
                     if (m?.owner && m?.repo && m?.pullRequestNumber) {
                         const key = `${m.owner}/${m.repo}/${m.pullRequestNumber}`;
@@ -168,34 +172,16 @@ export default function JulesScreen() {
                 });
             }
 
-            // 3. Fetch runs for all identified repos
-            if (julesApiKey) {
-                const runPromises = Array.from(reposToFetch.values()).map(async ({ owner, repo }) => {
-                    try {
-                        // Fetch ALL recent runs (no branch filter) to enable matching
-                        const runs = await fetchWorkflowRuns(julesApiKey, owner, repo, undefined, 50);
-                        return runs;
-                    } catch (e) {
-                        console.warn(`Failed to fetch runs for ${owner}/${repo}`, e);
-                        return [];
-                    }
-                });
-
-                const runsArrays = await Promise.all(runPromises);
-                const combinedRuns = runsArrays.flat();
-                setAllRuns(combinedRuns);
-            }
-
         } catch (e: any) {
             console.error(e);
             setError(e.message || "Failed to load data");
         }
-    }, [julesApiKey, julesOwner, julesRepo, julesGoogleApiKey]);
+    }, [julesApiKey, julesOwner, julesRepo, julesGoogleApiKey, julesSessions, prStates]);
 
     useEffect(() => {
-        setLoading(true);
-        loadData().finally(() => setLoading(false));
-    }, [loadData, julesApiKey]);
+        // Initial load of auxiliary data
+        loadData();
+    }, [loadData]);
 
     // Process sessions and match runs
     useEffect(() => {
@@ -223,8 +209,11 @@ export default function JulesScreen() {
                 if (allRuns.length > 0) {
                     if (prNumber) {
                         // Priority 1: Match by PR number
+                        // Note: Backend might not return pull_requests array fully populated in WatchedRunData
+                        // We might need to rely on head_branch if PR info is missing
                         matchedRun = allRuns.find(r =>
-                            r.pull_requests && r.pull_requests.some(p => p.number === prNumber)
+                            (r.pull_requests && r.pull_requests.some(p => p.number === prNumber)) ||
+                            (branch && r.head_branch === branch) // Fallback to branch match if PR info missing
                         );
                     }
 
@@ -273,7 +262,9 @@ export default function JulesScreen() {
         if (allRuns.length > 0 && julesOwner && julesRepo) {
             const master = allRuns.filter(r =>
                 r.head_branch === defaultBranch &&
-                r.html_url.includes(`/${julesOwner}/${julesRepo}/`) // Ensure it belongs to current repo
+                // r.html_url.includes(`/${julesOwner}/${julesRepo}/`) // html_url check might be brittle if partial data
+                // Better check if we have owner/repo fields if added to interface, or rely on context
+                (r as any).owner === julesOwner && (r as any).repo === julesRepo
             ).slice(0, 3);
             setMasterRuns(master);
         } else {
@@ -336,14 +327,18 @@ export default function JulesScreen() {
         }
 
         if (masterRuns.length === 0 && sessionsWithRuns.length === 0) {
+            // Still show empty state but refreshing works via pull-to-refresh
             return (
-                <View className="flex-1 justify-center items-center px-6">
-                    <Ionicons name="file-tray-outline" size={64} color="#475569" />
-                    <Text className="text-white text-xl font-bold mt-4 text-center">No Activity Found</Text>
-                    <TouchableOpacity onPress={loadData} className="mt-6 bg-primary px-6 py-3 rounded-xl">
-                        <Text className="text-white font-bold">Refresh</Text>
-                    </TouchableOpacity>
-                </View>
+                <ScrollView
+                    contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#818cf8" />}
+                >
+                    <View className="flex-1 justify-center items-center px-6">
+                        <Ionicons name="file-tray-outline" size={64} color="#475569" />
+                        <Text className="text-white text-xl font-bold mt-4 text-center">No Activity Found</Text>
+                        <Text className="text-text-tertiary mt-2 text-center">Data is synced from the backend.</Text>
+                    </View>
+                </ScrollView>
             );
         }
 
@@ -378,7 +373,7 @@ export default function JulesScreen() {
                                 onDelete={async () => {
                                     const { deleteJulesSession } = await import('../../../services/jules');
                                     if (julesGoogleApiKey) {
-                                        setJulesSessions(prev => prev.filter(s => s.name !== session.name));
+                                        // setJulesSessions(prev => prev.filter(s => s.name !== session.name)); // Don't optimistically update here if Firestore is live
                                         try {
                                             await deleteJulesSession(julesGoogleApiKey, session.name);
                                         } catch (e) {
