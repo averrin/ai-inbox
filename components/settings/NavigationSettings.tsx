@@ -279,58 +279,52 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
                             <Text className="text-text-tertiary italic mb-4">No items in this group.</Text>
                         ) : (
                             currentChildren.map((item, index) => (
-                                <View key={item.id} className="bg-surface-highlight/50 border border-border/40 rounded-xl p-3 mb-2">
-                                    <View className="flex-row items-center gap-2.5 mb-2.5">
+                                <View key={item.id} className="flex-row items-center bg-surface-highlight/50 border border-border/40 rounded-xl p-2 mb-2 gap-3">
+                                    <View className="flex-col gap-1">
                                         <TouchableOpacity
-                                            onPress={() => setIconPickerTarget({ id: item.id })}
-                                            className="w-10 h-10 items-center justify-center bg-background rounded-lg border border-border"
+                                            onPress={() => handleGroupChildMove(item.id, 'up')}
+                                            disabled={index === 0}
+                                            className={`w-6 h-6 items-center justify-center rounded ${index === 0 ? 'opacity-10' : 'bg-surface-highlight border border-border/20'}`}
                                         >
-                                            <UniversalIcon
-                                                name={item.icon}
-                                                size={20}
-                                                color="#818cf8"
-                                            />
+                                            <Ionicons name="chevron-up" size={12} color="white" />
                                         </TouchableOpacity>
-                                        
-                                        <View className="flex-1">
-                                            <TextInput
-                                                value={item.title}
-                                                onChangeText={(text) => handleGroupChildUpdate(item.id, 'title', text)}
-                                                placeholder="Tab Title"
-                                                placeholderTextColor={Colors.secondary}
-                                                className="text-white text-base font-semibold p-0"
-                                            />
-                                            <Text className="text-text-tertiary text-[10px] font-mono leading-none">{item.id}</Text>
-                                        </View>
-
                                         <TouchableOpacity
-                                            onPress={() => handleRemoveFromGroup(item.id)}
-                                            className="bg-error/10 w-8 h-8 items-center justify-center rounded-lg"
+                                            onPress={() => handleGroupChildMove(item.id, 'down')}
+                                            disabled={index === currentChildren.length - 1}
+                                            className={`w-6 h-6 items-center justify-center rounded ${index === currentChildren.length - 1 ? 'opacity-10' : 'bg-surface-highlight border border-border/20'}`}
                                         >
-                                            <Ionicons name="trash-outline" size={16} color={Colors.error} />
+                                            <Ionicons name="chevron-down" size={12} color="white" />
                                         </TouchableOpacity>
                                     </View>
 
-                                    <View className="flex-row items-center justify-between pt-2 border-t border-border/10">
-                                        <View className="flex-row items-center gap-1.5">
-                                            <TouchableOpacity
-                                                onPress={() => handleGroupChildMove(item.id, 'up')}
-                                                disabled={index === 0}
-                                                className={`w-7 h-7 items-center justify-center rounded ${index === 0 ? 'opacity-10' : 'bg-surface-highlight border border-border/20'}`}
-                                            >
-                                                <Ionicons name="chevron-up" size={14} color="white" />
-                                            </TouchableOpacity>
-                                            <TouchableOpacity
-                                                onPress={() => handleGroupChildMove(item.id, 'down')}
-                                                disabled={index === currentChildren.length - 1}
-                                                className={`w-7 h-7 items-center justify-center rounded ${index === currentChildren.length - 1 ? 'opacity-10' : 'bg-surface-highlight border border-border/20'}`}
-                                            >
-                                                <Ionicons name="chevron-down" size={14} color="white" />
-                                            </TouchableOpacity>
-                                        </View>
-                                        
-                                        <Text className="text-text-tertiary text-[9px] uppercase font-bold tracking-wider">Order</Text>
+                                    <TouchableOpacity
+                                        onPress={() => setIconPickerTarget({ id: item.id })}
+                                        className="w-10 h-10 items-center justify-center bg-background rounded-lg border border-border"
+                                    >
+                                        <UniversalIcon
+                                            name={item.icon}
+                                            size={20}
+                                            color="#818cf8"
+                                        />
+                                    </TouchableOpacity>
+
+                                    <View className="flex-1">
+                                        <TextInput
+                                            value={item.title}
+                                            onChangeText={(text) => handleGroupChildUpdate(item.id, 'title', text)}
+                                            placeholder="Tab Title"
+                                            placeholderTextColor={Colors.secondary}
+                                            className="text-white text-sm font-bold p-0 leading-tight"
+                                        />
+                                        <Text className="text-text-tertiary text-[9px] font-mono leading-none mt-0.5">{item.id}</Text>
                                     </View>
+
+                                    <TouchableOpacity
+                                        onPress={() => handleRemoveFromGroup(item.id)}
+                                        className="bg-error/10 w-8 h-8 items-center justify-center rounded-lg"
+                                    >
+                                        <Ionicons name="trash-outline" size={16} color={Colors.error} />
+                                    </TouchableOpacity>
                                 </View>
                             ))
                         )}
@@ -366,79 +360,77 @@ export function NavigationSettings({ onBack }: { onBack?: () => void }) {
         const isRight = item.segment === 'right';
 
         return (
-            <View key={item.id} className={`border rounded-xl p-3 mb-2.5 ${isGroup ? 'bg-primary/5 border-primary/20' : 'bg-surface border-border/30'}`}>
-                {/* Main Row: Icon, Title, Actions */}
-                <View className="flex-row items-center gap-2.5">
+            <View key={item.id} className={`flex-row items-center border rounded-xl p-2 mb-2 gap-3 ${isGroup ? 'bg-primary/5 border-primary/20' : 'bg-surface border-border/30'}`}>
+                {/* Sort Controls */}
+                <View className="flex-col gap-1">
                     <TouchableOpacity
-                        onPress={() => setIconPickerTarget({ id: item.id })}
-                        className={`w-10 h-10 items-center justify-center rounded-lg border ${isGroup ? 'bg-primary/10 border-primary/20' : 'bg-surface-highlight border-border'}`}
+                        onPress={() => handleMove(item.id, 'up')}
+                        disabled={index === 0}
+                        className={`w-6 h-6 items-center justify-center rounded ${index === 0 ? 'opacity-10' : 'bg-surface-highlight border border-border/20'}`}
                     >
-                        <UniversalIcon
-                            name={item.icon}
-                            size={20}
-                            color={isGroup ? "#818cf8" : "white"}
-                        />
+                        <Ionicons name="chevron-up" size={12} color="white" />
                     </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => handleMove(item.id, 'down')}
+                        disabled={index === listLength - 1}
+                        className={`w-6 h-6 items-center justify-center rounded ${index === listLength - 1 ? 'opacity-10' : 'bg-surface-highlight border border-border/20'}`}
+                    >
+                        <Ionicons name="chevron-down" size={12} color="white" />
+                    </TouchableOpacity>
+                </View>
 
-                    <View className="flex-1">
-                        <TextInput
-                            value={item.title}
-                            onChangeText={(text) => handleUpdate(item.id, 'title', text)}
-                            placeholder="Label"
-                            placeholderTextColor={Colors.secondary}
-                            className="text-white text-base font-bold p-0"
-                        />
-                        <View className="flex-row items-center gap-1.5">
-                            {isGroup && <Ionicons name="folder" size={10} color="#818cf8" />}
-                            <Text className="text-text-tertiary text-[9px] font-mono uppercase tracking-tight leading-none">
-                                {isGroup ? `Group (${item.children?.length || 0} items)` : item.id}
-                            </Text>
-                        </View>
-                    </View>
+                {/* Icon */}
+                <TouchableOpacity
+                    onPress={() => setIconPickerTarget({ id: item.id })}
+                    className={`w-10 h-10 items-center justify-center rounded-lg border ${isGroup ? 'bg-primary/10 border-primary/20' : 'bg-surface-highlight border-border'}`}
+                >
+                    <UniversalIcon
+                        name={item.icon}
+                        size={20}
+                        color={isGroup ? "#818cf8" : "white"}
+                    />
+                </TouchableOpacity>
 
-                    <View className="flex-row items-center gap-1.5">
-                        {isGroup && (
-                            <TouchableOpacity
-                                onPress={() => setEditingGroup(item)}
-                                className="bg-primary/10 px-2.5 py-1.5 rounded-lg border border-primary/20"
-                            >
-                                <Text className="text-primary text-[10px] font-bold uppercase">Edit</Text>
-                            </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                            onPress={() => handleDelete(item.id)}
-                            className="bg-error/10 w-8 h-8 items-center justify-center rounded-lg"
-                        >
-                            <Ionicons name="trash-outline" size={16} color={Colors.error} />
-                        </TouchableOpacity>
+                {/* Content */}
+                <View className="flex-1">
+                    <TextInput
+                        value={item.title}
+                        onChangeText={(text) => handleUpdate(item.id, 'title', text)}
+                        placeholder="Label"
+                        placeholderTextColor={Colors.secondary}
+                        className="text-white text-sm font-bold p-0 leading-tight"
+                    />
+                    <View className="flex-row items-center gap-1.5 mt-0.5">
+                        {isGroup && <Ionicons name="folder" size={10} color="#818cf8" />}
+                        <Text className="text-text-tertiary text-[9px] font-mono uppercase tracking-tight leading-none" numberOfLines={1}>
+                            {isGroup ? `Group (${item.children?.length || 0})` : item.id}
+                        </Text>
                     </View>
                 </View>
 
-                {/* Secondary Row: Reordering and Segment Switch */}
-                <View className="flex-row items-center justify-between mt-2.5 pt-2.5 border-t border-border/5">
-                    <View className="flex-row items-center gap-1.5">
+                {/* Actions */}
+                <View className="flex-row items-center gap-1">
+                    {isGroup && (
                         <TouchableOpacity
-                            onPress={() => handleMove(item.id, 'up')}
-                            disabled={index === 0}
-                            className={`w-8 h-8 items-center justify-center rounded ${index === 0 ? 'opacity-10' : 'bg-surface-highlight border border-border/20'}`}
+                            onPress={() => setEditingGroup(item)}
+                            className="w-8 h-8 items-center justify-center rounded-lg bg-primary/10 border border-primary/20"
                         >
-                            <Ionicons name="chevron-up" size={16} color="white" />
+                            <Ionicons name="create-outline" size={16} color="#818cf8" />
                         </TouchableOpacity>
-                        <TouchableOpacity
-                            onPress={() => handleMove(item.id, 'down')}
-                            disabled={index === listLength - 1}
-                            className={`w-8 h-8 items-center justify-center rounded ${index === listLength - 1 ? 'opacity-10' : 'bg-surface-highlight border border-border/20'}`}
-                        >
-                            <Ionicons name="chevron-down" size={16} color="white" />
-                        </TouchableOpacity>
-                    </View>
+                    )}
 
                     <TouchableOpacity
                         onPress={() => handleSwitchSegment(item.id)}
-                        className="flex-row items-center gap-1.5 bg-surface-highlight/30 px-2 py-1.5 rounded-lg border border-border/20"
+                        className="w-8 h-8 items-center justify-center rounded-lg bg-surface-highlight/30 border border-border/20"
                     >
-                        <Ionicons name={isRight ? 'arrow-back' : 'arrow-forward'} size={12} color={Colors.secondary} />
-                        <Text className="text-[10px] text-text-secondary font-bold uppercase">To {isRight ? 'Left' : 'Right'}</Text>
+                         <Ionicons name={isRight ? 'arrow-back' : 'arrow-forward'} size={16} color={Colors.secondary} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => handleDelete(item.id)}
+                        className="w-8 h-8 items-center justify-center rounded-lg bg-error/10"
+                    >
+                        <Ionicons name="trash-outline" size={16} color={Colors.error} />
                     </TouchableOpacity>
                 </View>
             </View>
