@@ -121,6 +121,15 @@ class WatcherService {
                 }
             }
 
+            // Listen for foreground FCM messages
+            Notifications.addNotificationReceivedListener(notification => {
+                const data = notification.request.content.data;
+                if (data && (data.run_id || data.runId)) {
+                    // console.log("[WatcherService] Received FCM message", data);
+                    this.handleFcmMessage(data);
+                }
+            });
+
             this.initialized = true;
             this.start();
             this.registerTask();
@@ -142,6 +151,99 @@ class WatcherService {
             }
         } catch (e) {
             console.warn("Failed to register background fetch", e);
+        }
+    }
+
+    async handleFcmMessage(data: any) {
+        const runId = parseInt(data.run_id || data.runId);
+        if (isNaN(runId)) return;
+
+        const watchedRun = this.watchedRuns[runId];
+        if (!watchedRun) {
+            // Optionally auto-watch if configured
+            return;
+        }
+
+        // Parse fields from payload
+        // Expected format: { run_id, status, progress, artifact_url, ... }
+        const status = data.status;
+        const progress = data.progress !== undefined ? parseFloat(data.progress) : undefined;
+        const artifactUrl = data.artifact_url;
+
+        // If specific status or progress is provided, update notification immediately
+        if (status || progress !== undefined) {
+             const percent = progress !== undefined ? Math.round(progress * 100) : undefined;
+             const commitMsg = watchedRun.run.head_commit?.message?.split('\n')[0] || 'No commit message';
+
+             let body = `${watchedRun.run.head_branch}`;
+             if (percent !== undefined) body += ` • ${percent}%`;
+             body += `\nRepo: ${watchedRun.owner}/${watchedRun.repo}\nCommit: ${commitMsg}`;
+             if (status) body += `\nStatus: ${status}`;
+
+             const smallText = `${watchedRun.run.head_branch} ${percent !== undefined ? `• ${percent}%` : ''} • ${status || watchedRun.lastStatus}`;
+             const chipText = percent !== undefined ? `${percent}%` : undefined;
+
+             this.updateNotification(watchedRun, body, progress, false, smallText, chipText, status).catch(console.error);
+        }
+
+        // Handle Artifact Download via FCM
+        if ((status === 'success' || status === 'completed') && artifactUrl && !watchedRun.artifactPath) {
+            console.log(`[WatcherService] FCM triggered artifact download for ${runId}`);
+
+            // Check if already downloading
+            if (this.activeDownloads.has(runId)) return;
+
+            const commitMsg = watchedRun.run.head_commit?.message?.split('\n')[0] || 'No commit message';
+
+            this.activeDownloads.add(runId);
+            this.activeDownloadProgress.set(runId, 0);
+            this.notifyDownloadListeners(runId, true, 0);
+
+            // Initial notification
+            await this.updateNotification(watchedRun, `Downloading artifact... 0%\nCommit: ${commitMsg}`, 0, false, undefined, "0%", "Downloading");
+
+            try {
+                // Fetch artifacts to get the full object needed for downloadAndInstallArtifact
+                const artifacts = await fetchArtifacts(watchedRun.token, watchedRun.owner, watchedRun.repo, runId);
+                const artifact = artifacts.find(a => a.name.includes('app-release') || a.name.includes('app-debug')) || artifacts[0];
+
+                if (artifact) {
+                    const path = await downloadAndInstallArtifact(
+                        artifact,
+                        watchedRun.token,
+                        watchedRun.run.head_branch,
+                        () => {},
+                        (p) => {
+                            this.activeDownloadProgress.set(runId, p);
+                            this.notifyDownloadListeners(runId, true, p);
+                            const percent = Math.round(p * 100);
+                            const smallText = `Downloading: ${percent}%`;
+                            this.updateNotification(watchedRun, `Downloading artifact... ${percent}%\nCommit: ${commitMsg}`, percent, false, smallText, `${percent}%`, "Downloading").catch(console.error);
+                        },
+                        artifactDeps,
+                        undefined,
+                        true // Only download
+                    );
+
+                    if (path) {
+                        watchedRun.artifactPath = path;
+                        await this.updateNotification(watchedRun, `Ready to Install\nCommit: ${commitMsg}`, undefined, true, undefined, undefined, "Success");
+                        await this.unwatchRun(runId, false);
+                    } else {
+                        await this.updateNotification(watchedRun, "Artifact download failed", undefined, false, undefined, undefined, "Failed");
+                        await this.unwatchRun(runId, false);
+                    }
+                } else {
+                     await this.updateNotification(watchedRun, "No artifact found via FCM trigger", undefined, false, undefined, undefined, "Failed");
+                }
+            } catch (e) {
+                console.error("FCM Artifact download error", e);
+                await this.updateNotification(watchedRun, "Artifact download error", undefined, false, undefined, undefined, "Error");
+            } finally {
+                this.activeDownloads.delete(runId);
+                this.activeDownloadProgress.delete(runId);
+                this.notifyDownloadListeners(runId, false, 0);
+            }
         }
     }
 
@@ -260,9 +362,14 @@ class WatcherService {
 
     start() {
         if (this.interval) clearInterval(this.interval);
-        const { watcherCheckInterval } = useSettingsStore.getState();
-        this.interval = setInterval(() => this.checkRuns(), watcherCheckInterval);
+
+        // Use a long interval (e.g., 1 hour) instead of frequent polling
+        // as we now rely on FCM for real-time updates.
+        const FALLBACK_POLL_INTERVAL = 3600000; // 1 hour
+        this.interval = setInterval(() => this.checkRuns(), FALLBACK_POLL_INTERVAL);
+
         this.updateHeartbeatState();
+        this.checkRuns(); // Initial sync
     }
 
     async checkRuns() {
@@ -390,8 +497,9 @@ class WatcherService {
         }
     }
 
-    private async updateNotification(item: WatchedRun, body: string, progress?: number, readyToInstall = false, smallText?: string, chipText?: string) {
-        const isImportant = readyToInstall || body.includes('Failed') || body.includes('Build Success');
+    private async updateNotification(item: WatchedRun, body: string, progress?: number, readyToInstall = false, smallText?: string, chipText?: string, explicitStatus?: string) {
+        // Use explicitStatus to check for importance if provided
+        const isImportant = readyToInstall || (body.includes('Failed') || body.includes('Build Success') || (explicitStatus && (explicitStatus.includes('failure') || explicitStatus.includes('success'))));
 
         // Suppress non-important notifications if in an invisible range
         if (!isImportant) {
