@@ -920,10 +920,13 @@ export default function SetupScreen({ onClose, canClose }: { onClose?: () => voi
                             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 68, paddingBottom: insets.bottom + 80 }} keyboardShouldPersistTaps="always">
                                 {renderIntegrationsSettings()}
                             </ScrollView>
+                        ) : activeSection === 'navigation' ? (
+                            <View style={{ flex: 1, paddingTop: 68, paddingBottom: insets.bottom + 80 }}>
+                                <NavigationSettings />
+                            </View>
                         ) : (
                             <ScrollView className="flex-1" contentContainerStyle={{ paddingTop: 68, paddingBottom: insets.bottom + 80 }} keyboardShouldPersistTaps="always">
                                 {activeSection === 'general' && <View className="px-0">{renderGeneralSettings()}</View>}
-                                {activeSection === 'navigation' && <View className="px-0"><NavigationSettings /></View>}
                                 {activeSection === 'news' && <View className="px-0"><NewsSettings /></View>}
                                 {activeSection === 'profile' && <View className="px-0"><ProfileSettings /></View>}
                                 {activeSection === 'calendars' && <View className="px-0"><CalendarsMainSettings /></View>}
