@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, FlatList, TextInput, Switch, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, TextInput, Switch, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEventTypesStore } from '../../store/eventTypes';
 import { EventType } from '../../services/eventTypeService';
@@ -10,7 +10,6 @@ import { Palette, Colors } from '../ui/design-tokens';
 import { IconSelector } from '../ui/IconSelector';
 import { EventTypeBadge } from '../ui/EventTypeBadge';
 import * as Crypto from 'expo-crypto';
-import { BaseScreen } from '../screens/BaseScreen';
 
 export function EventTypesSettings({ onBack }: { onBack?: () => void }) {
     const { eventTypes, addType, updateType, deleteType } = useEventTypesStore();
@@ -69,53 +68,46 @@ export function EventTypesSettings({ onBack }: { onBack?: () => void }) {
         await deleteType(id);
     };
 
-    const renderItem = ({ item }: { item: EventType }) => (
-        <SettingsListItem>
-            <View className="flex-1 pr-2">
-                <EventTypeBadge type={item} />
-            </View>
+    const renderItem = (item: EventType) => (
+        <View key={item.id}>
+            <SettingsListItem>
+                <View className="flex-1 pr-2">
+                    <EventTypeBadge type={item} />
+                </View>
 
-            <View className="flex-row gap-2 items-center">
-                <TouchableOpacity onPress={() => handleEdit(item)} className="p-2">
-                    <Ionicons name="pencil" size={20} color={Colors.text.tertiary} />
-                </TouchableOpacity>
-                <ActionButton
-                    onPress={() => handleDelete(item.id)}
-                    icon="trash-outline"
-                    variant="danger"
-                />
-            </View>
-        </SettingsListItem>
+                <View className="flex-row gap-2 items-center">
+                    <TouchableOpacity onPress={() => handleEdit(item)} className="p-2">
+                        <Ionicons name="pencil" size={20} color={Colors.text.tertiary} />
+                    </TouchableOpacity>
+                    <ActionButton
+                        onPress={() => handleDelete(item.id)}
+                        icon="trash-outline"
+                        variant="danger"
+                    />
+                </View>
+            </SettingsListItem>
+        </View>
     );
 
     return (
-        <BaseScreen title="Event Types" showBackButton={!!onBack} onBack={onBack}>
-             {({ insets, headerHeight }) => (
-                 <View className="flex-1" style={{ paddingTop: headerHeight, paddingBottom: insets.bottom }}>
-                    <FlatList
-                        className="px-4 mt-2"
-                        data={eventTypes}
-                        renderItem={renderItem}
-                        keyExtractor={item => item.id}
-                        scrollEnabled={true}
-                        contentContainerStyle={{ paddingBottom: 40 }}
-                        ListFooterComponent={
-                            <View className="mt-4">
-                                <TouchableOpacity
-                                    onPress={handleCreate}
-                                    className="bg-primary p-4 rounded-lg flex-row justify-center items-center gap-2"
-                                >
-                                    <Ionicons name="add" size={24} color="white" />
-                                    <Text className="text-white font-semibold">Create New Type</Text>
-                                </TouchableOpacity>
-                            </View>
-                        }
-                        ListEmptyComponent={
-                            <Text className="text-secondary text-center mt-10">
-                                No event types defined yet.
-                            </Text>
-                        }
-                    />
+        <View className="flex-1 px-4 mt-2">
+            {eventTypes.map(renderItem)}
+
+            {eventTypes.length === 0 && (
+                <Text className="text-secondary text-center mt-10">
+                    No event types defined yet.
+                </Text>
+            )}
+
+            <View className="mt-4 mb-10">
+                <TouchableOpacity
+                    onPress={handleCreate}
+                    className="bg-primary p-4 rounded-lg flex-row justify-center items-center gap-2"
+                >
+                    <Ionicons name="add" size={24} color="white" />
+                    <Text className="text-white font-semibold">Create New Type</Text>
+                </TouchableOpacity>
+            </View>
 
             {/* Edit/Create Form Modal */}
             <Modal visible={isFormVisible} transparent animationType="fade">
@@ -196,8 +188,6 @@ export function EventTypesSettings({ onBack }: { onBack?: () => void }) {
                     </View>
                 </View>
             </Modal>
-                </View>
-            )}
-        </BaseScreen>
+        </View>
     );
 }

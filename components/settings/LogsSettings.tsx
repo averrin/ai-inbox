@@ -1,12 +1,11 @@
 
-import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useState, useEffect } from 'react';
 import * as Clipboard from 'expo-clipboard';
 import { getLogs, clearLogs, LogEntry } from '../../utils/logger';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { Colors } from '../ui/design-tokens';
-import { BaseScreen } from '../screens/BaseScreen';
 
 export function LogsSettings({ onBack }: { onBack?: () => void }) {
     const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -61,7 +60,7 @@ export function LogsSettings({ onBack }: { onBack?: () => void }) {
         setSelectedKeys(newSet);
     };
 
-    const renderItem = ({ item }: { item: LogEntry }) => {
+    const renderItem = (item: LogEntry) => {
         let color = 'text-text-secondary';
         if (item.level === 'warn') color = 'text-warning';
         if (item.level === 'error') color = 'text-error';
@@ -73,6 +72,7 @@ export function LogsSettings({ onBack }: { onBack?: () => void }) {
 
         return (
             <TouchableOpacity
+                key={key}
                 onPress={() => toggleSelection(key)}
                 className={`flex-row mb-2 border-b border-border pb-1 ${isSelected ? 'bg-surface/50' : ''}`}
             >
@@ -92,9 +92,7 @@ export function LogsSettings({ onBack }: { onBack?: () => void }) {
     };
 
     return (
-        <BaseScreen title="Console Logs" showBackButton={!!onBack} onBack={onBack}>
-             {({ insets, headerHeight }) => (
-                <View className="flex-1 px-4" style={{ paddingTop: headerHeight + 8, paddingBottom: insets.bottom }}>
+        <View className="flex-1 px-4 mt-2">
             <View className="flex-row justify-end gap-2 mb-4">
                  <TouchableOpacity onPress={handleCopy} className="bg-surface-highlight px-3 py-2 rounded flex-row items-center">
                     <Ionicons name="copy-outline" size={16} color="white" />
@@ -105,14 +103,9 @@ export function LogsSettings({ onBack }: { onBack?: () => void }) {
                     <Text className="text-white ml-2 text-xs font-bold">Clear</Text>
                 </TouchableOpacity>
             </View>
-            <FlatList
-                data={logs}
-                renderItem={renderItem}
-                keyExtractor={getLogKey}
-                contentContainerStyle={{ paddingBottom: 20 }}
-            />
-                </View>
-             )}
-        </BaseScreen>
+            <View>
+                {logs.map(renderItem)}
+            </View>
+        </View>
     );
 }
