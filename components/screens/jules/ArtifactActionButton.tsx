@@ -1,76 +1,47 @@
 import React from 'react';
-import { Artifact } from '../../../services/jules';
-import { Colors } from '../../ui/design-tokens';
 import { MetadataChip } from '../../ui/MetadataChip';
 
 interface ArtifactActionButtonProps {
-    artifacts: Artifact[] | null;
-    loading: boolean;
+    artifactUrl: string | null;
     downloading: boolean;
     progress: number | null;
     status: string | null;
     cachedPath: string | null;
     onPress: () => void;
-    onFetch: () => void;
     compact?: boolean;
 }
 
 export function ArtifactActionButton({
-    artifacts,
-    loading,
+    artifactUrl,
     downloading,
     progress,
     status,
     cachedPath,
     onPress,
-    onFetch,
     compact = false
 }: ArtifactActionButtonProps) {
-    if (artifacts && artifacts.length > 0) {
-        if (downloading) {
-            return (
-                <MetadataChip
-                    label={status || `${Math.round((progress || 0) * 100)}%`}
-                    loading={true}
-                    progress={progress || 0}
-                    variant="default"
-                    size={compact ? 'sm' : 'md'}
-                    disabled={true}
-                />
-            );
-        }
-
+    if (downloading) {
         return (
             <MetadataChip
-                label={cachedPath ? "Install" : "Artifact"}
-                icon={cachedPath ? "construct-outline" : "download-outline"}
+                label={status || `${Math.round((progress || 0) * 100)}%`}
+                loading={true}
+                progress={progress || 0}
                 variant="default"
                 size={compact ? 'sm' : 'md'}
-                onPress={onPress}
+                disabled={true}
             />
         );
     }
 
-    if (loading) {
-        return (
-             <MetadataChip
-                label="Checking..."
-                loading={true}
-                variant="outline"
-                color={Colors.text.tertiary}
-                size={compact ? 'sm' : 'md'}
-            />
-        );
-    }
+    if (!artifactUrl) return null;
 
     return (
         <MetadataChip
-            label="No Artifact"
-            icon="alert-circle-outline"
-            variant="outline"
-            color={Colors.text.secondary}
+            label={cachedPath ? 'Install' : 'Download'}
+            icon={cachedPath ? 'construct-outline' : 'download-outline'}
+            variant="default"
             size={compact ? 'sm' : 'md'}
-            onPress={onFetch}
+            onPress={onPress}
         />
     );
 }

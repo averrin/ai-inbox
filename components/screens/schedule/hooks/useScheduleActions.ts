@@ -134,8 +134,6 @@ export const useScheduleActions = ({
                     ...originalReminder,
                     reminderTime,
                     recurrenceRule: recurrenceStr,
-                    alarm: data.alarm,
-                    persistent: data.persistent,
                     title: data.title,
                     content: content
                 };
@@ -151,7 +149,7 @@ export const useScheduleActions = ({
 
                 try {
                     if (isNew) {
-                        const result = await createStandaloneReminder(reminderTime, data.title, recurrenceStr, data.alarm, data.persistent, {}, [], undefined, content);
+                        const result = await createStandaloneReminder(reminderTime, data.title, recurrenceStr, {}, [], undefined, content);
                         if (result) {
                             const { cachedReminders, setCachedReminders } = useSettingsStore.getState();
                             const updatedCache = cachedReminders.map((r: any) => {
@@ -162,7 +160,7 @@ export const useScheduleActions = ({
                             fetchEvents();
                         }
                     } else {
-                        await updateReminder(targetUri!, reminderTime, recurrenceStr, data.alarm, data.persistent, data.title, content);
+                        await updateReminder(targetUri!, reminderTime, recurrenceStr, data.title, content);
                     }
                 } catch (e) {
                     console.error("Failed to save reminder:", e);
@@ -176,15 +174,13 @@ export const useScheduleActions = ({
                     title: data.title,
                     reminderTime,
                     recurrenceRule: recurrenceStr,
-                    alarm: data.alarm,
-                    persistent: data.persistent,
                     content: content || 'Created via Calendar',
                 };
 
                 setCachedReminders([...(cachedReminders || []), tempReminder]);
 
                 try {
-                    const result = await createStandaloneReminder(reminderTime, data.title, recurrenceStr, data.alarm, data.persistent, {}, [], undefined, content);
+                    const result = await createStandaloneReminder(reminderTime, data.title, recurrenceStr, {}, [], undefined, content);
                     if (result) {
                         const { cachedReminders, setCachedReminders } = useSettingsStore.getState();
                         const updatedCache = (cachedReminders || []).map((r: any) => {

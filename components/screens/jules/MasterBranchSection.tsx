@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { WorkflowRun } from '../../../services/jules';
+import { dashboardRunToWorkflowRun, DashboardRun } from '../../../services/dashboardService';
 import { Colors } from '../../ui/design-tokens';
 import { MetadataChip } from '../../ui/MetadataChip';
 import { Card } from '../../ui/Card';
 import { WorkflowRunItem } from './WorkflowRunItem';
 
 interface MasterBranchSectionProps {
-    runs: WorkflowRun[];
+    runs: DashboardRun[];
     token: string;
     owner: string;
     repo: string;
@@ -21,6 +21,7 @@ export function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }
     if (!runs || runs.length === 0) return null;
 
     const runningCount = runs.filter(r => r.status === 'in_progress' || r.status === 'queued').length;
+    const workflowRuns = runs.map(dashboardRunToWorkflowRun);
 
     return (
         <Card className="mb-4" padding="p-0">
@@ -48,13 +49,14 @@ export function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }
 
             {expanded && (
                 <View className="px-3 pb-3">
-                    {runs.map(run => (
+                    {runs.map((dashRun, i) => (
                         <WorkflowRunItem
-                            key={run.id}
-                            run={run}
+                            key={dashRun.runId}
+                            run={workflowRuns[i]}
                             token={token}
                             owner={owner}
                             repo={repo}
+                            artifactUrl={dashRun.artifactUrl}
                             refreshTrigger={refreshTrigger}
                             embedded={true}
                             compact={true}

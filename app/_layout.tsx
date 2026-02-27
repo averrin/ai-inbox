@@ -13,7 +13,7 @@ import { useKeepAwake } from "expo-keep-awake";
 import { useEffect, useRef } from "react";
 
 WebBrowser.maybeCompleteAuthSession();
-import { registerReminderTask, scanForReminders, Reminder, getHash } from "../services/reminderService";
+import { scanForReminders, Reminder } from "../services/reminderService";
 import { ReminderModalProvider, useReminderModal } from "../utils/reminderModalContext";
 import { ReminderModal } from "../components/ReminderModal";
 import { GlobalAlerts } from '../components/GlobalAlerts';
@@ -29,7 +29,6 @@ import { useSettingsStore } from '../store/settings';
 LogBox.ignoreLogs([
   'SafeAreaView has been deprecated',
   'expo-av: Expo AV has been deprecated',
-  'expo-background-fetch: This library is deprecated',
   'React Native Firebase namespaced API',
   'Method called was onAuthStateChanged',
   'Method called was initializeApp',
@@ -116,7 +115,7 @@ function AppContent() {
       watcherService.handleNotificationResponse(lastNotificationResponse);
       const { fileUri, reminder } = lastNotificationResponse.notification.request.content.data || {};
       if (reminder) {
-        showReminder(reminder as Reminder);
+        showReminder(reminder as unknown as Reminder);
       } else if (fileUri) {
         scanForReminders().then(reminders => {
           const found = reminders.find(r => r.fileUri === fileUri);
@@ -135,9 +134,6 @@ function AppContent() {
     // Initialize WatcherService
     watcherService.init();
 
-    // Register background task on app launch
-    registerReminderTask();
-
     // Register for push notifications
     registerForPushNotificationsAsync();
 
@@ -149,12 +145,59 @@ function AppContent() {
       if (type === 'heartbeat') {
         const { setLastFcmHeartbeat } = useSettingsStore.getState();
         setLastFcmHeartbeat(timestamp ? parseInt(timestamp as string) : Date.now());
-        return; // Early return for silent handling
+        return;
+      }
+
+      if (type === 'reminder') {
+        const reminderData = notification.request.content.data as any;
+        if (reminderData.title) {
+          showReminder({
+            id: reminderData.reminderId || '',
+            fileUri: reminderData.reminderId || '',
+            fileName: reminderData.title,
+            title: reminderData.title,
+            reminderTime: reminderData.reminderTime || new Date().toISOString(),
+            content: reminderData.content || '',
+          });
+        }
+        return;
+      }
+
+      if (type === 'mood_daily' || type === 'range_start') {
+        // Just let the notification show
+        return;
+      }
+
+      if (type === 'github_run_progress') {
+        const { runId, percent, remainingMins, runName, headBranch, owner, repo } = notification.request.content.data as any;
+        watcherService.handleProgressUpdate(
+          Number(runId), Number(percent), Number(remainingMins),
+          runName, headBranch, owner, repo
+        );
+        return;
+      }
+
+      if (type === 'github_run' && (notification.request.content.data as any).status === 'completed') {
+        const { runId, conclusion, runName, artifactPath } = notification.request.content.data as any;
+        watcherService.handleRunCompleted(Number(runId), conclusion, runName, artifactPath);
+        return;
+      }
+
+      if (type === 'github_run_download_progress') {
+        const { runId, progress } = notification.request.content.data as any;
+        watcherService.handleDownloadProgress(Number(runId), Number(progress));
+        return;
+      }
+
+      if (type === 'github_run_download_finished') {
+        const { runId } = notification.request.content.data as any;
+        watcherService.handleDownloadFinished(Number(runId));
+        return;
       }
 
       if (reminder) {
         // Instant show if we have the data
-        showReminder(reminder as Reminder);
+        showReminder(reminder as unknown as Reminder);
       } else if (fileUri) {
         // Fallback to scan if legacy notification
         scanForReminders().then(reminders => {
@@ -172,7 +215,7 @@ function AppContent() {
       const { fileUri, reminder } = response.notification.request.content.data || {};
 
       if (reminder) {
-        showReminder(reminder as Reminder);
+        showReminder(reminder as unknown as Reminder);
       } else if (fileUri) {
         scanForReminders().then(reminders => {
           const found = reminders.find(r => r.fileUri === fileUri);
@@ -182,37 +225,6 @@ function AppContent() {
         });
       }
     });
-
-    if (Platform.OS === 'android') {
-      import('../services/alarmModule').then(async ({ getLaunchAlarmDetails, dismissNativeNotification }) => {
-        const details = await getLaunchAlarmDetails() as { title: string, id: number, message: string } | null;
-        if (details) {
-          console.log("[App] Launched via Native Alarm:", details.title);
-          // Dismiss the persistent notification
-          await dismissNativeNotification(details.id);
-
-          // Try to find the real file first for full functionality
-          const reminders = await scanForReminders();
-          const found = reminders.find(r => (Math.abs(getHash(r.fileUri)) % 2147483647) === details.id);
-
-          if (found) {
-            showReminder(found);
-          } else {
-            // Fallback: Construct a transient reminder object from the intent extras
-            // so the modal can show SOMETHING immediately even if file read fails.
-            console.log("[App] File scan failed/miss, using intent details for modal");
-
-            showReminder({
-              fileUri: '', // No file access
-              fileName: details.title || 'Alarm',
-              reminderTime: new Date(details.id * 1000).toISOString(),
-              content: details.message || '',
-              alarm: true
-            } as Reminder);
-          }
-        }
-      });
-    }
 
     return () => {
       notificationListener.current?.remove();

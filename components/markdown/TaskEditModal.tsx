@@ -16,8 +16,6 @@ import { EventFormModal, EventSaveData } from '../EventFormModal';
 import {
     REMINDER_PROPERTY_KEY,
     RECURRENT_PROPERTY_KEY,
-    ALARM_PROPERTY_KEY,
-    PERSISTENT_PROPERTY_KEY,
     createStandaloneReminder,
     updateReminder,
     formatRecurrenceForReminder
@@ -171,18 +169,6 @@ export function TaskEditModal({
             delete newProps[RECURRENT_PROPERTY_KEY];
         }
 
-        if (data.alarm) {
-            newProps[ALARM_PROPERTY_KEY] = 'true';
-        } else {
-            delete newProps[ALARM_PROPERTY_KEY];
-        }
-
-        if (data.persistent) {
-            newProps[PERSISTENT_PROPERTY_KEY] = data.persistent.toString();
-        } else {
-            delete newProps[PERSISTENT_PROPERTY_KEY];
-        }
-
         setProperties(newProps);
         setShowReminderModal(false);
     };
@@ -191,8 +177,6 @@ export function TaskEditModal({
         const newProps = { ...properties };
         delete newProps[REMINDER_PROPERTY_KEY];
         delete newProps[RECURRENT_PROPERTY_KEY];
-        delete newProps[ALARM_PROPERTY_KEY];
-        delete newProps[PERSISTENT_PROPERTY_KEY];
         setProperties(newProps);
     };
 
@@ -214,13 +198,11 @@ export function TaskEditModal({
             // Extract to new file
             const reminderDate = properties[REMINDER_PROPERTY_KEY];
             const recurrence = properties[RECURRENT_PROPERTY_KEY];
-            const alarm = properties[ALARM_PROPERTY_KEY] === 'true';
-            const persistent = properties[PERSISTENT_PROPERTY_KEY] ? parseInt(properties[PERSISTENT_PROPERTY_KEY]) : undefined;
 
             // Prepare extra props (excluding reminder props which are passed explicitly)
             const extraProps: Record<string, any> = {};
             Object.entries(properties).forEach(([k, v]) => {
-                if (![REMINDER_PROPERTY_KEY, RECURRENT_PROPERTY_KEY, ALARM_PROPERTY_KEY, PERSISTENT_PROPERTY_KEY].includes(k)) {
+                if (![REMINDER_PROPERTY_KEY, RECURRENT_PROPERTY_KEY].includes(k)) {
                     extraProps[k] = v;
                 }
             });
@@ -229,8 +211,6 @@ export function TaskEditModal({
                 reminderDate,
                 title,
                 recurrence,
-                alarm,
-                persistent,
                 extraProps,
                 tags,
                 task?.fileUri
@@ -247,8 +227,6 @@ export function TaskEditModal({
                 const newProps = { ...properties };
                 // delete newProps[REMINDER_PROPERTY_KEY]; // Keep for indicator
                 delete newProps[RECURRENT_PROPERTY_KEY];
-                delete newProps[ALARM_PROPERTY_KEY];
-                delete newProps[PERSISTENT_PROPERTY_KEY];
 
                 const updatedTask: RichTask = {
                     title: `[[${linkName}]]`,
@@ -289,20 +267,16 @@ export function TaskEditModal({
                     }
 
                     if (linkedFileUri) {
-                        if (hasReminder) {
-                            const reminderDate = properties[REMINDER_PROPERTY_KEY];
-                            const recurrence = properties[RECURRENT_PROPERTY_KEY];
-                            const alarm = properties[ALARM_PROPERTY_KEY] === 'true';
-                            const persistent = properties[PERSISTENT_PROPERTY_KEY] ? parseInt(properties[PERSISTENT_PROPERTY_KEY]) : undefined;
+                            if (hasReminder) {
+                                const reminderDate = properties[REMINDER_PROPERTY_KEY];
+                                const recurrence = properties[RECURRENT_PROPERTY_KEY];
 
-                            await updateReminder(
-                                linkedFileUri,
-                                reminderDate,
-                                recurrence,
-                                alarm,
-                                persistent
-                            );
-                        } else {
+                                await updateReminder(
+                                    linkedFileUri,
+                                    reminderDate,
+                                    recurrence
+                                );
+                            } else {
                             // Reminder removed - clear it from file
                             await updateReminder(linkedFileUri, null);
                         }
@@ -349,7 +323,7 @@ export function TaskEditModal({
         setLinkedEvents(prev => prev.filter(e => e.id !== eventId));
     };
 
-    const isAlarm = properties[ALARM_PROPERTY_KEY] === 'true';
+    const isAlarm = false;
 
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
@@ -505,8 +479,6 @@ export function TaskEditModal({
                                             title: title,
                                             reminderTime: properties[REMINDER_PROPERTY_KEY],
                                             recurrenceRule: properties[RECURRENT_PROPERTY_KEY],
-                                            alarm: properties[ALARM_PROPERTY_KEY] === 'true',
-                                            persistent: properties[PERSISTENT_PROPERTY_KEY] ? parseInt(properties[PERSISTENT_PROPERTY_KEY]) : undefined,
                                             content: ''
                                         }}
                                         timeFormat="12h"
@@ -585,9 +557,7 @@ export function TaskEditModal({
                 initialEvent={reminderDate ? {
                     originalEvent: {
                         title: title,
-                        recurrenceRule: properties[RECURRENT_PROPERTY_KEY],
-                        alarm: isAlarm,
-                        persistent: properties[PERSISTENT_PROPERTY_KEY] ? parseInt(properties[PERSISTENT_PROPERTY_KEY]) : undefined
+                        recurrenceRule: properties[RECURRENT_PROPERTY_KEY]
                     },
                     title: title,
                     start: reminderDate,

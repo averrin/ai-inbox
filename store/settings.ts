@@ -80,8 +80,6 @@ interface SettingsState {
 
     linksRoot: string | null;
     setLinksRoot: (folder: string) => void;
-    backgroundSyncInterval: number;
-    setBackgroundSyncInterval: (interval: number) => void;
 
     timeFormat: '12h' | '24h';
     setTimeFormat: (format: '12h' | '24h') => void;
@@ -278,8 +276,6 @@ export const useSettingsStore = create<SettingsState>()(
 
             linksRoot: null,
             setLinksRoot: (folder) => set({ linksRoot: folder }),
-            backgroundSyncInterval: 15,
-            setBackgroundSyncInterval: (interval) => set({ backgroundSyncInterval: interval }),
 
             timeFormat: '24h',
             setTimeFormat: (format) => set({ timeFormat: format }),

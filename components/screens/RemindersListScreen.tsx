@@ -54,7 +54,7 @@ export default function RemindersListScreen() {
 
   const handleCreateReminder = (data: EventSaveData) => {
     const recurrence = formatRecurrenceForReminder(data.recurrenceRule) || '';
-    addReminder(data.title || 'New Reminder', data.startDate, recurrence, !!data.alarm, data.persistent);
+    addReminder(data.title || 'New Reminder', data.startDate, recurrence);
     setIsCreateModalVisible(false);
   };
 
@@ -73,7 +73,7 @@ export default function RemindersListScreen() {
   const handleSaveEdit = (data: EventSaveData) => {
     if (!editingReminder) return;
     const recurrence = formatRecurrenceForReminder(data.recurrenceRule) || '';
-    editReminder(editingReminder, data.startDate, recurrence, !!data.alarm, data.persistent);
+    editReminder(editingReminder, data.startDate, recurrence);
 
     setIsEditModalVisible(false);
     setEditingReminder(null);
@@ -183,8 +183,7 @@ export default function RemindersListScreen() {
           {editingReminder && (
             <EventFormModal
               visible={isEditModalVisible}
-              initialEvent={editingEvent}
-              initialType={editingReminder.alarm ? 'alarm' : 'reminder'}
+              initialType="reminder"
               onSave={handleSaveEdit}
               onCancel={() => {
                 setIsEditModalVisible(false);

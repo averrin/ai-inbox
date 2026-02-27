@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { useMoodStore } from '../store/moodStore';
 import { useHabitStore } from '../store/habitStore';
-import { syncMoodReminders } from '../services/reminderService';
 import { ForecastSection } from './ForecastSection';
 import { Colors, Palette } from './ui/design-tokens';
 import { AppButton, CloseButton } from './ui/AppButton';
@@ -65,9 +64,8 @@ export function MoodEvaluationModal({ visible, onClose, date }: MoodEvaluationMo
                 setHabitStatus(dateStr, habitId, checkedHabits[habitId]);
             });
 
-            // Sync reminders to cancel today's notification
-            syncMoodReminders();
         }
+        onClose();
         onClose();
     };
 

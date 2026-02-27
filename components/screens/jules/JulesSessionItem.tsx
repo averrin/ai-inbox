@@ -15,6 +15,7 @@ import { MessageDialog } from '../../ui/MessageDialog';
 interface JulesSessionItemProps {
     session: JulesSession;
     matchedRun: WorkflowRun | null;
+    artifactUrl?: string | null;
     ghToken?: string;
     defaultOwner?: string;
     defaultRepo?: string;
@@ -26,7 +27,7 @@ interface JulesSessionItemProps {
     initialPrState?: string | null;
 }
 
-export function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey, refreshTrigger, initialPrMerged, initialPrState }: JulesSessionItemProps) {
+export function JulesSessionItem({ session, matchedRun, artifactUrl, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey, refreshTrigger, initialPrMerged, initialPrState }: JulesSessionItemProps) {
     const [isMerging, setIsMerging] = useState(false);
     const [prInactive, setPrInactive] = useState(() => {
         if (initialPrMerged != null) return initialPrMerged || initialPrState === 'closed';
@@ -159,7 +160,7 @@ export function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, d
 
     const statusObj = getStatusIcon(session.state);
     const webUrl = session.url;
-    const prUrl = session.outputs?.find(o => o.pullRequest)?.pullRequest?.url;
+    const prUrl = (session as any).outputs?.find((o: any) => o.pullRequest)?.pullRequest?.url;
 
     const stripeColors: string[] = [];
     const stripeLocations: number[] = [];
@@ -303,6 +304,7 @@ export function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, d
                     token={ghToken}
                     owner={owner}
                     repo={repo}
+                    artifactUrl={artifactUrl}
                     refreshTrigger={refreshTrigger}
                     embedded={true}
                     initialExpanded={false}

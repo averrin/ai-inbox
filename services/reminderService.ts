@@ -1,13 +1,8 @@
-import * as TaskManager from 'expo-task-manager';
-import * as BackgroundFetch from 'expo-background-fetch';
-import * as Notifications from 'expo-notifications';
 import { useSettingsStore } from '../store/settings';
 import { useEventTypesStore } from '../store/eventTypes';
 import { useMoodStore } from '../store/moodStore';
 import { Platform } from 'react-native';
-import { scheduleNativeAlarm, stopNativeAlarm } from './alarmModule';
 import dayjs from 'dayjs';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     collection,
     addDoc,
@@ -25,11 +20,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import Toast from 'react-native-toast-message';
 
 export const REMINDER_PROPERTY_KEY = 'reminder';
-export const ALARM_PROPERTY_KEY = 'alarm';
-export const PERSISTENT_PROPERTY_KEY = 'persistent';
 export const RECURRENT_PROPERTY_KEY = 'recurrent';
-
-const TRACKED_ALARMS_KEY = 'tracked-alarms';
 
 export function getHash(str: string): number {
     let hash = 0;
@@ -40,9 +31,6 @@ export function getHash(str: string): number {
     }
     return hash;
 }
-
-const REMINDER_TASK_NAME = 'BACKGROUND_REMINDER_CHECK';
-const MAX_CONCURRENT_ALARMS = 64;
 
 // Helper to formatting local ISO string (YYYY-MM-DDTHH:mm:ss)
 export function toLocalISOString(date: Date): string {
@@ -58,8 +46,6 @@ export interface Reminder {
     title?: string;
     reminderTime: string;
     recurrenceRule?: string; // e.g. "daily", "weekly", "10 minutes"
-    alarm?: boolean;
-    persistent?: number; // minutes
     content: string; // Full content for modal display
 }
 
@@ -130,49 +116,6 @@ export function calculateNextRecurrence(currentDate: Date, rule: string): Date |
     return nextDate;
 }
 
-export async function registerReminderTask() {
-    try {
-        const { backgroundSyncInterval } = useSettingsStore.getState();
-        const interval = (backgroundSyncInterval || 15) * 60; // Convert minutes to seconds
-
-        await BackgroundFetch.registerTaskAsync(REMINDER_TASK_NAME, {
-            minimumInterval: interval,
-            stopOnTerminate: false, // Continue even if app is closed
-            startOnBoot: true, // Start on device boot
-        });
-
-
-        // Also run an immediate check when registering, to ensure we catch anything pending
-        await TaskManager.getTaskOptionsAsync(REMINDER_TASK_NAME);
-
-        // Ensure channel is set up
-        if (Platform.OS === 'android') {
-            await Notifications.setNotificationChannelAsync('reminders-alarm', {
-                name: 'Reminders (Alarm)',
-                importance: Notifications.AndroidImportance.MAX,
-                vibrationPattern: [0, 500, 500, 500],
-                lightColor: '#FF231F7C',
-                lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-                bypassDnd: true,
-                audioAttributes: {
-                    usage: Notifications.AndroidAudioUsage.ALARM,
-                    contentType: Notifications.AndroidAudioContentType.SONIFICATION,
-                }
-            });
-        }
-    } catch (err) {
-        console.error('[ReminderService] Task registration failed:', err);
-    }
-}
-
-export async function unregisterReminderTask() {
-    try {
-        await BackgroundFetch.unregisterTaskAsync(REMINDER_TASK_NAME);
-    } catch (err) {
-        console.error('[ReminderService] Task unregistration failed:', err);
-    }
-}
-
 export async function scanForReminders(): Promise<Reminder[]> {
     const user = firebaseAuth.currentUser;
     if (!user) {
@@ -209,8 +152,6 @@ export async function updateReminder(
     fileUri: string, // This is now the Firestore ID
     newTime: string | null,
     recurrenceRule?: string,
-    alarm?: boolean,
-    persistent?: number,
     title?: string,
     bodyContent?: string
 ) {
@@ -230,8 +171,6 @@ export async function updateReminder(
             };
 
             if (recurrenceRule !== undefined) updateData.recurrenceRule = recurrenceRule || null;
-            if (alarm !== undefined) updateData.alarm = alarm;
-            if (persistent !== undefined) updateData.persistent = persistent || null;
             if (title !== undefined) updateData.title = title;
             if (bodyContent !== undefined) updateData.content = bodyContent;
 
@@ -249,8 +188,6 @@ export async function createStandaloneReminder(
     date: string,
     title?: string,
     recurrence?: string,
-    alarm?: boolean,
-    persistent?: number,
     additionalProps: Record<string, any> = {},
     tags: string[] = [],
     siblingFileUri?: string,
@@ -269,8 +206,6 @@ export async function createStandaloneReminder(
             title: title || 'Reminder',
             reminderTime: date,
             recurrenceRule: recurrence || null,
-            alarm: !!alarm,
-            persistent: persistent || null,
             content: bodyContent || '',
             tags: tags,
             ...additionalProps,
@@ -289,407 +224,21 @@ export async function createStandaloneReminder(
 }
 
 
-// Helper to sync mood daily reminders
-export async function syncMoodReminders() {
-    try {
-        if (!useMoodStore.persist.hasHydrated()) {
-            await useMoodStore.persist.rehydrate();
-        }
-
-        const { moodReminderEnabled, moodReminderTime, moods } = useMoodStore.getState();
-
-        // 1. Cancel legacy mood notifications (those without deterministic IDs)
-        // We identify them by data.type === 'mood_daily'
-        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-
-        // We will track which dates we DO schedule, to ensure we don't have duplicates
-        const scheduledDates = new Set<string>();
-
-        if (!moodReminderEnabled) {
-            // Cancel ALL if disabled
-            for (const notification of scheduled) {
-                if (notification.content.data?.type === 'mood_daily') {
-                    await Notifications.cancelScheduledNotificationAsync(notification.identifier);
-                }
-            }
-            return;
-        }
-
-        // 2. Schedule for next 7 days if not already logged
-        const now = dayjs();
-        const reminderTime = dayjs(moodReminderTime); // This has the correct hour/minute
-
-        for (let i = 0; i < 7; i++) {
-            const targetDate = now.add(i, 'day')
-                .hour(reminderTime.hour())
-                .minute(reminderTime.minute())
-                .second(0)
-                .millisecond(0);
-
-            const dateStr = targetDate.format('YYYY-MM-DD');
-            const id = `mood-daily-${dateStr}`;
-
-            // If time is in the past, skip
-            if (targetDate.isBefore(now)) {
-                continue;
-            }
-
-            // Check if mood exists
-            if (moods[dateStr]) {
-                // Already logged for this day. Ensure we cancel any existing reminder for this day.
-                // We can try to cancel by ID
-                await Notifications.cancelScheduledNotificationAsync(id);
-                continue;
-            }
-
-            scheduledDates.add(id);
-
-            // Schedule (updates if exists with same ID)
-            await Notifications.scheduleNotificationAsync({
-                identifier: id,
-                content: {
-                    title: "How was your day?",
-                    body: "Take a moment to evaluate your day and add a note.",
-                    data: { type: 'mood_daily', date: dateStr },
-                },
-                trigger: {
-                    type: Notifications.SchedulableTriggerInputTypes.DATE,
-                    date: targetDate.toDate(),
-                    channelId: 'reminders-alarm',
-                }
-            });
-        }
-
-        // 3. Cleanup: Cancel any mood notification that is NOT in our new scheduled set
-        for (const notification of scheduled) {
-            if (notification.content.data?.type === 'mood_daily') {
-                if (!scheduledDates.has(notification.identifier)) {
-                    await Notifications.cancelScheduledNotificationAsync(notification.identifier);
-                }
-            }
-        }
-
-    } catch (e) {
-        console.error('[MoodService] Sync failed:', e);
-    }
-}
-
-// Helper to sync time range notifications
-async function syncRangeNotifications() {
-    try {
-        if (!useEventTypesStore.persist.hasHydrated()) {
-            await useEventTypesStore.persist.rehydrate();
-        }
-
-        const { ranges } = useEventTypesStore.getState();
-        const enabledRanges = ranges.filter(r => r.isEnabled);
-        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-        const now = dayjs();
-        const upcoming: { id: string, date: Date, title: string }[] = [];
-
-        // Check today and tomorrow
-        [0, 1].forEach(offset => {
-            const targetDate = now.add(offset, 'day');
-            const dayOfWeek = targetDate.day(); // 0-6
-
-            enabledRanges.forEach(range => {
-                if (range.days.includes(dayOfWeek)) {
-                    const start = targetDate
-                        .hour(range.start.hour)
-                        .minute(range.start.minute)
-                        .second(0)
-                        .millisecond(0);
-
-                    // Only schedule if in future
-                    if (start.isAfter(now)) {
-                        upcoming.push({
-                            id: `range-${range.id}-${start.format('YYYYMMDDHHmm')}`, // Deterministic ID part
-                            date: start.toDate(),
-                            title: range.title
-                        });
-                    }
-                }
-            });
-        });
-
-        const upcomingIds = new Set(upcoming.map(u => u.id));
-
-        // 1. Clean up stale range notifications
-        for (const notification of scheduled) {
-            const data = notification.content.data as Record<string, any>;
-            if (data?.type === 'range_start') {
-                if (!upcomingIds.has(notification.identifier)) {
-                    await Notifications.cancelScheduledNotificationAsync(notification.identifier);
-                }
-            }
-        }
-
-        // 2. Schedule new ones (or update existing)
-        for (const item of upcoming) {
-            await Notifications.scheduleNotificationAsync({
-                identifier: item.id,
-                content: {
-                    title: item.title,
-                    body: `Starting now`,
-                    sound: true,
-                    priority: Notifications.AndroidNotificationPriority.HIGH,
-                    data: {
-                        type: 'range_start',
-                        rangeInstanceId: item.id,
-                        triggerDate: item.date.toISOString()
-                    }
-                },
-                trigger: {
-                    type: Notifications.SchedulableTriggerInputTypes.DATE,
-                    date: item.date,
-                    channelId: 'reminders-alarm'
-                }
-            });
-        }
-
-    } catch (e) {
-        console.error('[RangeService] Sync failed:', e);
-    }
-}
 
 export async function syncAllReminders() {
     try {
-        // Ensure settings are hydrated (critical for background tasks)
         if (!useSettingsStore.persist.hasHydrated()) {
             await useSettingsStore.persist.rehydrate();
         }
 
-        // Sync Time Ranges
-        await syncRangeNotifications();
-
-        // Sync Mood Reminders
-        await syncMoodReminders();
-
         const reminders = await scanForReminders();
-
         useSettingsStore.getState().setCachedReminders(reminders);
-
-        await manageNotifications(reminders);
-
-        return BackgroundFetch.BackgroundFetchResult.NewData;
+        return reminders;
     } catch (error) {
-        console.error('[DEBUG_REMINDER] Sync failed:', error);
-        return BackgroundFetch.BackgroundFetchResult.Failed;
+        console.error('[ReminderService] Sync failed:', error);
+        return [];
     }
 }
 
-TaskManager.defineTask(REMINDER_TASK_NAME, async () => {
-    return await syncAllReminders();
-});
-
-async function getTrackedAlarms(): Promise<Record<string, { title: string, time: number }>> {
-    try {
-        const json = await AsyncStorage.getItem(TRACKED_ALARMS_KEY);
-        return json ? JSON.parse(json) : {};
-    } catch (e) {
-        return {};
-    }
-}
-
-async function saveTrackedAlarms(alarms: Record<string, { title: string, time: number }>) {
-    try {
-        await AsyncStorage.setItem(TRACKED_ALARMS_KEY, JSON.stringify(alarms));
-    } catch (e) {
-        console.error("Failed to save tracked alarms", e);
-    }
-}
-
-async function manageNotifications(activeReminders: Reminder[]) {
-    // 1. Manage Native Alarms (System AlarmClock)
-    // We maintain a local record of what we have set in AsyncStorage, as system alarms cannot be queried.
-    const trackedAlarms = await getTrackedAlarms();
-    const nextTrackedAlarms: Record<string, { title: string, time: number }> = {};
-    const remindersHandledByAlarm = new Set<string>();
-
-    for (const reminder of activeReminders) {
-        if (reminder.alarm) {
-            const timestamp = new Date(reminder.reminderTime).getTime();
-            const title = reminder.title || reminder.fileName || 'Reminder';
-
-            const existing = trackedAlarms[reminder.id];
-
-            let isSet = false;
-
-            // Check if we need to update/set
-            // If existing matches perfectly, we assume it is still set.
-            if (existing && existing.time === timestamp && existing.title === title) {
-                isSet = true;
-                nextTrackedAlarms[reminder.id] = existing;
-            } else {
-                // If changed, dismiss old one first (if title changed, old title alarm exists)
-                if (existing) {
-                    await stopNativeAlarm(existing.title);
-                }
-
-                // Try to schedule new native alarm
-                // scheduleNativeAlarm returns true only if the date is imminent (within ~24h)
-                // If it returns false (too far in future), we fall back to notification below.
-                const success = await scheduleNativeAlarm(title, reminder.content || "Alarm Reminder", timestamp, 0);
-                if (success) {
-                    nextTrackedAlarms[reminder.id] = { title, time: timestamp };
-                    isSet = true;
-                }
-            }
-
-            if (isSet) {
-                remindersHandledByAlarm.add(reminder.id);
-            }
-        }
-    }
-
-    // Cleanup alarms that were tracked but are no longer active/handled
-    for (const id in trackedAlarms) {
-        if (!nextTrackedAlarms[id]) {
-            // Was tracked, now gone or rescheduled. Dismiss using old title.
-            await stopNativeAlarm(trackedAlarms[id].title);
-        }
-    }
-
-    await saveTrackedAlarms(nextTrackedAlarms);
 
 
-    // 2. Manage Notifications (Expo Notifications)
-    // 2.1. Get all currently scheduled notifications
-    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-
-    // 2.2. Check for missed/ignored notifications and resend if enabled
-    const presented = await Notifications.getPresentedNotificationsAsync();
-    const now = Date.now();
-
-    for (const notification of presented) {
-        const fileUri = notification.request.content.data?.fileUri as string; // Will be Firestore ID
-        if (!fileUri) continue;
-
-        // Try to find the reminder to check its persistent setting
-        let reminderData = activeReminders.find(r => r.fileUri === fileUri || r.id === fileUri);
-
-        let intervalMs = -1;
-
-        if (reminderData && reminderData.persistent) {
-            intervalMs = reminderData.persistent * 60 * 1000;
-        }
-
-        if (intervalMs > 0) {
-            const triggerTime = notification.date;
-            if (now - triggerTime > intervalMs) {
-                // It's stale and ignored. Resend!
-                await Notifications.dismissNotificationAsync(notification.request.identifier);
-
-                // Re-fetch reminder data if we didn't have it (fallback logic)
-                if (!reminderData) {
-                    if (!reminderData) {
-                        reminderData = notification.request.content.data?.reminder as Reminder;
-                    }
-                }
-
-                if (reminderData) {
-                    await scheduleNotification(reminderData, true);
-                }
-            }
-        }
-    }
-
-    // 2.3. Cleanup stale notifications
-    const activeReminderIds = new Set<string>();
-    const expectedIds = new Map<string, string>(); // id -> deterministic Notification ID
-
-    activeReminders.forEach(r => {
-        // Only schedule notification if NOT handled by alarm
-        if (!remindersHandledByAlarm.has(r.id)) {
-            // Notification ID (string) depends on ID AND time
-            const id = `reminder-${getHash(r.id)}-${getHash(r.reminderTime)}`;
-            expectedIds.set(r.id, id);
-            activeReminderIds.add(id);
-        }
-    });
-
-    for (const notification of scheduled) {
-        const fileUri = (notification.content.data as any)?.fileUri; // Firestore ID
-
-        if (!fileUri) continue;
-
-        if (!activeReminderIds.has(notification.identifier)) {
-            await Notifications.cancelScheduledNotificationAsync(notification.identifier);
-            // We no longer handle native alarm cleanup here as it's done in step 1
-        }
-    }
-
-    // 2.4. Schedule missing notifications
-    const nowTime = new Date();
-
-    const sortedReminders = [...activeReminders].sort((a, b) =>
-        new Date(a.reminderTime).getTime() - new Date(b.reminderTime).getTime()
-    );
-
-    let scheduledCount = 0;
-
-    for (const reminder of sortedReminders) {
-        // Skip if handled by alarm
-        if (remindersHandledByAlarm.has(reminder.id)) continue;
-
-        const remDate = new Date(reminder.reminderTime);
-        const expectedId = expectedIds.get(reminder.id);
-
-        if (remDate <= nowTime) {
-            // Check if it was recent (within 15 mins) and NOT already notified
-            const diff = nowTime.getTime() - remDate.getTime();
-            if (diff < 15 * 60 * 1000) {
-                // It's recent.
-                if (reminder.recurrenceRule) {
-                    // It's overdue and repeating. Advance it!
-                    const nextDate = calculateNextRecurrence(remDate, reminder.recurrenceRule);
-                    if (nextDate && nextDate > nowTime) {
-                        await updateReminder(reminder.id, nextDate.toISOString(), reminder.recurrenceRule);
-                        continue;
-                    }
-                }
-                continue;
-            }
-        }
-
-        // Schedule it (or update if exists)
-        if (remDate > nowTime) {
-            if (scheduledCount >= MAX_CONCURRENT_ALARMS) {
-                break;
-            }
-
-            await scheduleNotification(reminder, false, expectedId);
-            scheduledCount++;
-        }
-    }
-}
-
-async function scheduleNotification(reminder: Reminder, immediate = false, identifier?: string) {
-    // Only schedule Notification here. Native alarms are handled in manageNotifications (step 1).
-    // This function is purely for Notifications.scheduleNotificationAsync wrapper.
-
-    await Notifications.scheduleNotificationAsync({
-        identifier: identifier,
-        content: {
-            title: "🔔 Reminder",
-            body: `${reminder.title || reminder.fileName}: ${reminder.content}`,
-            data: { fileUri: reminder.id, reminderTime: reminder.reminderTime, reminder: reminder },
-            sound: true,
-            priority: Notifications.AndroidNotificationPriority.MAX,
-            vibrate: [0, 500, 500, 500],
-            color: '#FF231F7C',
-        },
-        trigger: immediate
-            ? {
-                type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-                seconds: 1,
-                channelId: 'reminders-alarm',
-                repeats: false
-            }
-            : {
-                type: Notifications.SchedulableTriggerInputTypes.DATE,
-                date: new Date(reminder.reminderTime),
-                channelId: 'reminders-alarm'
-            },
-    });
-}

@@ -16,9 +16,7 @@ export function useOptimisticReminders() {
     const addReminder = useCallback(async (
         title: string,
         date: Date,
-        recurrence: string,
-        alarm: boolean,
-        persistent?: number
+        recurrence: string
     ) => {
         const tempId = `temp-${Date.now()}`;
 
@@ -35,8 +33,6 @@ export function useOptimisticReminders() {
                 title: title || 'Reminder',
                 reminderTime: timeStr,
                 recurrenceRule: recurrence || undefined,
-                alarm: alarm,
-                persistent: persistent,
                 content: 'Created via Reminders App.'
             };
 
@@ -47,7 +43,7 @@ export function useOptimisticReminders() {
             try {
                 // 4. Perform Actual Operation using shared service
                 const { createStandaloneReminder } = await import('../services/reminderService');
-                await createStandaloneReminder(timeStr, title, recurrence, alarm, persistent);
+                await createStandaloneReminder(timeStr, title, recurrence);
                 // Reconcile is handled inside createStandaloneReminder
             } catch (e) {
                 console.error(e);
@@ -66,9 +62,7 @@ export function useOptimisticReminders() {
     const editReminder = useCallback(async (
         originalReminder: Reminder,
         date: Date,
-        recurrence: string,
-        alarm: boolean,
-        persistent?: number
+        recurrence: string
     ) => {
         const previousReminders = [...(cachedReminders || [])];
 
@@ -81,9 +75,7 @@ export function useOptimisticReminders() {
                 return {
                     ...r,
                     reminderTime: timeStr,
-                    recurrenceRule: recurrence || undefined,
-                    alarm: alarm,
-                    persistent: persistent
+                    recurrenceRule: recurrence || undefined
                 };
             }
             return r;
@@ -96,9 +88,7 @@ export function useOptimisticReminders() {
             await updateReminder(
                 originalReminder.fileUri,
                 timeStr,
-                recurrence,
-                alarm,
-                persistent
+                recurrence
             );
             await syncAllReminders();
         } catch (e) {

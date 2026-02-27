@@ -1,72 +1,49 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Linking, ActivityIndicator, StyleSheet, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import { LinearGradient } from 'expo-linear-gradient';
-import { WorkflowRun, CheckRun, Artifact, fetchChecks, fetchArtifacts, fetchPullRequest } from '../../../services/jules';
-import { downloadAndInstallArtifact, isArtifactCached, installCachedArtifact } from '../../../utils/artifactHandler';
+import { WorkflowRun, CheckRun, fetchChecks, fetchPullRequest } from '../../../services/jules';
+import { downloadAndInstallFromUrl, isArtifactUrlCached, installCachedArtifact } from '../../../utils/artifactHandler';
 import { artifactDeps } from '../../../utils/artifactDeps';
-import { watcherService, WatchedRun } from '../../../services/watcherService';
+import { watcherService, WatchedRunState } from '../../../services/watcherService';
 import { Colors } from '../../ui/design-tokens';
-import { MetadataChip } from '../../ui/MetadataChip';
 import { Card } from '../../ui/Card';
 import { CheckStatusItem } from './CheckStatusItem';
 import { ArtifactActionButton } from './ArtifactActionButton';
-
-// Helper to select the best artifact (e.g. app binary)
-function getBestArtifact(artifacts: Artifact[]): Artifact | null {
-    if (!artifacts || artifacts.length === 0) return null;
-
-    // Sort by creation date descending (newest first)
-    const sorted = [...artifacts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-    // Priority list for app binaries
-    const priorities = ['app-release', 'app-debug', 'release', 'debug', 'build'];
-
-    for (const p of priorities) {
-        const match = sorted.find(a => a.name.toLowerCase().includes(p));
-        if (match) return match;
-    }
-
-    // Default to newest
-    return sorted[0];
-}
 
 interface WorkflowRunItemProps {
     run: WorkflowRun;
     token: string;
     owner: string;
     repo: string;
+    artifactUrl?: string | null;
     initialExpanded?: boolean;
     refreshTrigger?: number;
     embedded?: boolean;
     compact?: boolean;
 }
 
-export function WorkflowRunItem({ run, token, owner, repo, initialExpanded = false, refreshTrigger, embedded = false, compact = false }: WorkflowRunItemProps) {
+export function WorkflowRunItem({ run, token, owner, repo, artifactUrl, initialExpanded = false, refreshTrigger, embedded = false, compact = false }: WorkflowRunItemProps) {
     const [checks, setChecks] = useState<CheckRun[] | null>(null);
-    const [artifacts, setArtifacts] = useState<Artifact[] | null>(null);
     const [isDownloading, setIsDownloading] = useState(false);
     const [progress, setProgress] = useState<number | null>(null);
     const [status, setStatus] = useState<string | null>(null);
     const [cachedArtifactPath, setCachedArtifactPath] = useState<string | null>(null);
     const [checksLoading, setChecksLoading] = useState(false);
-    const [artifactsLoading, setArtifactsLoading] = useState(false);
     const [expanded, setExpanded] = useState(initialExpanded);
     const [prInactive, setPrInactive] = useState(false);
-    const [isWatched, setIsWatched] = useState(watcherService.isWatching(run.id));
     const [isWatcherDownloading, setIsWatcherDownloading] = useState(watcherService.isDownloading(run.id));
     const [watcherProgress, setWatcherProgress] = useState(watcherService.getDownloadProgress(run.id));
-    const [watchedRunData, setWatchedRunData] = useState<WatchedRun | undefined>(undefined);
+    const [watchedRunData, setWatchedRunData] = useState<WatchedRunState | undefined>(watcherService.getWatchedRun(run.id));
 
     const spinValue = useRef(new Animated.Value(0)).current;
-    const isFetchingRef = useRef(false);
 
     useEffect(() => {
-        const onDownloadChange = (runId: number, downloading: boolean, progress: number) => {
+        const onDownloadChange = (runId: number, downloading: boolean, prog: number) => {
             if (runId === run.id) {
                 setIsWatcherDownloading(downloading);
-                setWatcherProgress(progress);
+                setWatcherProgress(prog);
             }
         };
         watcherService.addDownloadListener(onDownloadChange);
@@ -74,20 +51,24 @@ export function WorkflowRunItem({ run, token, owner, repo, initialExpanded = fal
     }, [run.id]);
 
     useEffect(() => {
-        if (!isWatched) {
-            setWatchedRunData(undefined);
-            return;
-        }
-
-        const updateData = () => {
-            const data = watcherService.getWatchedRun(run.id);
-            setWatchedRunData(data ? { ...data } : undefined);
+        const onProgress = (runId: number, _percent: number, _remainingMins: number) => {
+            if (runId === run.id) {
+                const data = watcherService.getWatchedRun(runId);
+                setWatchedRunData(data ? { ...data } : undefined);
+            }
         };
+        watcherService.addProgressListener(onProgress);
+        return () => watcherService.removeProgressListener(onProgress);
+    }, [run.id]);
 
-        updateData();
-        const interval = setInterval(updateData, 1000);
-        return () => clearInterval(interval);
-    }, [isWatched, run.id]);
+    // Check cache when artifactUrl changes
+    useEffect(() => {
+        if (artifactUrl) {
+            isArtifactUrlCached(String(run.id), artifactDeps).then(setCachedArtifactPath);
+        } else {
+            setCachedArtifactPath(null);
+        }
+    }, [artifactUrl, run.id]);
 
     const pr = run.pull_requests && run.pull_requests.length > 0 ? run.pull_requests[0] : null;
 
@@ -126,80 +107,25 @@ export function WorkflowRunItem({ run, token, owner, repo, initialExpanded = fal
         outputRange: ['0deg', '360deg']
     });
 
-    const fetchArtifactsData = useCallback(() => {
-        if (isFetchingRef.current) return;
-        isFetchingRef.current = true;
-        setArtifactsLoading(true);
-        fetchArtifacts(token, owner, repo, run.id)
-            .then(setArtifacts)
-            .catch(err => console.error("Artifacts fetch error:", err))
-            .finally(() => {
-                setArtifactsLoading(false);
-                isFetchingRef.current = false;
-            });
-    }, [token, owner, repo, run.id]);
-
     useEffect(() => {
         if (refreshTrigger && refreshTrigger > 0) {
             setChecks(null);
             setChecksLoading(false);
-            setArtifacts(null);
-            fetchArtifactsData();
         }
-    }, [refreshTrigger, fetchArtifactsData]);
+    }, [refreshTrigger]);
 
     useEffect(() => {
-        fetchArtifactsData();
-    }, [fetchArtifactsData]);
-
-    useEffect(() => {
-        if (artifacts && artifacts.length > 0) {
-            const artifact = getBestArtifact(artifacts);
-            if (artifact) {
-                isArtifactCached(artifact, artifactDeps).then(setCachedArtifactPath);
-            }
-        } else {
-            setCachedArtifactPath(null);
+        if (expanded && !checks && !checksLoading) {
+            setChecksLoading(true);
+            fetchChecks(token, owner, repo, run.head_sha)
+                .then(setChecks)
+                .catch(err => console.error("Checks fetch error:", err))
+                .finally(() => setChecksLoading(false));
         }
-    }, [artifacts]);
-
-    useEffect(() => {
-        if (expanded) {
-            if (!checks && !checksLoading) {
-                setChecksLoading(true);
-                fetchChecks(token, owner, repo, run.head_sha)
-                    .then(setChecks)
-                    .catch(err => console.error("Checks fetch error:", err))
-                    .finally(() => setChecksLoading(false));
-            }
-
-            if (!artifacts && !artifactsLoading) {
-                fetchArtifactsData();
-            }
-        }
-    }, [expanded, run.head_sha, run.id, token, owner, repo, checks, artifacts, checksLoading, artifactsLoading, fetchArtifactsData]);
-
-    // Auto-refetch artifacts every 15 seconds if missing
-    useEffect(() => {
-        let interval: any = null;
-
-        const shouldPoll = !artifacts || artifacts.length === 0;
-
-        if (shouldPoll && !artifactsLoading) {
-            interval = setInterval(() => {
-                fetchArtifactsData();
-            }, 15000);
-        }
-
-        return () => {
-            if (interval) clearInterval(interval);
-        };
-    }, [artifacts, artifactsLoading, fetchArtifactsData]);
+    }, [expanded, run.head_sha, token, owner, repo, checks, checksLoading]);
 
     const handleDownloadArtifact = async () => {
-        if (!run || !artifacts || artifacts.length === 0 || !token) return;
-        const artifact = getBestArtifact(artifacts);
-        if (!artifact) return;
+        if (!artifactUrl) return;
 
         if (cachedArtifactPath) {
             await installCachedArtifact(cachedArtifactPath, artifactDeps);
@@ -207,29 +133,20 @@ export function WorkflowRunItem({ run, token, owner, repo, initialExpanded = fal
         }
 
         setProgress(0);
-        setStatus("Starting...");
-        await downloadAndInstallArtifact(
-            artifact,
-            token,
+        setStatus('Starting...');
+        const path = await downloadAndInstallFromUrl(
+            artifactUrl,
+            String(run.id),
             run.head_branch || 'unknown',
             setIsDownloading,
             (p) => setProgress(p),
             artifactDeps,
-            setStatus
+            setStatus,
+            token
         );
         setProgress(null);
         setStatus(null);
-        isArtifactCached(artifact, artifactDeps).then(setCachedArtifactPath);
-    };
-
-    const toggleWatch = async () => {
-        if (isWatched) {
-            await watcherService.unwatchRun(run.id);
-            setIsWatched(false);
-        } else {
-            await watcherService.watchRun(run, token, owner, repo);
-            setIsWatched(true);
-        }
+        if (path) setCachedArtifactPath(path);
     };
 
     const getStatusInfo = () => {
@@ -253,13 +170,10 @@ export function WorkflowRunItem({ run, token, owner, repo, initialExpanded = fal
     const showPrButton = prUrl && !embedded;
 
     let progressString = "";
+    let runProgress: number | null = null;
     if (watchedRunData && (run.status === 'in_progress' || run.status === 'queued')) {
-        const now = Date.now();
-        const elapsed = now - watchedRunData.startTime;
-        const progress = Math.min(0.99, elapsed / watchedRunData.estimatedDuration);
-        const percent = Math.round(progress * 100);
-        const remainingMs = Math.max(0, watchedRunData.estimatedDuration - elapsed);
-        const remainingMins = Math.ceil(remainingMs / 60000);
+        const { percent, remainingMins } = watchedRunData;
+        runProgress = percent / 100;
         progressString = ` • ${percent}% (~${remainingMins}m left)`;
     }
 
@@ -298,27 +212,14 @@ export function WorkflowRunItem({ run, token, owner, repo, initialExpanded = fal
 
                     <View className="flex-row items-center gap-2">
                         <ArtifactActionButton
-                            artifacts={artifacts}
-                            loading={artifactsLoading}
+                            artifactUrl={artifactUrl ?? null}
                             downloading={isDownloading || isWatcherDownloading}
                             progress={isDownloading ? progress : watcherProgress}
                             status={isDownloading ? status : null}
                             cachedPath={cachedArtifactPath}
                             onPress={handleDownloadArtifact}
-                            onFetch={fetchArtifactsData}
                             compact={true}
                         />
-
-                        {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
-                            <MetadataChip
-                                label={isWatched ? "Watching" : "Watch"}
-                                icon={isWatched ? "eye" : "eye-outline"}
-                                variant={isWatched ? "solid" : "outline"}
-                                color={isWatched ? Colors.primary : Colors.text.tertiary}
-                                size="sm"
-                                onPress={toggleWatch}
-                            />
-                        )}
 
                         <TouchableOpacity onPress={() => setExpanded(!expanded)} className="p-1">
                             <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={Colors.text.tertiary} />
@@ -346,6 +247,12 @@ export function WorkflowRunItem({ run, token, owner, repo, initialExpanded = fal
                         ) : (
                             <Text className="text-secondary text-[10px] italic">No checks found</Text>
                         )}
+                    </View>
+                )}
+
+                {runProgress !== null && (
+                    <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.15)', marginTop: 8, marginHorizontal: 0, borderRadius: 1, overflow: 'hidden' }}>
+                        <View style={{ height: 3, width: `${Math.round(runProgress * 100)}%`, backgroundColor: 'white', borderRadius: 0 }} />
                     </View>
                 )}
             </View>
@@ -389,33 +296,26 @@ export function WorkflowRunItem({ run, token, owner, repo, initialExpanded = fal
 
                 <View className="flex-row items-center gap-2">
                     <ArtifactActionButton
-                        artifacts={artifacts}
-                        loading={artifactsLoading}
+                        artifactUrl={artifactUrl ?? null}
                         downloading={isDownloading || isWatcherDownloading}
                         progress={isDownloading ? progress : watcherProgress}
                         status={isDownloading ? status : null}
                         cachedPath={cachedArtifactPath}
                         onPress={handleDownloadArtifact}
-                        onFetch={fetchArtifactsData}
                         compact={false}
                     />
-
-                    {(run.status === 'in_progress' || run.status === 'queued' || isWatched) && (
-                        <MetadataChip
-                            label={isWatched ? "Watching" : "Watch"}
-                            icon={isWatched ? "eye" : "eye-outline"}
-                            variant={isWatched ? "solid" : "outline"}
-                            color={isWatched ? Colors.primary : Colors.text.tertiary}
-                            size="sm"
-                            onPress={toggleWatch}
-                        />
-                    )}
 
                     <TouchableOpacity onPress={() => setExpanded(!expanded)} className="p-1">
                         <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={20} color={Colors.text.tertiary} />
                     </TouchableOpacity>
                 </View>
             </View>
+
+            {runProgress !== null && (
+                <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.15)', marginTop: 8, marginHorizontal: -12, marginBottom: -12, overflow: 'hidden' }}>
+                    <View style={{ height: 3, width: `${Math.round(runProgress * 100)}%`, backgroundColor: 'white' }} />
+                </View>
+            )}
 
             {expanded && (
                 <View className="mt-2 border-t border-border pt-2">

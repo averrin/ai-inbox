@@ -73,6 +73,141 @@ async function manageCache(deps: ArtifactDeps) {
     }
 }
 
+export async function downloadAndInstallFromUrl(
+    url: string,
+    cacheKey: string,
+    branch: string,
+    setDownloading: (downloading: boolean) => void,
+    onProgress: (progress: number) => void,
+    deps: ArtifactDeps,
+    onStatus?: (status: string) => void,
+    token?: string,
+): Promise<string | null> {
+    setDownloading(true);
+    onProgress(0);
+
+    // Check cache first
+    const cacheDir = deps.FileSystem.documentDirectory + 'artifacts/';
+    const cachedPath = cacheDir + `${cacheKey}.apk`;
+    const cacheInfo = await deps.FileSystem.getInfoAsync(cachedPath);
+    if (cacheInfo.exists) {
+        if (onStatus) onStatus('Installing...');
+        await installCachedArtifact(cachedPath, deps);
+        setDownloading(false);
+        return cachedPath;
+    }
+
+    try {
+        const sanitizedBranch = (branch || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
+        const zipFileUri = deps.FileSystem.cacheDirectory + `artifact-${cacheKey}-${sanitizedBranch}.zip`;
+
+        // Resolve GitHub auth redirect to get direct S3 URL (same pattern as downloadAndInstallArtifact)
+        if (onStatus) onStatus('Resolving...');
+        const redirectResponse = await fetch(url, {
+            headers: token
+                ? { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' }
+                : {},
+            redirect: 'manual',
+        });
+
+        let finalUrl = redirectResponse.url;
+        let wasRedirected = false;
+        if (redirectResponse.status >= 301 && redirectResponse.status <= 308) {
+            const location = redirectResponse.headers.get('location');
+            if (location) { finalUrl = location; wasRedirected = true; }
+        } else if (finalUrl !== url) {
+            wasRedirected = true;
+        }
+        try { await redirectResponse.body?.cancel(); } catch (_) {}
+
+        const downloadHeaders: Record<string, string> = (!wasRedirected && token)
+            ? { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' }
+            : {};
+
+        if (onStatus) onStatus('Downloading...');
+        const downloadResumable = deps.FileSystem.createDownloadResumable(
+            finalUrl,
+            zipFileUri,
+            downloadHeaders,
+            (progress) => {
+                const percent = progress.totalBytesWritten / progress.totalBytesExpectedToWrite;
+                onProgress(percent);
+            }
+        );
+
+        const result = await downloadResumable.downloadAsync();
+        if (!result?.uri) throw new Error('Download failed: No result returned');
+        if (result.status !== 200) throw new Error(`Download failed with status ${result.status}`);
+        onProgress(1);
+
+        if (deps.Platform.OS === 'android') {
+            if (onStatus) onStatus('Unzipping...');
+            try {
+                const unzipPath = deps.FileSystem.cacheDirectory + 'unzipped/';
+                const info = await deps.FileSystem.getInfoAsync(unzipPath);
+                if (info.exists) await deps.FileSystem.deleteAsync(unzipPath, { idempotent: true });
+                await deps.FileSystem.makeDirectoryAsync(unzipPath, { intermediates: true });
+
+                const stripFileUri = (uri: string) => uri.replace(/^file:\/\//, '');
+                await deps.unzip(stripFileUri(result.uri), stripFileUri(unzipPath));
+
+                const findApk = async (dir: string, depth = 0): Promise<string | null> => {
+                    if (depth > 5) return null;
+                    const files = await deps.FileSystem.readDirectoryAsync(dir);
+                    const apk = files.find(f => f.endsWith('.apk'));
+                    if (apk) return dir + (dir.endsWith('/') ? '' : '/') + apk;
+                    for (const file of files) {
+                        const path = dir + (dir.endsWith('/') ? '' : '/') + file;
+                        try {
+                            const info = await deps.FileSystem.getInfoAsync(path);
+                            if (info.exists && info.isDirectory) {
+                                const found = await findApk(path, depth + 1);
+                                if (found) return found;
+                            }
+                        } catch (_) {}
+                    }
+                    return null;
+                };
+
+                const apkSourceUri = await findApk(unzipPath);
+                if (apkSourceUri) {
+                    await ensureArtifactsDirectory(deps);
+                    const apkTargetUri = cacheDir + `${cacheKey}.apk`;
+                    await deps.FileSystem.copyAsync({ from: apkSourceUri, to: apkTargetUri });
+                    await manageCache(deps);
+                    if (onStatus) onStatus('Installing...');
+                    await installCachedArtifact(apkTargetUri, deps);
+                    setDownloading(false);
+                    return apkTargetUri;
+                } else {
+                    throw new Error('No APK found in artifact');
+                }
+            } catch (unzipError: any) {
+                console.warn('[Artifact] Unzip/install failed:', unzipError?.message || unzipError);
+            }
+        }
+
+        if (await deps.Sharing.isAvailableAsync()) {
+            await deps.Sharing.shareAsync(result.uri);
+        } else {
+            showAlert('Success', 'Artifact downloaded to: ' + result.uri);
+        }
+    } catch (e: any) {
+        console.error('[Artifact] Error in downloadAndInstallFromUrl:', e);
+        showError('Error', 'Failed to download artifact: ' + e.message);
+        return null;
+    } finally {
+        setDownloading(false);
+    }
+    return null;
+}
+
+export async function isArtifactUrlCached(cacheKey: string, deps: ArtifactDeps): Promise<string | null> {
+    const path = deps.FileSystem.documentDirectory + `artifacts/${cacheKey}.apk`;
+    const info = await deps.FileSystem.getInfoAsync(path);
+    return info.exists ? path : null;
+}
+
 export async function downloadAndInstallArtifact(
     artifact: Artifact,
     token: string,

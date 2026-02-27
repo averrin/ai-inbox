@@ -115,7 +115,7 @@ export default function JulesScreen() {
     }, []);
 
     // Derive display data from dashboardData
-    const masterRuns: WorkflowRun[] = (dashboardData?.masterRuns ?? []).map(dashboardRunToWorkflowRun);
+    const masterRuns = dashboardData?.masterRuns ?? [];
 
     const sessionsWithRuns: { session: DashboardJointSession['session'], matchedRun: WorkflowRun | null, dashRun: DashboardJointSession['run'] }[] =
         (dashboardData?.jointSessions ?? []).map(js => ({
@@ -196,6 +196,7 @@ export default function JulesScreen() {
                                 key={session.id}
                                 session={session as any}
                                 matchedRun={matchedRun}
+                                artifactUrl={dashRun?.artifactUrl ?? null}
                                 ghToken={julesApiKey || undefined}
                                 defaultOwner={julesOwner || undefined}
                                 defaultRepo={julesRepo || undefined}

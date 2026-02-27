@@ -6,7 +6,6 @@ import * as Notifications from 'expo-notifications';
 import { Card } from '../ui/Card';
 import { useMoodStore } from '../../store/moodStore';
 import { useSettingsStore } from '../../store/settings';
-import { syncMoodReminders } from '../../services/reminderService';
 import { Colors } from '../ui/design-tokens';
 import { AppButton } from '../ui/AppButton';
 
@@ -32,7 +31,6 @@ export function MoodSettings({ onBack, isEmbedded = false }: { onBack?: () => vo
 
     const handleToggle = async (val: boolean) => {
         setMoodReminder(val, moodReminderTime);
-        await syncMoodReminders();
         if (val && permissionStatus !== 'granted') {
             requestPermissions();
         }
@@ -43,9 +41,6 @@ export function MoodSettings({ onBack, isEmbedded = false }: { onBack?: () => vo
         if (selectedDate) {
             const timeStr = selectedDate.toISOString();
             setMoodReminder(moodReminderEnabled, timeStr);
-            if (moodReminderEnabled) {
-                await syncMoodReminders();
-            }
         }
     };
 
