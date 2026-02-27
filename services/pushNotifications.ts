@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { firebaseDb, firebaseAuth } from './firebase';
 import { doc, setDoc } from 'firebase/firestore';
+import { getCalendars } from 'expo-localization';
 
 export async function registerForPushNotificationsAsync() {
     let token;
@@ -47,6 +48,17 @@ export async function registerForPushNotificationsAsync() {
                 token: token,
                 updatedAt: new Date().toISOString()
             }, { merge: true });
+
+            // Sync device timezone for backend reminder delivery
+            try {
+                const timezone = getCalendars()[0]?.timeZone || 'UTC';
+                await setDoc(doc(firebaseDb, 'users', user.uid, 'config', 'device'), {
+                    timezone,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+            } catch (tzErr) {
+                console.error("Error syncing timezone", tzErr);
+            }
         } else if (token) {
             console.log("Got FCM token but no user logged in, token not stored yet");
         }
