@@ -97,7 +97,7 @@ function unsubscribeFromBuxfer() {
 
 // Send a command to the backend via Firestore
 async function sendBuxferCommand(uid: string, action: string, params: Record<string, any>): Promise<void> {
-    const commandsRef = collection(firebaseDb, `users/${uid}/buxfer/commands`);
+    const commandsRef = collection(firebaseDb, `users/${uid}/buxfer/commands/items`);
     await addDoc(commandsRef, {
         action,
         params,
