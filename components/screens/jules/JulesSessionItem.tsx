@@ -22,14 +22,19 @@ interface JulesSessionItemProps {
     onRefresh?: () => void;
     julesGoogleApiKey?: string;
     refreshTrigger?: number;
+    initialPrMerged?: boolean | null;
+    initialPrState?: string | null;
 }
 
-export function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey, refreshTrigger }: JulesSessionItemProps) {
+export function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, defaultRepo, onDelete, onRefresh, julesGoogleApiKey, refreshTrigger, initialPrMerged, initialPrState }: JulesSessionItemProps) {
     const [isMerging, setIsMerging] = useState(false);
-    const [prInactive, setPrInactive] = useState(false);
+    const [prInactive, setPrInactive] = useState(() => {
+        if (initialPrMerged != null) return initialPrMerged || initialPrState === 'closed';
+        return false;
+    });
     const [mergeable, setMergeable] = useState<boolean | null>(null);
-    const [isMerged, setIsMerged] = useState(false);
-    const [isClosed, setIsClosed] = useState(false);
+    const [isMerged, setIsMerged] = useState(() => initialPrMerged ?? false);
+    const [isClosed, setIsClosed] = useState(() => !initialPrMerged && initialPrState === 'closed');
     const [menuVisible, setMenuVisible] = useState(false);
     const [messageVisible, setMessageVisible] = useState(false);
     const [sendingMessage, setSendingMessage] = useState(false);
@@ -73,6 +78,9 @@ export function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, d
 
     useEffect(() => {
         if (ghToken && owner && repo && prNumber) {
+            // Skip the initial fetch if we already have PR state from the dashboard
+            // but always re-fetch when refreshTrigger changes (manual refresh)
+            if (initialPrMerged != null && !refreshTrigger) return;
             fetchPullRequest(ghToken, owner, repo, prNumber)
                 .then(pr => {
                     const merged = pr.merged || pr.state === 'merged';
@@ -199,12 +207,18 @@ export function JulesSessionItem({ session, matchedRun, ghToken, defaultOwner, d
                         </Animated.View>
                     </TouchableOpacity>
                     <View className="ml-3 flex-1">
-                        <View className="flex-row items-center">
-                            <Text className="text-white font-bold text-base flex-1" numberOfLines={1}>{session.title || session.id}</Text>
+                        <Text className="text-white font-bold text-base" numberOfLines={1}>{session.title || session.id}</Text>
+                        <View className="flex-row items-center gap-2 mt-0.5">
+                            <Text className="text-text-tertiary text-xs">
+                                {dayjs(session.createTime).fromNow()} • {session.state}
+                            </Text>
+                            {repo && (
+                                <View className="flex-row items-center bg-surface-highlight px-1.5 py-0.5 rounded">
+                                    <Ionicons name="git-branch-outline" size={10} color="#94a3b8" />
+                                    <Text className="text-secondary text-[10px] ml-1" numberOfLines={1}>{owner}/{repo}</Text>
+                                </View>
+                            )}
                         </View>
-                        <Text className="text-text-tertiary text-xs" numberOfLines={1}>
-                            {dayjs(session.createTime).fromNow()} • {session.state}
-                        </Text>
                     </View>
                 </View>
                 <View className="flex-col items-center gap-1">
