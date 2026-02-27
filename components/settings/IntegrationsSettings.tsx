@@ -89,7 +89,7 @@ export function IntegrationsSettings({
 
             <Card>
                 <View className="mb-4">
-                    <Text className="text-text-secondary mb-2 font-semibold text-lg">Google Jules API</Text>
+                    <Text className="text-text-secondary mb-2 font-semibold text-lg">Jules AI API</Text>
                     <Text className="text-text-tertiary text-sm mb-4">
                         Direct integration with the Google Jules REST API.
                     </Text>

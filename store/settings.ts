@@ -52,7 +52,7 @@ export const DEFAULT_NAV_ITEMS: NavItemConfig[] = [
     { id: 'Reminders', visible: true, title: 'Reminders', icon: 'calendar-clear-outline', type: 'screen', segment: 'left' },
 
     // Right
-    { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github', type: 'screen', segment: 'right' },
+    { id: 'Development', visible: true, title: 'Development', icon: 'logo-github', type: 'screen', segment: 'right' },
     { id: 'Input', visible: true, title: 'Note', icon: 'add', type: 'screen', segment: 'right' },
 
     // Others default to left usually, but let's put them explicitly
@@ -433,8 +433,18 @@ export const useSettingsStore = create<SettingsState>()(
                 const { cachedReminders, ...rest } = state;
                 return rest;
             },
-            version: 13,
+            version: 14,
             migrate: (persistedState: any, version: number) => {
+                if (version < 14) {
+                    if (persistedState.navConfig) {
+                        persistedState.navConfig = persistedState.navConfig.map((item: any) => {
+                            if (item.id === 'Jules') {
+                                return { ...item, id: 'Development', title: item.title === 'Jules' ? 'Development' : item.title };
+                            }
+                            return item;
+                        });
+                    }
+                }
                 if (version < 13) {
                     if (persistedState.navConfig && !persistedState.navConfig.some((item: any) => item.id === 'Money')) {
                         const settingsIndex = persistedState.navConfig.findIndex((item: any) => item.id === 'Settings');
@@ -476,7 +486,7 @@ export const useSettingsStore = create<SettingsState>()(
                     if (persistedState.navConfig) {
                         persistedState.navConfig = persistedState.navConfig.map((item: any) => {
                             let segment = 'left';
-                            if (item.id === 'Jules' || item.id === 'Input') {
+                            if (item.id === 'Jules' || item.id === 'Development' || item.id === 'Input') {
                                 segment = 'right';
                             }
 
@@ -503,7 +513,7 @@ export const useSettingsStore = create<SettingsState>()(
                         { id: 'Tasks', visible: true, title: 'Tasks', icon: 'list-outline', type: 'screen' },
                         { id: 'Links', visible: true, title: 'Links', icon: 'link-outline', type: 'screen' },
                         { id: 'Reminders', visible: true, title: 'Reminders', icon: 'alarm-outline', type: 'screen' },
-                        { id: 'Jules', visible: true, title: 'Jules', icon: 'logo-github', type: 'screen' },
+                        { id: 'Development', visible: true, title: 'Development', icon: 'logo-github', type: 'screen' },
                         { id: 'News', visible: true, title: 'News', icon: 'newspaper-outline', type: 'screen' },
                         { id: 'Settings', visible: true, title: 'Settings', icon: 'settings-outline', type: 'screen' },
                     ];

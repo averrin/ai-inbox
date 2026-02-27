@@ -26,7 +26,7 @@ import { coolifyService, CoolifyDeploymentsData, coolifyAppsService, CoolifyAppl
 import { CoolifyDeploymentsSection } from './CoolifyDeploymentsSection';
 import { CoolifyApplicationsSection } from './CoolifyApplicationsSection';
 
-export default function JulesScreen() {
+export default function DevelopmentScreen() {
     const insets = useSafeAreaInsets();
     const { julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesGoogleApiKey, githubClientId, githubClientSecret } = useSettingsStore();
 
@@ -129,7 +129,7 @@ export default function JulesScreen() {
         setRefreshing(true);
         setRefreshTrigger(t => t + 1);
         dashboardService.triggerRefresh()
-            .catch(err => console.error('[JulesScreen] Refresh trigger failed:', err))
+            .catch(err => console.error('[DevelopmentScreen] Refresh trigger failed:', err))
             .finally(() => setRefreshing(false));
     }, []);
 

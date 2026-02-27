@@ -9,7 +9,7 @@ import ScheduleScreen from '../screens/schedule/ScheduleScreen';
 import SetupScreen from '../screens/SetupScreen';
 import NewsScreen from '../screens/NewsScreen';
 import CanvasScreen from '../screens/CanvasScreen';
-import JulesScreen from '../screens/jules/JulesScreen';
+import DevelopmentScreen from '../screens/development/DevelopmentScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import MoneyScreen from '../screens/money/MoneyScreen';
 import { FocusSettingsScreen } from '../screens/FocusSettingsScreen';
@@ -218,7 +218,7 @@ function InnerTabNavigator({
     Money: { component: MoneyScreen },
     Reminders: { component: RemindersListScreen },
     Canvas: { component: CanvasScreen },
-    Jules: { component: JulesScreen },
+    Development: { component: DevelopmentScreen },
     News: { component: NewsScreen },
     Profile: { component: ProfileScreen },
     Settings: { children: () => <SetupScreen canClose={true} /> },
