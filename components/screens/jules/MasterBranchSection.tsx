@@ -24,7 +24,7 @@ export function MasterBranchSection({ runs, token, owner, repo, refreshTrigger }
     const workflowRuns = runs.map(dashboardRunToWorkflowRun);
 
     return (
-        <Card className="mb-4" padding="p-0">
+        <Card className="mb-2" padding="p-0">
             <TouchableOpacity
                 onPress={() => setExpanded(!expanded)}
                 className="flex-row items-center justify-between p-3"

@@ -22,12 +22,17 @@ dayjs.extend(relativeTime);
 import { JulesSessionItem } from './JulesSessionItem';
 import { MasterBranchSection } from './MasterBranchSection';
 import { dashboardService, DashboardData, DashboardJointSession, dashboardRunToWorkflowRun } from '../../../services/dashboardService';
+import { coolifyService, CoolifyDeploymentsData, coolifyAppsService, CoolifyApplicationsData } from '../../../services/coolifyService';
+import { CoolifyDeploymentsSection } from './CoolifyDeploymentsSection';
+import { CoolifyApplicationsSection } from './CoolifyApplicationsSection';
 
 export default function JulesScreen() {
     const insets = useSafeAreaInsets();
     const { julesApiKey, setJulesApiKey, julesOwner, setJulesOwner, julesRepo, setJulesRepo, julesGoogleApiKey, githubClientId, githubClientSecret } = useSettingsStore();
 
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(dashboardService.getData());
+    const [coolifyData, setCoolifyData] = useState<CoolifyDeploymentsData | null>(coolifyService.getData());
+    const [coolifyAppsData, setCoolifyAppsData] = useState<CoolifyApplicationsData | null>(coolifyAppsService.getData());
     const [refreshing, setRefreshing] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -35,6 +40,20 @@ export default function JulesScreen() {
     useEffect(() => {
         const unsub = dashboardService.addListener((data) => {
             setDashboardData(data);
+        });
+        return unsub;
+    }, []);
+
+    useEffect(() => {
+        const unsub = coolifyService.addListener((data) => {
+            setCoolifyData(data);
+        });
+        return unsub;
+    }, []);
+
+    useEffect(() => {
+        const unsub = coolifyAppsService.addListener((data) => {
+            setCoolifyAppsData(data);
         });
         return unsub;
     }, []);
@@ -186,6 +205,16 @@ export default function JulesScreen() {
                         repo={julesRepo!}
                         refreshTrigger={refreshTrigger}
                     />
+                )}
+
+                {/* Coolify Apps Section */}
+                {coolifyAppsData && (
+                    <CoolifyApplicationsSection data={coolifyAppsData} />
+                )}
+
+                {/* Coolify Deployments Section */}
+                {coolifyData && (
+                    <CoolifyDeploymentsSection data={coolifyData} />
                 )}
 
                 {/* Jules Sessions Section */}
