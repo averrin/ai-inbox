@@ -14,8 +14,10 @@ import {
 import { firebaseAuth, firebaseDb } from './firebase';
 import { useSettingsStore } from '../store/settings';
 import { useEventTypesStore } from '../store/eventTypes';
+import { useProfileStore } from '../store/profileStore';
 import { StoreApi } from 'zustand';
 import { registerForPushNotificationsAsync } from './pushNotifications';
+import { SnapshotService } from './snapshotService';
 
 interface SyncTarget {
     name: string;
@@ -42,6 +44,7 @@ export class SyncService {
                 await this.pullAllFromCloud();
                 this.startSync();
                 registerForPushNotificationsAsync(); // Register and save token when user is available
+                SnapshotService.captureDailySnapshot(); // Snapshot on login
             } else {
                 console.log('[SyncService] User logged out');
                 this.stopSync();
@@ -155,6 +158,28 @@ export class SyncService {
                     return {
                         ...rest,
                         eventTypes: types || [] // Default to empty array if missing
+                    };
+                }
+            },
+            {
+                name: 'profile',
+                store: useProfileStore,
+                docPath: (uid) => `users/${uid}/profile/current`,
+                selector: (state) => {
+                    return { profile: state.profile };
+                },
+                transformOut: (state) => {
+                    return {
+                        ...state.profile,
+                        updatedAt: serverTimestamp()
+                    };
+                },
+                transformIn: (data) => {
+                    if (!data) return null;
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { updatedAt, ...profileData } = data;
+                    return {
+                        profile: profileData
                     };
                 }
             }
